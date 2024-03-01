@@ -28,11 +28,31 @@ async function createPost(post: {
     }
     const response = await axios.post(url, qs.stringify(data), config)
     if (response.status < 200 || response.status >= 300) {
-        console.error(`Failed to create post — HTTP ${response.status}`, response.data)
+        throw new Error(`Failed to create post — HTTP ${response.status}: ${response.data}`)
     }
     return response.data["url"]
 }
 
+async function createPostRoute(body: {
+    content?: string
+}) {
+    if (!body.content) {
+        return { status: 400, body: "Bad Request: Missing content!" }
+    }
+    try {
+        const url = await createPost({
+            content: body.content,
+        })
+        console.log(`[${new Date().toISOString()}] Posted to Mastodon: ${url}`)
+        return { status: 200, body: "OK" }
+    } catch (e) {
+        console.error(`[${new Date().toISOString()}] While creating a Bluesky post: `, e)
+        console.error(`[${new Date().toISOString()}] Bluesky post that failed: `, body.content)
+        return { status: 500, body: "Internal Server Error (Mastodon)" }
+    }
+}
+
 export default {
-    createPost
+    createPost,
+    createPostRoute
 }

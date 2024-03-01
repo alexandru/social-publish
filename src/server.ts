@@ -3,6 +3,7 @@ import basicAuth from 'express-basic-auth'
 import blueskyApi from './bluesky-api'
 import mastodonApi from './mastodon-api'
 import morgan from 'morgan'
+import { stat } from 'fs'
 
 const app = express()
 const port = 3000
@@ -28,38 +29,13 @@ app.get('/', (req, res) => {
 })
 
 app.post('/bluesky/post', auth, async (req, res) => {
-  if (!req.body["content"]) {
-    res.status(400).send("Bad Request: Missing content!")
-    return
-  }
-  try {
-    const r = await blueskyApi.createPost({
-      content: req.body["content"],
-      langs: req.body["langs"] ? req.body["langs"].split(",") : undefined,
-    })
-    console.log(`Posted to Bluesky: ${r}`)
-    res.send("OK")
-  } catch (e) {
-    console.error("While creating a Bluesky post", e)
-    res.status(500).send("Internal Server Error (BlueSky)")
-  }
+  const { status, body } = await blueskyApi.createPostRoute(req.body)
+  res.status(status).send(body)
 })
 
 app.post('/mastodon/post', auth, async (req, res) => {
-  if (!req.body["content"]) {
-    res.status(400).send("Bad Request: Missing content!")
-    return
-  }
-  try {
-    const url = await mastodonApi.createPost({
-      content: req.body["content"],
-    })
-    console.log(`Posted to Mastodon: ${url}`)
-    res.send("OK")
-  } catch (e) {
-    console.error("While creating a Mastodon post", e)
-    res.status(500).send("Internal Server Error (Mastodon)")
-  }
+  const { status, body } = await mastodonApi.createPostRoute(req.body)
+  res.status(status).send(body)
 })
 
 app.post('/multiple/post', auth, async (req, res) => {
@@ -71,30 +47,21 @@ app.post('/multiple/post', auth, async (req, res) => {
   var hasError = false
   var published = 0
 
-  if (req.body["mastodon"])
-    try {
-      const url = await mastodonApi.createPost({
-        content: req.body["content"],
-      })
-      console.log(`Posted to Mastodon: ${url}`)
-      published++
-    } catch (e) {
-      console.error("While creating a Mastodon post", e)
+  if (req.body["mastodon"]) {
+    published++
+    const { status, body } = await mastodonApi.createPostRoute(req.body)
+    if (status != 200) {
       hasError = true
     }
+  }
 
-  if (req.body["bluesky"])
-    try {
-      const r = await blueskyApi.createPost({
-        content: req.body["content"],
-        langs: req.body["langs"] ? req.body["langs"].split(",") : undefined,
-      })
-      console.log(`Posted to Bluesky: ${r}`)
-      published++
-    } catch (e) {
-      console.error("While creating a Bluesky post", e)
+  if (req.body["bluesky"]) {
+    published++
+    const { status, body } = await blueskyApi.createPostRoute(req.body)
+    if (status != 200) {
       hasError = true
     }
+  }
 
   if (hasError) {
     res.status(500).send("Internal Server Error")
@@ -106,5 +73,5 @@ app.post('/multiple/post', auth, async (req, res) => {
 })
 
 app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`)
+  console.log(`[${new Date().toISOString()}] Server is running at http://localhost:${port}`)
 })

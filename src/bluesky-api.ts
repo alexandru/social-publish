@@ -51,6 +51,26 @@ async function createPost(post: {
     })
 }
 
+async function createPostRoute(body: {
+    content?: string,
+}) {
+    if (!body.content) {
+        return { status: 400, body: "Bad Request: Missing content!" }
+    }
+    try {
+        const r = await createPost({
+            content: body.content,
+        })
+        console.log(`[${new Date().toISOString()}] Posted to Bluesky: `, r)
+        return { status: 200, body: "OK" }
+    } catch (e) {
+        console.error(`[${new Date().toISOString()}] While creating a Bluesky post: `, e)
+        console.error(`[${new Date().toISOString()}] Bluesky post that failed: `, body.content)
+        return { status: 500, body: "Internal Server Error (BlueSky)" }
+    }
+}
+
 export default {
-    createPost
+    createPost,
+    createPostRoute,
 }
