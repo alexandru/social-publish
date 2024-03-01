@@ -1,0 +1,1 @@
+[![deploy](https://github.com/alexandru/social-publish/actions/workflows/deploy.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy.yaml)

@@ -2,16 +2,28 @@
   "name": "social-publish",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "watch": "nodemon",
+    "start-server": "ts-node src/server.ts",
+    "start-bluesky": "ts-node src/bluesky-api.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.10.3",
+    "express": "^4.18.3",
+    "express-basic-auth": "^1.2.1",
+    "morgan": "^1.10.0"
   }
 }
