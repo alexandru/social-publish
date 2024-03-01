@@ -1,0 +1,8 @@
+@username = alex
+@password = pass
+
+POST http://localhost:3000/bluesky/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.bsky.app/")}}
