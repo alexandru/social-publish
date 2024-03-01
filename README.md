@@ -4,7 +4,7 @@
 
 In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. I'm using [ifttt.com](https://ifttt.com/), but it doesn't do a good job — their LinkedIn integration is most often broken, and Bluesky integration is currently missing.
 
-This project is the start of a simple tool to publish my content to multiple social networks. For now, only [Bluesky](https://bsky.app/) support is implemented, because this is the urgent need.
+This project is the start of a simple tool to publish my content to multiple social networks. For now, only [Bluesky](https://bsky.app/) and [Mastodon](https://joinmastodon.org/) support is implemented.
 
 ## Self-hosting
 
