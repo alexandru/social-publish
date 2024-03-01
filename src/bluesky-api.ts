@@ -1,6 +1,6 @@
 import { BskyAgent, RichText } from '@atproto/api'
 
-const service = process.env.BSKY_SERVICE || 'https://bsky.social'
+const service = process.env.BSKY_HOST || 'https://bsky.social'
 
 const identifier = (() => {
     const id = process.env.BSKY_USERNAME

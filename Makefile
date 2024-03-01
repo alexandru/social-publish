@@ -21,8 +21,11 @@ run-local: build-local
 	docker run -it -p 3000:3000 \
 		--rm \
 		--name social-publish \
+		-e "BSKY_HOST=${BSKY_HOST}" \
 		-e "BSKY_USERNAME=${BSKY_USERNAME}" \
 		-e "BSKY_PASSWORD=${BSKY_PASSWORD}" \
 		-e "SERVER_AUTH_USERNAME=${SERVER_AUTH_USERNAME}" \
 		-e "SERVER_AUTH_PASSWORD=${SERVER_AUTH_PASSWORD}" \
+		-e "MASTODON_HOST=${MASTODON_HOST}" \
+		-e "MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}" \
 		${LATEST_TAG}

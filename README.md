@@ -31,38 +31,36 @@ services:
 
 Where `./envs/social-publish.env` contains:
 
-```env
+```sh
 # The server's Basic AUTH credentials
 SERVER_AUTH_USERNAME="your-username"
 SERVER_AUTH_PASSWORD="your-password"
 
 # Bluesky credentials
+BSKY_HOST="https://bsky.social"
 BSKY_USERNAME="your-username"
 BSKY_PASSWORD="your-password"
+
+# Mastodon credentials
+MASTODON_HOST="https://mastodon.social"
+MASTODON_ACCESS_TOKEN="your-access-token"
 ```
 
 For Bluesky, you'll need an "app password". Go here to create one:
 <https://bsky.app/settings/app-passwords>
 
-## Bluesky — Creating a Post
+For Mastodon, you'll need an "access token". Here's how to get one:
+- Go to: <https://mastodon.social/settings/applications>
+- Create a "New Application"
+- Uncheck everything except "write:statuses"
+- Click on the newly created application
+- Copy "your access token"
 
-The request for creating a new post is exemplified in [test.http](./test.http):
+## Usage
 
-```
-POST http://localhost:3000/bluesky/post
-Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
-Content-Type: application/x-www-form-urlencoded
+The available requests for creating a new post are exemplified in [test.http](./test.http).
 
-content=Hello%2C%20world%21%0A%0AThis%20is%20my%20first%20automated%20post%21
-```
-
-The `Authorization` header contains the base64-encoded credentials stored in the `SERVER_AUTH_USERNAME` and `SERVER_AUTH_PASSWORD` environment variables. You can quickly generate that by running:
-
-```sh
-node -e 'console.log(btoa("username:password"))'
-```
-
-You can then configure `ifttt.com`. When adding an "action" to your applet, search for "*make a web request*". Configuring that is now easy.
+You can then configure `ifttt.com`. When adding an "action" to your applet, search for "*make a web request*".
 
 ## License
 

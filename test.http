@@ -1,8 +1,26 @@
 @username = alex
 @password = pass
 
+###
+# @name: Bluesky Post
 POST http://localhost:3000/bluesky/post
 Authorization: Basic {{btoa(username + ':' + password)}}
 Content-Type: application/x-www-form-urlencoded
 
 content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.bsky.app/")}}
+
+###
+# @name: Mastodon Post
+POST http://localhost:3000/mastodon/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.joinmastodon.org/api/")}}
+
+###
+# @name: Post to Multiple Services
+POST http://localhost:3000/multiple/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+mastodon=1&bluesky=1&content={{encodeURIComponent("Hello from the API!")}}
