@@ -65,6 +65,11 @@ The available requests for creating a new post are exemplified in [test.http](./
 
 You can then configure `ifttt.com`. When adding an "action" to your applet, search for "*make a web request*".
 
+Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
+
+<img src="./docs/form.png" width="400" alt='Screenshot of "Post a New Social Message" form' />
+<hr/>
+
 ## License
 
 [MIT (see LICENSE.txt)](./LICENSE.txt)
