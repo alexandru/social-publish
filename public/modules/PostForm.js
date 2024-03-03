@@ -19,7 +19,7 @@ class PostForm extends Component {
             alert('Content is required!')
             return
         }
-        if (!data.mastodon && !data.bluesky) {
+        if (!data.mastodon && !data.bluesky && !data.rss) {
             alert('At least one social network is required!')
             return
         }
@@ -92,6 +92,8 @@ class PostForm extends Component {
             <label for="mastodon">Mastodon</label>
             <input type="checkbox" id="bluesky" name="bluesky" onInput=${this.onCheckbox("bluesky")} />
             <label for="bluesky">Bluesky</label>
+            <input type="checkbox" id="rss" name="rss" onInput=${this.onCheckbox("rss")} />
+            <label for="rss">RSS</label>
           </p>
           <p>
             <input type="checkbox" id="cleanupHtml" name="cleanupHtml" onInput=${this.onCheckbox("cleanupHtml")} />

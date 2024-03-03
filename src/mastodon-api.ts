@@ -63,7 +63,7 @@ async function createPostRoute(post: UnvalidatedPostRequest): Promise<PostHttpRe
         return { status: 400, body: "Bad Request: Missing content!" }
     }
     const r = await createPost({ ...post, content })
-    console.log(`[${new Date().toISOString()}] Posted to Mastodon: $r`)
+    console.log(`[${new Date().toISOString()}] Posted to Mastodon: ${r}`)
     if (!r.isSuccessful) {
         return r.status
             ? { status: r.status, body: ""+r.error }
