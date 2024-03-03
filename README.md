@@ -76,7 +76,7 @@ Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you c
 
 ### RSS feed
 
-While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, available at exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
+While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
 
 ## License
 
