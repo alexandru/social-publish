@@ -4,7 +4,7 @@
 
 ###
 # @name: Bluesky Post
-POST {{baseUrl}}/bluesky/post
+POST {{baseUrl}}/api/bluesky/post
 Authorization: Basic {{btoa(username + ':' + password)}}
 Content-Type: application/x-www-form-urlencoded
 
@@ -12,7 +12,7 @@ content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://doc
 
 ###
 # @name: Mastodon Post
-POST {{baseUrl}}/mastodon/post
+POST {{baseUrl}}/api/mastodon/post
 Authorization: Basic {{btoa(username + ':' + password)}}
 Content-Type: application/x-www-form-urlencoded
 
@@ -20,8 +20,24 @@ content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://doc
 
 ###
 # @name: Post to Multiple baseUrls
-POST {{baseUrl}}/multiple/post
+POST {{baseUrl}}/api/multiple/post
 Authorization: Basic {{btoa(username + ':' + password)}}
 Content-Type: application/x-www-form-urlencoded
 
 mastodon=1&bluesky=1&content={{encodeURIComponent("Hello from the API!")}}
+
+###
+# @name: Post HTML to Bluesky (1)
+POST {{baseUrl}}/api/bluesky/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+cleanupHtml=1&content={{encodeURIComponent(`<p>This small post, first published on <a href="https://mastodon.social/tags/Mastodon" class="mention hashtag" rel="tag">#<span>Mastodon</span></a>, should be replicated on <a href="https://mastodon.social/tags/Bluesky" class="mention hashtag" rel="tag">#<span>Bluesky</span></a>, <a href="https://mastodon.social/tags/XTwitter" class="mention hashtag" rel="tag">#<span>XTwitter</span></a>, and <a href="https://mastodon.social/tags/LinkedIn" class="mention hashtag" rel="tag">#<span>LinkedIn</span></a>. </p><p>Testing, testing. Please ignore. <a href="https://mastodon.social/tags/op" class="mention hashtag" rel="tag">#<span>op</span></a></p>`)}}
+
+###
+# @name: Post HTML to Bluesky (2)
+POST {{baseUrl}}/api/bluesky/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+cleanupHtml=1&content={{encodeURIComponent(`<p>I like <a href="https://social.alexn.org/tags/Bluesky" class="mention hashtag" rel="tag">#<span>Bluesky</span></a> and I want some of my posts to be replicated there as well. So, this afternoon, I&#39;ve built a web service, to integrate Bluesky with IFTTT short-term and to replace IFTTT long-term. And, holy cow, <a href="https://social.alexn.org/tags/typescript" class="mention hashtag" rel="tag">#<span>typescript</span></a> is productive.</p><p><a href="https://github.com/alexandru/social-publish" target="_blank" rel="nofollow noopener noreferrer" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/alexandru/social-pu</span><span class="invisible">blish</span></a></p><p><a href="https://social.alexn.org/tags/POSE" class="mention hashtag" rel="tag">#<span>POSE</span></a> <a href="https://social.alexn.org/tags/op" class="mention hashtag" rel="tag">#<span>op</span></a></p>`)}}
