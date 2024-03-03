@@ -1,4 +1,8 @@
 import { html, render } from 'https://esm.sh/htm/preact/standalone'
-import App from "./modules/App.js"
+import PostForm from './PostForm.js';
+
+function App() {
+    return html`<${PostForm} />`;
+}
 
 render(html`<${App} />`, document.getElementById('app'));

@@ -80,6 +80,8 @@ class PostForm extends Component {
 
     render() {
         return html`
+        <h1>Post a New Social Message</h1>
+
         <form onSubmit=${this.onSubmit}>
           <p class="textbox">
             <textarea id="content" name="content" rows="4" cols="50" onInput=${this.onInput("content")}></textarea>
