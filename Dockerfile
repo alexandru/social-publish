@@ -25,7 +25,7 @@ RUN apk del npm
 
 RUN adduser -u 1001 -h /app -s /bin/sh -D appuser
 RUN chown -R appuser /app && chmod -R "g+rwX" /app
-RUN mkdir /var/lib/social-publish
+RUN mkdir -p /var/lib/social-publish
 RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
 
 # Expose port 3000 for the application
