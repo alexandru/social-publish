@@ -1,5 +1,6 @@
 export interface UnvalidatedPostRequest {
     content?: string,
+    link?: string,
     language?: string,
     cleanupHtml?: boolean,
 }

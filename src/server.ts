@@ -35,14 +35,21 @@ app.get('/', (_req, res) => {
   res.redirect('/app/')
 })
 
-app.get('/rss', async (_req, res) => {
+app.get('/rss', async (req, res) => {
+  const filterByLinks =
+    req.query.filterByLinks === "include" ? "include" :
+    req.query.filterByLinks === "exclude" ? "exclude" :
+    undefined
+
   res.type('application/rss+xml')
-  res.send(await rssApi.rss())
+  res.send(await rssApi.rss({
+    filterByLinks
+  }))
 })
 
 app.get('/rss/:uuid', async (req, res) => {
   const uuid = req.params.uuid
-  const post = await PostsDatabase.withConnection(db => db.getPost(uuid))
+  const post = await rssApi.getPost(uuid)
   if (!post) {
     res.status(404).send('Not Found')
     return

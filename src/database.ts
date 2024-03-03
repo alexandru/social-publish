@@ -12,6 +12,7 @@ export interface Post extends PostPayload {
 
 export interface PostPayload {
     content: string,
+    link?: string,
     tags?: string[],
     language?: string,
 }

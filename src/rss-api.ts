@@ -18,9 +18,10 @@ async function createPost(post: PostRequest): Promise<PostResponse | PostError> 
             ? utils.convertHtml(post.content)
             : post.content
         const row = await PostsDatabase.withConnection(async (db) => {
-            const tags = post.content.match(/#\w+/g)?.map(t => t.substring(1)) || []
+            const tags = post.content.match(/(?<=^|\s)#\w+/gm)?.map(t => t.substring(1)) || []
             return db.createPost({
                 content,
+                link: post.link,
                 language: post.language,
                 tags
             })
@@ -54,7 +55,9 @@ async function createPostRoute(post: UnvalidatedPostRequest): Promise<PostHttpRe
     }
 }
 
-async function rss(): Promise<string> {
+async function rss(options: {
+    filterByLinks?: "include" | "exclude",
+}): Promise<string> {
     const posts = await PostsDatabase.withConnection(db => db.getPosts())
     const feed = new RSS({
         title: 'Feed of ' + BASE_URL.replace(/^https?:\/\//, ''),
@@ -62,11 +65,18 @@ async function rss(): Promise<string> {
         site_url: BASE_URL
     })
     for (const post of posts) {
+        if (options.filterByLinks === "include" && !post.link) {
+            continue
+        } else if (options.filterByLinks === "exclude" && post.link) {
+            continue
+        }
+        const guid = new URL(`/rss/${post.uuid}`, BASE_URL).toString()
         feed.item({
             title: post.content,
             description: post.content,
             categories: post.tags,
-            url: new URL(`/rss/${post.uuid}`, BASE_URL).toString(),
+            guid,
+            url: post.link || guid,
             date: post.createdAt
         })
     }
@@ -78,6 +88,7 @@ async function getPost(uuid: string): Promise<Post | null> {
 }
 
 export default {
+    getPost,
     createPost,
     createPostRoute,
     rss

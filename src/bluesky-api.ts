@@ -38,7 +38,9 @@ getOrInitAgent().catch(e => {
 
 async function createPost(post: PostRequest): Promise<PostResponse | PostError> {
     try {
-        const text = post.cleanupHtml ? utils.convertHtml(post.content) : post.content.trim();
+        const text =
+            (post.cleanupHtml ? utils.convertHtml(post.content) : post.content.trim()) +
+            (post.link ? `\n\n${post.link}` : '');
         console.log(
             `[${new Date().toISOString()}] Posting to BlueSky:\n${text.trim().replace(/^/gm, '  |')}`,
         )

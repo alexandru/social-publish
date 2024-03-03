@@ -18,9 +18,9 @@ const accessToken = (() => {
 async function createPost(post: PostRequest): Promise<PostResponse | PostError> {
     try {
         const url = `${service}/api/v1/statuses`
-        const status = post.cleanupHtml
-            ? utils.convertHtml(post.content)
-            : post.content.trim()
+        const status =
+            (post.cleanupHtml ? utils.convertHtml(post.content) : post.content.trim()) +
+            (post.link ? `\n\n${post.link}` : '');
         const data = {
             status,
             language: post.language,

@@ -6,3 +6,11 @@ form div.chars-left {
     font-size: 0.8em;
     color: #666;
 }
+
+form .field label {
+    display: block;
+}
+
+form input:invalid, form textarea:invalid {
+    border: 2px dashed darkred;
+}

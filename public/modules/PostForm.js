@@ -2,11 +2,14 @@
 import { html, Component } from 'https://esm.sh/htm/preact/standalone'
 
 function CharsLeft(props) {
-    const content = props.content || ''
-    return html`<div class="chars-left">Characters left: ${280 - content.length}</div>`
+    const text = [props.data?.content, props.data?.link]
+        .filter(x => x && x.length > 0)
+        .join("\n\n")
+    return html`<div class="chars-left">Characters left: ${280 - text.length}</div>`
 }
 
 class PostForm extends Component {
+    formRef = null
     state = {
         data: {}
     };
@@ -26,6 +29,7 @@ class PostForm extends Component {
 
         const body = Object.keys(data).map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key])).join('&');
         this.state.data = {}
+        this.formRef.reset()
 
         try {
             const response = await fetch('/api/multiple/post', {
@@ -49,7 +53,6 @@ class PostForm extends Component {
     };
 
     onInput = (fieldName) => (event) => {
-        console.log('onInput', fieldName, event.target.value)
         const newState = {
             ...this.state,
             data: {
@@ -61,7 +64,6 @@ class PostForm extends Component {
     };
 
     onCheckbox = (fieldName) => (event) => {
-        console.log('onCheckbox', fieldName, event.target.checked)
         const newState = this.state
         if (event.target.checked)
             newState.data[fieldName] = "1"
@@ -70,22 +72,26 @@ class PostForm extends Component {
         this.setState(newState)
     };
 
-    charsLeft = () => {
-        const content = this.state?.data?.content || ''
-        console.log('charsLeft', content)
-        return content > 0
-            ? html`Characters left: ${this.state.content ? 280 - this.state.content.length : 280}`
-            : html``
-    }
-
     render() {
         return html`
         <h1>Post a New Social Message</h1>
 
-        <form onSubmit=${this.onSubmit}>
+        <form ref=${el => this.formRef = el} onSubmit=${this.onSubmit}>
           <p class="textbox">
-            <textarea id="content" name="content" rows="4" cols="50" onInput=${this.onInput("content")}></textarea>
-            <${CharsLeft} content=${this.state?.data?.content} />
+            <textarea id="content" name="content" rows="4" cols="50"
+                onInput=${this.onInput("content")}
+                required></textarea>
+          </p>
+          <p class="field">
+            <input type="link"
+                placeholder="Optional URL"
+                id="link" name="link"
+                onInput=${this.onInput("link")}
+                pattern="https?://.+"
+                />
+          </p>
+          <p>
+            <${CharsLeft} data=${this.state?.data} />
           </p>
           <p>
             <input type="checkbox" id="mastodon" name="mastodon" onInput=${this.onCheckbox("mastodon")} />
