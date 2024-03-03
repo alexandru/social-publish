@@ -24,7 +24,7 @@ POST {{baseUrl}}/api/multiple/post
 Authorization: Basic {{btoa(username + ':' + password)}}
 Content-Type: application/x-www-form-urlencoded
 
-mastodon=1&bluesky=1&content={{encodeURIComponent("Hello from the API!")}}
+mastodon=1&bluesky=1&rss=1&content={{encodeURIComponent("Hello from the API!")}}
 
 ###
 # @name: Post HTML to Bluesky (1)

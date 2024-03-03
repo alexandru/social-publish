@@ -8,6 +8,7 @@ This project is the start of a simple tool to publish my content to multiple soc
 
 - Only [Bluesky](https://bsky.app/) and [Mastodon](https://joinmastodon.org/) support is implemented, but Twitter and LinkedIn are planned
 - Only text posts are supported at this time, but media posts are planned
+- Also exports an RSS feed, meant for automation via `ifttt.com`
 
 ## Self-hosting
 
@@ -35,6 +36,9 @@ services:
 Where `./envs/social-publish.env` contains:
 
 ```sh
+# Where the server is hosted — needed for correctly generating an RSS feed
+BASE_URL="https://your-hostname.com"
+
 # The server's Basic AUTH credentials
 SERVER_AUTH_USERNAME="your-username"
 SERVER_AUTH_PASSWORD="your-password"
@@ -69,6 +73,10 @@ Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you c
 
 <img src="./docs/form.png" width="400" alt='Screenshot of "Post a New Social Message" form' />
 <hr/>
+
+### RSS feed
+
+While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, available at exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
 
 ## License
 
