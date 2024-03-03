@@ -1,5 +1,5 @@
 import { html, render } from 'https://esm.sh/htm/preact/standalone'
-import PostForm from './PostForm.js';
+import PostForm from './modules/PostForm.js';
 
 function App() {
     return html`<${PostForm} />`;
