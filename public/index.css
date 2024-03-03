@@ -1,0 +1,8 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+form div.chars-left {
+    font-size: 0.8em;
+    color: #666;
+}
