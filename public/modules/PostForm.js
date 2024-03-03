@@ -84,7 +84,7 @@ class PostForm extends Component {
           </p>
           <p class="field">
             <input type="link"
-                placeholder="Optional URL"
+                placeholder="Highlighted URL (optional)"
                 id="link" name="link"
                 onInput=${this.onInput("link")}
                 pattern="https?://.+"
