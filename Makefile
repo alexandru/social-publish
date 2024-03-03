@@ -21,6 +21,7 @@ run-local: build-local
 	docker run -it -p 3000:3000 \
 		--rm \
 		--name social-publish \
+		-e "BASE_URL=${BASE_URL}" \
 		-e "BSKY_HOST=${BSKY_HOST}" \
 		-e "BSKY_USERNAME=${BSKY_USERNAME}" \
 		-e "BSKY_PASSWORD=${BSKY_PASSWORD}" \
