@@ -59,7 +59,7 @@ export function Login() {
           <h1 class="title">
             Login
           </h1>
-          <form onSubmit={onSubmit}>
+          <form onSubmit={onSubmit} class="box">
             <div class="field">
               <label class="label">Username</label>
               <div class="control">

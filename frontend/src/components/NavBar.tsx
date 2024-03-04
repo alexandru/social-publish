@@ -1,5 +1,6 @@
 import { useLocation } from 'preact-iso';
 import { useState } from 'preact/hooks';
+import { logOut, logIn, homeOutline, play, logoGithub } from 'ionicons/icons'
 
 export function NavBar() {
     const [navbarIsActive, setNavbarIsActive]  =
@@ -31,13 +32,28 @@ export function NavBar() {
             <div id="navbarBasicExample" class={"navbar-menu " + navbarIsActive}>
                 <div class="navbar-start">
                     <a class={classOfLink("navbar-item", "/")} href="/">
-                        Home
+                        <span class="icon">
+                          <img src={homeOutline} alt="Home" />
+                        </span>
+                        <strong>
+                          Home
+                        </strong>
                     </a>
                     <a class={classOfLink("navbar-item", "/form")} href="/form">
-                        Publish
+                        <span class="icon">
+                          <img src={play} alt="Home" />
+                        </span>
+                        <strong>
+                          Publish
+                        </strong>
                     </a>
                     <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
-                        GitHub
+                        <span class="icon">
+                          <img src={logoGithub} alt="Help" />
+                        </span>
+                        <strong>
+                          Help
+                        </strong>
                     </a>
                 </div>
 
@@ -66,12 +82,18 @@ function LoginOrLogoutButton() {
     return (
       <a class="button is-info is-light" onClick={onLogout}>
         <strong>Logout</strong>
+        <span class="icon">
+          <img src={logOut} alt="Logout" />
+        </span>
       </a>
     )
   } else {
     const status = location.url == "/login" ? " is-active" : ""
     return (
       <a class={"button is-primary " + status} href="/login">
+        <span class="icon">
+          <img src={logIn} alt="Login" />
+        </span>
         <strong>Login</strong>
       </a>
     )

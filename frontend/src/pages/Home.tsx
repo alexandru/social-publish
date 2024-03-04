@@ -1,25 +1,24 @@
 export function Home() {
 	return (
-		<div class="home">
-			<h1>Get Started building Vite-powered Preact Apps </h1>
-			<section>
-				<Resource
-					title="Learn Preact"
-					description="If you're new to Preact, try the interactive tutorial to learn important concepts"
-					href="https://preactjs.com/tutorial"
-				/>
-				<Resource
-					title="Differences to React"
-					description="If you're coming from React, you may want to check out our docs to see where Preact differs"
-					href="https://preactjs.com/guide/v10/differences-to-react"
-				/>
-				<Resource
-					title="Learn Vite"
-					description="To learn more about Vite and how you can customize it to fit your needs, take a look at their excellent documentation"
-					href="https://vitejs.dev"
-				/>
-			</section>
-		</div>
+    <div class="home">
+    <section class="section">
+      <div class="container block">
+        <h1 class="title">
+          Social Publish
+        </h1>
+        <p class="subtitle">
+          Spam all your social media accounts at once!
+        </p>
+      </div>
+
+      <div class="container box">
+        <ul class="content is-medium">
+          <li><a href="/rss" target="_blank">RSS</a></li>
+          <li><a href="https://github.com/alexandru/social-publish" target="_blank">GitHub</a></li>
+        </ul>
+      </div>
+    </section>
+  </div>
 	);
 }
 

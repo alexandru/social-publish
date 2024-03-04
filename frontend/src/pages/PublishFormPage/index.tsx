@@ -28,9 +28,9 @@ function CharsLeft(props: CharsLeftProps) {
     .filter(x => x && x.length > 0)
     .join("\n\n")
   return (
-    <div class="chars-left">
+    <p class="help">
       Characters left: {280 - text.length}
-    </div>
+    </p>
   );
 }
 
@@ -47,7 +47,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
       return
     }
     if (!data.mastodon && !data.bluesky && !data.rss) {
-      props.onError('At least one social network is required!')
+      props.onError('At least one publication target is required!')
       return
     }
 
@@ -100,36 +100,49 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
   }
 
   return (
-    <form ref={el => formRef = el} onSubmit={onSubmit}>
-      <p class="textbox">
-        <textarea id="content" name="content" rows={4} cols={50}
-          onInput={onInput("content")}
-          required></textarea>
-      </p>
-      <p class="field">
+    <form ref={el => formRef = el} onSubmit={onSubmit} class="box">
+      <div class="field">
+        <label class="label">Content</label>
+        <div class="control">
+          <textarea id="content" name="content" rows={4} cols={50}
+            class="textarea"
+            onInput={onInput("content")}
+            required></textarea>
+        </div>
+        <CharsLeft data={data} />
+      </div>
+      <div class="field">
+        <label class="label">Highlighted link (optional)</label>
+        <div class="control">
         <input type="link"
-          placeholder="Highlighted URL (optional)"
+          class="input"
+          placeholder="https://example.com/..."
           id="link" name="link"
           onInput={onInput("link")}
-          pattern="https?://.+"
-        />
-      </p>
-      <p>
-        <CharsLeft data={data} />
-      </p>
-      <p>
-        <input type="checkbox" id="mastodon" name="mastodon" onInput={onCheckbox("mastodon")} />
-        <label for="mastodon">Mastodon</label>
-        <input type="checkbox" id="bluesky" name="bluesky" onInput={onCheckbox("bluesky")} />
-        <label for="bluesky">Bluesky</label>
-        <input type="checkbox" id="rss" name="rss" onInput={onCheckbox("rss")} />
-        <label for="rss">RSS</label>
-      </p>
-      <p>
-        <input type="checkbox" id="cleanupHtml" name="cleanupHtml" onInput={onCheckbox("cleanupHtml")} />
-        <label for="cleanupHtml">cleanup HTML</label>
-      </p>
-      <input type="submit" value="Submit" />
+          pattern="https?://.+" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="mastodon" name="mastodon" onInput={onCheckbox("mastodon")} /> Mastodon
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="bluesky" name="bluesky" onInput={onCheckbox("bluesky")} /> Bluesky
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="rss" name="rss" onInput={onCheckbox("rss")} /> RSS
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="cleanupHtml" name="cleanupHtml" onInput={onCheckbox("cleanupHtml")} /> cleanup HTML
+        </label>
+      </div>
+      <input class="button" type="reset" value="Reset" /> <input class="button is-primary" type="submit" value="Submit" />
     </form>
   )
 }
@@ -154,7 +167,7 @@ export function PublishFormPage() {
       {modal}
       <div class="publish-form">
         <section class="section">
-          <div class="container">
+          <div class="container block">
             <h1 class="title">
               Social Publish
             </h1>
@@ -162,9 +175,10 @@ export function PublishFormPage() {
               Spam all your social media accounts at once!
             </p>
           </div>
-        </section>
-        <section class="section">
-          <PostForm onError={showModal("error")} onInfo={showModal("info")} />
+
+          <div class="container">
+            <PostForm onError={showModal("error")} onInfo={showModal("info")} />
+          </div>
         </section>
       </div>
     </Authorize>
