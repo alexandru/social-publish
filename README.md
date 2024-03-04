@@ -51,6 +51,9 @@ BSKY_PASSWORD="your-password"
 # Mastodon credentials
 MASTODON_HOST="https://mastodon.social"
 MASTODON_ACCESS_TOKEN="your-access-token"
+
+# Used for authentication (https://jwt.io)
+JWT_SECRET="random string"
 ```
 
 For Bluesky, you'll need an "app password". Go here to create one:
