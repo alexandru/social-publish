@@ -18,11 +18,7 @@ app.use(express.urlencoded({ extended: true }))
 // This will parse application/json bodies
 app.use(express.json())
 // Serve static files
-app.use('/app', express.static('public'))
-
-app.get('/', (_req, res) => {
-  res.redirect('/app/')
-})
+app.use('/', express.static('public'))
 
 app.get('/rss', async (req, res) => {
   const filterByLinks =
@@ -118,6 +114,10 @@ app.post('/api/multiple/post', jwtAuth, async (req, res) => {
   } else {
     res.send("OK")
   }
+})
+
+app.get(/\/(login|form)/, (_req, res) => {
+  res.sendFile('public/index.html', { root: __dirname + '/..' })
 })
 
 app.listen(port, () => {

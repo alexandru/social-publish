@@ -11,6 +11,8 @@ export function NavBar() {
     const classOfLink = (mainClass: string, path: string) =>
         url == path ? `${mainClass} is-active` : mainClass
 
+    const isLoggedIn = !!sessionStorage.getItem('jwtToken')
+
     return (
         <nav class="navbar is-info" role="navigation" aria-label="main navigation">
             <div class="navbar-brand">
@@ -39,14 +41,16 @@ export function NavBar() {
                           Home
                         </strong>
                     </a>
-                    <a class={classOfLink("navbar-item", "/form")} href="/form">
-                        <span class="icon">
-                          <img src={play} alt="Home" />
-                        </span>
-                        <strong>
-                          Publish
-                        </strong>
-                    </a>
+                    <IfLoggedIn isLoggedIn={isLoggedIn}>
+                      <a class={classOfLink("navbar-item", "/form")} href="/form">
+                          <span class="icon">
+                            <img src={play} alt="Publish" />
+                          </span>
+                          <strong>
+                            Publish
+                          </strong>
+                      </a>
+                    </IfLoggedIn>
                     <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
                         <span class="icon">
                           <img src={logoGithub} alt="Help" />
@@ -60,7 +64,7 @@ export function NavBar() {
                 <div class="navbar-end">
                     <div class="navbar-item">
                         <div class="buttons">
-                          <LoginOrLogoutButton />
+                          <LoginOrLogoutButton isLoggedIn={isLoggedIn} />
                         </div>
                     </div>
                 </div>
@@ -69,16 +73,19 @@ export function NavBar() {
     );
 }
 
-function LoginOrLogoutButton() {
-  const token = sessionStorage.getItem('jwtToken')
-  const location = useLocation()
+function IfLoggedIn(props: { isLoggedIn: boolean, children: any }) {
+  return props.isLoggedIn ? props.children : null
+}
 
+function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
+  const location = useLocation()
   const onLogout = () => {
     sessionStorage.removeItem('jwtToken')
-    window.location.reload()
+    window.location.href = "/"
+    return
   }
 
-  if (token) {
+  if (props.isLoggedIn) {
     return (
       <a class="button is-info is-light" onClick={onLogout}>
         <strong>Logout</strong>

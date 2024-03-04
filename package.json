@@ -3,7 +3,7 @@
   "scripts": {
     "init": "npm --prefix ./backend/ install && npm --prefix ./frontend/ install",
     "dev": "npm run init && concurrently \"npm --prefix ./backend/ run dev\" \"npm --prefix ./frontend/ run dev\"",
-    "build": "npm run init && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
+    "build": "npm run init && npm run clean && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
     "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean"
   },
   "repository": {

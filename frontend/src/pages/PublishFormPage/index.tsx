@@ -20,7 +20,7 @@ type CharsLeftProps = {
 
 type Props = {
   onError: (error: string) => void,
-  onInfo: (info: string) => void
+  onInfo: (info: any) => void
 }
 
 function CharsLeft(props: CharsLeftProps) {
@@ -68,15 +68,20 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         },
         body
       })
-      if (response.status === 401) {
-        location.route('/login?error=401')
+      if ([401, 403].includes(response.status)) {
+        location.route(`/login?error=${response.status}&redirect=/form`)
         return
       }
       if (response.status !== 200) {
         props.onError('Error submitting form: HTTP ' + response.status + ' / ' + await response.text())
         return
       } else {
-        props.onInfo('Form submitted successfully!')
+        props.onInfo(
+          <div>
+            <p>Form submitted successfully!</p>
+            <p>View the <a href="/rss" target="_blank">RSS feed?</a></p>
+          </div>
+        )
         return
       }
     } catch (e) {

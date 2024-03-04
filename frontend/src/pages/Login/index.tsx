@@ -9,7 +9,29 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null as string | null);
   const location = useLocation();
-  const redirectTo = location.query.redirect || '/';
+  const redirectTo = location.query.redirect || '/form';
+
+  if (location.query.error)
+    switch (location.query.error) {
+      case "401":
+        setError("Unauthorized! Please log in...");
+        break;
+      default:
+        setError("Forbidden! Please log in...");
+        break;
+    }
+
+  const hideError = () => {
+    if (location.query.error) {
+      let newPath = location.path
+      for (const key of Object.keys(location.query)) {
+        if (key === "error") continue
+        newPath += newPath.includes("?") ? "&" : "?" + key + "=" + encodeURIComponent(location.query[key])
+      }
+      location.route(newPath);
+    }
+    setError(null);
+  }
 
   const onSubmit = async (e: Event) => {
     e.preventDefault();
@@ -50,7 +72,7 @@ export function Login() {
 
   return (
     <div class="login" id="login">
-      <ModalMessage type="error" isEnabled={!!error} onDisable={() => setError(null)}>
+      <ModalMessage type="error" isEnabled={!!error} onDisable={hideError}>
         {error}
       </ModalMessage>
 
