@@ -4,12 +4,11 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "watch": "nodemon",
+    "dev": "nodemon",
     "start-server": "ts-node src/server.ts",
     "start-bluesky": "ts-node src/bluesky-api.ts",
-    "db": "ts-node src/database.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "clean": "rm -rf build"
   },
   "keywords": [],
   "author": "",
