@@ -1,5 +1,4 @@
 import express from 'express'
-import basicAuth from 'express-basic-auth'
 import blueskyApi from './bluesky-api'
 import mastodonApi from './mastodon-api'
 import rssApi from './rss-api'
@@ -7,29 +6,19 @@ import morgan from 'morgan'
 import { PostHttpResponse } from './models'
 import { Dictionary } from 'express-serve-static-core'
 import { PostsDatabase } from './database'
+import { jwtAuth, loginRoute } from './modules/authentication'
 
 const app = express()
 const port = 3000
-
-const auth = (() => {
-  const user = process.env.SERVER_AUTH_USERNAME
-  if (!user) throw new Error('SERVER_AUTH_USERNAME is not set')
-  const pass = process.env.SERVER_AUTH_PASSWORD
-  if (!pass) throw new Error('SERVER_AUTH_PASSWORD is not set')
-  return basicAuth({
-    users: { [user]: pass },
-    challenge: true,
-  })
-})()
 
 // This will log requests to the console
 app.use(morgan('combined'))
 // This will parse application/x-www-form-urlencoded bodies
 app.use(express.urlencoded({ extended: true }))
+// This will parse application/json bodies
+app.use(express.json())
 // Serve static files
-app.use('/app', auth, express.static('public'))
-// Protect the API with basic auth
-app.use('/api', auth)
+app.use('/app', express.static('public'))
 
 app.get('/', (_req, res) => {
   res.redirect('/app/')
@@ -51,7 +40,7 @@ app.get('/rss/:uuid', async (req, res) => {
   const uuid = req.params.uuid
   const post = await rssApi.getPost(uuid)
   if (!post) {
-    res.status(404).send('Not Found')
+    res.status(404).send({ error: 'Not Found'})
     return
   }
   res.type('application/json')
@@ -62,22 +51,28 @@ app.get('/ping', (_req, res) => {
   res.send('pong')
 })
 
-app.post('/api/bluesky/post', async (req, res) => {
+app.post('/api/login', loginRoute)
+
+app.get('/api/protected', jwtAuth, (req, res) => {
+  res.send({ username: req.user?.username })
+})
+
+app.post('/api/bluesky/post', jwtAuth, async (req, res) => {
   const { status, body } = await blueskyApi.createPostRoute(req.body)
   res.status(status).send(body)
 })
 
-app.post('/api/mastodon/post', async (req, res) => {
+app.post('/api/mastodon/post', jwtAuth, async (req, res) => {
   const { status, body } = await mastodonApi.createPostRoute(req.body)
   res.status(status).send(body)
 })
 
-app.post('/api/rss/post', async (req, res) => {
+app.post('/api/rss/post', jwtAuth, async (req, res) => {
   const { status, body } = await rssApi.createPostRoute(req.body)
   res.status(status).send(body)
 })
 
-app.post('/api/multiple/post', async (req, res) => {
+app.post('/api/multiple/post', jwtAuth, async (req, res) => {
   if (!req.body["content"]) {
     res.status(400).send("Bad Request: Missing content!")
     return

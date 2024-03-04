@@ -7,16 +7,8 @@ export default defineConfig({
 	server: {
 		port: 3001,
 		proxy: {
-			'/rss': {
-				target: 'http://localhost:3000',
-				changeOrigin: true,
-				rewrite: (path) => path
-			},
-			'/api': {
-				target: 'http://localhost:3000',
-				changeOrigin: true,
-				rewrite: (path) => path
-			}
+      '/rss': 'http://localhost:3000',
+      '/api': 'http://localhost:3000'
 		}
 	}
 });

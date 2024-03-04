@@ -1,6 +1,30 @@
 @username = alex
 @password = pass
-@baseUrl = http://localhost:3000
+@baseUrl = http://127.0.0.1:3000
+
+###
+# @name Login
+POST {{baseUrl}}/api/login
+Content-Type: application/x-www-form-urlencoded
+
+username={{encodeURIComponent(username)}}&password={{encodeURIComponent(password)}}
+
+{{
+  $global.jwt=response.parsedBody.token;
+}}
+
+###
+# @name: Test Authentication
+GET {{baseUrl}}/api/protected
+Authorization: Bearer {{$global.jwt}}
+
+###
+# @name: rss post
+POST {{baseUrl}}/api/rss/post
+Authorization: Basic {{btoa(username + ':' + password)}}
+Content-Type: application/x-www-form-urlencoded
+
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.bsky.app/")}}
 
 ###
 # @name: Bluesky Post

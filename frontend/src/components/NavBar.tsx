@@ -33,7 +33,9 @@ export function NavBar() {
                     <a class={classOfLink("navbar-item", "/")} href="/">
                         Home
                     </a>
-
+                    <a class={classOfLink("navbar-item", "/form")} href="/form">
+                        Publish
+                    </a>
                     <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
                         GitHub
                     </a>
@@ -42,9 +44,7 @@ export function NavBar() {
                 <div class="navbar-end">
                     <div class="navbar-item">
                         <div class="buttons">
-                            <a class={classOfLink("button is-primary", "/login")} href="/login">
-                                <strong>Login</strong>
-                            </a>
+                          <LoginOrLogoutButton />
                         </div>
                     </div>
                 </div>
@@ -52,3 +52,29 @@ export function NavBar() {
         </nav>
     );
 }
+
+function LoginOrLogoutButton() {
+  const token = sessionStorage.getItem('jwtToken')
+  const location = useLocation()
+
+  const onLogout = () => {
+    sessionStorage.removeItem('jwtToken')
+    window.location.reload()
+  }
+
+  if (token) {
+    return (
+      <a class="button is-info is-light" onClick={onLogout}>
+        <strong>Logout</strong>
+      </a>
+    )
+  } else {
+    const status = location.url == "/login" ? " is-active" : ""
+    return (
+      <a class={"button is-primary " + status} href="/login">
+        <strong>Login</strong>
+      </a>
+    )
+  }
+}
+
