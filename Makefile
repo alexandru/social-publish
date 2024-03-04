@@ -22,6 +22,7 @@ run-local: build-local
 		--rm \
 		--name social-publish \
 		-e "BASE_URL=${BASE_URL}" \
+		-e "JWT_SECRET=${JWT_SECRET}" \
 		-e "BSKY_HOST=${BSKY_HOST}" \
 		-e "BSKY_USERNAME=${BSKY_USERNAME}" \
 		-e "BSKY_PASSWORD=${BSKY_PASSWORD}" \

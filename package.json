@@ -1,40 +1,22 @@
 {
   "name": "social-publish",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/server.js",
   "scripts": {
-    "watch": "nodemon",
-    "start-server": "ts-node src/server.ts",
-    "start-bluesky": "ts-node src/bluesky-api.ts",
-    "db": "ts-node src/database.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "init": "npm --prefix ./backend/ install && npm --prefix ./frontend/ install",
+    "dev": "npm run init && concurrently \"npm --prefix ./backend/ run dev\" \"npm --prefix ./frontend/ run dev\"",
+    "build": "npm run init && npm run clean && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
+    "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexandru/social-publish.git"
+  },
+  "author": "Alexandru Nedelcu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/alexandru/social-publish/issues"
+  },
+  "homepage": "https://github.com/alexandru/social-publish#readme",
   "devDependencies": {
-    "@types/axios": "^0.14.0",
-    "@types/express": "^4.17.21",
-    "@types/html-to-text": "^9.0.4",
-    "@types/morgan": "^1.9.9",
-    "@types/rss": "^0.0.32",
-    "@types/sqlite3": "^3.1.11",
-    "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "@atproto/api": "^0.10.3",
-    "axios": "^1.6.7",
-    "express": "^4.18.3",
-    "express-basic-auth": "^1.2.1",
-    "html-to-text": "^9.0.5",
-    "morgan": "^1.10.0",
-    "qs": "^6.11.2",
-    "rss": "^1.2.2",
-    "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1"
+    "concurrently": "^8.2.2"
   }
 }
