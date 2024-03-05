@@ -14,7 +14,7 @@ export function NavBar() {
     const isLoggedIn = !!sessionStorage.getItem('jwtToken')
 
     return (
-        <nav class="navbar is-info" role="navigation" aria-label="main navigation">
+        <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
             <div class="navbar-brand">
                 <a role="button"
                     class={"navbar-burger " + navbarIsActive}

@@ -1,6 +1,6 @@
 @username = alex
 @password = pass
-@baseUrl = http://127.0.0.1:3000
+@baseUrl = https://social-publish.alexn.org
 
 ###
 # @name Login
