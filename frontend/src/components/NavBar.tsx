@@ -14,7 +14,7 @@ export function NavBar() {
     const isLoggedIn = !!sessionStorage.getItem('jwtToken')
 
     return (
-        <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
+        <nav class="navbar is-primary" role="navigation" aria-label="main navigation">
             <div class="navbar-brand">
                 <a role="button"
                     class={"navbar-burger " + navbarIsActive}
@@ -35,7 +35,7 @@ export function NavBar() {
                 <div class="navbar-start">
                     <a class={classOfLink("navbar-item", "/")} href="/">
                         <span class="icon">
-                          <img src={homeOutline} alt="Home" style="filter:invert(1)" />
+                          <img src={homeOutline} alt="Home" />
                         </span>
                         <strong>
                           Home
@@ -44,7 +44,7 @@ export function NavBar() {
                     <IfLoggedIn isLoggedIn={isLoggedIn}>
                       <a class={classOfLink("navbar-item", "/form")} href="/form">
                           <span class="icon">
-                            <img src={play} alt="Publish" style="filter:invert(1)" />
+                            <img src={play} alt="Publish" />
                           </span>
                           <strong>
                             Publish
@@ -53,7 +53,7 @@ export function NavBar() {
                     </IfLoggedIn>
                     <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
                         <span class="icon">
-                          <img src={logoGithub} alt="Help" style="filter:invert(1)" />
+                          <img src={logoGithub} alt="Help" />
                         </span>
                         <strong>
                           Help
@@ -87,7 +87,7 @@ function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
 
   if (props.isLoggedIn) {
     return (
-      <a class="button is-info is-light" onClick={onLogout}>
+      <a class="button is-primary" onClick={onLogout}>
         <strong>Logout</strong>
         <span class="icon">
           <img src={logOut} alt="Logout" />
