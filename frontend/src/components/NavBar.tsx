@@ -35,7 +35,7 @@ export function NavBar() {
                 <div class="navbar-start">
                     <a class={classOfLink("navbar-item", "/")} href="/">
                         <span class="icon">
-                          <img src={homeOutline} alt="Home" />
+                          <img src={homeOutline} alt="Home" style="filter:invert(1)" />
                         </span>
                         <strong>
                           Home
@@ -44,7 +44,7 @@ export function NavBar() {
                     <IfLoggedIn isLoggedIn={isLoggedIn}>
                       <a class={classOfLink("navbar-item", "/form")} href="/form">
                           <span class="icon">
-                            <img src={play} alt="Publish" />
+                            <img src={play} alt="Publish" style="filter:invert(1)" />
                           </span>
                           <strong>
                             Publish
@@ -53,7 +53,7 @@ export function NavBar() {
                     </IfLoggedIn>
                     <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
                         <span class="icon">
-                          <img src={logoGithub} alt="Help" />
+                          <img src={logoGithub} alt="Help" style="filter:invert(1)" />
                         </span>
                         <strong>
                           Help
