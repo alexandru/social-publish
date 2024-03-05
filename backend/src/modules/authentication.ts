@@ -61,3 +61,13 @@ export const loginRoute = (req: Request, res: Response) => {
     res.status(401).send({ error: "Invalid credentials" })
   }
 }
+
+export const protectedHttpRoute = (req: Request, res: Response) => {
+  res.send({ username: req.user?.username })
+}
+
+export default {
+  jwtAuth,
+  loginRoute,
+  protectedHttpRoute,
+}

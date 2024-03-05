@@ -25,3 +25,8 @@ export interface PostHttpResponse {
     status: number,
     body: string
 }
+
+export interface Dictionary<T> {
+    [key: string]: T;
+}
+
