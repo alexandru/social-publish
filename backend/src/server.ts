@@ -20,7 +20,7 @@ export const startServer = async (
   bluesky: BlueskyApiModule,
   form: FormModule
 ) => {
-  const app: Express = express()
+  const app = express()
 
   // This will log requests to the console
   app.use(morgan('combined'))
