@@ -1,48 +1,59 @@
-import express from 'express'
-import blueskyApi from './modules/bluesky-api'
-import mastodonApi from './modules/mastodon-api'
-import rssApi from './modules/rss-api'
+import express, { Express } from 'express'
 import healthApi from './modules/health'
 import morgan from 'morgan'
-import { Dictionary, PostHttpResponse } from './models'
-import { PostsDatabase } from './database'
-import authApi, { jwtAuth } from './modules/authentication'
-import form from './modules/form'
+import logger from './utils/logger'
+import { AuthModule } from './modules/authentication'
+import { RssModule } from './modules/rss-api'
+import { MastodonApiModule } from './modules/mastodon-api'
+import { BlueskyApiModule } from './modules/bluesky-api'
+import { FormModule } from './modules/form'
 
-const app = express()
-const port = 3000
+export type HttpConfig = {
+  httpPort: number
+}
 
-// This will log requests to the console
-app.use(morgan('combined'))
-// This will parse application/x-www-form-urlencoded bodies
-app.use(express.urlencoded({ extended: true }))
-// This will parse application/json bodies
-app.use(express.json())
-// Serve static files
-app.use('/', express.static('public'))
+export const startServer = async (
+  config: HttpConfig,
+  auth: AuthModule,
+  rss: RssModule,
+  mastodon: MastodonApiModule,
+  bluesky: BlueskyApiModule,
+  form: FormModule
+) => {
+  const app: Express = express()
 
-// Health checks
-app.get('/ping', healthApi.pingHttpRoute)
-app.get('/api/protected', jwtAuth, authApi.protectedHttpRoute)
+  // This will log requests to the console
+  app.use(morgan('combined'))
+  // This will parse application/x-www-form-urlencoded bodies
+  app.use(express.urlencoded({ extended: true }))
+  // This will parse application/json bodies
+  app.use(express.json())
+  // Serve static files
+  app.use('/', express.static('public'))
 
-// RSS export
-app.get('/rss', rssApi.generateRssHttpRoute)
-app.get('/rss/:uuid', rssApi.getRssItemHttpRoute)
+  // Health checks
+  app.get('/ping', healthApi.pingHttpRoute)
+  app.get('/api/protected', auth.middleware, auth.protectedHttpRoute)
 
-// Authentication
-app.post('/api/login', authApi.loginRoute)
+  // RSS export
+  app.get('/rss', rss.generateRssHttpRoute)
+  app.get('/rss/:uuid', rss.getRssItemHttpRoute)
 
-// Publishing routes
-app.post('/api/bluesky/post', jwtAuth, blueskyApi.createPostHttpRoute)
-app.post('/api/mastodon/post', jwtAuth, mastodonApi.createPostHttpRoute)
-app.post('/api/rss/post', jwtAuth, rssApi.createPostHttpRoute)
-app.post('/api/multiple/post', jwtAuth, form.broadcastPostToManyHttpRoute)
+  // Authentication
+  app.post('/api/login', auth.loginHttpRoute)
 
-// Needed for the frontend routing
-app.get(/\/(login|form)/, (_req, res) => {
-  res.sendFile('public/index.html', { root: __dirname + '/..' })
-})
+  // Publishing routes
+  app.post('/api/bluesky/post', auth.middleware, bluesky.createPostHttpRoute)
+  app.post('/api/mastodon/post', auth.middleware, mastodon.createPostHttpRoute)
+  app.post('/api/rss/post', auth.middleware, rss.createPostHttpRoute)
+  app.post('/api/multiple/post', auth.middleware, form.broadcastPostToManyHttpRoute)
 
-app.listen(port, () => {
-  console.log(`[${new Date().toISOString()}] Server is running at http://localhost:${port}`)
-})
+  // Needed for the frontend routing
+  app.get(/\/(login|form)/, (_req, res) => {
+    res.sendFile('public/index.html', { root: __dirname + '/..' })
+  })
+
+  return app.listen(config.httpPort, () => {
+    logger.info(`Server is running at: http://localhost:${config.httpPort}`)
+  })
+}

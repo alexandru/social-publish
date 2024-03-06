@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 
-const pingHttpRoute = (req: Request, res: Response) =>
+const pingHttpRoute = (_req: Request, res: Response) =>
   res.send("Pong")
 
 export default {
