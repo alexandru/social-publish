@@ -1,7 +1,7 @@
 import sqlite from 'sqlite3'
 import logger from '../utils/logger'
 
-interface Migration {
+export interface Migration {
   ddl: string[]
   testIfApplied: (db: DBConnection) => Promise<boolean>
 }
@@ -9,29 +9,6 @@ interface Migration {
 export type DBConfig = {
   dbPath: string
 }
-
-const migrations: Migration[] = [
-  {
-    ddl: [
-      `
-            |CREATE TABLE IF NOT EXISTS posts (
-            |    uuid VARCHAR(36) NOT NULL PRIMARY KEY,
-            |    kind VARCHAR(255) NOT NULL,
-            |    json TEXT NOT NULL,
-            |    created_at INTEGER NOT NULL
-            |)
-            `.replace(/^\s*\|/gm, ''),
-      `
-            |CREATE INDEX IF NOT EXISTS
-            |   posts_created_at
-            |ON
-            |   posts(kind, created_at)
-            `.replace(/^\s*\|/gm, '')
-    ],
-    testIfApplied: async (db) =>
-      !!(await db.getOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='posts'"))
-  }
-]
 
 export class DBConnection {
   private underlying: sqlite.Database
@@ -101,16 +78,16 @@ export class DBConnection {
       })
     })
   }
-}
 
-const migrate = async (db: DBConnection) => {
-  for (const migration of migrations) {
-    const applied = await migration.testIfApplied(db)
-    if (!applied)
-      for (const ddl of migration.ddl) {
-        logger.info(`Executing migration:\n${ddl}`)
-        await db.run(ddl)
-      }
+  migrate = async (migrations: Migration[]) => {
+    for (const migration of migrations) {
+      const applied = await migration.testIfApplied(this)
+      if (!applied)
+        for (const ddl of migration.ddl) {
+          logger.info(`Executing migration:\n${ddl}`)
+          await this.run(ddl)
+        }
+    }
   }
 }
 
@@ -134,8 +111,6 @@ export const withBaseConnection =
       })
     })
     const db = new DBConnection(rawDb)
-    await migrate(db)
-
     var errorThrown: unknown = null
     try {
       return await f(db)

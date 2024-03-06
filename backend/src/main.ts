@@ -9,8 +9,16 @@ import { HttpConfig, startServer } from './server'
 import logger from './utils/logger'
 import yargs from 'yargs'
 import { waitOnTerminationSignal } from './utils/proc'
+import { FilesDatabase } from './db/files'
+import { FilesConfig, FilesModule } from './modules/files'
 
-type AppConfig = DBConfig & HttpConfig & AuthConfig & BlueskyApiConfig & MastodonApiConfig & RssConfig
+type AppConfig = DBConfig &
+  HttpConfig &
+  AuthConfig &
+  BlueskyApiConfig &
+  MastodonApiConfig &
+  RssConfig &
+  FilesConfig
 
 async function main() {
   const args: AppConfig = await yargs
@@ -28,16 +36,13 @@ async function main() {
       default: process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT) : 3000,
       defaultDescription: 'HTTP_PORT env || 3000'
     })
-    .option(
-      'baseUrl',
-      {
-        type: 'string',
-        description: 'Public URL of this server',
-        demandOption: true,
-        default: process.env.BASE_URL,
-        defaultDescription: 'BASE_URL env variable'
-      }
-    )
+    .option('baseUrl', {
+      type: 'string',
+      description: 'Public URL of this server',
+      demandOption: true,
+      default: process.env.BASE_URL,
+      defaultDescription: 'BASE_URL env variable'
+    })
     .option('serverAuthUsername', {
       type: 'string',
       description: 'Your username for this server',
@@ -80,41 +85,43 @@ async function main() {
       default: process.env.BSKY_PASSWORD,
       defaultDescription: 'BSKY_PASSWORD env variable'
     })
-    .option(
-      'mastodonHost',
-      {
-        type: 'string',
-        description: 'Host of the Mastodon service',
-        demandOption: true,
-        default: process.env.MASTODON_HOST,
-        defaultDescription: 'MASTODON_HOST env variable'
-      }
-    )
-    .option(
-      'mastodonAccessToken',
-      {
-        type: 'string',
-        description: 'Access token for the Mastodon service',
-        demandOption: true,
-        default: process.env.MASTODON_ACCESS_TOKEN,
-        defaultDescription: 'MASTODON_ACCESS_TOKEN env variable'
-      }
-    )
+    .option('mastodonHost', {
+      type: 'string',
+      description: 'Host of the Mastodon service',
+      demandOption: true,
+      default: process.env.MASTODON_HOST,
+      defaultDescription: 'MASTODON_HOST env variable'
+    })
+    .option('mastodonAccessToken', {
+      type: 'string',
+      description: 'Access token for the Mastodon service',
+      demandOption: true,
+      default: process.env.MASTODON_ACCESS_TOKEN,
+      defaultDescription: 'MASTODON_ACCESS_TOKEN env variable'
+    })
+    .option('uploadedFilesPath', {
+      type: 'string',
+      description: 'Directory where uploaded files are stored and processed',
+      demandOption: true,
+      default: process.env.UPLOADED_FILES_PATH,
+      defaultDescription: 'UPLOADED_FILES_PATH env variable'
+    })
     .help()
     .alias('help', 'h').argv
-
 
   withBaseConnection(args)(async (dbConn) => {
     logger.info('Connected to database')
 
-    const posts = new PostsDatabase(dbConn)
+    const postsDb = await PostsDatabase.init(dbConn)
+    const filesDb = await FilesDatabase.init(dbConn)
     const auth = new AuthModule(args)
-    const rss = new RssModule(args, posts)
+    const rss = new RssModule(args, postsDb)
     const mastodon = new MastodonApiModule(args)
     const bluesky = await BlueskyApiModule.create(args)
     const form = new FormModule(mastodon, bluesky, rss)
+    const files = FilesModule.init(args, filesDb)
 
-    const server = await startServer(args, auth, rss, mastodon, bluesky, form)
+    const server = await startServer(args, auth, rss, mastodon, bluesky, form, files)
     try {
       const signal = await waitOnTerminationSignal()
       logger.info(`Received ${signal}, shutting down...`)

@@ -10,9 +10,9 @@ export const withDatabase =
   (config: DBConfig) =>
   async <A>(f: (db: Database) => Promise<A>): Promise<A> => {
 
-  return await withBaseConnection(config)(async (db) => {
-    const posts = new PostsDatabase(db)
-    return await f({ connection: db, posts })
+  return await withBaseConnection(config)(async (connection) => {
+    const posts = await PostsDatabase.init(connection)
+    return await f({ connection, posts })
   })
 }
 

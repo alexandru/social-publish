@@ -1,4 +1,4 @@
-import { DBConnection } from "./base"
+import { DBConnection, Migration } from './base'
 
 export interface Post extends PostPayload {
   uuid: string
@@ -12,10 +12,35 @@ export interface PostPayload {
   language?: string
 }
 
+const migrations: Migration[] = [
+  {
+    ddl: [
+      `
+      |CREATE TABLE IF NOT EXISTS posts (
+      |    uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+      |    kind VARCHAR(255) NOT NULL,
+      |    json TEXT NOT NULL,
+      |    created_at INTEGER NOT NULL
+      |)
+      `.replace(/^\s*\|/gm, ''),
+      `
+      |CREATE INDEX IF NOT EXISTS
+      |   posts_created_at
+      |ON
+      |   posts(kind, created_at)
+      `.replace(/^\s*\|/gm, '')
+    ],
+    testIfApplied: async (db) =>
+      !!(await db.getOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='posts'"))
+  }
+]
+
 export class PostsDatabase {
-  private db: DBConnection
-  constructor(db: DBConnection) {
-    this.db = db
+  private constructor(private db: DBConnection) {}
+
+  static init = async (db: DBConnection) => {
+    await db.migrate(migrations)
+    return new PostsDatabase(db)
   }
 
   async createPost(payload: PostPayload): Promise<Post> {
