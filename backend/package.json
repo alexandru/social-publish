@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon",
-    "start": "ts-node src/main.ts",
+    "start": "tsc --incremental && node --enable-source-maps build/main.js",
     "build": "tsc",
     "clean": "rm -rf build"
   },

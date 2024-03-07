@@ -115,9 +115,9 @@ async function main() {
     const postsDb = await PostsDatabase.init(dbConn)
     const filesDb = await FilesDatabase.init(dbConn)
     const auth = new AuthModule(args)
-    const rss = new RssModule(args, postsDb)
-    const mastodon = new MastodonApiModule(args)
     const files = await FilesModule.init(args, filesDb)
+    const rss = new RssModule(args, postsDb)
+    const mastodon = new MastodonApiModule(args, files)
     const bluesky = await BlueskyApiModule.create(args, files)
     const form = new FormModule(mastodon, bluesky, rss)
 

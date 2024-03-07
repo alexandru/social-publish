@@ -62,7 +62,7 @@ For Bluesky, you'll need an "app password". Go here to create one:
 For Mastodon, you'll need an "access token". Here's how to get one:
 - Go to: <https://mastodon.social/settings/applications>
 - Create a "New Application"
-- Uncheck everything except "write:statuses"
+- Uncheck everything except "write:statuses" and "write:media"
 - Click on the newly created application
 - Copy "your access token"
 

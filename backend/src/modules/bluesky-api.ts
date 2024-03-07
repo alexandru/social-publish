@@ -50,20 +50,17 @@ export class BlueskyApiModule {
     try {
       const images: Image[] = []
       for (const imageUuid of post.images || []) {
-        const r = await this.files.readFile(imageUuid, true)
+        const r = await this.files.readImageFile(imageUuid)
         if (!r) return { isSuccessful: false, error: `Image not found: ${imageUuid}` }
 
-        const { upload, bytes } = r
-        const blob = await this.agent.uploadBlob(bytes, { encoding: upload.mimetype})
+        const blob = await this.agent.uploadBlob(r.bytes, { encoding: r.mimetype})
         images.push({
           image: blob.data.blob,
-          alt: upload?.altText,
-          aspectRatio: (upload.imageWidth && upload.imageHeight)
-            ? {
-              width: upload.imageWidth,
-              height: upload.imageHeight,
-            }
-            : undefined
+          alt: r.altText,
+          aspectRatio: {
+            width: r.width,
+            height: r.height
+          }
         })
       }
 

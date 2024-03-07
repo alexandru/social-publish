@@ -5,15 +5,22 @@ import multer from 'multer'
 import { calculateFileHash, readFileAsUint8Array } from '../utils/files'
 import logger from '../utils/logger'
 import fs from 'fs'
-import path from 'path'
 import { HttpConfig } from './http'
 import result from '../utils/result'
 import { imageSize } from 'image-size'
 import sharp from 'sharp'
+import path from 'path'
 
 export type FilesConfig = HttpConfig & {
-  uploadedFilesPath: string,
-  maxImageSize?: [number, number]
+  uploadedFilesPath: string
+  resizing?: ResizeOptions
+}
+
+export type ResizeOptions = {
+  maxWidth: number
+  maxHeight: number
+  jpgQuality: number
+  pngCompression: number
 }
 
 export class FilesModule {
@@ -22,6 +29,7 @@ export class FilesModule {
       newUploadsPath: string
       processedPath: string
       resizingPath: string
+      resizing: ResizeOptions
     },
     private db: FilesDatabase
   ) {}
@@ -32,7 +40,12 @@ export class FilesModule {
       newUploadsPath: `${config.uploadedFilesPath}/new`,
       processedPath: `${config.uploadedFilesPath}/processed`,
       resizingPath: `${config.uploadedFilesPath}/resizing`,
-      maxImageSize: config.maxImageSize || [1280, 720]
+      resizing: config.resizing || {
+        maxWidth: 1920,
+        maxHeight: 1080,
+        jpgQuality: 80,
+        pngCompression: 6
+      }
     }
     for (const dir of [
       cfg.uploadedFilesPath,
@@ -51,56 +64,78 @@ export class FilesModule {
     return new FilesModule(cfg, db)
   }
 
-  readFile = async (file: Upload | string, resize: boolean) => {
-    let upload = typeof file === 'string' ? await this.db.getFileByUuid(file) : file
+  private resizeImageFile = async (upload: Upload, width: number, height: number) => {
+    const path = `${this.config.processedPath}/${upload.hash}`
+    const path2 = `${this.config.resizingPath}/${upload.hash}`
+    const { maxWidth, maxHeight, pngCompression, jpgQuality } = this.config.resizing
+
+    let nh = 0
+    let nw = 0
+    if (width >= height && width > maxWidth) {
+      nw = maxWidth
+      nh = Math.round((height / width) * nw)
+    } else if (height > maxHeight) {
+      nh = maxHeight
+      nw = Math.round((width / height) * nh)
+    }
+
+    logger.info(`Resizing image: ${width}x${height} -> ${nw}x${nh}`)
+    if (nw > 0 && nh > 0) {
+      switch (upload.mimetype) {
+        case 'image/png':
+          await sharp(path).png({ compressionLevel: pngCompression }).resize(nw, nh).toFile(path2)
+          break
+        case 'image/jpeg':
+          await sharp(path).jpeg({ quality: jpgQuality }).resize(nw, nh).toFile(path2)
+          break
+        default:
+          throw new Error(`Unsupported image type: ${upload.mimetype}`)
+      }
+      const newSize = await imageSize(path2)
+      if (newSize.width && newSize.height)
+        return {
+          width: newSize.width,
+          height: newSize.height,
+          path: path2,
+          size: (await fs.promises.stat(path2)).size
+        }
+    }
+    return { width, height, path, size: upload.size }
+  }
+
+  readImageFile = async (file: Upload | string) => {
+    const upload = typeof file === 'string' ? await this.db.getFileByUuid(file) : file
     if (!upload) return null
 
-    let path = `${this.config.processedPath}/${upload.hash}`
-    const maxSize = this.config.maxImageSize
-    if (resize && maxSize) {
-      let path2 = `${this.config.resizingPath}/bsky-${upload.hash}`
-      const w = upload.imageWidth ?? 0
-      const h = upload.imageHeight ?? 0
-      const [maxW, maxH] = maxSize
-
-      let nh = 0
-      let nw = 0
-      if (w >= h && w > maxW) {
-        nw = maxW
-        nh = Math.round((h / w) * nw)
-      } else if (h > maxH) {
-        nh = maxH
-        nw = Math.round((w / h) * nh)
-      }
-
-      logger.info(`Resizing image: ${w}x${h} -> ${nw}x${nh}`)
-      if (nw > 0 && nh > 0) {
-        switch (upload.mimetype) {
-          case 'image/png':
-            path2 = `${path2}.png`
-            await sharp(path).png().resize(nw, nh).toFile(path2)
-            break
-          case 'image/jpeg':
-            path2 = `${path2}.jpg`
-            await sharp(path).jpeg({ quality: 70 }).resize(nw, nh).toFile(path2)
-            break
-          default:
-            throw new Error(`Unsupported image type: ${upload.mimetype}`)
-        }
-        path = path2
-        const newSize = await imageSize(path)
-        upload = {
-          ...upload,
-          imageWidth: newSize.width,
-          imageHeight: newSize.height,
-          size: (await fs.promises.stat(path)).size
-        }
-        logger.info(`Resized image: ${path} -> ${path2}: `, upload)
-      }
+    if (["image/png", "image/jpeg"].indexOf(upload.mimetype) === -1) {
+      throw new Error(`Unsupported image type: ${upload.mimetype}`)
     }
-    return {
+
+    const pathOrig = `${this.config.processedPath}/${upload.hash}`
+    let [width, height] = [upload.imageWidth, upload.imageHeight]
+
+    if (!width || !height) {
+      const size = await imageSize(pathOrig)
+      width = size.width
+      height = size.height
+    }
+    if (!width || !height) {
+      throw new Error(`Invalid image — uuid: ${upload.uuid}`)
+    }
+
+    const resized = await this.resizeImageFile(
       upload,
-      bytes: new Uint8Array(await fs.promises.readFile(path))
+      width,
+      height
+    )
+    return {
+      originalname: upload.originalname,
+      mimetype: upload.mimetype,
+      altText: upload.altText,
+      width: resized.width,
+      height: resized.height,
+      size: resized.size,
+      bytes: new Uint8Array(await fs.promises.readFile(resized.path))
     }
   }
 
@@ -128,10 +163,6 @@ export class FilesModule {
     try {
       // create directory if not exists
       const dir = `${this.config.uploadedFilesPath}/processed`
-      if (!fs.existsSync(dir)) {
-        await fs.promises.mkdir(dir, { recursive: true })
-      }
-
       // Calculate the hash of the file
       const hash = await calculateFileHash('sha256', file.path)
       // File size and type
