@@ -3,6 +3,7 @@ export interface UnvalidatedPostRequest {
     link?: string,
     language?: string,
     cleanupHtml?: boolean,
+    images?: string[],
 }
 
 export interface PostRequest extends UnvalidatedPostRequest {
@@ -25,3 +26,8 @@ export interface PostHttpResponse {
     status: number,
     body: string
 }
+
+export interface Dictionary<T> {
+    [key: string]: T;
+}
+

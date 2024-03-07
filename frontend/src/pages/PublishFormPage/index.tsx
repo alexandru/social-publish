@@ -4,6 +4,7 @@ import './style.css';
 import { useLocation } from 'preact-iso';
 import { useState } from 'preact/hooks';
 import { MessageType, ModalMessage } from '../../components/ModalMessage';
+import { ImageUpload, SelectedImage } from '../../components/ImageUpload';
 
 type FormData = {
   content?: string,
@@ -37,7 +38,28 @@ function CharsLeft(props: CharsLeftProps) {
 const PostForm: FunctionalComponent<Props> = (props: Props) => {
   let formRef = null
   const [data, setData] = useState({} as FormData)
+  const [images, setImages] = useState({} as { [id: string]: SelectedImage })
   const location = useLocation()
+
+  const addImageComponent = () => {
+    const ids = Object.keys(images).map(x => parseInt(x)).sort()
+    const newId = ids.length > 0 ? ids[ids.length - 1] + 1 : 1
+    setImages({
+      ...images,
+      [""+newId]: { id: newId }
+    })
+  }
+
+  const removeImageComponent = (id: number) => {
+    const newImages = { ...images }
+    delete newImages[""+id]
+    setImages(newImages)
+  }
+
+  const onSelectedFile = (value: SelectedImage) => {
+    console.log("Selected image", value)
+    setImages({ ...images, [""+value.id]: value })
+  }
 
   const onSubmit = async (event) => {
     event.preventDefault()
@@ -51,22 +73,56 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
       return
     }
 
-    const body = Object
-      .keys(data)
-      .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
-      .join('&');
+    const imageIDs: string[] = []
+    const imagesToUpload = Object.values(images || {})
+    for (const image of imagesToUpload) {
+      if (image.file) {
+        const formData = new FormData()
+        formData.append('file', image.file)
+        formData.append('altText', image.altText)
 
-    setData({})
-    formRef.reset()
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          headers: {
+            "Authorization": `Bearer ${sessionStorage.getItem('jwtToken')}`
+          },
+          body: formData
+        })
+        if ([401, 403].includes(response.status)) {
+          location.route(`/login?error=${response.status}&redirect=/form`)
+          return
+        }
+        if (response.status !== 200) {
+          props.onError('Error uploading image: HTTP ' + response.status + ' / ' + await response.text())
+          return
+        }
+        const json = await response.json()
+        console.log("Uploaded image", json)
+        imageIDs.push(json.uuid)
+      }
+    }
+
+    const body = {
+      ...data,
+      images: imageIDs
+    }
+    console.log("Submitting form", body)
+
+    // setData({})
+    // setImages({})
+    // formRef.reset()
 
     try {
       const response = await fetch('/api/multiple/post', {
         method: 'POST',
         headers: {
           "Authorization": `Bearer ${sessionStorage.getItem('jwtToken')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+          "Content-Type": "application/json"
         },
-        body
+        body: JSON.stringify({
+          ...data,
+          images: imageIDs
+        })
       })
       if ([401, 403].includes(response.status)) {
         location.route(`/login?error=${response.status}&redirect=/form`)
@@ -127,6 +183,14 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           pattern="https?://.+" />
         </div>
       </div>
+      {Object.values(images).map((image) =>
+        <ImageUpload
+          id={image.id}
+          state={image}
+          onSelect={onSelectedFile}
+          onRemove={removeImageComponent}
+        />
+      )}
       <div class="field">
         <label class="checkbox">
           <input type="checkbox" id="mastodon" name="mastodon" onInput={onCheckbox("mastodon")} /> Mastodon
@@ -147,7 +211,9 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           <input type="checkbox" id="cleanupHtml" name="cleanupHtml" onInput={onCheckbox("cleanupHtml")} /> cleanup HTML
         </label>
       </div>
-      <input class="button" type="reset" value="Reset" /> <input class="button is-primary" type="submit" value="Submit" />
+
+
+      <input class="button" type="reset" value="Reset" /> {Object.keys(images).length < 4 ?  <button type="button" class="button" onClick={addImageComponent}>Add image</button> : null} <input class="button is-primary" type="submit" value="Submit" />
     </form>
   )
 }

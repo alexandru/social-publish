@@ -7,7 +7,6 @@ export function NavBar() {
         useState("" as "is-active" | "")
 
     const { url } = useLocation()
-    console.log(url)
     const classOfLink = (mainClass: string, path: string) =>
         url == path ? `${mainClass} is-active` : mainClass
 

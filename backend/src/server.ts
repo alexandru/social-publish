@@ -1,131 +1,61 @@
-import express from 'express'
-import blueskyApi from './bluesky-api'
-import mastodonApi from './mastodon-api'
-import rssApi from './rss-api'
+import express, { Express } from 'express'
+import healthApi from './modules/health'
+import logger from './utils/logger'
 import morgan from 'morgan'
-import { PostHttpResponse } from './models'
-import { Dictionary } from 'express-serve-static-core'
-import { PostsDatabase } from './database'
-import { jwtAuth, loginRoute } from './modules/authentication'
+import { AuthModule } from './modules/authentication'
+import { RssModule } from './modules/rss-api'
+import { MastodonApiModule } from './modules/mastodon-api'
+import { BlueskyApiModule } from './modules/bluesky-api'
+import { FormModule } from './modules/form'
+import { FilesModule } from './modules/files'
+import { HttpConfig } from './modules/http'
 
-const app = express()
-const port = 3000
+export const startServer = async (
+  config: HttpConfig,
+  auth: AuthModule,
+  rss: RssModule,
+  mastodon: MastodonApiModule,
+  bluesky: BlueskyApiModule,
+  form: FormModule,
+  files: FilesModule
+) => {
+  const app = express()
 
-// This will log requests to the console
-app.use(morgan('combined'))
-// This will parse application/x-www-form-urlencoded bodies
-app.use(express.urlencoded({ extended: true }))
-// This will parse application/json bodies
-app.use(express.json())
-// Serve static files
-app.use('/', express.static('public'))
+  // This will log requests to the console
+  app.use(morgan('combined'))
+  // This will parse application/x-www-form-urlencoded bodies
+  app.use(express.urlencoded({ extended: true }))
+  // This will parse application/json bodies
+  app.use(express.json())
+  // Serve static files
+  app.use('/', express.static('public'))
 
-app.get('/rss', async (req, res) => {
-  const filterByLinks =
-    req.query.filterByLinks === "include" ? "include" :
-    req.query.filterByLinks === "exclude" ? "exclude" :
-    undefined
+  // Health checks
+  app.get('/ping', healthApi.pingHttpRoute)
+  app.get('/api/protected', auth.middleware, auth.protectedHttpRoute)
 
-  res.type('application/rss+xml')
-  res.send(await rssApi.rss({
-    filterByLinks
-  }))
-})
+  // RSS export
+  app.get('/rss', rss.generateRssHttpRoute)
+  app.get('/rss/:uuid', rss.getRssItemHttpRoute)
+  // Other static content
+  app.get('/files/:uuid', files.getUploadedFileRoute)
 
-app.get('/rss/:uuid', async (req, res) => {
-  const uuid = req.params.uuid
-  const post = await rssApi.getPost(uuid)
-  if (!post) {
-    res.status(404).send({ error: 'Not Found'})
-    return
-  }
-  res.type('application/json')
-  res.send(JSON.stringify(post, null, 2))
-})
+  // Authentication
+  app.post('/api/login', auth.loginHttpRoute)
 
-app.get('/ping', (_req, res) => {
-  res.send('pong')
-})
+  // Publishing routes
+  app.post('/api/bluesky/post', auth.middleware, bluesky.createPostHttpRoute)
+  app.post('/api/mastodon/post', auth.middleware, mastodon.createPostHttpRoute)
+  app.post('/api/rss/post', auth.middleware, rss.createPostHttpRoute)
+  app.post('/api/multiple/post', auth.middleware, form.broadcastPostToManyHttpRoute)
+  app.post('/api/files/upload', auth.middleware, files.middleware, files.uploadFilesHttpRoute)
 
-app.post('/api/login', loginRoute)
+  // Needed for the frontend routing
+  app.get(/\/(login|form)/, (_req, res) => {
+    res.sendFile('public/index.html', { root: __dirname + '/..' })
+  })
 
-app.get('/api/protected', jwtAuth, (req, res) => {
-  res.send({ username: req.user?.username })
-})
-
-app.post('/api/bluesky/post', jwtAuth, async (req, res) => {
-  const { status, body } = await blueskyApi.createPostRoute(req.body)
-  res.status(status).send(body)
-})
-
-app.post('/api/mastodon/post', jwtAuth, async (req, res) => {
-  const { status, body } = await mastodonApi.createPostRoute(req.body)
-  res.status(status).send(body)
-})
-
-app.post('/api/rss/post', jwtAuth, async (req, res) => {
-  const { status, body } = await rssApi.createPostRoute(req.body)
-  res.status(status).send(body)
-})
-
-app.post('/api/multiple/post', jwtAuth, async (req, res) => {
-  if (!req.body["content"]) {
-    res.status(400).send("Bad Request: Missing content!")
-    return
-  }
-
-  var errors: Dictionary<PostHttpResponse> = {}
-  var published = 0
-
-  if (req.body["mastodon"]) {
-    published++
-    const r = await mastodonApi.createPostRoute(req.body)
-    if (r.status != 200) {
-      errors["mastodon"] = r
-    }
-  }
-
-  if (req.body["bluesky"]) {
-    published++
-    const r = await blueskyApi.createPostRoute(req.body)
-    if (r.status != 200) {
-      errors["bluesky"] = r
-    }
-  }
-
-  if (req.body["rss"]) {
-    published++
-    const r = await rssApi.createPostRoute(req.body)
-    if (r.status != 200) {
-      errors["rss"] = r
-    }
-  }
-
-  if (Object.keys(errors).length > 0) {
-    let maxStatus = 0
-    for (const value of Object.values(errors)) {
-      if (value.status > maxStatus) {
-        maxStatus = value.status
-      }
-    }
-    res.status(maxStatus).send(errors)
-  } else if (published == 0) {
-    res.status(400).send("Bad Request: No service specified!")
-  } else {
-    res.send("OK")
-  }
-})
-
-app.get(/\/(login|form)/, (_req, res) => {
-  res.sendFile('public/index.html', { root: __dirname + '/..' })
-})
-
-app.listen(port, () => {
-  console.log(`[${new Date().toISOString()}] Server is running at http://localhost:${port}`)
-})
-
-// Initialize and migrate the database
-PostsDatabase.init().catch((err) => {
-  console.error(`[${new Date().toISOString()}] Failed to initialize database:`, err)
-  process.exit(1)
-})
+  return app.listen(config.httpPort, () => {
+    logger.info(`Server is running at: http://localhost:${config.httpPort}`)
+  })
+}
