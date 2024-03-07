@@ -62,7 +62,10 @@ export class RssModule {
     }
   }
 
-  rss = async (options: { filterByLinks?: 'include' | 'exclude' }): Promise<string> => {
+  rss = async (options: {
+    filterByLinks?: 'include' | 'exclude'
+    filterByImages?: 'include' | 'exclude'
+  }): Promise<string> => {
     const posts = await this.db.getPosts()
     const feed = new RSS({
       title: 'Feed of ' + this.config.baseUrl.replace(/^https?:\/\//, ''),
@@ -78,6 +81,13 @@ export class RssModule {
       } else if (options.filterByLinks === 'exclude' && post.link) {
         continue
       }
+      const hasImages = (post.images || []).length > 0
+      if (options.filterByImages === 'include' && !hasImages) {
+        continue
+      } else if (options.filterByImages === 'exclude' && hasImages) {
+        continue
+      }
+
       const guid = new URL(`/rss/${post.uuid}`, this.config.baseUrl).toString()
       const mediaItems: unknown[] = []
       for (const uuid of post.images || []) {
@@ -130,8 +140,15 @@ export class RssModule {
           ? 'exclude'
           : undefined
 
+    const filterByImages =
+      req.query.filterByImages === 'include'
+        ? 'include'
+        : req.query.filterByImages === 'exclude'
+          ? 'exclude'
+          : undefined
+
     res.type('application/rss+xml')
-    res.send(await this.rss({ filterByLinks }))
+    res.send(await this.rss({ filterByLinks, filterByImages }))
   }
 
   getRssItemHttpRoute = async (req: Request, res: Response) => {
