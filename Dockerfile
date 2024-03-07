@@ -50,4 +50,4 @@ ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
 RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
 # Define the command to run the application
-ENTRYPOINT [ "./docker-entrypoint.sh", "node", "./server/server.js" ]
+ENTRYPOINT [ "./docker-entrypoint.sh", "node", "--enable-source-maps", "./server/main.js" ]
