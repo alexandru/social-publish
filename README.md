@@ -1,6 +1,6 @@
 # social-publish
 
-[![deploy](https://github.com/alexandru/social-publish/actions/workflows/deploy.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy.yaml)
+[![deploy-latest](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml) [![deploy-release](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml)
 
 In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. I'm using [ifttt.com](https://ifttt.com/), but it doesn't do a good job — their LinkedIn integration is most often broken, and Bluesky integration is currently missing.
 
@@ -74,7 +74,7 @@ You can then configure `ifttt.com`. When adding an "action" to your applet, sear
 
 Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
 
-<img src="./docs/form-20240307.png" width="400" alt='Screenshot of "Post a New Social Message" form' />
+<img src="./docs/form-20240307.png" width="500" alt='Screenshot of "Post a New Social Message" form' />
 <hr/>
 
 ### RSS feed
