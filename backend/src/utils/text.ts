@@ -1,6 +1,6 @@
 import { convert } from 'html-to-text'
 
-function convertHtml(html: string): string {
+export const convertHtml = (html: string): string => {
   const text = convert(html.trim(), {
     wordwrap: false,
     formatters: {
@@ -20,5 +20,5 @@ function convertHtml(html: string): string {
 }
 
 export default {
-  convertHtml
+  convertHtml,
 }

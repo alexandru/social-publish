@@ -4,20 +4,20 @@ import { AuthConfig, AuthModule } from './modules/authentication'
 import { BlueskyApiConfig, BlueskyApiModule } from './modules/bluesky-api'
 import { FormModule } from './modules/form'
 import { MastodonApiConfig, MastodonApiModule } from './modules/mastodon-api'
-import { RssConfig, RssModule } from './modules/rss-api'
-import { HttpConfig, startServer } from './server'
+import { RssModule } from './modules/rss-api'
+import { startServer } from './server'
 import logger from './utils/logger'
 import yargs from 'yargs'
 import { waitOnTerminationSignal } from './utils/proc'
 import { FilesDatabase } from './db/files'
 import { FilesConfig, FilesModule } from './modules/files'
+import { HttpConfig } from './modules/http'
 
 type AppConfig = DBConfig &
   HttpConfig &
   AuthConfig &
   BlueskyApiConfig &
   MastodonApiConfig &
-  RssConfig &
   FilesConfig
 
 async function main() {
@@ -117,9 +117,9 @@ async function main() {
     const auth = new AuthModule(args)
     const rss = new RssModule(args, postsDb)
     const mastodon = new MastodonApiModule(args)
-    const bluesky = await BlueskyApiModule.create(args)
+    const files = await FilesModule.init(args, filesDb)
+    const bluesky = await BlueskyApiModule.create(args, files)
     const form = new FormModule(mastodon, bluesky, rss)
-    const files = FilesModule.init(args, filesDb)
 
     const server = await startServer(args, auth, rss, mastodon, bluesky, form, files)
     try {

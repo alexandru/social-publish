@@ -3,6 +3,7 @@ export interface UnvalidatedPostRequest {
     link?: string,
     language?: string,
     cleanupHtml?: boolean,
+    images?: string[],
 }
 
 export interface PostRequest extends UnvalidatedPostRequest {

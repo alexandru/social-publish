@@ -73,8 +73,24 @@ Authorization: Bearer {{$global.jwt}}
 Content-Type: multipart/form-data; boundary=WebKitFormBoundary
 
 --WebKitFormBoundary
-Content-Disposition: form-data; name="files"; filename="form-20240304.png"
-Content-Type: image/png
+Content-Disposition: form-data; name="altText"
 
-< ./docs/form-20240304.png
+She's Zuzi, my cat 🐱
+--WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="cat.jpeg"
+Content-Type: image/jpeg
+
+< ./docs/cat.jpeg
 --WebKitFormBoundary--
+
+{{
+  $global.imageUuid=response.parsedBody.uuid;
+}}
+
+###
+# @name: Post to Bluesky with Image
+POST {{baseUrl}}/api/bluesky/post
+Authorization: Bearer {{$global.jwt}}
+Content-Type: application/x-www-form-urlencoded
+
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images[]={{$global.imageUuid}}

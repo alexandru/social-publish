@@ -12,14 +12,11 @@ import { URL } from 'url'
 import utils from '../utils/text'
 import RSS from 'rss'
 import logger from '../utils/logger'
-
-export type RssConfig = {
-  baseUrl: string
-}
+import { HttpConfig } from './http'
 
 export class RssModule {
   constructor(
-    public config: RssConfig,
+    public config: HttpConfig,
     private db: PostsDatabase,
   ) {}
 

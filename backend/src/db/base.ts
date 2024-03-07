@@ -81,12 +81,14 @@ export class DBConnection {
 
   migrate = async (migrations: Migration[]) => {
     for (const migration of migrations) {
-      const applied = await migration.testIfApplied(this)
-      if (!applied)
-        for (const ddl of migration.ddl) {
-          logger.info(`Executing migration:\n${ddl}`)
-          await this.run(ddl)
-        }
+      await this.transaction(async () => {
+        const applied = await migration.testIfApplied(this)
+        if (!applied)
+          for (const ddl of migration.ddl) {
+            logger.info(`Executing migration:\n${ddl}`)
+            await this.run(ddl)
+          }
+      })
     }
   }
 }

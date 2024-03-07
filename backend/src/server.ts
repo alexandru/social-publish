@@ -8,10 +8,7 @@ import { MastodonApiModule } from './modules/mastodon-api'
 import { BlueskyApiModule } from './modules/bluesky-api'
 import { FormModule } from './modules/form'
 import { FilesModule } from './modules/files'
-
-export type HttpConfig = {
-  httpPort: number
-}
+import { HttpConfig } from './modules/http'
 
 export const startServer = async (
   config: HttpConfig,
