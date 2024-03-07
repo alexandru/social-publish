@@ -10,6 +10,7 @@ export interface PostPayload {
   link?: string
   tags?: string[]
   language?: string
+  images?: string[]
 }
 
 const migrations: Migration[] = [

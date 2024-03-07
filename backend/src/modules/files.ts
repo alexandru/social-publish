@@ -229,10 +229,11 @@ export class FilesModule {
       })
 
     // Construct the file path
-    const filePath = path.join(this.config.processedPath, fileRecord.uuid)
+    const filePath = path.join(this.config.processedPath, fileRecord.hash)
     // Check if the file exists
     if (await !fs.existsSync(filePath)) {
-      return res.status(404).send('File not found.')
+      logger.warn(`File not found: ${filePath}`, fileRecord)
+      return res.status(404).send({ error: 'File not found.' })
     }
 
     // Send the file

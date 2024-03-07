@@ -10,14 +10,16 @@ import {
 import { Request, Response } from 'express'
 import { URL } from 'url'
 import utils from '../utils/text'
-import RSS from 'rss'
+import RSS, { EnclosureObject } from 'rss'
 import logger from '../utils/logger'
 import { HttpConfig } from './http'
+import { FilesDatabase, Upload } from '../db/files'
 
 export class RssModule {
   constructor(
     public config: HttpConfig,
     private db: PostsDatabase,
+    private files: FilesDatabase
   ) {}
 
   createPost = async (post: PostRequest): Promise<PostResponse | PostError> => {
@@ -28,7 +30,8 @@ export class RssModule {
         content,
         link: post.link,
         language: post.language,
-        tags
+        tags,
+        images: post.images
       })
       return {
         isSuccessful: true,
@@ -64,7 +67,10 @@ export class RssModule {
     const feed = new RSS({
       title: 'Feed of ' + this.config.baseUrl.replace(/^https?:\/\//, ''),
       feed_url: new URL('/rss', this.config.baseUrl).toString(),
-      site_url: this.config.baseUrl
+      site_url: this.config.baseUrl,
+      custom_namespaces: {
+        media: 'http://search.yahoo.com/mrss/'
+      }
     })
     for (const post of posts) {
       if (options.filterByLinks === 'include' && !post.link) {
@@ -73,13 +79,44 @@ export class RssModule {
         continue
       }
       const guid = new URL(`/rss/${post.uuid}`, this.config.baseUrl).toString()
+      const mediaItems: unknown[] = []
+      for (const uuid of post.images || []) {
+        const file = await this.files.getFileByUuid(uuid)
+        if (file)
+          mediaItems.push({
+            'media:content': [
+              {
+                _attr: {
+                  url: `${this.config.baseUrl}/files/${file.uuid}`,
+                  fileSize: file.size,
+                  type: file.mimetype
+                }
+              },
+              {
+                'media:rating': {
+                  _attar: { scheme: 'urn:simple' },
+                  _cdata: 'nonadult'
+                }
+              },
+              {
+                'media:description': file.altText
+                  ? {
+                      _cdata: file.altText
+                    }
+                  : undefined
+              }
+            ]
+          })
+      }
+
       feed.item({
         title: post.content,
         description: post.content,
         categories: post.tags,
         guid,
         url: post.link || guid,
-        date: post.createdAt
+        date: post.createdAt,
+        custom_elements: mediaItems.length > 0 ? mediaItems : undefined
       })
     }
     return feed.xml({ indent: true })
