@@ -7,7 +7,7 @@ In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, sy
 This project is the start of a simple tool to publish my content to multiple social networks.
 
 - Only [Bluesky](https://bsky.app/) and [Mastodon](https://joinmastodon.org/) support is implemented, but Twitter and LinkedIn are planned
-- Only text posts are supported at this time, but media posts are planned
+- Image upload is supported 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
 ## Self-hosting

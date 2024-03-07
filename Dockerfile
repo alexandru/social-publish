@@ -45,6 +45,9 @@ USER appuser
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+
+RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
 # Define the command to run the application
 ENTRYPOINT [ "./docker-entrypoint.sh", "node", "./server/server.js" ]
