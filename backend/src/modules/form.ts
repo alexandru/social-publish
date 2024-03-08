@@ -1,10 +1,15 @@
 import { Request, Response } from 'express'
-import { Dictionary, PostHttpResponse } from '../models'
 import { MastodonApiModule } from './mastodon-api'
 import { BlueskyApiModule } from './bluesky-api'
 import { RssModule } from './rss-api'
+import { writeErrorToResponse } from '../models/errors'
+import { Dictionary } from '../models/base'
+import { NewPostResponse } from '../models/posts'
 
 export class FormModule {
+  private modules: ('mastodon' | 'bluesky' | 'rss')[] =
+    ['mastodon', 'bluesky', 'rss']
+
   constructor(
     public mastodonApi: MastodonApiModule,
     public blueskyApi: BlueskyApiModule,
@@ -13,49 +18,54 @@ export class FormModule {
 
   broadcastPostToManyHttpRoute = async (req: Request, res: Response) => {
     if (!req.body['content']) {
-      res.status(400).send('Bad Request: Missing content!')
+      writeErrorToResponse(res, {
+        type: 'validation-error',
+        status: 400,
+        module: 'form',
+        error: 'No content provided.'
+      })
       return
     }
 
-    var errors: Dictionary<PostHttpResponse> = {}
-    var published = 0
+    const responses = await Promise.all(
+      this.modules
+        .filter((it) => !!req.body[it])
+        .map((module) =>
+          (async () => {
+            switch (module) {
+              case 'mastodon':
+                return await this.mastodonApi.createPostRoute(req.body)
+              case 'bluesky':
+                return await this.blueskyApi.createPostRoute(req.body)
+              case 'rss':
+                return await this.rssApi.createPostRoute(req.body)
+            }
+          })()
+        )
+    )
 
-    if (req.body['mastodon']) {
-      published++
-      const r = await this.mastodonApi.createPostRoute(req.body)
-      if (r.status != 200) {
-        errors['mastodon'] = r
+    const filteredErrors = responses.flatMap((r) => {
+      if (r.type === 'error') {
+        return [r.error]
       }
+      return []
+    })
+    if (filteredErrors.length > 0) {
+      const modules = filteredErrors.map((e) => e.module).join(', ')
+      return writeErrorToResponse(res, {
+        type: 'composite-error',
+        status: 502,
+        error: `Failed to create post via ${modules}.`,
+        module: 'form',
+        responses: responses
+      })
     }
 
-    if (req.body['bluesky']) {
-      published++
-      const r = await this.blueskyApi.createPostRoute(req.body)
-      if (r.status != 200) {
-        errors['bluesky'] = r
-      }
+    const replies = responses.flatMap(r => r.type === 'success' ? [r.result] : [])
+    const asMap: Dictionary<NewPostResponse> = {}
+    for (const reply of replies) {
+      asMap[reply.module] = reply
     }
-
-    if (req.body['rss']) {
-      published++
-      const r = await this.rssApi.createPostRoute(req.body)
-      if (r.status != 200) {
-        errors['rss'] = r
-      }
-    }
-
-    if (Object.keys(errors).length > 0) {
-      let maxStatus = 0
-      for (const value of Object.values(errors)) {
-        if (value.status > maxStatus) {
-          maxStatus = value.status
-        }
-      }
-      res.status(maxStatus).send(errors)
-    } else if (published == 0) {
-      res.status(400).send('Bad Request: No service specified!')
-    } else {
-      res.send('OK')
-    }
+    res.status(200).send(asMap)
   }
 }

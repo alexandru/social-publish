@@ -1,21 +1,23 @@
 import qs from 'qs'
-import {
-  PostError,
-  PostHttpResponse,
-  PostRequest,
-  PostResponse,
-  UnvalidatedPostRequest
-} from '../models'
 import utils from '../utils/text'
 import { Request, Response } from 'express'
 import logger from '../utils/logger'
 import { FilesModule } from './files'
-import result from '../utils/result'
+import result, { Result } from '../models/result'
 import { sleep } from '../utils/proc'
+import { ApiError, buildErrorFromResponse, writeErrorToResponse } from '../models/errors'
+import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
 
 export type MastodonApiConfig = {
   mastodonHost: string
   mastodonAccessToken: string
+}
+
+export type MastodonMediaUploadResponse = {
+  id: string
+  url: string
+  previewUrl: string
+  description: string
 }
 
 export class MastodonApiModule {
@@ -28,96 +30,93 @@ export class MastodonApiModule {
   private mediaUrlV2 = `${this.config.mastodonHost}/api/v2/media`
   private statusesUrlV1 = `${this.config.mastodonHost}/api/v1/statuses`
 
-  private uploadMedia = async (uuid: string) => {
-    const r = await this.files.readImageFile(uuid)
-    if (r === null)
-      return result.error({
-        status: 404,
-        error: 'Failed to read image file — uuid: ' + uuid
-      })
-
-    const formData = new FormData()
-    formData.append(
-      'file',
-      new Blob([r.bytes], { type: r.mimetype }),
-      r.originalname
-    )
-    if (r.altText) formData.append('description', r.altText)
-
-    const response = await fetch(this.mediaUrlV2, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.config.mastodonAccessToken}`,
-      },
-      body: formData
-    })
-
-    if (response.status == 200) {
-      const data = await response.json()
-      return result.success({
-        id: data['id'] as string,
-        url: data['url'] as string,
-        previewUrl: data['preview_url'] as string,
-        description: data['description'] as string
-      })
-    } else if (response.status == 202) {
-      const id = (await response.json())['id'] as string
-      while (true) {
-        sleep(200)
-        const response = await fetch(this.mediaUrlV1 + '/' + id, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.config.mastodonAccessToken}`
-          }
+  private uploadMedia = async (
+    uuid: string
+  ): Promise<Result<MastodonMediaUploadResponse, ApiError>> => {
+    try {
+      const r = await this.files.readImageFile(uuid)
+      if (r === null)
+        return result.error({
+          type: 'validation-error',
+          module: 'mastodon',
+          status: 404,
+          error: 'Failed to read image file — uuid: ' + uuid
         })
-        if (response.status == 200) {
-          const data = await response.json()
-          return result.success({
-            id: data['id'] as string,
-            url: data['url'] as string,
-            previewUrl: data['preview_url'] as string,
-            description: data['description'] as string
-          })
-        } else if (response.status != 202) {
-          logger.warn('Failed to upload media:', {
-            uuid,
-            status: response.status,
-            body: await response.text()
-          })
-          return result.error({
-            status: response.status,
-            error: `Failed to upload media`
-          })
-        }
-      }
-    } else {
-      logger.warn('Failed to upload media:', {
-        uuid,
-        status: response.status,
-        body: await response.text()
+
+      const formData = new FormData()
+      formData.append('file', new Blob([r.bytes], { type: r.mimetype }), r.originalname)
+      if (r.altText) formData.append('description', r.altText)
+
+      const response = await fetch(this.mediaUrlV2, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.config.mastodonAccessToken}`
+        },
+        body: formData
       })
+
+      if (response.status == 200) {
+        const data = await response.json()
+        return result.success({
+          id: data['id'] as string,
+          url: data['url'] as string,
+          previewUrl: data['preview_url'] as string,
+          description: data['description'] as string
+        })
+      } else if (response.status == 202) {
+        const id = (await response.json())['id'] as string
+        while (true) {
+          sleep(200)
+          const response = await fetch(this.mediaUrlV1 + '/' + id, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${this.config.mastodonAccessToken}`
+            }
+          })
+          if (response.status == 200) {
+            const data = await response.json()
+            return result.success({
+              id: data['id'] as string,
+              url: data['url'] as string,
+              previewUrl: data['preview_url'] as string,
+              description: data['description'] as string
+            })
+          } else if (response.status != 202) {
+            return result.error(await buildErrorFromResponse(response, 'mastodon', { uuid }))
+          }
+        }
+      } else {
+        return result.error(await buildErrorFromResponse(response, 'mastodon', { uuid }))
+      }
+    } catch (err) {
+      logger.error(`Failed to upload media (mastodon) — uuid ${uuid}:`, err)
       return result.error({
-        status: response.status,
-        error: `Failed to upload media — uuid: ${uuid}`
+        type: 'caught-exception',
+        error: `Failed to upload media — uuid: ${uuid}`,
+        status: 500,
+        module: 'mastodon'
       })
     }
   }
 
-  createPost = async (post: PostRequest): Promise<PostResponse | PostError> => {
+  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
     try {
       const images: string[] = []
       if (post.images) {
-        const rs = (await Promise.all(post.images.map(this.uploadMedia)))
+        const rs = await Promise.all(post.images.map(this.uploadMedia))
         logger.info('Uploaded images:', rs)
 
-        for (const result of rs) {
-          if (result.type === 'success') {
-            images.push(result.result.id)
+        for (const r of rs) {
+          if (r.type === 'success') {
+            images.push(r.result.id)
           } else {
-            return {
-              isSuccessful: false,
-              ...result.error
-            }
+            return result.error({
+              type: 'composite-error',
+              status: 502,
+              module: 'mastodon',
+              error: 'Failed to upload images.',
+              responses: rs
+            })
           }
         }
       }
@@ -145,46 +144,46 @@ export class MastodonApiModule {
 
       if (response.status >= 400) {
         logger.error('Failed to post to Mastodon: ', response)
-        const data = await response.json()
-        return {
-          isSuccessful: false,
-          status: response.status,
-          error: data['error'] || 'HTTP ' + response.status
-        }
+        return result.error(await buildErrorFromResponse(response, 'mastodon'))
       } else {
         const body = await response.json()
-        return {
-          isSuccessful: true,
+        return result.success({
+          module: 'mastodon',
           uri: body['url']
-        }
+        })
       }
     } catch (e) {
       logger.error('Failed to post to Mastodon:', e)
-      return {
-        isSuccessful: false,
+      return result.error({
+        type: 'caught-exception',
+        module: 'mastodon',
         error: e
-      }
+      })
     }
   }
 
-  createPostRoute = async (post: UnvalidatedPostRequest): Promise<PostHttpResponse> => {
+  createPostRoute = async (
+    post: UnvalidatedNewPostRequest
+  ): Promise<Result<NewPostResponse, ApiError>> => {
     const content = post.content
     if (!content) {
-      return { status: 400, body: 'Bad Request: Missing content!' }
+      return result.error({
+        type: 'validation-error',
+        status: 400,
+        error: 'Bad Request: Missing content!',
+        module: 'mastodon'
+      })
     }
-    const r = await this.createPost({ ...post, content })
-    logger.info('Posted to Mastodon: ', r)
-    if (!r.isSuccessful) {
-      return r.status
-        ? { status: r.status, body: '' + r.error }
-        : { status: 500, body: 'Internal Server Error (BlueSky)' }
-    } else {
-      return { status: 200, body: 'OK' }
-    }
+
+    return await this.createPost({ ...post, content })
   }
 
   createPostHttpRoute = async (req: Request, res: Response) => {
-    const { status, body } = await this.createPostRoute(req.body)
-    res.status(status).send(body)
+    const r = await this.createPostRoute(req.body)
+    if (r.type === 'success') {
+      res.status(200).send(r.result)
+    } else {
+      writeErrorToResponse(res, r.error)
+    }
   }
 }

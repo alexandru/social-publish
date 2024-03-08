@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/alexandru/social-publish#readme",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.5"
   }
 }

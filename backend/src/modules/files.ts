@@ -6,10 +6,11 @@ import { calculateFileHash, readFileAsUint8Array } from '../utils/files'
 import logger from '../utils/logger'
 import fs from 'fs'
 import { HttpConfig } from './http'
-import result from '../utils/result'
+import result, { Result } from '../models/result'
 import { imageSize } from 'image-size'
 import sharp from 'sharp'
 import path from 'path'
+import { ApiError, writeErrorToResponse } from '../models/errors'
 
 export type FilesConfig = HttpConfig & {
   uploadedFilesPath: string
@@ -21,6 +22,16 @@ export type ResizeOptions = {
   maxHeight: number
   jpgQuality: number
   pngCompression: number
+}
+
+export type ProcessedUpload = {
+  originalname: string
+  mimetype: string
+  altText: string | undefined
+  width: number
+  height: number
+  size: number
+  bytes: Uint8Array
 }
 
 export class FilesModule {
@@ -103,11 +114,11 @@ export class FilesModule {
     return { width, height, path, size: upload.size }
   }
 
-  readImageFile = async (file: Upload | string) => {
+  readImageFile = async (file: Upload | string): Promise<ProcessedUpload | null> => {
     const upload = typeof file === 'string' ? await this.db.getFileByUuid(file) : file
     if (!upload) return null
 
-    if (["image/png", "image/jpeg"].indexOf(upload.mimetype) === -1) {
+    if (['image/png', 'image/jpeg'].indexOf(upload.mimetype) === -1) {
       throw new Error(`Unsupported image type: ${upload.mimetype}`)
     }
 
@@ -123,11 +134,7 @@ export class FilesModule {
       throw new Error(`Invalid image — uuid: ${upload.uuid}`)
     }
 
-    const resized = await this.resizeImageFile(
-      upload,
-      width,
-      height
-    )
+    const resized = await this.resizeImageFile(upload, width, height)
     return {
       originalname: upload.originalname,
       mimetype: upload.mimetype,
@@ -144,10 +151,11 @@ export class FilesModule {
     body('altText').isString().optional()
   ]
 
-  processUploadedFile = async (req: Request) => {
+  processUploadedFile = async (req: Request): Promise<Result<Upload, ApiError>> => {
     const errors = validationResult(req)
     if (!errors.isEmpty())
       return result.error({
+        type: 'validation-error',
         status: 400,
         error: `Invalid request: ${errors.array().join(', ')}`
       })
@@ -156,6 +164,7 @@ export class FilesModule {
     const file = req.file
     if (!file)
       return result.error({
+        type: 'validation-error',
         status: 400,
         error: 'No file was uploaded.'
       })
@@ -180,6 +189,7 @@ export class FilesModule {
           break
         default:
           return result.error({
+            type: 'validation-error',
             status: 400,
             error:
               'Only PNG and JPEG images are supported, got: ' + (imageInfo?.type || 'undefined')
@@ -204,8 +214,10 @@ export class FilesModule {
     } catch (e) {
       logger.error(`Error processing uploaded files:`, e)
       return result.error({
+        type: 'caught-exception',
         status: 500,
-        error: 'Error processing uploaded files.'
+        error: 'Error processing uploaded files.',
+        module: 'files'
       })
     }
   }
@@ -213,10 +225,16 @@ export class FilesModule {
   uploadFilesHttpRoute = async (req: Request, res: Response) => {
     const r = await this.processUploadedFile(req)
     if (r.type === 'success') {
-      res.status(200).send(r.result)
+      return res.status(200).send(r.result)
     } else {
-      res.status(r.error.status).send({ error: r.error.error })
+      return writeErrorToResponse(res, r.error)
     }
+  }
+
+  private notFound: ApiError = {
+    type: 'validation-error',
+    status: 404,
+    error: 'File not found.'
   }
 
   getUploadedFileRoute = async (req: Request, res: Response) => {
@@ -224,16 +242,14 @@ export class FilesModule {
     const fileRecord = await this.db.getFileByUuid(uuid)
 
     if (!fileRecord)
-      return res.status(404).send({
-        error: 'File not found.'
-      })
+      return writeErrorToResponse(res, this.notFound)
 
     // Construct the file path
     const filePath = path.join(this.config.processedPath, fileRecord.hash)
     // Check if the file exists
     if (await !fs.existsSync(filePath)) {
       logger.warn(`File not found: ${filePath}`, fileRecord)
-      return res.status(404).send({ error: 'File not found.' })
+      return writeErrorToResponse(res, this.notFound)
     }
 
     // Send the file

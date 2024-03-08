@@ -1,12 +1,4 @@
 import { PostsDatabase } from '../db/posts'
-import {
-  PostError,
-  PostHttpResponse,
-  PostRequest,
-  PostResponse,
-  UnvalidatedPostRequest
-} from '../models'
-
 import { Request, Response } from 'express'
 import { URL } from 'url'
 import utils from '../utils/text'
@@ -14,6 +6,9 @@ import RSS, { EnclosureObject } from 'rss'
 import logger from '../utils/logger'
 import { HttpConfig } from './http'
 import { FilesDatabase, Upload } from '../db/files'
+import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import result, { Result } from '../models/result'
+import { ApiError, writeErrorToResponse } from '../models/errors'
 
 export class RssModule {
   constructor(
@@ -22,7 +17,7 @@ export class RssModule {
     private files: FilesDatabase
   ) {}
 
-  createPost = async (post: PostRequest): Promise<PostResponse | PostError> => {
+  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
     try {
       const content = post.cleanupHtml ? utils.convertHtml(post.content) : post.content
       const tags = post.content.match(/(?<=^|\s)#\w+/gm)?.map((t) => t.substring(1)) || []
@@ -33,33 +28,33 @@ export class RssModule {
         tags,
         images: post.images
       })
-      return {
-        isSuccessful: true,
+      return result.success({
+        module: 'rss',
         uri: new URL(`/rss/${row.uuid}`, this.config.baseUrl).toString()
-      }
+      })
     } catch (e) {
       logger.error('Failed to save RSS item: ', e)
-      return {
-        isSuccessful: false,
-        error: e
-      }
+      return result.error({
+        type: 'caught-exception',
+        module: 'rss',
+        error: 'Failed to save RSS item',
+        status: 500
+      })
     }
   }
 
-  createPostRoute = async (post: UnvalidatedPostRequest): Promise<PostHttpResponse> => {
+  createPostRoute = async (post: UnvalidatedNewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
     const content = post.content
     if (!content) {
-      return { status: 400, body: 'Bad Request: Missing content!' }
+      return result.error({
+        type: 'validation-error',
+        status: 400,
+        error: 'Bad Request: Missing content!',
+        module: 'rss'
+      })
     }
-    const r = await this.createPost({ ...post, content })
-    logger.info('Saved RSS item: ', r)
-    if (!r.isSuccessful) {
-      return r.status
-        ? { status: r.status, body: '' + r.error }
-        : { status: 500, body: 'Internal Server Error (RSS)' }
-    } else {
-      return { status: 200, body: 'OK' }
-    }
+
+    return await this.createPost({ ...post, content })
   }
 
   rss = async (options: {
@@ -155,7 +150,12 @@ export class RssModule {
     const uuid = req.params.uuid
     const post = await this.db.getPost(uuid)
     if (!post) {
-      res.status(404).send({ error: 'Not Found' })
+      writeErrorToResponse(res, {
+        type: 'validation-error',
+        status: 404,
+        error: 'Not Found: Post not found.',
+        module: 'rss'
+      })
       return
     }
     res.type('application/json')
@@ -163,7 +163,11 @@ export class RssModule {
   }
 
   createPostHttpRoute = async (req: Request, res: Response) => {
-    const { status, body } = await this.createPostRoute(req.body)
-    res.status(status).send(body)
+    const r = await this.createPostRoute(req.body)
+    if (r.type === 'success') {
+      res.status(200).send(r.result)
+    } else {
+      writeErrorToResponse(res, r.error)
+    }
   }
 }

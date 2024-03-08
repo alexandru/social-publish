@@ -1,15 +1,11 @@
 import { BlobRef, BskyAgent, RichText } from '@atproto/api'
 import utils from '../utils/text'
-import {
-  PostError,
-  PostHttpResponse,
-  PostRequest,
-  PostResponse,
-  UnvalidatedPostRequest
-} from '../models'
 import { Request, Response } from 'express'
 import logger from '../utils/logger'
 import { FilesModule } from './files'
+import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import result, { Result } from '../models/result'
+import { ApiError, writeErrorToResponse } from '../models/errors'
 
 export type BlueskyApiConfig = {
   blueskyService: string
@@ -17,16 +13,25 @@ export type BlueskyApiConfig = {
   blueskyPassword: string
 }
 
+export type BlueskyMediaUploadResponse = {
+  image: BlobRef
+  alt?: string
+  aspectRatio?: {
+    width: number
+    height: number
+  }
+}
+
 export class BlueskyApiModule {
   constructor(
     public config: BlueskyApiConfig,
     private agent: BskyAgent,
-    private files: FilesModule,
+    private files: FilesModule
   ) {}
 
   static create = async (
     config: BlueskyApiConfig,
-    files: FilesModule,
+    files: FilesModule
   ): Promise<BlueskyApiModule> => {
     const agent = new BskyAgent({
       service: config.blueskyService
@@ -38,36 +43,88 @@ export class BlueskyApiModule {
     return new BlueskyApiModule(config, agent, files)
   }
 
-  createPost = async (post: PostRequest): Promise<PostResponse | PostError> => {
+  private responseErrorToApiError = (message: string, e: any): ApiError => {
+    logger.error(message, e)
+    const eany = e as any
+    if (eany.status && eany.error)
+      return {
+        type: 'request-error',
+        module: 'bluesky',
+        status: eany.status,
+        error: message,
+        body: {
+          asString: eany.error
+        }
+      }
+    else
+      return {
+        type: 'caught-exception',
+        module: 'bluesky',
+        error: e
+      }
+  }
+
+  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
     type Image = {
-      image: BlobRef,
-      alt?: string,
+      image: BlobRef
+      alt?: string
       aspectRatio?: {
-        width: number,
+        width: number
         height: number
       }
     }
     try {
-      const images: Image[] = []
-      for (const imageUuid of post.images || []) {
-        const r = await this.files.readImageFile(imageUuid)
-        if (!r) return { isSuccessful: false, error: `Image not found: ${imageUuid}` }
+      const imageUploadsResults: Result<BlueskyMediaUploadResponse, ApiError>[] = await Promise.all(
+        (post.images || []).map((imageUuid) =>
+          (async () => {
+            try {
+              const r = await this.files.readImageFile(imageUuid)
+              if (!r)
+                return result.error({
+                  type: 'validation-error',
+                  status: 404,
+                  error: `Image not found: ${imageUuid}`,
+                  module: 'bluesky'
+                })
 
-        const blob = await this.agent.uploadBlob(r.bytes, { encoding: r.mimetype})
-        images.push({
-          image: blob.data.blob,
-          alt: r.altText,
-          aspectRatio: {
-            width: r.width,
-            height: r.height
-          }
-        })
+              const blob = await this.agent.uploadBlob(r.bytes, { encoding: r.mimetype })
+              return result.success({
+                image: blob.data.blob,
+                alt: r.altText,
+                aspectRatio: {
+                  width: r.width,
+                  height: r.height
+                }
+              })
+            } catch (e) {
+              return result.error(
+                this.responseErrorToApiError('Failed to upload image to BlueSky', e)
+              )
+            }
+          })()
+        )
+      )
+
+      const images: BlueskyMediaUploadResponse[] = []
+      for (const r of imageUploadsResults) {
+        if (r.type === 'error')
+          return result.error<ApiError>({
+            type: 'composite-error',
+            status: 502,
+            module: 'mastodon',
+            error: 'Failed to upload images.',
+            responses: imageUploadsResults
+          })
+        images.push(r.result)
       }
 
-      const embed = images.length == 0 ? undefined : {
-        $type: 'app.bsky.embed.images',
-        images
-      }
+      const embed =
+        images.length == 0
+          ? undefined
+          : {
+              $type: 'app.bsky.embed.images',
+              images
+            }
 
       const text =
         (post.cleanupHtml ? utils.convertHtml(post.content) : post.content.trim()) +
@@ -86,43 +143,38 @@ export class BlueskyApiModule {
         langs: post.language ? [post.language] : undefined,
         embed
       })
-
-      return { isSuccessful: true, ...r }
+      return result.success({
+        module: 'bluesky',
+        uri: r.uri,
+        cid: r.cid,
+      })
     } catch (e) {
-      logger.error("Failed to post to BlueSky:", e)
-      const eany = e as any
-      if (eany.status && eany.error)
-        return {
-          isSuccessful: false,
-          status: eany.status,
-          error: eany.error
-        }
-      else
-        return {
-          isSuccessful: false,
-          error: e
-        }
+      return result.error(this.responseErrorToApiError('Failed to post to BlueSky', e))
     }
   }
 
-  createPostRoute = async (post: UnvalidatedPostRequest): Promise<PostHttpResponse> => {
+  createPostRoute = async (
+    post: UnvalidatedNewPostRequest
+  ): Promise<Result<NewPostResponse, ApiError>> => {
     const content = post.content
     if (!content) {
-      return { status: 400, body: 'Bad Request: Missing content!' }
+      return result.error({
+        type: 'validation-error',
+        status: 400,
+        error: 'Bad Request: Missing content!',
+        module: 'bluesky'
+      })
     }
 
-    const r = await this.createPost({ ...post, content })
-    if (!r.isSuccessful) {
-      return r.status
-        ? { status: r.status, body: '' + r.error }
-        : { status: 500, body: 'Internal Server Error (BlueSky)' }
-    } else {
-      return { status: 200, body: 'OK' }
-    }
+    return await this.createPost({ ...post, content })
   }
 
-  createPostHttpRoute = async (req: Request, res: Response) => {
-    const { status, body } = await this.createPostRoute(req.body)
-    res.status(status).send(body)
+  createPostHttpRoute = async (req: Request, res: Response): Promise<void> => {
+    const r = await this.createPostRoute(req.body)
+    if (r.type === 'success') {
+      res.status(200).send(r.result)
+    } else {
+      writeErrorToResponse(res, r.error)
+    }
   }
 }

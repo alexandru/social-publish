@@ -1,5 +1,3 @@
-import { useState } from "preact/compat";
-
 export type SelectedImage = {
   id: number
   file?: File

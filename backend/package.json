@@ -23,7 +23,6 @@
     "@types/uuid": "^9.0.8",
     "@types/yargs": "^17.0.32",
     "nodemon": "^3.1.0",
-    "prettier": "^3.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },

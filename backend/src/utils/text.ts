@@ -19,6 +19,15 @@ export const convertHtml = (html: string): string => {
   return text.trim()
 }
 
+export const convertTextToJsonOrNull = (text: string): unknown | null => {
+  try {
+    return JSON.parse(text)
+  } catch (_e) {
+    return null
+  }
+}
+
 export default {
   convertHtml,
+  convertTextToJsonOrNull
 }
