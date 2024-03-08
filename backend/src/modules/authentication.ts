@@ -9,9 +9,9 @@ export type AuthConfig = {
 }
 
 export interface UserPayload {
-  username: string;
-  iat: number;
-  exp: number;
+  username: string
+  iat: number
+  exp: number
 }
 
 declare global {
@@ -26,31 +26,34 @@ export class AuthModule {
   constructor(public config: AuthConfig) {}
 
   middleware = (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization
     if (authHeader) {
-      const token = authHeader.split(' ')[1];
+      const token = authHeader.split(' ')[1]
 
       jwt.verify(token, this.config.serverAuthJwtSecret, (err, user) => {
         if (err) {
-          return res.status(403).send({ error: 'Forbidden' });
+          return res.status(403).send({ error: 'Forbidden' })
         }
-        req.user = user as UserPayload;
-        next();
-      });
+        req.user = user as UserPayload
+        next()
+      })
     } else {
-      res.status(401).send({ error: 'Unauthorized' });
+      res.status(401).send({ error: 'Unauthorized' })
     }
   }
 
   loginHttpRoute = (req: Request, res: Response) => {
     const username = req.body?.username
     const password = req.body?.password
-    if (username === this.config.serverAuthUsername && password === this.config.serverAuthPassword) {
+    if (
+      username === this.config.serverAuthUsername &&
+      password === this.config.serverAuthPassword
+    ) {
       const payload = { username }
       const token = jwt.sign(payload, this.config.serverAuthJwtSecret, { expiresIn: '2h' })
       res.send({ token })
     } else {
-      res.status(401).send({ error: "Invalid credentials" })
+      res.status(401).send({ error: 'Invalid credentials' })
     }
   }
 

@@ -43,7 +43,9 @@ export class RssModule {
     }
   }
 
-  createPostRoute = async (post: UnvalidatedNewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPostRoute = async (
+    post: UnvalidatedNewPostRequest
+  ): Promise<Result<NewPostResponse, ApiError>> => {
     const content = post.content
     if (!content) {
       return result.error({

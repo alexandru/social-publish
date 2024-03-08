@@ -96,7 +96,6 @@ export class DBConnection {
 export const withBaseConnection =
   (config: DBConfig) =>
   async <A>(f: (db: DBConnection) => Promise<A>): Promise<A> => {
-
     const { dbPath: path } = config
     const rawDb = await new Promise<sqlite.Database>((resolve, reject) => {
       let ref: sqlite.Database | null = null

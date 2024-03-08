@@ -1,11 +1,11 @@
-import { ComponentChildren, FunctionComponent } from "preact";
+import { ComponentChildren, FunctionComponent } from 'preact'
 
 export type MessageType = 'info' | 'warning' | 'error'
 
 type ModalMessageProps = {
   type: MessageType
-  children?: ComponentChildren,
-  isEnabled: boolean,
+  children?: ComponentChildren
+  isEnabled: boolean
   onDisable: () => void
 }
 
@@ -20,15 +20,12 @@ export const ModalMessage = (props: ModalMessageProps) => {
     }
   }
 
-  const title = props.type === 'info' ? 'Info'
-    : props.type === 'warning' ? 'Warning'
-      : 'Error'
-  const clsType = props.type === 'info' ? 'is-info'
-    : props.type === 'warning' ? 'is-warning'
-      : 'is-danger'
+  const title = props.type === 'info' ? 'Info' : props.type === 'warning' ? 'Warning' : 'Error'
+  const clsType =
+    props.type === 'info' ? 'is-info' : props.type === 'warning' ? 'is-warning' : 'is-danger'
 
   return (
-    <div id="message-modal" class={"modal " + (props.isEnabled ? "is-active" : "")}>
+    <div id="message-modal" class={'modal ' + (props.isEnabled ? 'is-active' : '')}>
       <div class="modal-background" onClick={handleClick} onKeyDown={handleKeyDown}></div>
 
       <div class="modal-content">
@@ -37,13 +34,11 @@ export const ModalMessage = (props: ModalMessageProps) => {
             <p>{title}</p>
             <button class="delete" aria-label="delete" onClick={handleClick}></button>
           </div>
-          <div class="message-body">
-            {props.children}
-          </div>
+          <div class="message-body">{props.children}</div>
         </article>
       </div>
 
       <button class="modal-close is-large" aria-label="close" onClick={handleClick}></button>
     </div>
-  );
+  )
 }

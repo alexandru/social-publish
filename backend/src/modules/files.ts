@@ -241,8 +241,7 @@ export class FilesModule {
     const uuid = req.params.uuid
     const fileRecord = await this.db.getFileByUuid(uuid)
 
-    if (!fileRecord)
-      return writeErrorToResponse(res, this.notFound)
+    if (!fileRecord) return writeErrorToResponse(res, this.notFound)
 
     // Construct the file path
     const filePath = path.join(this.config.processedPath, fileRecord.hash)

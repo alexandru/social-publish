@@ -10,9 +10,9 @@ export type UploadPayload = {
   hash: string
   originalname: string
   mimetype: string
-  size: number,
+  size: number
   altText?: string
-  imageWidth?: number,
+  imageWidth?: number
   imageHeight?: number
 }
 
@@ -37,7 +37,7 @@ const migrations: Migration[] = [
       `
       |CREATE INDEX IF NOT EXISTS uploads_createdAt
       |    ON uploads(createdAt)
-      `.replace(/^\s*\|/gm, ''),
+      `.replace(/^\s*\|/gm, '')
     ],
     testIfApplied: async (db) =>
       !!(await db.getOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='uploads'"))
@@ -63,16 +63,14 @@ export class FilesDatabase {
           'h:' + (payload.imageHeight ?? ''),
           'm:' + payload.mimetype
         ].join('/'),
-        uuidNamespace,
+        uuidNamespace
       )
-      const row = await this.db.getOne(
-        `SELECT * FROM uploads WHERE uuid = ?`,
-        uuid
-      )
-      if (row) return {
-        ...row,
-        createdAt: new Date(row.createdAt)
-      }
+      const row = await this.db.getOne(`SELECT * FROM uploads WHERE uuid = ?`, uuid)
+      if (row)
+        return {
+          ...row,
+          createdAt: new Date(row.createdAt)
+        }
 
       const now = Date.now()
       const upload: Upload = {

@@ -73,7 +73,7 @@ export const serializerError = (error: ApiError): SerializedHttpError => {
         status: error.status || 500,
         body: {
           type: error.type,
-          error: "Interval server error (see logs for details).",
+          error: 'Interval server error (see logs for details).',
           module: error.module
         }
       }
@@ -82,7 +82,7 @@ export const serializerError = (error: ApiError): SerializedHttpError => {
         status: 502,
         body: {
           type: error.type,
-          error: "API request error.",
+          error: 'API request error.',
           module: error.module,
           apiHttpResponse: {
             status: error.status,
@@ -95,7 +95,7 @@ export const serializerError = (error: ApiError): SerializedHttpError => {
         status: error.status || 502,
         body: {
           type: error.type,
-          error: error.error || "Multiple API requests failed.",
+          error: error.error || 'Multiple API requests failed.',
           module: error.module,
           composite: error.responses.map(result.leftMap(serializerError))
         }

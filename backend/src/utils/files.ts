@@ -11,9 +11,7 @@ export const readFileAsUint8Array = (mimetype: string, filePath: string): Promis
       } else {
         const base64 = data.toString('base64')
         const encoder = new TextEncoder()
-        resolve(
-          encoder.encode(`data:${mimetype};base64,${base64}`)
-        )
+        resolve(encoder.encode(`data:${mimetype};base64,${base64}`))
       }
     })
   })

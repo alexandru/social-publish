@@ -8,5 +8,5 @@ export default {
   warn: (message: string, ...args: unknown[]) =>
     console.warn(`${prefix()} [WARN] ${message}`, ...args),
   error: (message: string, ...args: unknown[]) =>
-    console.error(`${prefix()} [ERROR] ${message}`, ...args),
+    console.error(`${prefix()} [ERROR] ${message}`, ...args)
 }

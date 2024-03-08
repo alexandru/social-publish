@@ -1,8 +1,4 @@
-export type TerminationSignal =
-  | 'SIGINT'
-  | 'SIGTERM'
-  | 'SIGHUP'
-  | 'SIGQUIT'
+export type TerminationSignal = 'SIGINT' | 'SIGTERM' | 'SIGHUP' | 'SIGQUIT'
 
 export function waitOnTerminationSignal(): Promise<TerminationSignal> {
   const installSignal = (s: TerminationSignal) => (cb: (s: TerminationSignal) => void) =>

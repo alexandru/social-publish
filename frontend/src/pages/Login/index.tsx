@@ -1,40 +1,41 @@
-
-import { useState } from 'preact/hooks';
-import './style.css';
-import { ModalMessage } from '../../components/ModalMessage';
-import { useLocation } from 'preact-iso';
+import { useState } from 'preact/hooks'
+import './style.css'
+import { ModalMessage } from '../../components/ModalMessage'
+import { useLocation } from 'preact-iso'
 
 export function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null as string | null);
-  const location = useLocation();
-  const redirectTo = location.query.redirect || '/form';
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null as string | null)
+  const location = useLocation()
+  const redirectTo = location.query.redirect || '/form'
 
   if (location.query.error)
     switch (location.query.error) {
-      case "401":
-        setError("Unauthorized! Please log in...");
-        break;
+      case '401':
+        setError('Unauthorized! Please log in...')
+        break
       default:
-        setError("Forbidden! Please log in...");
-        break;
+        setError('Forbidden! Please log in...')
+        break
     }
 
   const hideError = () => {
     if (location.query.error) {
       let newPath = location.path
       for (const key of Object.keys(location.query)) {
-        if (key === "error") continue
-        newPath += newPath.includes("?") ? "&" : "?" + key + "=" + encodeURIComponent(location.query[key])
+        if (key === 'error') continue
+        newPath += newPath.includes('?')
+          ? '&'
+          : '?' + key + '=' + encodeURIComponent(location.query[key])
       }
-      location.route(newPath);
+      location.route(newPath)
     }
-    setError(null);
+    setError(null)
   }
 
   const onSubmit = async (e: Event) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -46,10 +47,10 @@ export function Login() {
       const body = await response.json()
       if (response.status === 200) {
         if (!body.token) {
-          setError("No token received from the server!")
+          setError('No token received from the server!')
         } else {
           sessionStorage.setItem('jwtToken', body.token)
-          location.route(redirectTo);
+          location.route(redirectTo)
         }
       } else {
         if (body?.error) {
@@ -61,14 +62,12 @@ export function Login() {
       }
     } catch (e) {
       console.error(`While logging in`, e)
-      setError("Exception while logging in, probably a bug, check the console!")
+      setError('Exception while logging in, probably a bug, check the console!')
     }
   }
 
-  const onUsernameChange = (e: Event) =>
-    setUsername((e.target as HTMLInputElement).value);
-  const onPasswordChange = (e: Event) =>
-    setPassword((e.target as HTMLInputElement).value);
+  const onUsernameChange = (e: Event) => setUsername((e.target as HTMLInputElement).value)
+  const onPasswordChange = (e: Event) => setPassword((e.target as HTMLInputElement).value)
 
   return (
     <div class="login" id="login">
@@ -78,9 +77,7 @@ export function Login() {
 
       <section class="section">
         <div class="container">
-          <h1 class="title">
-            Login
-          </h1>
+          <h1 class="title">Login</h1>
           <form onSubmit={onSubmit} class="box">
             <div class="field">
               <label class="label">Username</label>
@@ -99,5 +96,5 @@ export function Login() {
         </div>
       </section>
     </div>
-  );
+  )
 }

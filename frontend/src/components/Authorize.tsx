@@ -1,10 +1,10 @@
-import { Component, ComponentChildren } from "preact";
-import { useLocation } from "preact-iso";
-import { ModalMessage } from "./ModalMessage";
-import { useState } from "preact/hooks";
+import { Component, ComponentChildren } from 'preact'
+import { useLocation } from 'preact-iso'
+import { ModalMessage } from './ModalMessage'
+import { useState } from 'preact/hooks'
 
 type Props = {
-  children?: ComponentChildren,
+  children?: ComponentChildren
 }
 
 export function Authorize(props: Props) {
@@ -13,11 +13,11 @@ export function Authorize(props: Props) {
 
   if (!token) {
     const [message, setMessage] = useState(
-      "You are not authorized to view this page. Please log in..."
+      'You are not authorized to view this page. Please log in...'
     )
     const disable = () => {
       setMessage(null)
-      location.route("/login?redirect=" + location.url)
+      location.route('/login?redirect=' + location.url)
     }
     return (
       <ModalMessage type="error" isEnabled={!!message} onDisable={disable}>
@@ -25,9 +25,5 @@ export function Authorize(props: Props) {
       </ModalMessage>
     )
   }
-  return (
-    <div class="authorized">
-      {props.children}
-    </div>
-  );
+  return <div class="authorized">{props.children}</div>
 }

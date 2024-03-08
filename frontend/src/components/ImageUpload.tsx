@@ -40,7 +40,8 @@ export const ImageUpload = (props: ImageUploadProps) => {
         <div class="file">
           <label class="file-label">
             <input
-              id={`file_${props.id}`} name={`file_${props.id}`}
+              id={`file_${props.id}`}
+              name={`file_${props.id}`}
               class="file-input"
               type="file"
               accept="image/*"
@@ -50,9 +51,7 @@ export const ImageUpload = (props: ImageUploadProps) => {
               <span class="file-icon">
                 <i class="fas fa-upload"></i>
               </span>
-              <span class="file-label">
-                Choose an image file…
-              </span>
+              <span class="file-label">Choose an image file…</span>
             </span>
           </label>
         </div>
@@ -60,7 +59,7 @@ export const ImageUpload = (props: ImageUploadProps) => {
           <p class="help">The image will be displayed in the post.</p>
         </div>
         <div>
-          <span>{props.state?.file ? props.state.file.name : ""}</span>
+          <span>{props.state?.file ? props.state.file.name : ''}</span>
         </div>
       </div>
       <div class="field">
@@ -72,12 +71,15 @@ export const ImageUpload = (props: ImageUploadProps) => {
             rows={2}
             cols={50}
             onInput={onAltTextChange}
-            value={props.state.altText||''}></textarea>
+            value={props.state.altText || ''}
+          ></textarea>
         </div>
       </div>
       <div class="field">
-        <button class="button is-small" onClick={onRemove}>Remove</button>
+        <button class="button is-small" onClick={onRemove}>
+          Remove
+        </button>
       </div>
     </div>
-  );
+  )
 }

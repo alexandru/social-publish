@@ -146,7 +146,7 @@ export class BlueskyApiModule {
       return result.success({
         module: 'bluesky',
         uri: r.uri,
-        cid: r.cid,
+        cid: r.cid
       })
     } catch (e) {
       return result.error(this.responseErrorToApiError('Failed to post to BlueSky', e))

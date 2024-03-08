@@ -7,8 +7,7 @@ import { Dictionary } from '../models/base'
 import { NewPostResponse } from '../models/posts'
 
 export class FormModule {
-  private modules: ('mastodon' | 'bluesky' | 'rss')[] =
-    ['mastodon', 'bluesky', 'rss']
+  private modules: ('mastodon' | 'bluesky' | 'rss')[] = ['mastodon', 'bluesky', 'rss']
 
   constructor(
     public mastodonApi: MastodonApiModule,
@@ -61,7 +60,7 @@ export class FormModule {
       })
     }
 
-    const replies = responses.flatMap(r => r.type === 'success' ? [r.result] : [])
+    const replies = responses.flatMap((r) => (r.type === 'success' ? [r.result] : []))
     const asMap: Dictionary<NewPostResponse> = {}
     for (const reply of replies) {
       asMap[reply.module] = reply

@@ -26,7 +26,7 @@ services:
     healthcheck:
       test: ['CMD-SHELL', 'curl --head http://localhost:3000/ || exit 1']
     ports:
-      - "3000:3000"
+      - '3000:3000'
     env_file:
       - ./envs/social-publish.env
     networks:
@@ -60,6 +60,7 @@ For Bluesky, you'll need an "app password". Go here to create one:
 <https://bsky.app/settings/app-passwords>
 
 For Mastodon, you'll need an "access token". Here's how to get one:
+
 - Go to: <https://mastodon.social/settings/applications>
 - Create a "New Application"
 - Uncheck everything except "write:statuses" and "write:media"
@@ -70,7 +71,7 @@ For Mastodon, you'll need an "access token". Here's how to get one:
 
 The available requests for creating a new post are exemplified in [test.http](./test.http).
 
-You can then configure `ifttt.com`. When adding an "action" to your applet, search for "*make a web request*".
+You can then configure `ifttt.com`. When adding an "action" to your applet, search for "_make a web request_".
 
 Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
 

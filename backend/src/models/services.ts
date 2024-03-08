@@ -1,2 +1,1 @@
-export type Module =
-  "bluesky" | "mastodon" | "rss" | "files" | "form"
+export type Module = 'bluesky' | 'mastodon' | 'rss' | 'files' | 'form'
