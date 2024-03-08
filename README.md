@@ -10,15 +10,15 @@ This project is the start of a simple tool to publish my content to multiple soc
 - Image upload is supported 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
-## Table of Contents
+**Table of Contents**
 
-- [social-publish](#social-publish)
-  - [Table of Contents](#table-of-contents)
-  - [Self-hosting](#self-hosting)
-  - [Usage](#usage)
-    - [RSS feed](#rss-feed)
-  - [Developing](#developing)
-  - [License](#license)
+- [Self-hosting](#self-hosting)
+  - [Bluesky credentials](#bluesky-credentials)
+  - [Mastodon credentials](#mastodon-credentials)
+- [Usage](#usage)
+  - [RSS feed](#rss-feed)
+- [Developing](#developing)
+- [License](#license)
 
 ## Self-hosting
 
@@ -66,16 +66,26 @@ MASTODON_ACCESS_TOKEN="your-access-token"
 JWT_SECRET="random string"
 ```
 
-For Bluesky, you'll need an "app password". Go here to create one:
-<https://bsky.app/settings/app-passwords>
+### Bluesky credentials
+
+For Bluesky, you'll need an "app password".
+
+- Go here to create one: <https://bsky.app/settings/app-passwords>
+- Copy the password
+- Set the `BSKY_PASSWORD` environment variable to it
+
+Keep it safe, as it grants access to everything.
+
+### Mastodon credentials
 
 For Mastodon, you'll need an "access token". Here's how to get one:
 
 - Go to: <https://mastodon.social/settings/applications>
 - Create a "New Application"
-- Uncheck everything except "write:statuses" and "write:media"
+- Select `write:statuses` and `write:media` for permissions, and unselect everything else
 - Click on the newly created application
-- Copy "your access token"
+- Copy "_your access token_"
+- Set the `MASTODON_ACCESS_TOKEN` environment variable to it
 
 ## Usage
 
