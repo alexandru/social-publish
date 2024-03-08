@@ -10,6 +10,16 @@ This project is the start of a simple tool to publish my content to multiple soc
 - Image upload is supported 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
+## Table of Contents
+
+- [social-publish](#social-publish)
+  - [Table of Contents](#table-of-contents)
+  - [Self-hosting](#self-hosting)
+  - [Usage](#usage)
+    - [RSS feed](#rss-feed)
+  - [Developing](#developing)
+  - [License](#license)
+
 ## Self-hosting
 
 My `docker-compose` setup:
@@ -81,6 +91,23 @@ Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you c
 ### RSS feed
 
 While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
+
+## Developing
+
+To start the development server (with incremental compilation, powered by [Vite](https://vitejs.dev/)):
+
+```sh
+npm run dev
+```
+
+You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
+
+To build and test the Docker image locally:
+```sh
+make run-local
+```
+
+See the [Makefile](./Makefile) for more commands.
 
 ## License
 
