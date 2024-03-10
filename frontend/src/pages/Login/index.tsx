@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import './style.css'
 import { ModalMessage } from '../../components/ModalMessage'
 import { useLocation } from 'preact-iso'
+import { setAuthStatus, setJwtToken, storeObjectInLocalStorage } from '../../utils/storage'
 
 export function Login() {
   const [username, setUsername] = useState('')
@@ -49,7 +50,8 @@ export function Login() {
         if (!body.token) {
           setError('No token received from the server!')
         } else {
-          sessionStorage.setItem('jwtToken', body.token)
+          setJwtToken(body.token)
+          setAuthStatus(body.hasAuth)
           location.route(redirectTo)
         }
       } else {

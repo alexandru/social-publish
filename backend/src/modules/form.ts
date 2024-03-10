@@ -5,13 +5,16 @@ import { RssModule } from './rss-api'
 import { writeErrorToResponse } from '../models/errors'
 import { Dictionary } from '../models/base'
 import { NewPostResponse } from '../models/posts'
+import { TwitterApiModule } from './twitter-api'
 
 export class FormModule {
-  private modules: ('mastodon' | 'bluesky' | 'rss')[] = ['mastodon', 'bluesky', 'rss']
+  private modules: ('mastodon' | 'bluesky' | 'twitter' | 'rss')[] =
+    ['mastodon', 'bluesky', 'twitter', 'rss']
 
   constructor(
     public mastodonApi: MastodonApiModule,
     public blueskyApi: BlueskyApiModule,
+    public twitterApi: TwitterApiModule,
     public rssApi: RssModule
   ) {}
 
@@ -38,6 +41,8 @@ export class FormModule {
                 return await this.blueskyApi.createPostRoute(req.body)
               case 'rss':
                 return await this.rssApi.createPostRoute(req.body)
+              case 'twitter':
+                return await this.twitterApi.createPostRoute(req.body)
             }
           })()
         )

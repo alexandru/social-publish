@@ -7,6 +7,7 @@ import './style.css'
 import { NavBar } from './components/NavBar.js'
 import { Login } from './pages/Login/index.js'
 import { Home } from './pages/Home.js'
+import { Account } from './pages/Account/index.js'
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
           <Route path="/" component={Home} />
           <Route path="/form" component={PublishFormPage} />
           <Route path="/login" component={Login} />
+          <Route path="/account" component={Account} />
           <Route default component={NotFound} />
         </Router>
       </main>

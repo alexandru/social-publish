@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import logger from '../utils/logger'
+import { TwitterApiModule } from './twitter-api'
+import { writeErrorToResponse } from '../models/errors'
 
 export type AuthConfig = {
   serverAuthUsername: string
@@ -14,35 +15,38 @@ export interface UserPayload {
   exp: number
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: UserPayload
-    }
-  }
-}
-
 export class AuthModule {
-  constructor(public config: AuthConfig) {}
+  constructor(
+    private config: AuthConfig,
+    private twitterApi: TwitterApiModule
+  ) {}
 
   middleware = (req: Request, res: Response, next: NextFunction) => {
+    let token: string | null = null
     const authHeader = req.headers.authorization
     if (authHeader) {
-      const token = authHeader.split(' ')[1]
-
-      jwt.verify(token, this.config.serverAuthJwtSecret, (err, user) => {
-        if (err) {
-          return res.status(403).send({ error: 'Forbidden' })
-        }
-        req.user = user as UserPayload
-        next()
-      })
-    } else {
-      res.status(401).send({ error: 'Unauthorized' })
+      token = authHeader.split(' ')[1]
     }
+    if (!token && req.query?.access_token) {
+      token = '' + req.query.access_token
+    }
+    if (!token && req.parsedCookies?.access_token) {
+      token = req.parsedCookies.access_token
+    }
+    if (!token) {
+      return res.status(401).send({ error: 'Unauthorized' })
+    }
+    jwt.verify(token, this.config.serverAuthJwtSecret, (err, user) => {
+      if (err) {
+        return res.status(403).send({ error: 'Forbidden' })
+      }
+      req.user = user as UserPayload
+      req.jwtToken = token || undefined
+      next()
+    })
   }
 
-  loginHttpRoute = (req: Request, res: Response) => {
+  loginHttpRoute = async (req: Request, res: Response) => {
     const username = req.body?.username
     const password = req.body?.password
     if (
@@ -50,8 +54,14 @@ export class AuthModule {
       password === this.config.serverAuthPassword
     ) {
       const payload = { username }
-      const token = jwt.sign(payload, this.config.serverAuthJwtSecret, { expiresIn: '2h' })
-      res.send({ token })
+      const token = jwt.sign(payload, this.config.serverAuthJwtSecret, { expiresIn: '168h' })
+
+      res.send({
+        token,
+        hasAuth: {
+          twitter: await this.twitterApi.hasTwitterAuth()
+        }
+      })
     } else {
       res.status(401).send({ error: 'Invalid credentials' })
     }

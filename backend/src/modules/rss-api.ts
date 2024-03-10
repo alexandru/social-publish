@@ -21,7 +21,7 @@ export class RssModule {
     try {
       const content = post.cleanupHtml ? utils.convertHtml(post.content) : post.content
       const tags = post.content.match(/(?<=^|\s)#\w+/gm)?.map((t) => t.substring(1)) || []
-      const row = await this.db.createPost({
+      const row = await this.db.create({
         content,
         link: post.link,
         language: post.language,
@@ -63,7 +63,7 @@ export class RssModule {
     filterByLinks?: 'include' | 'exclude'
     filterByImages?: 'include' | 'exclude'
   }): Promise<string> => {
-    const posts = await this.db.getPosts()
+    const posts = await this.db.getAll()
     const feed = new RSS({
       title: 'Feed of ' + this.config.baseUrl.replace(/^https?:\/\//, ''),
       feed_url: new URL('/rss', this.config.baseUrl).toString(),
@@ -150,7 +150,7 @@ export class RssModule {
 
   getRssItemHttpRoute = async (req: Request, res: Response) => {
     const uuid = req.params.uuid
-    const post = await this.db.getPost(uuid)
+    const post = await this.db.searchByUUID(uuid)
     if (!post) {
       writeErrorToResponse(res, {
         type: 'validation-error',

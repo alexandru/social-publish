@@ -10,7 +10,11 @@ export type NewPostRequest = UnvalidatedNewPostRequest & {
   content: string
 }
 
-export type NewPostResponse = NewMastodonPostResponse | NewBlueSkyPostResponse | NewRssPostResponse
+export type NewPostResponse =
+  | NewMastodonPostResponse
+  | NewBlueSkyPostResponse
+  | NewTwitterPostResponse
+  | NewRssPostResponse
 
 export type NewBlueSkyPostResponse = {
   module: 'bluesky'
@@ -26,4 +30,9 @@ export type NewMastodonPostResponse = {
 export type NewRssPostResponse = {
   module: 'rss'
   uri: string
+}
+
+export type NewTwitterPostResponse = {
+  module: 'twitter'
+  id: string
 }

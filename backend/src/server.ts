@@ -9,6 +9,8 @@ import { BlueskyApiModule } from './modules/bluesky-api'
 import { FormModule } from './modules/form'
 import { FilesModule } from './modules/files'
 import { HttpConfig } from './modules/http'
+import { parseCookiesMiddleware } from './modules/utils'
+import { TwitterApiModule } from './modules/twitter-api'
 
 export const startServer = async (
   config: HttpConfig,
@@ -16,6 +18,7 @@ export const startServer = async (
   rss: RssModule,
   mastodon: MastodonApiModule,
   bluesky: BlueskyApiModule,
+  twitter: TwitterApiModule,
   form: FormModule,
   files: FilesModule
 ) => {
@@ -27,6 +30,8 @@ export const startServer = async (
   app.use(express.urlencoded({ extended: true }))
   // This will parse application/json bodies
   app.use(express.json())
+  // Parses cookies (custom implementation)
+  app.use(parseCookiesMiddleware)
   // Serve static files
   app.use('/', express.static('public'))
 
@@ -42,6 +47,12 @@ export const startServer = async (
 
   // Authentication
   app.post('/api/login', auth.loginHttpRoute)
+
+  // Twitter routes
+  app.get('/api/twitter/authorize', auth.middleware, twitter.authorizeHttpRoute)
+  app.get('/api/twitter/callback', auth.middleware, twitter.authCallbackHttpRoute)
+  app.get('/api/twitter/status', auth.middleware, twitter.statusHttpRoute)
+  app.post('/api/twitter/post', auth.middleware, twitter.createPostHttpRoute)
 
   // Publishing routes
   app.post('/api/bluesky/post', auth.middleware, bluesky.createPostHttpRoute)

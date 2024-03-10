@@ -1,6 +1,7 @@
 import { useLocation } from 'preact-iso'
 import { useState } from 'preact/hooks'
 import { logOut, logIn, homeOutline, play, logoGithub } from 'ionicons/icons'
+import { clearJwtToken, hasJwtToken } from '../utils/storage'
 
 export function NavBar() {
   const [navbarIsActive, setNavbarIsActive] = useState('' as 'is-active' | '')
@@ -9,7 +10,7 @@ export function NavBar() {
   const classOfLink = (mainClass: string, path: string) =>
     url == path ? `${mainClass} is-active` : mainClass
 
-  const isLoggedIn = !!sessionStorage.getItem('jwtToken')
+  const isLoggedIn = hasJwtToken()
 
   return (
     <nav class="navbar is-primary" role="navigation" aria-label="main navigation">
@@ -55,6 +56,11 @@ export function NavBar() {
         <div class="navbar-end">
           <div class="navbar-item">
             <div class="buttons">
+              {isLoggedIn ? (
+              <a class={classOfLink('button is-primary', '/account')} href="/account">
+                <strong>Account</strong>
+              </a>
+              ) : null}
               <LoginOrLogoutButton isLoggedIn={isLoggedIn} />
             </div>
           </div>
@@ -71,7 +77,7 @@ function IfLoggedIn(props: { isLoggedIn: boolean; children: any }) {
 function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
   const location = useLocation()
   const onLogout = () => {
-    sessionStorage.removeItem('jwtToken')
+    clearJwtToken()
     window.location.href = '/'
     return
   }

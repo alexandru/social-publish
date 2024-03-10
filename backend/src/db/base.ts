@@ -10,6 +10,11 @@ export type DBConfig = {
   dbPath: string
 }
 
+export type RunResult = {
+  lastID?: number
+  changes?: number
+}
+
 export class DBConnection {
   private underlying: sqlite.Database
 
@@ -17,7 +22,7 @@ export class DBConnection {
     this.underlying = db
   }
 
-  async getOne(sql: string, ...params: any[]): Promise<any> {
+  getOne = async (sql: string, ...params: any[]): Promise<any> => {
     return new Promise<any>((resolve, reject) => {
       this.underlying.get(sql, params, (err, row) => {
         if (err) reject(err)
@@ -26,14 +31,17 @@ export class DBConnection {
     })
   }
 
-  async run(sql: string, ...params: any[]): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.underlying.run(sql, params, (err) => {
-        if (err) reject(err)
-        else resolve()
+  executeUpdate = async (sql: string, ...params: any[]): Promise<RunResult> =>
+    new Promise<RunResult>((resolve, reject) => {
+      const stm = this.underlying.prepare(sql, ...params)
+      stm.run((err) => {
+        if (err) return reject(err)
+        resolve({
+          lastID: (stm as any)['lastID'],
+          changes: (stm as any)['changes']
+        })
       })
     })
-  }
 
   async all(sql: string, ...params: any[]): Promise<any[]> {
     return new Promise<any[]>((resolve, reject) => {
@@ -47,17 +55,17 @@ export class DBConnection {
   async transaction<A>(f: () => Promise<A>): Promise<A> {
     return new Promise<A>((resolve, reject) => {
       this.underlying.serialize(async () => {
-        await this.run('BEGIN TRANSACTION')
+        await this.executeUpdate('BEGIN TRANSACTION')
         let isUserError = true
         try {
           const result = await f()
           isUserError = false
-          await this.run('COMMIT')
+          await this.executeUpdate('COMMIT')
           resolve(result)
         } catch (err) {
           if (isUserError)
             try {
-              await this.run('ROLLBACK')
+              await this.executeUpdate('ROLLBACK')
             } catch (rollbackErr) {
               logger.error('Error rolling back transaction:', rollbackErr)
             }
@@ -86,7 +94,7 @@ export class DBConnection {
         if (!applied)
           for (const ddl of migration.ddl) {
             logger.info(`Executing migration:\n${ddl}`)
-            await this.run(ddl)
+            await this.executeUpdate(ddl)
           }
       })
     }

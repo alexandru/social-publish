@@ -1,4 +1,5 @@
-import { DBConnection, Migration } from './base'
+import { DBConnection } from './base'
+import { DocumentsDatabase } from './documents'
 
 export interface Post extends PostPayload {
   uuid: string
@@ -13,72 +14,39 @@ export interface PostPayload {
   images?: string[]
 }
 
-const migrations: Migration[] = [
-  {
-    ddl: [
-      `
-      |CREATE TABLE IF NOT EXISTS posts (
-      |    uuid VARCHAR(36) NOT NULL PRIMARY KEY,
-      |    kind VARCHAR(255) NOT NULL,
-      |    json TEXT NOT NULL,
-      |    created_at INTEGER NOT NULL
-      |)
-      `.replace(/^\s*\|/gm, ''),
-      `
-      |CREATE INDEX IF NOT EXISTS
-      |   posts_created_at
-      |ON
-      |   posts(kind, created_at)
-      `.replace(/^\s*\|/gm, '')
-    ],
-    testIfApplied: async (db) =>
-      !!(await db.getOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='posts'"))
-  }
-]
-
 export class PostsDatabase {
-  private constructor(private db: DBConnection) {}
+  constructor(private docs: DocumentsDatabase) {}
 
   static init = async (db: DBConnection) => {
-    await db.migrate(migrations)
-    return new PostsDatabase(db)
+    const docs = await DocumentsDatabase.init(db)
+    return new PostsDatabase(docs)
   }
 
-  async createPost(payload: PostPayload): Promise<Post> {
-    const post: Post = {
-      uuid: require('uuid').v4(),
-      createdAt: new Date(),
+  async create(payload: PostPayload): Promise<Post> {
+    const row = await this.docs.createOrUpdate('post', JSON.stringify(payload))
+    return {
+      uuid: row.uuid,
+      createdAt: row.createdAt,
       ...payload
     }
-    await this.db.run(
-      'INSERT INTO posts (uuid, kind, json, created_at) VALUES (?, ?, ?, ?)',
-      post.uuid,
-      'post',
-      JSON.stringify(payload),
-      post.createdAt.getTime()
-    )
-    return post
   }
 
-  async getPosts(): Promise<Post[]> {
-    const rows = await this.db.all(
-      "SELECT * FROM posts WHERE kind = 'post' ORDER BY created_at DESC"
-    )
-    if (!rows) return []
-    return rows.map((row: any) => ({
+  async getAll(): Promise<Post[]> {
+    const rows = await this.docs.getAll('post', 'created_at DESC')
+    return rows.map(row => ({
       uuid: row.uuid,
-      createdAt: new Date(row.created_at),
-      ...JSON.parse(row.json)
+      createdAt: row.createdAt,
+      ...JSON.parse(row.payload)
     }))
   }
 
-  async getPost(uuid: string): Promise<Post | null> {
-    const row = await this.db.getOne("SELECT * FROM posts WHERE kind = 'post' AND uuid = ?", uuid)
+  async searchByUUID(uuid: string): Promise<Post | null> {
+    const row = await this.docs.searchByUUID(uuid)
     if (!row) return null
     return {
       uuid: row.uuid,
-      createdAt: new Date(row.created_at),
-      ...JSON.parse(row.json)
+      createdAt: row.createdAt,
+      ...JSON.parse(row.payload)
     }
   }
 }

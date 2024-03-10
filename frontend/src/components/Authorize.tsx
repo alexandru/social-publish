@@ -1,7 +1,8 @@
-import { Component, ComponentChildren } from 'preact'
+import { ComponentChildren } from 'preact'
 import { useLocation } from 'preact-iso'
 import { ModalMessage } from './ModalMessage'
 import { useState } from 'preact/hooks'
+import { getJwtToken } from '../utils/storage'
 
 type Props = {
   children?: ComponentChildren
@@ -9,7 +10,7 @@ type Props = {
 
 export function Authorize(props: Props) {
   const location = useLocation()
-  const token = sessionStorage.getItem('jwtToken')
+  const token = getJwtToken()
 
   if (!token) {
     const [message, setMessage] = useState(

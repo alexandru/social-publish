@@ -1,16 +1,18 @@
-import { Component, FunctionalComponent } from 'preact'
+import { FunctionalComponent } from 'preact'
 import { Authorize } from '../../components/Authorize'
 import './style.css'
 import { useLocation } from 'preact-iso'
 import { useState } from 'preact/hooks'
 import { MessageType, ModalMessage } from '../../components/ModalMessage'
 import { ImageUpload, SelectedImage } from '../../components/ImageUpload'
+import { getAuthStatus } from '../../utils/storage'
 
 type FormData = {
   content?: string
   link?: string
   mastodon?: string
   bluesky?: string
+  twitter?: string
   rss?: string
   cleanupHtml?: string
 }
@@ -34,6 +36,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
   const [data, setData] = useState({} as FormData)
   const [images, setImages] = useState({} as { [id: string]: SelectedImage })
   const location = useLocation()
+  const hasAuth = getAuthStatus()
 
   const addImageComponent = () => {
     const ids = Object.keys(images)
@@ -75,7 +78,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         return
       }
 
-      if (!data.mastodon && !data.bluesky && !data.rss) {
+      if (!data.mastodon && !data.bluesky && !data.rss && !data.twitter) {
         props.onError('At least one publication target is required!')
         return
       }
@@ -90,9 +93,6 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
 
           const response = await fetch('/api/files/upload', {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem('jwtToken')}`
-            },
             body: formData
           })
           if ([401, 403].includes(response.status)) {
@@ -121,7 +121,6 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         const response = await fetch('/api/multiple/post', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('jwtToken')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -229,6 +228,16 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           <label class="checkbox">
             <input type="checkbox" id="bluesky" name="bluesky" onInput={onCheckbox('bluesky')} />{' '}
             Bluesky
+          </label>
+        </div>
+        <div class="field">
+          <label class="checkbox">
+            {hasAuth.twitter ? (
+              <input type="checkbox" id="twitter" name="twitter" onInput={onCheckbox('twitter')} />
+            ) : (
+              <input type="checkbox" id="twitter" name="twitter" disabled />
+            )}{' '}
+            Twitter
           </label>
         </div>
         <div class="field">

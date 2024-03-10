@@ -84,7 +84,7 @@ export class FilesDatabase {
         imageHeight: payload.imageHeight,
         createdAt: new Date(now)
       }
-      await this.db.run(
+      await this.db.executeUpdate(
         `
         |INSERT INTO uploads
         |    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)

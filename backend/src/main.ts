@@ -12,13 +12,16 @@ import { waitOnTerminationSignal } from './utils/proc'
 import { FilesDatabase } from './db/files'
 import { FilesConfig, FilesModule } from './modules/files'
 import { HttpConfig } from './modules/http'
+import { DocumentsDatabase } from './db/documents'
+import { TwitterApiModule, TwitterAuthConfig } from './modules/twitter-api'
 
 type AppConfig = DBConfig &
   HttpConfig &
   AuthConfig &
   BlueskyApiConfig &
   MastodonApiConfig &
-  FilesConfig
+  FilesConfig &
+  TwitterAuthConfig
 
 async function main() {
   const args: AppConfig = await yargs
@@ -99,6 +102,20 @@ async function main() {
       default: process.env.MASTODON_ACCESS_TOKEN,
       defaultDescription: 'MASTODON_ACCESS_TOKEN env variable'
     })
+    .option('twitterOauth1ConsumerKey', {
+      type: 'string',
+      description: 'Twitter OAuth1 consumer key',
+      demandOption: true,
+      default: process.env.TWITTER_OAUTH1_CONSUMER_KEY,
+      defaultDescription: 'TWITTER_OAUTH1_CONSUMER_KEY env variable'
+    })
+    .option('twitterOauth1ConsumerSecret', {
+      type: 'string',
+      description: 'Twitter OAuth1 consumer secret',
+      demandOption: true,
+      default: process.env.TWITTER_OAUTH1_CONSUMER_SECRET,
+      defaultDescription: 'TWITTER_OAUTH1_CONSUMER_SECRET env variable'
+    })
     .option('uploadedFilesPath', {
       type: 'string',
       description: 'Directory where uploaded files are stored and processed',
@@ -112,16 +129,18 @@ async function main() {
   withBaseConnection(args)(async (dbConn) => {
     logger.info('Connected to database')
 
-    const postsDb = await PostsDatabase.init(dbConn)
+    const docsDb = await DocumentsDatabase.init(dbConn)
+    const postsDb = new PostsDatabase(docsDb)
     const filesDb = await FilesDatabase.init(dbConn)
-    const auth = new AuthModule(args)
     const files = await FilesModule.init(args, filesDb)
+    const twitter = new TwitterApiModule(args, docsDb, files)
+    const auth = new AuthModule(args, twitter)
     const rss = new RssModule(args, postsDb, filesDb)
     const mastodon = new MastodonApiModule(args, files)
     const bluesky = await BlueskyApiModule.create(args, files)
-    const form = new FormModule(mastodon, bluesky, rss)
+    const form = new FormModule(mastodon, bluesky, twitter, rss)
 
-    const server = await startServer(args, auth, rss, mastodon, bluesky, form, files)
+    const server = await startServer(args, auth, rss, mastodon, bluesky, twitter, form, files)
     try {
       const signal = await waitOnTerminationSignal()
       logger.info(`Received ${signal}, shutting down...`)

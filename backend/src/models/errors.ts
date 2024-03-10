@@ -115,16 +115,17 @@ export const buildErrorFromResponse = async (
 ): Promise<ApiError> => {
   const asString = await response.text()
   const asJson = convertTextToJsonOrNull(asString)
-  logger.warn('Failed to upload media:', {
+  logger.warn('HTTP API response error:', {
+    module,
     ...(details || {}),
     status: response.status,
-    body: asJson || asString
+    body: asString
   })
   return {
     type: 'request-error',
     module,
     status: response.status,
-    error: `Failed to upload media`,
+    error: `HTTP API response error`,
     body: { asString, asJson }
   }
 }
