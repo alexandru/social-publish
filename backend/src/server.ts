@@ -62,7 +62,7 @@ export const startServer = async (
   app.post('/api/files/upload', auth.middleware, files.middleware, files.uploadFilesHttpRoute)
 
   // Needed for the frontend routing
-  app.get(/\/(login|form)/, (_req, res) => {
+  app.get(/\/(login|form|account)/, (_req, res) => {
     res.sendFile('public/index.html', { root: __dirname + '/..' })
   })
 
