@@ -1,6 +1,7 @@
 import { FunctionalComponent } from 'preact'
 import { logoTwitter } from 'ionicons/icons'
 import { useState } from 'preact/hooks'
+import { updateAuthStatus } from '../../utils/storage'
 
 export function Account() {
   const [twitterStatus, setTwitterStatus] = useState("Querying...")
@@ -15,9 +16,11 @@ export function Account() {
     if (response.status === 200) {
       const json = await response.json()
       setTwitterStatus("Connected at " + new Date(json.createdAt).toLocaleString())
+      updateAuthStatus(current => ({ ...current, twitter: true }))
       return
     } else if (response.status === 404) {
       setTwitterStatus("Not connected")
+      updateAuthStatus(current => ({ ...current, twitter: false }))
       return
     } else {
       setTwitterStatus("Error: HTTP " + response.status)

@@ -59,3 +59,8 @@ export const getAuthStatus = (): HasAuth => {
   const hasAuth = getObjectFromLocalStorage('hasAuth') as HasAuth | null
   return hasAuth || { twitter: false }
 }
+
+export const updateAuthStatus = (f: (current: HasAuth) => HasAuth) => {
+  const current = getAuthStatus()
+  setAuthStatus(f(current))
+}
