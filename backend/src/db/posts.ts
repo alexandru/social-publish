@@ -33,7 +33,7 @@ export class PostsDatabase {
 
   async getAll(): Promise<Post[]> {
     const rows = await this.docs.getAll('post', 'created_at DESC')
-    return rows.map(row => ({
+    return rows.map((row) => ({
       uuid: row.uuid,
       createdAt: row.createdAt,
       ...JSON.parse(row.payload)

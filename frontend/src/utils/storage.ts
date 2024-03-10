@@ -12,11 +12,7 @@ export const cookies = () =>
     {} as Record<string, string>
   )
 
-export const setCookie = (
-  name: string,
-  value: string,
-  expirationMillis: number | null = null
-) => {
+export const setCookie = (name: string, value: string, expirationMillis: number | null = null) => {
   let expires = ''
   if (expirationMillis) {
     const date = new Date()
@@ -40,17 +36,14 @@ export const setJwtToken = (token: string) =>
 export const hasJwtToken = () => !!getJwtToken()
 
 export const storeObjectInLocalStorage = <A>(key: string, value: A | undefined | null) => {
-  if (value === undefined || value === null)
-    clearObjectFromLocalStorage(key)
-  else
-    localStorage.setItem(key, JSON.stringify(value))
+  if (value === undefined || value === null) clearObjectFromLocalStorage(key)
+  else localStorage.setItem(key, JSON.stringify(value))
 }
 
 export const getObjectFromLocalStorage = <A>(key: string): A | null =>
   JSON.parse(localStorage.getItem(key) || 'null')
 
-export const clearObjectFromLocalStorage = (key: string) =>
-  localStorage.removeItem(key)
+export const clearObjectFromLocalStorage = (key: string) => localStorage.removeItem(key)
 
 export const setAuthStatus = (hasAuth: HasAuth | undefined | null) =>
   storeObjectInLocalStorage('hasAuth', hasAuth)

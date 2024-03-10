@@ -49,7 +49,7 @@ export class DocumentsDatabase {
         const updated = await this.db.executeUpdate(
           'UPDATE documents SET payload = ? WHERE search_key = ?',
           payload,
-          searchKey,
+          searchKey
         )
         console.log('Updated:', updated)
         if ((updated.changes || 0) > 0)
@@ -57,8 +57,7 @@ export class DocumentsDatabase {
             ...existing,
             payload
           }
-        else
-          logger.warn(`Failed to update document with search key ${searchKey}`)
+        else logger.warn(`Failed to update document with search key ${searchKey}`)
       }
       const uuid = require('uuid').v4()
       const document: Document = {

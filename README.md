@@ -6,8 +6,8 @@ In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, sy
 
 This project is the start of a simple tool to publish my content to multiple social networks.
 
-- Only [Bluesky](https://bsky.app/) and [Mastodon](https://joinmastodon.org/) support is implemented, but Twitter and LinkedIn are planned
-- Image upload is supported 😊
+- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), and [Bluesky](https://bsky.app/) support is implemented, LinkedIn is planned
+- Image upload is supported, with alt-text included 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
 **Table of Contents**
@@ -15,6 +15,7 @@ This project is the start of a simple tool to publish my content to multiple soc
 - [Self-hosting](#self-hosting)
   - [Bluesky credentials](#bluesky-credentials)
   - [Mastodon credentials](#mastodon-credentials)
+  - [Twitter setup](#twitter-setup)
 - [Usage](#usage)
   - [RSS feed](#rss-feed)
 - [Developing](#developing)
@@ -62,6 +63,10 @@ BSKY_PASSWORD="your-password"
 MASTODON_HOST="https://mastodon.social"
 MASTODON_ACCESS_TOKEN="your-access-token"
 
+# YouTube Oauth1 key and secret (Consumer Keys in the Developer Portal)
+TWITTER_OAUTH1_CONSUMER_KEY="Api Key"
+TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
+
 # Used for authentication (https://jwt.io)
 JWT_SECRET="random string"
 ```
@@ -86,6 +91,16 @@ For Mastodon, you'll need an "access token". Here's how to get one:
 - Click on the newly created application
 - Copy "_your access token_"
 - Set the `MASTODON_ACCESS_TOKEN` environment variable to it
+
+### Twitter setup
+
+For Twitter, we're working with Oauth1.
+- Go to: <https://developer.twitter.com/en/portal/projects-and-apps>
+- Create a project and app
+- In the "_Keys and tokens_" section of the app, generate "_Consumer Keys_" and copy the generated "_App Key and Secret_"
+- In the app's settings, go to "_User authentication settings_" and add as the "_Callback URL_": `https://<your-domain.com>/api/twitter/callback` (replace `<your-domain.com>` with your domain, obviously)
+- Set the `TWITTER_OAUTH1_CONSUMER_KEY` and the `TWITTER_OAUTH1_CONSUMER_SECRET` environment variables
+- Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect Twitter_"
 
 ## Usage
 
@@ -113,6 +128,7 @@ npm run dev
 You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
 
 To build and test the Docker image locally:
+
 ```sh
 make run-local
 ```

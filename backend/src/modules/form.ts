@@ -8,8 +8,12 @@ import { NewPostResponse } from '../models/posts'
 import { TwitterApiModule } from './twitter-api'
 
 export class FormModule {
-  private modules: ('mastodon' | 'bluesky' | 'twitter' | 'rss')[] =
-    ['mastodon', 'bluesky', 'twitter', 'rss']
+  private modules: ('mastodon' | 'bluesky' | 'twitter' | 'rss')[] = [
+    'mastodon',
+    'bluesky',
+    'twitter',
+    'rss'
+  ]
 
   constructor(
     public mastodonApi: MastodonApiModule,

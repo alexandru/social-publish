@@ -57,9 +57,9 @@ export function NavBar() {
           <div class="navbar-item">
             <div class="buttons">
               {isLoggedIn ? (
-              <a class={classOfLink('button is-primary', '/account')} href="/account">
-                <strong>Account</strong>
-              </a>
+                <a class={classOfLink('button is-primary', '/account')} href="/account">
+                  <strong>Account</strong>
+                </a>
               ) : null}
               <LoginOrLogoutButton isLoggedIn={isLoggedIn} />
             </div>

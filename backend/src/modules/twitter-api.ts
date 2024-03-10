@@ -289,7 +289,7 @@ export class TwitterApiModule {
     // Create the post
     const data = {
       text: status,
-      "media": images ? {"media_ids": images} : undefined
+      media: images ? { media_ids: images } : undefined
     }
     const authHeader = this.buildAuthHeader(createPostURL, token)
     const response = await fetch(createPostURL, {
