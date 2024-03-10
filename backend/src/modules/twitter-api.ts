@@ -16,6 +16,11 @@ export type TwitterAuthConfig = {
   twitterOauth1ConsumerSecret: string
 }
 
+type CreateNewPostRequest = {
+  text: string,
+  media?: { media_ids: string[] }
+}
+
 type TwitterMediaUploadResponse = {
   id: string
 }
@@ -287,9 +292,11 @@ export class TwitterApiModule {
       (post.link ? `\n\n${post.link}` : '')
 
     // Create the post
-    const data = {
-      text: status,
-      media: images ? { media_ids: images } : undefined
+    let data: CreateNewPostRequest = {
+      text: status
+    }
+    if (images.length > 0) {
+      data.media = { media_ids: images }
     }
     const authHeader = this.buildAuthHeader(createPostURL, token)
     const response = await fetch(createPostURL, {
