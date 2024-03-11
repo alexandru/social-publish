@@ -89,7 +89,9 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         if (image.file) {
           const formData = new FormData()
           formData.append('file', image.file)
-          formData.append('altText', image.altText)
+          if (image.altText) {
+            formData.append('altText', image.altText)
+          }
 
           const response = await fetch('/api/files/upload', {
             method: 'POST',
