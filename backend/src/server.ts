@@ -63,7 +63,7 @@ export const startServer = async (
 
   // Needed for the frontend routing
   app.get(/\/(login|form|account)/, (_req, res) => {
-    res.sendFile('public/index.html', { root: __dirname + '/..' })
+    res.sendFile('public/index.html', { root: `${__dirname}/..` })
   })
 
   return app.listen(config.httpPort, () => {

@@ -28,7 +28,7 @@ export function Login() {
         if (key === 'error') continue
         newPath += newPath.includes('?')
           ? '&'
-          : '?' + key + '=' + encodeURIComponent(location.query[key])
+          : `?${key}=${encodeURIComponent(location.query[key])}`
       }
       location.route(newPath)
     }
@@ -54,13 +54,11 @@ export function Login() {
           setAuthStatus(body.hasAuth)
           location.route(redirectTo)
         }
+      } else if (body?.error) {
+        setError(`${body.error}!`)
       } else {
-        if (body?.error) {
-          setError(`${body.error}!`)
-        } else {
-          console.warn(`Error while logging in:`, response.status, body)
-          setError(`HTTP ${response.status} error while logging in! `)
-        }
+        console.warn(`Error while logging in:`, response.status, body)
+        setError(`HTTP ${response.status} error while logging in! `)
       }
     } catch (e) {
       console.error(`While logging in`, e)

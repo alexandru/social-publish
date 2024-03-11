@@ -57,7 +57,7 @@ export class DocumentsDatabase {
             ...existing,
             payload
           }
-        else logger.warn(`Failed to update document with search key ${searchKey}`)
+        logger.warn(`Failed to update document with search key ${searchKey}`)
       }
       const uuid = require('uuid').v4()
       const document: Document = {

@@ -18,7 +18,7 @@ export function Authorize(props: Props) {
     )
     const disable = () => {
       setMessage(null)
-      location.route('/login?redirect=' + location.url)
+      location.route(`/login?redirect=${location.url}`)
     }
     return (
       <ModalMessage type="error" isEnabled={!!message} onDisable={disable}>

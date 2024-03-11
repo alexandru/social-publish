@@ -4,11 +4,7 @@ module.exports = {
     es2021: true,
     node: true
   },
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:react/recommended'
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'preact'],
   overrides: [
     {
       env: {
@@ -25,7 +21,7 @@ module.exports = {
     ecmaVersion: 'latest',
     sourceType: 'module'
   },
-  plugins: ['@typescript-eslint', 'react'],
+  plugins: ['@typescript-eslint', 'preact'],
   rules: {},
   ignorePatterns: ['node_modules/', 'dist/', 'build/', 'backend/public/']
 }

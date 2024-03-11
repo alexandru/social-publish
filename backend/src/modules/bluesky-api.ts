@@ -56,12 +56,11 @@ export class BlueskyApiModule {
           asString: eany.error
         }
       }
-    else
-      return {
-        type: 'caught-exception',
-        module: 'bluesky',
-        error: e
-      }
+    return {
+      type: 'caught-exception',
+      module: 'bluesky',
+      error: e
+    }
   }
 
   createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {

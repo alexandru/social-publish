@@ -28,7 +28,7 @@ export class AuthModule {
       token = authHeader.split(' ')[1]
     }
     if (!token && req.query?.access_token) {
-      token = '' + req.query.access_token
+      token = `${req.query.access_token}`
     }
     if (!token && req.parsedCookies?.access_token) {
       token = req.parsedCookies.access_token

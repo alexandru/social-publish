@@ -49,7 +49,7 @@ export const ImageUpload = (props: ImageUploadProps) => {
             />
             <span className="file-cta">
               <span className="file-icon">
-                <i className="fas fa-upload"></i>
+                <i className="fas fa-upload" />
               </span>
               <span className="file-label">Choose an image file…</span>
             </span>
@@ -72,7 +72,7 @@ export const ImageUpload = (props: ImageUploadProps) => {
             cols={50}
             onInput={onAltTextChange}
             value={props.state.altText || ''}
-          ></textarea>
+          />
         </div>
       </div>
       <div className="field">

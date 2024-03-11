@@ -15,7 +15,11 @@ export function Home() {
               </a>
             </li>
             <li>
-              <a href="https://github.com/alexandru/social-publish" target="_blank" rel="noreferrer">
+              <a
+                href="https://github.com/alexandru/social-publish"
+                target="_blank"
+                rel="noreferrer"
+              >
                 GitHub
               </a>
             </li>

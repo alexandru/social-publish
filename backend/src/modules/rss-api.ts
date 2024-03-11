@@ -65,7 +65,7 @@ export class RssModule {
   }): Promise<string> => {
     const posts = await this.db.getAll()
     const feed = new RSS({
-      title: 'Feed of ' + this.config.baseUrl.replace(/^https?:\/\//, ''),
+      title: `Feed of ${this.config.baseUrl.replace(/^https?:\/\//, '')}`,
       feed_url: new URL('/rss', this.config.baseUrl).toString(),
       site_url: this.config.baseUrl,
       custom_namespaces: {

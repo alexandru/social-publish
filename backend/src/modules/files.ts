@@ -191,8 +191,7 @@ export class FilesModule {
           return result.error({
             type: 'validation-error',
             status: 400,
-            error:
-              'Only PNG and JPEG images are supported, got: ' + (imageInfo?.type || 'undefined')
+            error: `Only PNG and JPEG images are supported, got: ${imageInfo?.type || 'undefined'}`
           })
       }
 
@@ -226,9 +225,8 @@ export class FilesModule {
     const r = await this.processUploadedFile(req)
     if (r.type === 'success') {
       return res.status(200).send(r.result)
-    } else {
-      return writeErrorToResponse(res, r.error)
     }
+    return writeErrorToResponse(res, r.error)
   }
 
   private notFound: ApiError = {

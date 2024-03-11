@@ -56,12 +56,12 @@ export class FilesDatabase {
     this.db.transaction(async () => {
       const uuid = uuidv5(
         [
-          'h:' + payload.hash,
-          'n:' + payload.originalname,
-          'a:' + payload.altText ?? '',
-          'w:' + (payload.imageWidth ?? ''),
-          'h:' + (payload.imageHeight ?? ''),
-          'm:' + payload.mimetype
+          `h:${payload.hash}`,
+          `n:${payload.originalname}`,
+          `a:${payload.altText}` ?? '',
+          `w:${payload.imageWidth ?? ''}`,
+          `h:${payload.imageHeight ?? ''}`,
+          `m:${payload.mimetype}`
         ].join('/'),
         uuidNamespace
       )

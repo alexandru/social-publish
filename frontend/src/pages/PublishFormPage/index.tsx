@@ -45,19 +45,19 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
     const newId = ids.length > 0 ? ids[ids.length - 1] + 1 : 1
     setImages({
       ...images,
-      ['' + newId]: { id: newId }
+      [`${newId}`]: { id: newId }
     })
   }
 
   const removeImageComponent = (id: number) => {
     const newImages = { ...images }
-    delete newImages['' + id]
+    delete newImages[`${id}`]
     setImages(newImages)
   }
 
   const onSelectedFile = (value: SelectedImage) => {
     console.log('Selected image', value)
-    setImages({ ...images, ['' + value.id]: value })
+    setImages({ ...images, [`${value.id}`]: value })
   }
 
   const withDisabledForm = async (f: () => Promise<void>) => {
@@ -101,7 +101,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           }
           if (response.status !== 200) {
             props.onError(
-              'Error uploading image: HTTP ' + response.status + ' / ' + (await response.text())
+              `Error uploading image: HTTP ${response.status} / ${await response.text()}`
             )
             return
           }
@@ -133,30 +133,27 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           return
         }
         if (response.status !== 200) {
-          props.onError(
-            'Error submitting form: HTTP ' + response.status + ' / ' + (await response.text())
-          )
-          return
-        } else {
-          console.log('New post created successfully', await response.json())
-          // Resetting form...
-          formRef.reset()
-          setData({})
-          setImages({})
-          // Signaling success...
-          props.onInfo(
-            <div>
-              <p>New post created successfully!</p>
-              <p>
-                View the{' '}
-                <a href="/rss" target="_blank">
-                  RSS feed?
-                </a>
-              </p>
-            </div>
-          )
+          props.onError(`Error submitting form: HTTP ${response.status} / ${await response.text()}`)
           return
         }
+        console.log('New post created successfully', await response.json())
+        // Resetting form...
+        formRef.reset()
+        setData({})
+        setImages({})
+        // Signaling success...
+        props.onInfo(
+          <div>
+            <p>New post created successfully!</p>
+            <p>
+              View the{' '}
+              <a href="/rss" target="_blank">
+                RSS feed?
+              </a>
+            </p>
+          </div>
+        )
+        return
       } catch (e) {
         props.onError('Unexpected exception while submitting form!')
         console.error(e)
@@ -192,7 +189,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
               className="textarea"
               onInput={onInput('content')}
               required
-            ></textarea>
+            />
           </div>
           <CharsLeft data={data} />
         </div>

@@ -25,20 +25,20 @@ export const ModalMessage = (props: ModalMessageProps) => {
     props.type === 'info' ? 'is-info' : props.type === 'warning' ? 'is-warning' : 'is-danger'
 
   return (
-    <div id="message-modal" className={'modal ' + (props.isEnabled ? 'is-active' : '')}>
-      <div className="modal-background" onClick={handleClick} onKeyDown={handleKeyDown}></div>
+    <div id="message-modal" className={`modal ${props.isEnabled ? 'is-active' : ''}`}>
+      <div className="modal-background" onClick={handleClick} onKeyDown={handleKeyDown} />
 
       <div className="modal-content">
         <article className={`message is-medium ${clsType}`}>
           <div className="message-header">
             <p>{title}</p>
-            <button className="delete" aria-label="delete" onClick={handleClick}></button>
+            <button className="delete" aria-label="delete" onClick={handleClick} />
           </div>
           <div className="message-body">{props.children}</div>
         </article>
       </div>
 
-      <button className="modal-close is-large" aria-label="close" onClick={handleClick}></button>
+      <button className="modal-close is-large" aria-label="close" onClick={handleClick} />
     </div>
   )
 }

@@ -17,19 +17,19 @@ export function NavBar() {
       <div className="navbar-brand">
         <a
           role="button"
-          className={'navbar-burger ' + navbarIsActive}
+          className={`navbar-burger ${navbarIsActive}`}
           onClick={() => setNavbarIsActive(navbarIsActive == 'is-active' ? '' : 'is-active')}
           aria-label="menu"
           aria-expanded="false"
           data-target="navbarBasicExample"
         >
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
         </a>
       </div>
 
-      <div id="navbarBasicExample" className={'navbar-menu ' + navbarIsActive}>
+      <div id="navbarBasicExample" className={`navbar-menu ${navbarIsActive}`}>
         <div className="navbar-start">
           <a className={classOfLink('navbar-item', '/')} href="/">
             <span className="icon">
@@ -45,7 +45,12 @@ export function NavBar() {
               <strong>Publish</strong>
             </a>
           </IfLoggedIn>
-          <a className="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank" rel="noreferrer">
+          <a
+            className="navbar-item"
+            href="https://github.com/alexandru/social-publish"
+            target="_blank"
+            rel="noreferrer"
+          >
             <span className="icon">
               <img src={logoGithub} alt="Help" />
             </span>
@@ -91,15 +96,14 @@ function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
         </span>
       </a>
     )
-  } else {
-    const status = location.url == '/login' ? ' is-active' : ''
-    return (
-      <a className={'button is-primary ' + status} href="/login">
-        <span className="icon">
-          <img src={logIn} alt="Login" />
-        </span>
-        <strong>Login</strong>
-      </a>
-    )
   }
+  const status = location.url == '/login' ? ' is-active' : ''
+  return (
+    <a className={`button is-primary ${status}`} href="/login">
+      <span className="icon">
+        <img src={logIn} alt="Login" />
+      </span>
+      <strong>Login</strong>
+    </a>
+  )
 }
