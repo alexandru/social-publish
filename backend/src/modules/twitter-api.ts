@@ -182,9 +182,9 @@ export class TwitterApiModule {
 
   statusHttpRoute = async (_req: Request, res: Response) => {
     const row = await this.docsDb.searchByKey('twitter-oauth-token')
-    if (!row) return res.status(404).send({ error: 'Not found' })
     return res.status(200).send({
-      createdAt: row.createdAt.getTime()
+      hasAuthorization: !!row,
+      createdAt: row?.createdAt?.getTime()
     })
   }
 

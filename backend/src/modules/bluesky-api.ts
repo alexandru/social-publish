@@ -15,7 +15,7 @@ export type BlueskyApiConfig = {
 
 export type BlueskyMediaUploadResponse = {
   image: BlobRef
-  alt?: string
+  alt: string
   aspectRatio?: {
     width: number
     height: number
@@ -81,7 +81,7 @@ export class BlueskyApiModule {
               const blob = await this.agent.uploadBlob(r.bytes, { encoding: r.mimetype })
               return result.success({
                 image: blob.data.blob,
-                alt: r.altText,
+                alt: r.altText || '',
                 aspectRatio: {
                   width: r.width,
                   height: r.height

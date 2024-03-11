@@ -15,12 +15,13 @@ export function Account() {
     const response = await fetch('/api/twitter/status')
     if (response.status === 200) {
       const json = await response.json()
-      setTwitterStatus(`Connected at ${new Date(json.createdAt).toLocaleString()}`)
-      updateAuthStatus((current) => ({ ...current, twitter: true }))
-      return
-    } else if (response.status === 404) {
-      setTwitterStatus('Not connected')
-      updateAuthStatus((current) => ({ ...current, twitter: false }))
+      if (json?.hasAuthorization) {
+        const atDateTime = json.createdAt ? ` at ${new Date(json.createdAt).toLocaleString()}` : ''
+        setTwitterStatus(`Connected${atDateTime}`)
+      } else {
+        setTwitterStatus('Not connected')
+      }
+      updateAuthStatus((current) => ({ ...current, twitter: json?.hasAuthorization || false }))
       return
     }
     setTwitterStatus(`Error: HTTP ${response.status}`)
