@@ -36,7 +36,7 @@ async function main() {
       type: 'number',
       description: 'Port to listen on',
       demandOption: true,
-      default: process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT) : 3000,
+      default: process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 3000,
       defaultDescription: 'HTTP_PORT env || 3000'
     })
     .option('baseUrl', {

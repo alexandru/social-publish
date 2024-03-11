@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import './style.css'
 import { ModalMessage } from '../../components/ModalMessage'
 import { useLocation } from 'preact-iso'
-import { setAuthStatus, setJwtToken, storeObjectInLocalStorage } from '../../utils/storage'
+import { setAuthStatus, setJwtToken } from '../../utils/storage'
 
 export function Login() {
   const [username, setUsername] = useState('')

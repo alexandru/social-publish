@@ -5,7 +5,8 @@
     "dev": "npm run init && concurrently \"npm --prefix ./backend/ run dev\" \"npm --prefix ./frontend/ run dev\"",
     "build": "npm run init && npm run clean && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
     "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean",
-    "format": "npx prettier . --write"
+    "format": "npx prettier . --write",
+    "lint": "eslint . -f unix"
   },
   "repository": {
     "type": "git",

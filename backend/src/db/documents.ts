@@ -1,5 +1,6 @@
 import logger from '../utils/logger'
 import { DBConnection, Migration } from './base'
+import { v4 as uuidv4 } from 'uuid'
 
 export interface Document {
   uuid: string
@@ -59,7 +60,7 @@ export class DocumentsDatabase {
           }
         logger.warn(`Failed to update document with search key ${searchKey}`)
       }
-      const uuid = require('uuid').v4()
+      const uuid = uuidv4()
       const document: Document = {
         uuid,
         searchKey: searchKey || `${kind}:${uuid}`,

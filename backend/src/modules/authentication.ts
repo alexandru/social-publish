@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { TwitterApiModule } from './twitter-api'
-import { writeErrorToResponse } from '../models/errors'
 
 export type AuthConfig = {
   serverAuthUsername: string

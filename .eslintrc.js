@@ -22,6 +22,12 @@ module.exports = {
     sourceType: 'module'
   },
   plugins: ['@typescript-eslint', 'preact'],
-  rules: {},
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-unused-vars': 'off',
+    'no-unsafe-finally': 'off',
+    'no-useless-constructor': 'off',
+    'no-constant-condition': 'off'
+  },
   ignorePatterns: ['node_modules/', 'dist/', 'build/', 'backend/public/']
 }

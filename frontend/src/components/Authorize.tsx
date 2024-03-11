@@ -9,13 +9,13 @@ type Props = {
 }
 
 export function Authorize(props: Props) {
+  const [message, setMessage] = useState(
+    'You are not authorized to view this page. Please log in...'
+  )
   const location = useLocation()
   const token = getJwtToken()
 
   if (!token) {
-    const [message, setMessage] = useState(
-      'You are not authorized to view this page. Please log in...'
-    )
     const disable = () => {
       setMessage(null)
       location.route(`/login?redirect=${location.url}`)

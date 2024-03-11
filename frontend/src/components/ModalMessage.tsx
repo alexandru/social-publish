@@ -1,4 +1,4 @@
-import { ComponentChildren, FunctionComponent } from 'preact'
+import { ComponentChildren } from 'preact'
 
 export type MessageType = 'info' | 'warning' | 'error'
 

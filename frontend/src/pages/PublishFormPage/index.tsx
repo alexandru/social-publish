@@ -40,7 +40,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
 
   const addImageComponent = () => {
     const ids = Object.keys(images)
-      .map((x) => parseInt(x))
+      .map((x) => parseInt(x, 10))
       .sort()
     const newId = ids.length > 0 ? ids[ids.length - 1] + 1 : 1
     setImages({
@@ -209,6 +209,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         </div>
         {Object.values(images).map((image) => (
           <ImageUpload
+            key={image.id}
             id={image.id}
             state={image}
             onSelect={onSelectedFile}

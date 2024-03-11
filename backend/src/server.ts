@@ -1,4 +1,4 @@
-import express, { Express } from 'express'
+import express from 'express'
 import healthApi from './modules/health'
 import logger from './utils/logger'
 import morgan from 'morgan'
