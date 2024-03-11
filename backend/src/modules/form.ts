@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { MastodonApiModule } from './mastodon-api'
 import { BlueskyApiModule } from './bluesky-api'
 import { RssModule } from './rss-api'
-import { writeErrorToResponse } from '../models/errors'
+import { extractStatusFrom, writeErrorToResponse } from '../models/errors'
 import { Dictionary } from '../models/base'
 import { NewPostResponse } from '../models/posts'
 import { TwitterApiModule } from './twitter-api'
@@ -62,7 +62,7 @@ export class FormModule {
       const modules = filteredErrors.map((e) => e.module).join(', ')
       return writeErrorToResponse(res, {
         type: 'composite-error',
-        status: 502,
+        status: extractStatusFrom(...responses),
         error: `Failed to create post via ${modules}.`,
         module: 'form',
         responses

@@ -79,7 +79,7 @@ export const serializerError = (error: ApiError): SerializedHttpError => {
       }
     case 'request-error':
       return {
-        status: 502,
+        status: error.status,
         body: {
           type: error.type,
           error: 'API request error.',
@@ -92,7 +92,7 @@ export const serializerError = (error: ApiError): SerializedHttpError => {
       }
     case 'composite-error':
       return {
-        status: error.status || 502,
+        status: error.status || 400,
         body: {
           type: error.type,
           error: error.error || 'Multiple API requests failed.',
@@ -128,4 +128,9 @@ export const buildErrorFromResponse = async (
     error: `HTTP API response error`,
     body: { asString, asJson }
   }
+}
+
+export const extractStatusFrom = (...rs: Result<unknown, ApiError>[]): number => {
+  const statuses = rs.flatMap((r) => (r.type === 'error' && r.error.status ? [r.error.status] : []))
+  return statuses.length ? Math.max(...statuses) : 400
 }

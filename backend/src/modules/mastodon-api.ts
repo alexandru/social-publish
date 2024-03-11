@@ -5,7 +5,12 @@ import logger from '../utils/logger'
 import { FilesModule } from './files'
 import result, { Result } from '../models/result'
 import { sleep } from '../utils/proc'
-import { ApiError, buildErrorFromResponse, writeErrorToResponse } from '../models/errors'
+import {
+  ApiError,
+  buildErrorFromResponse,
+  extractStatusFrom,
+  writeErrorToResponse
+} from '../models/errors'
 import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
 
 export type MastodonApiConfig = {
@@ -112,7 +117,7 @@ export class MastodonApiModule {
           } else {
             return result.error({
               type: 'composite-error',
-              status: 502,
+              status: extractStatusFrom(...rs),
               module: 'mastodon',
               error: 'Failed to upload images.',
               responses: rs

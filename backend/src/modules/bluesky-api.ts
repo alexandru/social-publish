@@ -5,7 +5,7 @@ import logger from '../utils/logger'
 import { FilesModule } from './files'
 import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
 import result, { Result } from '../models/result'
-import { ApiError, writeErrorToResponse } from '../models/errors'
+import { ApiError, extractStatusFrom, writeErrorToResponse } from '../models/errors'
 
 export type BlueskyApiConfig = {
   blueskyService: string
@@ -98,14 +98,15 @@ export class BlueskyApiModule {
 
       const images: BlueskyMediaUploadResponse[] = []
       for (const r of imageUploadsResults) {
-        if (r.type === 'error')
+        if (r.type === 'error') {
           return result.error<ApiError>({
             type: 'composite-error',
-            status: 502,
+            status: extractStatusFrom(...imageUploadsResults),
             module: 'mastodon',
             error: 'Failed to upload images.',
             responses: imageUploadsResults
           })
+        }
         images.push(r.result)
       }
 

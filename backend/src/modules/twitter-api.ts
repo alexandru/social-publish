@@ -1,4 +1,9 @@
-import { ApiError, buildErrorFromResponse, writeErrorToResponse } from '../models/errors'
+import {
+  ApiError,
+  buildErrorFromResponse,
+  extractStatusFrom,
+  writeErrorToResponse
+} from '../models/errors'
 import { DocumentsDatabase } from '../db/documents'
 import { HttpConfig } from './http'
 import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
@@ -278,7 +283,7 @@ export class TwitterApiModule {
         } else {
           return result.error({
             type: 'composite-error',
-            status: 502,
+            status: extractStatusFrom(...rs),
             module: 'twitter',
             error: 'Failed to upload images.',
             responses: rs
