@@ -13,51 +13,56 @@ export function NavBar() {
   const isLoggedIn = hasJwtToken()
 
   return (
-    <nav class="navbar is-primary" role="navigation" aria-label="main navigation">
-      <div class="navbar-brand">
+    <nav className="navbar is-primary" role="navigation" aria-label="main navigation">
+      <div className="navbar-brand">
         <a
           role="button"
-          class={'navbar-burger ' + navbarIsActive}
+          className={`navbar-burger ${navbarIsActive}`}
           onClick={() => setNavbarIsActive(navbarIsActive == 'is-active' ? '' : 'is-active')}
           aria-label="menu"
           aria-expanded="false"
           data-target="navbarBasicExample"
         >
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
         </a>
       </div>
 
-      <div id="navbarBasicExample" class={'navbar-menu ' + navbarIsActive}>
-        <div class="navbar-start">
-          <a class={classOfLink('navbar-item', '/')} href="/">
-            <span class="icon">
+      <div id="navbarBasicExample" className={`navbar-menu ${navbarIsActive}`}>
+        <div className="navbar-start">
+          <a className={classOfLink('navbar-item', '/')} href="/">
+            <span className="icon">
               <img src={homeOutline} alt="Home" />
             </span>
             <strong>Home</strong>
           </a>
           <IfLoggedIn isLoggedIn={isLoggedIn}>
-            <a class={classOfLink('navbar-item', '/form')} href="/form">
-              <span class="icon">
+            <a className={classOfLink('navbar-item', '/form')} href="/form">
+              <span className="icon">
                 <img src={play} alt="Publish" />
               </span>
               <strong>Publish</strong>
             </a>
           </IfLoggedIn>
-          <a class="navbar-item" href="https://github.com/alexandru/social-publish" target="_blank">
-            <span class="icon">
+          <a
+            className="navbar-item"
+            href="https://github.com/alexandru/social-publish"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="icon">
               <img src={logoGithub} alt="Help" />
             </span>
             <strong>Help</strong>
           </a>
         </div>
 
-        <div class="navbar-end">
-          <div class="navbar-item">
-            <div class="buttons">
+        <div className="navbar-end">
+          <div className="navbar-item">
+            <div className="buttons">
               {isLoggedIn ? (
-                <a class={classOfLink('button is-primary', '/account')} href="/account">
+                <a className={classOfLink('button is-primary', '/account')} href="/account">
                   <strong>Account</strong>
                 </a>
               ) : null}
@@ -84,22 +89,21 @@ function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
 
   if (props.isLoggedIn) {
     return (
-      <a class="button is-primary" onClick={onLogout}>
+      <a className="button is-primary" onClick={onLogout}>
         <strong>Logout</strong>
-        <span class="icon">
+        <span className="icon">
           <img src={logOut} alt="Logout" />
         </span>
       </a>
     )
-  } else {
-    const status = location.url == '/login' ? ' is-active' : ''
-    return (
-      <a class={'button is-primary ' + status} href="/login">
-        <span class="icon">
-          <img src={logIn} alt="Login" />
-        </span>
-        <strong>Login</strong>
-      </a>
-    )
   }
+  const status = location.url == '/login' ? ' is-active' : ''
+  return (
+    <a className={`button is-primary ${status}`} href="/login">
+      <span className="icon">
+        <img src={logIn} alt="Login" />
+      </span>
+      <strong>Login</strong>
+    </a>
+  )
 }

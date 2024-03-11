@@ -1,4 +1,4 @@
-import express, { Express } from 'express'
+import express from 'express'
 import healthApi from './modules/health'
 import logger from './utils/logger'
 import morgan from 'morgan'
@@ -63,7 +63,7 @@ export const startServer = async (
 
   // Needed for the frontend routing
   app.get(/\/(login|form|account)/, (_req, res) => {
-    res.sendFile('public/index.html', { root: __dirname + '/..' })
+    res.sendFile('public/index.html', { root: `${__dirname}/..` })
   })
 
   return app.listen(config.httpPort, () => {

@@ -56,23 +56,14 @@ export class BlueskyApiModule {
           asString: eany.error
         }
       }
-    else
-      return {
-        type: 'caught-exception',
-        module: 'bluesky',
-        error: e
-      }
+    return {
+      type: 'caught-exception',
+      module: 'bluesky',
+      error: e
+    }
   }
 
   createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
-    type Image = {
-      image: BlobRef
-      alt?: string
-      aspectRatio?: {
-        width: number
-        height: number
-      }
-    }
     try {
       const imageUploadsResults: Result<BlueskyMediaUploadResponse, ApiError>[] = await Promise.all(
         (post.images || []).map((imageUuid) =>

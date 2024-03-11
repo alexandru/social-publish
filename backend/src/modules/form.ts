@@ -65,7 +65,7 @@ export class FormModule {
         status: 502,
         error: `Failed to create post via ${modules}.`,
         module: 'form',
-        responses: responses
+        responses
       })
     }
 

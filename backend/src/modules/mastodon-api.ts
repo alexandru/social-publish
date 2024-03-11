@@ -40,7 +40,7 @@ export class MastodonApiModule {
           type: 'validation-error',
           module: 'mastodon',
           status: 404,
-          error: 'Failed to read image file — uuid: ' + uuid
+          error: `Failed to read image file — uuid: ${uuid}`
         })
 
       const formData = new FormData()
@@ -67,7 +67,7 @@ export class MastodonApiModule {
         const id = (await response.json())['id'] as string
         while (true) {
           sleep(200)
-          const response = await fetch(this.mediaUrlV1 + '/' + id, {
+          const response = await fetch(`${this.mediaUrlV1}/${id}`, {
             method: 'GET',
             headers: {
               Authorization: `Bearer ${this.config.mastodonAccessToken}`
@@ -145,13 +145,12 @@ export class MastodonApiModule {
       if (response.status >= 400) {
         logger.error('Failed to post to Mastodon: ', response)
         return result.error(await buildErrorFromResponse(response, 'mastodon'))
-      } else {
-        const body = await response.json()
-        return result.success({
-          module: 'mastodon',
-          uri: body['url']
-        })
       }
+      const body = await response.json()
+      return result.success({
+        module: 'mastodon',
+        uri: body['url']
+      })
     } catch (e) {
       logger.error('Failed to post to Mastodon:', e)
       return result.error({

@@ -110,17 +110,15 @@ export const withBaseConnection =
       ref = new sqlite.Database(path, sqlite.OPEN_READWRITE | sqlite.OPEN_CREATE, (err) => {
         if (err) {
           reject(err)
+        } else if (ref) {
+          resolve(ref)
         } else {
-          if (ref) {
-            resolve(ref)
-          } else {
-            throw new Error('Database opened, but ref not set')
-          }
+          throw new Error('Database opened, but ref not set')
         }
       })
     })
     const db = new DBConnection(rawDb)
-    var errorThrown: unknown = null
+    let errorThrown: unknown = null
     try {
       return await f(db)
     } catch (err) {

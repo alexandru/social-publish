@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import './style.css'
 import { ModalMessage } from '../../components/ModalMessage'
 import { useLocation } from 'preact-iso'
-import { setAuthStatus, setJwtToken, storeObjectInLocalStorage } from '../../utils/storage'
+import { setAuthStatus, setJwtToken } from '../../utils/storage'
 
 export function Login() {
   const [username, setUsername] = useState('')
@@ -28,7 +28,7 @@ export function Login() {
         if (key === 'error') continue
         newPath += newPath.includes('?')
           ? '&'
-          : '?' + key + '=' + encodeURIComponent(location.query[key])
+          : `?${key}=${encodeURIComponent(location.query[key])}`
       }
       location.route(newPath)
     }
@@ -54,13 +54,11 @@ export function Login() {
           setAuthStatus(body.hasAuth)
           location.route(redirectTo)
         }
+      } else if (body?.error) {
+        setError(`${body.error}!`)
       } else {
-        if (body?.error) {
-          setError(`${body.error}!`)
-        } else {
-          console.warn(`Error while logging in:`, response.status, body)
-          setError(`HTTP ${response.status} error while logging in! `)
-        }
+        console.warn(`Error while logging in:`, response.status, body)
+        setError(`HTTP ${response.status} error while logging in! `)
       }
     } catch (e) {
       console.error(`While logging in`, e)
@@ -72,28 +70,28 @@ export function Login() {
   const onPasswordChange = (e: Event) => setPassword((e.target as HTMLInputElement).value)
 
   return (
-    <div class="login" id="login">
+    <div className="login" id="login">
       <ModalMessage type="error" isEnabled={!!error} onDisable={hideError}>
         {error}
       </ModalMessage>
 
-      <section class="section">
-        <div class="container">
-          <h1 class="title">Login</h1>
-          <form onSubmit={onSubmit} class="box">
-            <div class="field">
-              <label class="label">Username</label>
-              <div class="control">
-                <input class="input" type="text" onInput={onUsernameChange} required />
+      <section className="section">
+        <div className="container">
+          <h1 className="title">Login</h1>
+          <form onSubmit={onSubmit} className="box">
+            <div className="field">
+              <label className="label">Username</label>
+              <div className="control">
+                <input className="input" type="text" onInput={onUsernameChange} required />
               </div>
             </div>
-            <div class="field">
-              <label class="label">Password</label>
-              <div class="control">
-                <input class="input" type="password" onInput={onPasswordChange} required />
+            <div className="field">
+              <label className="label">Password</label>
+              <div className="control">
+                <input className="input" type="password" onInput={onPasswordChange} required />
               </div>
             </div>
-            <input class="button is-primary" type="submit" value="Submit" />
+            <input className="button is-primary" type="submit" value="Submit" />
           </form>
         </div>
       </section>

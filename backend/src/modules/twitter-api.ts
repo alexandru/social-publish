@@ -17,7 +17,7 @@ export type TwitterAuthConfig = {
 }
 
 type CreateNewPostRequest = {
-  text: string,
+  text: string
   media?: { media_ids: string[] }
 }
 
@@ -193,7 +193,7 @@ export class TwitterApiModule {
             type: 'validation-error',
             module: 'twitter',
             status: 404,
-            error: 'Failed to read image file — uuid: ' + uuid
+            error: `Failed to read image file — uuid: ${uuid}`
           })
 
         const url = 'https://upload.twitter.com/1.1/media/upload.json'
@@ -292,7 +292,7 @@ export class TwitterApiModule {
       (post.link ? `\n\n${post.link}` : '')
 
     // Create the post
-    let data: CreateNewPostRequest = {
+    const data: CreateNewPostRequest = {
       text: status
     }
     if (images.length > 0) {

@@ -1,4 +1,4 @@
-import { ComponentChildren, FunctionComponent } from 'preact'
+import { ComponentChildren } from 'preact'
 
 export type MessageType = 'info' | 'warning' | 'error'
 
@@ -25,20 +25,20 @@ export const ModalMessage = (props: ModalMessageProps) => {
     props.type === 'info' ? 'is-info' : props.type === 'warning' ? 'is-warning' : 'is-danger'
 
   return (
-    <div id="message-modal" class={'modal ' + (props.isEnabled ? 'is-active' : '')}>
-      <div class="modal-background" onClick={handleClick} onKeyDown={handleKeyDown}></div>
+    <div id="message-modal" className={`modal ${props.isEnabled ? 'is-active' : ''}`}>
+      <div className="modal-background" onClick={handleClick} onKeyDown={handleKeyDown} />
 
-      <div class="modal-content">
-        <article class={`message is-medium ${clsType}`}>
-          <div class="message-header">
+      <div className="modal-content">
+        <article className={`message is-medium ${clsType}`}>
+          <div className="message-header">
             <p>{title}</p>
-            <button class="delete" aria-label="delete" onClick={handleClick}></button>
+            <button className="delete" aria-label="delete" onClick={handleClick} />
           </div>
-          <div class="message-body">{props.children}</div>
+          <div className="message-body">{props.children}</div>
         </article>
       </div>
 
-      <button class="modal-close is-large" aria-label="close" onClick={handleClick}></button>
+      <button className="modal-close is-large" aria-label="close" onClick={handleClick} />
     </div>
   )
 }

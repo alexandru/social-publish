@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { TwitterApiModule } from './twitter-api'
-import { writeErrorToResponse } from '../models/errors'
 
 export type AuthConfig = {
   serverAuthUsername: string
@@ -28,7 +27,7 @@ export class AuthModule {
       token = authHeader.split(' ')[1]
     }
     if (!token && req.query?.access_token) {
-      token = '' + req.query.access_token
+      token = `${req.query.access_token}`
     }
     if (!token && req.parsedCookies?.access_token) {
       token = req.parsedCookies.access_token

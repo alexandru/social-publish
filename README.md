@@ -95,6 +95,7 @@ For Mastodon, you'll need an "access token". Here's how to get one:
 ### Twitter setup
 
 For Twitter, we're working with Oauth1.
+
 - Go to: <https://developer.twitter.com/en/portal/projects-and-apps>
 - Create a project and app
 - In the "_Keys and tokens_" section of the app, generate "_Consumer Keys_" and copy the generated "_App Key and Secret_"

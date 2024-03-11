@@ -2,10 +2,10 @@ import { PostsDatabase } from '../db/posts'
 import { Request, Response } from 'express'
 import { URL } from 'url'
 import utils from '../utils/text'
-import RSS, { EnclosureObject } from 'rss'
+import RSS from 'rss'
 import logger from '../utils/logger'
 import { HttpConfig } from './http'
-import { FilesDatabase, Upload } from '../db/files'
+import { FilesDatabase } from '../db/files'
 import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
 import result, { Result } from '../models/result'
 import { ApiError, writeErrorToResponse } from '../models/errors'
@@ -65,7 +65,7 @@ export class RssModule {
   }): Promise<string> => {
     const posts = await this.db.getAll()
     const feed = new RSS({
-      title: 'Feed of ' + this.config.baseUrl.replace(/^https?:\/\//, ''),
+      title: `Feed of ${this.config.baseUrl.replace(/^https?:\/\//, '')}`,
       feed_url: new URL('/rss', this.config.baseUrl).toString(),
       site_url: this.config.baseUrl,
       custom_namespaces: {
