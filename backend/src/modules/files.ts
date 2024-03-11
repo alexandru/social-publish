@@ -11,6 +11,8 @@ import { imageSize } from 'image-size'
 import sharp from 'sharp'
 import path from 'path'
 import { ApiError, writeErrorToResponse } from '../models/errors'
+import { AsyncSemaphore } from '../utils/async-semaphore'
+import { hashCodeMod } from '../utils/text'
 
 export type FilesConfig = HttpConfig & {
   uploadedFilesPath: string
@@ -35,15 +37,19 @@ export type ProcessedUpload = {
 }
 
 export class FilesModule {
+  private readonly _locks: AsyncSemaphore[]
+
   private constructor(
-    public config: FilesConfig & {
+    public readonly config: FilesConfig & {
       newUploadsPath: string
       processedPath: string
       resizingPath: string
       resizing: ResizeOptions
     },
-    private db: FilesDatabase
-  ) {}
+    private readonly db: FilesDatabase
+  ) {
+    this._locks = Array.from({ length: 4 }, () => new AsyncSemaphore(1))
+  }
 
   static init = async (config: FilesConfig, db: FilesDatabase) => {
     const cfg = {
@@ -74,6 +80,13 @@ export class FilesModule {
     }
     return new FilesModule(cfg, db)
   }
+
+  private readonly withLock =
+    (key: string) =>
+    async <A>(f: () => Promise<A>): Promise<A> => {
+      const lock = this._locks[hashCodeMod(key, this._locks.length)]
+      return lock.withLock(f)
+    }
 
   private resizeImageFile = async (upload: Upload, width: number, height: number) => {
     const path = `${this.config.processedPath}/${upload.hash}`
@@ -122,28 +135,30 @@ export class FilesModule {
       throw new Error(`Unsupported image type: ${upload.mimetype}`)
     }
 
-    const pathOrig = `${this.config.processedPath}/${upload.hash}`
-    let [width, height] = [upload.imageWidth, upload.imageHeight]
+    return this.withLock(upload.hash)(async () => {
+      const pathOrig = `${this.config.processedPath}/${upload.hash}`
+      let [width, height] = [upload.imageWidth, upload.imageHeight]
 
-    if (!width || !height) {
-      const size = await imageSize(pathOrig)
-      width = size.width
-      height = size.height
-    }
-    if (!width || !height) {
-      throw new Error(`Invalid image — uuid: ${upload.uuid}`)
-    }
+      if (!width || !height) {
+        const size = await imageSize(pathOrig)
+        width = size.width
+        height = size.height
+      }
+      if (!width || !height) {
+        throw new Error(`Invalid image — uuid: ${upload.uuid}`)
+      }
 
-    const resized = await this.resizeImageFile(upload, width, height)
-    return {
-      originalname: upload.originalname,
-      mimetype: upload.mimetype,
-      altText: upload.altText,
-      width: resized.width,
-      height: resized.height,
-      size: resized.size,
-      bytes: new Uint8Array(await fs.promises.readFile(resized.path))
-    }
+      const resized = await this.resizeImageFile(upload, width, height)
+      return {
+        originalname: upload.originalname,
+        mimetype: upload.mimetype,
+        altText: upload.altText,
+        width: resized.width,
+        height: resized.height,
+        size: resized.size,
+        bytes: new Uint8Array(await fs.promises.readFile(resized.path))
+      }
+    })
   }
 
   middleware = [
