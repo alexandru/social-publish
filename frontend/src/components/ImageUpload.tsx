@@ -72,6 +72,7 @@ export const ImageUpload = (props: ImageUploadProps) => {
             cols={50}
             onInput={onAltTextChange}
             value={props.state.altText || ''}
+            className="textarea"
           />
         </div>
       </div>
