@@ -17,7 +17,7 @@ export type TwitterAuthConfig = {
 }
 
 type CreateNewPostRequest = {
-  text: string,
+  text: string
   media?: { media_ids: string[] }
 }
 
