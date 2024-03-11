@@ -105,16 +105,23 @@ export class FilesModule {
 
     logger.info(`Resizing image: ${width}x${height} -> ${nw}x${nh}`)
     if (nw > 0 && nh > 0) {
-      switch (upload.mimetype) {
-        case 'image/png':
-          await sharp(path).png({ compressionLevel: pngCompression }).resize(nw, nh).toFile(path2)
-          break
-        case 'image/jpeg':
-          await sharp(path).jpeg({ quality: jpgQuality }).resize(nw, nh).toFile(path2)
-          break
-        default:
-          throw new Error(`Unsupported image type: ${upload.mimetype}`)
-      }
+      const r: sharp.OutputInfo = await (async () => {
+        let instance = await sharp(path)
+        const { orientation } = await instance.metadata()
+        switch (upload.mimetype) {
+          case 'image/png':
+            instance = instance.png({ compressionLevel: pngCompression })
+            break
+          case 'image/jpeg':
+            instance = instance.jpeg({ quality: jpgQuality })
+            break
+          default:
+            throw new Error(`Unsupported image type: ${upload.mimetype}`)
+        }
+        return instance.resize(nw, nh).withMetadata({ orientation }).toFile(path2)
+      })()
+
+      logger.info(`Resized image:`, r)
       const newSize = await imageSize(path2)
       if (newSize.width && newSize.height)
         return {
