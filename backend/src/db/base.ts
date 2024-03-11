@@ -120,7 +120,7 @@ export const withBaseConnection =
       })
     })
     const db = new DBConnection(rawDb)
-    var errorThrown: unknown = null
+    let errorThrown: unknown = null
     try {
       return await f(db)
     } catch (err) {

@@ -30,21 +30,21 @@ export function Account() {
 
   return (
     <Authorize>
-      <div class="account" id="account">
-        <section class="section">
-          <div class="container block">
-            <h1 class="title">Account Settings</h1>
+      <div className="account" id="account">
+        <section className="section">
+          <div className="container block">
+            <h1 className="title">Account Settings</h1>
           </div>
 
-          <div class="box">
-            <h2 class="subtitle">Social Accounts</h2>
-            <button class="button is-link" onClick={authorizeTwitter}>
-              <span class="icon">
+          <div className="box">
+            <h2 className="subtitle">Social Accounts</h2>
+            <button className="button is-link" onClick={authorizeTwitter}>
+              <span className="icon">
                 <img src={logoTwitter} alt="" style="filter: invert(1)" />
               </span>
               <strong>Connect X (Twitter)</strong>
             </button>
-            <p class="help">{twitterStatus}</p>
+            <p className="help">{twitterStatus}</p>
           </div>
         </section>
       </div>

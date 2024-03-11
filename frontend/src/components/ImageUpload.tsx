@@ -34,37 +34,37 @@ export const ImageUpload = (props: ImageUploadProps) => {
   }
 
   return (
-    <div class="block">
-      <div class="field">
-        <label class="label">Image ({props.id})</label>
-        <div class="file">
-          <label class="file-label">
+    <div className="block">
+      <div className="field">
+        <label className="label">Image ({props.id})</label>
+        <div className="file">
+          <label className="file-label">
             <input
               id={`file_${props.id}`}
               name={`file_${props.id}`}
-              class="file-input"
+              className="file-input"
               type="file"
               accept="image/*"
               onInput={onFileChange}
             />
-            <span class="file-cta">
-              <span class="file-icon">
-                <i class="fas fa-upload"></i>
+            <span className="file-cta">
+              <span className="file-icon">
+                <i className="fas fa-upload"></i>
               </span>
-              <span class="file-label">Choose an image file…</span>
+              <span className="file-label">Choose an image file…</span>
             </span>
           </label>
         </div>
         <div>
-          <p class="help">The image will be displayed in the post.</p>
+          <p className="help">The image will be displayed in the post.</p>
         </div>
         <div>
           <span>{props.state?.file ? props.state.file.name : ''}</span>
         </div>
       </div>
-      <div class="field">
-        <label class="label">Alt text for image ({props.id})</label>
-        <div class="control">
+      <div className="field">
+        <label className="label">Alt text for image ({props.id})</label>
+        <div className="control">
           <textarea
             id={`altText_${props.id}`}
             name={`altText_${props.id}`}
@@ -75,8 +75,8 @@ export const ImageUpload = (props: ImageUploadProps) => {
           ></textarea>
         </div>
       </div>
-      <div class="field">
-        <button class="button is-small" onClick={onRemove}>
+      <div className="field">
+        <button className="button is-small" onClick={onRemove}>
           Remove
         </button>
       </div>

@@ -26,5 +26,5 @@ export function Authorize(props: Props) {
       </ModalMessage>
     )
   }
-  return <div class="authorized">{props.children}</div>
+  return <div className="authorized">{props.children}</div>
 }

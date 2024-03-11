@@ -292,7 +292,7 @@ export class TwitterApiModule {
       (post.link ? `\n\n${post.link}` : '')
 
     // Create the post
-    let data: CreateNewPostRequest = {
+    const data: CreateNewPostRequest = {
       text: status
     }
     if (images.length > 0) {

@@ -28,7 +28,7 @@ type Props = {
 
 function CharsLeft(props: CharsLeftProps) {
   const text = [props.data?.content, props.data?.link].filter((x) => x && x.length > 0).join('\n\n')
-  return <p class="help">Characters left: {280 - text.length}</p>
+  return <p className="help">Characters left: {280 - text.length}</p>
 }
 
 const PostForm: FunctionalComponent<Props> = (props: Props) => {
@@ -179,29 +179,29 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
   }
 
   return (
-    <form ref={(el) => (formRef = el)} onSubmit={onSubmit} class="box">
+    <form ref={(el) => (formRef = el)} onSubmit={onSubmit} className="box">
       <fieldset id="post-form-fieldset">
-        <div class="field">
-          <label class="label">Content</label>
-          <div class="control">
+        <div className="field">
+          <label className="label">Content</label>
+          <div className="control">
             <textarea
               id="content"
               name="content"
               rows={4}
               cols={50}
-              class="textarea"
+              className="textarea"
               onInput={onInput('content')}
               required
             ></textarea>
           </div>
           <CharsLeft data={data} />
         </div>
-        <div class="field">
-          <label class="label">Highlighted link (optional)</label>
-          <div class="control">
+        <div className="field">
+          <label className="label">Highlighted link (optional)</label>
+          <div className="control">
             <input
               type="link"
-              class="input"
+              className="input"
               placeholder="https://example.com/..."
               id="link"
               name="link"
@@ -218,20 +218,20 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
             onRemove={removeImageComponent}
           />
         ))}
-        <div class="field">
-          <label class="checkbox">
+        <div className="field">
+          <label className="checkbox">
             <input type="checkbox" id="mastodon" name="mastodon" onInput={onCheckbox('mastodon')} />{' '}
             Mastodon
           </label>
         </div>
-        <div class="field">
-          <label class="checkbox">
+        <div className="field">
+          <label className="checkbox">
             <input type="checkbox" id="bluesky" name="bluesky" onInput={onCheckbox('bluesky')} />{' '}
             Bluesky
           </label>
         </div>
-        <div class="field">
-          <label class="checkbox">
+        <div className="field">
+          <label className="checkbox">
             {hasAuth.twitter ? (
               <input type="checkbox" id="twitter" name="twitter" onInput={onCheckbox('twitter')} />
             ) : (
@@ -240,13 +240,13 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
             Twitter
           </label>
         </div>
-        <div class="field">
-          <label class="checkbox">
+        <div className="field">
+          <label className="checkbox">
             <input type="checkbox" id="rss" name="rss" onInput={onCheckbox('rss')} /> RSS
           </label>
         </div>
-        <div class="field">
-          <label class="checkbox">
+        <div className="field">
+          <label className="checkbox">
             <input
               type="checkbox"
               id="cleanupHtml"
@@ -256,13 +256,13 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
             cleanup HTML
           </label>
         </div>
-        <input class="button" type="reset" value="Reset" id="post-form-reset-button" />{' '}
+        <input className="button" type="reset" value="Reset" id="post-form-reset-button" />{' '}
         {Object.keys(images).length < 4 ? (
-          <button type="button" class="button" onClick={addImageComponent}>
+          <button type="button" className="button" onClick={addImageComponent}>
             Add image
           </button>
         ) : null}{' '}
-        <input class="button is-primary" type="submit" value="Submit" />
+        <input className="button is-primary" type="submit" value="Submit" />
       </fieldset>
     </form>
   )
@@ -285,14 +285,14 @@ export function PublishFormPage() {
   return (
     <Authorize>
       {modal}
-      <div class="publish-form">
-        <section class="section">
-          <div class="container block">
-            <h1 class="title">Social Publish</h1>
-            <p class="subtitle">Spam all your social media accounts at once!</p>
+      <div className="publish-form">
+        <section className="section">
+          <div className="container block">
+            <h1 className="title">Social Publish</h1>
+            <p className="subtitle">Spam all your social media accounts at once!</p>
           </div>
 
-          <div class="container">
+          <div className="container">
             <PostForm onError={showModal('error')} onInfo={showModal('info')} />
           </div>
         </section>

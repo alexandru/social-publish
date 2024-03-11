@@ -1,21 +1,21 @@
 export function Home() {
   return (
-    <div class="home">
-      <section class="section">
-        <div class="container block">
-          <h1 class="title">Social Publish</h1>
-          <p class="subtitle">Spam all your social media accounts at once!</p>
+    <div className="home">
+      <section className="section">
+        <div className="container block">
+          <h1 className="title">Social Publish</h1>
+          <p className="subtitle">Spam all your social media accounts at once!</p>
         </div>
 
-        <div class="container box">
-          <ul class="content is-medium">
+        <div className="container box">
+          <ul className="content is-medium">
             <li>
               <a href="/rss" target="_blank">
                 RSS
               </a>
             </li>
             <li>
-              <a href="https://github.com/alexandru/social-publish" target="_blank">
+              <a href="https://github.com/alexandru/social-publish" target="_blank" rel="noreferrer">
                 GitHub
               </a>
             </li>
@@ -28,7 +28,7 @@ export function Home() {
 
 function Resource(props) {
   return (
-    <a href={props.href} target="_blank" class="resource">
+    <a href={props.href} target="_blank" className="resource" rel="noreferrer">
       <h2>{props.title}</h2>
       <p>{props.description}</p>
     </a>
