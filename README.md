@@ -1,12 +1,12 @@
 # social-publish
 
-[![deploy-latest](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml) [![deploy-release](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml)
+[![build](https://github.com/alexandru/social-publish/actions/workflows/build.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/build.yaml) [![deploy-latest](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml) [![deploy-release](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml)
 
 In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. I'm using [ifttt.com](https://ifttt.com/), but it doesn't do a good job — their LinkedIn integration is most often broken, and Bluesky integration is currently missing.
 
 This project is the start of a simple tool to publish my content to multiple social networks.
 
-- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), and [Bluesky](https://bsky.app/) support is implemented, LinkedIn is planned
+- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), and [Bluesky](https://bsky.app/) support is implemented, LinkedIn is planned (currently supported via an RSS feed meant for `ifttt.com`)
 - Image upload is supported, with alt-text included 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
