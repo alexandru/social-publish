@@ -24,7 +24,7 @@
     "@types/yargs": "^17.0.32",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.4.2"
   },
   "dependencies": {
     "@atproto/api": "^0.10.3",
