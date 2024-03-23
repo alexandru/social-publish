@@ -1,0 +1,25 @@
+// manifest.json
+{
+  "name": "Social Publish",
+  "short_name": "Social Publish",
+  "start_url": "/form",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "description": "Share to multiple social media platforms at the same time.",
+  "icons": [
+    {
+      "src": "assets/logos/cloud-48x48.webp",
+      "sizes": "48x48",
+      "type": "image/webp"
+    },
+    {
+      "src": "assets/logos/cloud-256x256.ico",
+      "sizes": "72x72 96x96 128x128 256x256"
+    },
+    {
+      "src": "assets/logos/cloud.svg",
+      "sizes": "72x72 96x96 128x128 256x256 512x512"
+    }
+  ]
+}

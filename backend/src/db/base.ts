@@ -107,6 +107,7 @@ export const withBaseConnection =
     const { dbPath: path } = config
     const rawDb = await new Promise<sqlite.Database>((resolve, reject) => {
       let ref: sqlite.Database | null = null
+      logger.info('Opening database at: ', path)
       ref = new sqlite.Database(path, sqlite.OPEN_READWRITE | sqlite.OPEN_CREATE, (err) => {
         if (err) {
           reject(err)
