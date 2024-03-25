@@ -6,7 +6,7 @@ import {
 } from '../models/errors'
 import { DocumentsDatabase } from '../db/documents'
 import { HttpConfig } from './http'
-import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
 import { Request, Response } from 'express'
 import crypto from 'crypto'
 import logger from '../utils/logger'
@@ -146,11 +146,11 @@ export class TwitterApiModule {
       key: body.oauth_token as string,
       secret: body.oauth_token_secret as string
     }
-    await this.docsDb.createOrUpdate(
-      'twitter-oauth-token',
-      JSON.stringify(authorizedToken),
-      'twitter-oauth-token'
-    )
+    await this.docsDb.createOrUpdate({
+      kind: 'twitter-oauth-token',
+      payload: JSON.stringify(authorizedToken),
+      searchKey: 'twitter-oauth-token'
+    })
     return result.success(undefined)
   }
 
@@ -260,7 +260,7 @@ export class TwitterApiModule {
       }
     }
 
-  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPost: CreatePostFunction = async (post) => {
     const createPostURL = 'https://api.twitter.com/2/tweets'
     const token = await this.restoreOauthTokenFromDb()
     if (!token) {
@@ -329,20 +329,17 @@ export class TwitterApiModule {
     })
   }
 
-  createPostRoute = async (
-    post: UnvalidatedNewPostRequest
-  ): Promise<Result<NewPostResponse, ApiError>> => {
-    const content = post.content
-    if (!content) {
+  createPostRoute = async (body: unknown): Promise<Result<NewPostResponse, ApiError>> => {
+    const parsed = NewPostRequest.safeParse(body)
+    if (parsed.success === false) {
       return result.error({
         type: 'validation-error',
         status: 400,
-        error: 'Bad Request: Missing content!',
+        error: `Bad Request: ${parsed.error.format()._errors.join(', ')}`,
         module: 'twitter'
       })
     }
-
-    return await this.createPost({ ...post, content })
+    return await this.createPost(parsed.data)
   }
 
   createPostHttpRoute = async (req: Request, res: Response) => {

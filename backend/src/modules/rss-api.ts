@@ -6,9 +6,10 @@ import RSS from 'rss'
 import logger from '../utils/logger'
 import { HttpConfig } from './http'
 import { FilesDatabase } from '../db/files'
-import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import { NewPostRequest, NewPostResponse, CreatePostFunction } from '../models/posts'
 import result, { Result } from '../models/result'
 import { ApiError, writeErrorToResponse } from '../models/errors'
+import { Create } from 'sharp'
 
 export class RssModule {
   constructor(
@@ -17,17 +18,20 @@ export class RssModule {
     private files: FilesDatabase
   ) {}
 
-  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPost: CreatePostFunction = async (post) => {
     try {
       const content = post.cleanupHtml ? utils.convertHtml(post.content) : post.content
       const tags = post.content.match(/(?<=^|\s)#\w+/gm)?.map((t) => t.substring(1)) || []
-      const row = await this.db.create({
-        content,
-        link: post.link,
-        language: post.language,
-        tags,
-        images: post.images
-      })
+      const row = await this.db.create(
+        {
+          content,
+          link: post.link,
+          language: post.language,
+          tags,
+          images: post.images
+        },
+        post.targets || []
+      )
       return result.success({
         module: 'rss',
         uri: new URL(`/rss/${row.uuid}`, this.config.baseUrl).toString()
@@ -44,24 +48,24 @@ export class RssModule {
   }
 
   createPostRoute = async (
-    post: UnvalidatedNewPostRequest
+    body: unknown
   ): Promise<Result<NewPostResponse, ApiError>> => {
-    const content = post.content
-    if (!content) {
+    const parsed = NewPostRequest.safeParse(body)
+    if (parsed.success === false) {
       return result.error({
         type: 'validation-error',
         status: 400,
-        error: 'Bad Request: Missing content!',
+        error: `Bad Request: ${parsed.error.format()._errors.join(', ')}`,
         module: 'rss'
       })
     }
-
-    return await this.createPost({ ...post, content })
+    return await this.createPost(parsed.data)
   }
 
   rss = async (options: {
     filterByLinks?: 'include' | 'exclude'
     filterByImages?: 'include' | 'exclude'
+    target?: string
   }): Promise<string> => {
     const posts = await this.db.getAll()
     const feed = new RSS({
@@ -73,6 +77,9 @@ export class RssModule {
       }
     })
     for (const post of posts) {
+      if (options.target && !post.targets.includes(options.target)) {
+        continue
+      }
       if (options.filterByLinks === 'include' && !post.link) {
         continue
       } else if (options.filterByLinks === 'exclude' && post.link) {
@@ -116,10 +123,15 @@ export class RssModule {
           })
       }
 
+      const categories = [...post.tags||[]]
+      if (post.targets && post.targets.length > 0) {
+        categories.push(...post.targets)
+      }
+
       feed.item({
         title: post.content,
         description: post.content,
-        categories: post.tags,
+        categories,
         guid,
         url: post.link || guid,
         date: post.createdAt,
@@ -130,6 +142,7 @@ export class RssModule {
   }
 
   generateRssHttpRoute = async (req: Request, res: Response) => {
+    const target = req.params?.target || undefined
     const filterByLinks =
       req.query.filterByLinks === 'include'
         ? 'include'
@@ -145,7 +158,7 @@ export class RssModule {
           : undefined
 
     res.type('application/rss+xml')
-    res.send(await this.rss({ filterByLinks, filterByImages }))
+    res.send(await this.rss({ filterByLinks, filterByImages, target }))
   }
 
   getRssItemHttpRoute = async (req: Request, res: Response) => {

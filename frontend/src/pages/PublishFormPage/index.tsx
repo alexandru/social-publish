@@ -7,12 +7,12 @@ import { MessageType, ModalMessage } from '../../components/ModalMessage'
 import { ImageUpload, SelectedImage } from '../../components/ImageUpload'
 import { getAuthStatus } from '../../utils/storage'
 
+type Target = 'mastodon' | 'twitter' | 'bluesky' | 'linkedin'
+
 type FormData = {
   content?: string
   link?: string
-  mastodon?: string
-  bluesky?: string
-  twitter?: string
+  targets?: Target[]
   rss?: string
   cleanupHtml?: string
 }
@@ -78,7 +78,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         return
       }
 
-      if (!data.mastodon && !data.bluesky && !data.rss && !data.twitter) {
+      if (!data.targets || data.targets.length === 0) {
         props.onError('At least one publication target is required!')
         return
       }
@@ -170,6 +170,20 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
     })
   }
 
+  const onTargetCheck = (key: Target) => (event) => {
+    const newData = { ...data }
+    if (event.target.checked) {
+      if (!newData?.targets?.includes(key))
+        newData.targets = [...(data.targets || []), key]
+    } else {
+      newData.targets = (data.targets || []).filter((x) => x !== key)
+    }
+    if (newData.targets && newData.targets.length === 0) {
+      delete newData.targets
+    }
+    setData(newData)
+  }
+
   const onCheckbox = (fieldName: keyof FormData) => (event) => {
     setData({
       ...data,
@@ -220,20 +234,20 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         ))}
         <div className="field">
           <label className="checkbox">
-            <input type="checkbox" id="mastodon" name="mastodon" onInput={onCheckbox('mastodon')} />{' '}
+            <input type="checkbox" id="mastodon" name="mastodon" onInput={onTargetCheck('mastodon')} />{' '}
             Mastodon
           </label>
         </div>
         <div className="field">
           <label className="checkbox">
-            <input type="checkbox" id="bluesky" name="bluesky" onInput={onCheckbox('bluesky')} />{' '}
+            <input type="checkbox" id="bluesky" name="bluesky" onInput={onTargetCheck('bluesky')} />{' '}
             Bluesky
           </label>
         </div>
         <div className="field">
           <label className="checkbox">
             {hasAuth.twitter ? (
-              <input type="checkbox" id="twitter" name="twitter" onInput={onCheckbox('twitter')} />
+              <input type="checkbox" id="twitter" name="twitter" onInput={onTargetCheck('twitter')} />
             ) : (
               <input type="checkbox" id="twitter" name="twitter" disabled />
             )}{' '}
@@ -242,8 +256,13 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         </div>
         <div className="field">
           <label className="checkbox">
-            <input type="checkbox" id="rss" name="rss" onInput={onCheckbox('rss')} /> RSS
+            <input type="checkbox" id="linkedin" name="linkedin" onInput={onTargetCheck('linkedin')} /> LinkedIn
           </label>
+          <p className="help">
+            <a href="/rss/target/linkedin" target="_blank">
+              Via RSS feed
+            </a>
+          </p>
         </div>
         <div className="field">
           <label className="checkbox">

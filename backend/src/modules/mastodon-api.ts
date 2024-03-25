@@ -11,7 +11,7 @@ import {
   extractStatusFrom,
   writeErrorToResponse
 } from '../models/errors'
-import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
 
 export type MastodonApiConfig = {
   mastodonHost: string
@@ -104,7 +104,7 @@ export class MastodonApiModule {
     }
   }
 
-  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPost: CreatePostFunction = async (post) => {
     try {
       const images: string[] = []
       if (post.images) {
@@ -167,19 +167,18 @@ export class MastodonApiModule {
   }
 
   createPostRoute = async (
-    post: UnvalidatedNewPostRequest
+    body: unknown
   ): Promise<Result<NewPostResponse, ApiError>> => {
-    const content = post.content
-    if (!content) {
+    const parsed = NewPostRequest.safeParse(body)
+    if (parsed.success === false) {
       return result.error({
         type: 'validation-error',
         status: 400,
-        error: 'Bad Request: Missing content!',
+        error: `Bad Request: ${parsed.error.format()._errors.join(', ')}`,
         module: 'mastodon'
       })
     }
-
-    return await this.createPost({ ...post, content })
+    return await this.createPost(parsed.data)
   }
 
   createPostHttpRoute = async (req: Request, res: Response) => {

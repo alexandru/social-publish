@@ -4,17 +4,10 @@ import { BlueskyApiModule } from './bluesky-api'
 import { RssModule } from './rss-api'
 import { extractStatusFrom, writeErrorToResponse } from '../models/errors'
 import { Dictionary } from '../models/base'
-import { NewPostResponse } from '../models/posts'
+import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
 import { TwitterApiModule } from './twitter-api'
 
 export class FormModule {
-  private modules: ('mastodon' | 'bluesky' | 'twitter' | 'rss')[] = [
-    'mastodon',
-    'bluesky',
-    'twitter',
-    'rss'
-  ]
-
   constructor(
     public mastodonApi: MastodonApiModule,
     public blueskyApi: BlueskyApiModule,
@@ -23,35 +16,28 @@ export class FormModule {
   ) {}
 
   broadcastPostToManyHttpRoute = async (req: Request, res: Response) => {
-    if (!req.body['content']) {
-      writeErrorToResponse(res, {
+    const parsed = NewPostRequest.safeParse(req.body)
+    if (parsed.success === false) {
+      return writeErrorToResponse(res, {
         type: 'validation-error',
         status: 400,
-        module: 'form',
-        error: 'No content provided.'
+        error: `Bad Request: ${parsed.error.format()._errors.join(', ')}`,
+        module: 'form'
       })
-      return
+    }
+    const post = parsed.data
+    const modules: CreatePostFunction[] = [this.rssApi.createPost]
+    if ((post?.targets || []).includes('mastodon')) {
+      modules.push(this.mastodonApi.createPost)
+    }
+    if ((post?.targets || []).includes('bluesky')) {
+      modules.push(this.blueskyApi.createPost)
+    }
+    if ((post?.targets || []).includes('twitter')) {
+      modules.push(this.twitterApi.createPost)
     }
 
-    const responses = await Promise.all(
-      this.modules
-        .filter((it) => !!req.body[it])
-        .map((module) =>
-          (async () => {
-            switch (module) {
-              case 'mastodon':
-                return await this.mastodonApi.createPostRoute(req.body)
-              case 'bluesky':
-                return await this.blueskyApi.createPostRoute(req.body)
-              case 'rss':
-                return await this.rssApi.createPostRoute(req.body)
-              case 'twitter':
-                return await this.twitterApi.createPostRoute(req.body)
-            }
-          })()
-        )
-    )
-
+    const responses = await Promise.all(modules.map((m) => m(post)))
     const filteredErrors = responses.flatMap((r) => {
       if (r.type === 'error') {
         return [r.error]

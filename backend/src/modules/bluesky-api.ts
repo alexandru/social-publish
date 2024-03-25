@@ -3,7 +3,7 @@ import utils from '../utils/text'
 import { Request, Response } from 'express'
 import logger from '../utils/logger'
 import { FilesModule } from './files'
-import { NewPostRequest, NewPostResponse, UnvalidatedNewPostRequest } from '../models/posts'
+import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
 import result, { Result } from '../models/result'
 import { ApiError, extractStatusFrom, writeErrorToResponse } from '../models/errors'
 
@@ -63,7 +63,7 @@ export class BlueskyApiModule {
     }
   }
 
-  createPost = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPost: CreatePostFunction = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
     try {
       const imageUploadsResults: Result<BlueskyMediaUploadResponse, ApiError>[] = await Promise.all(
         (post.images || []).map((imageUuid) =>
@@ -146,19 +146,18 @@ export class BlueskyApiModule {
   }
 
   createPostRoute = async (
-    post: UnvalidatedNewPostRequest
+    body: unknown
   ): Promise<Result<NewPostResponse, ApiError>> => {
-    const content = post.content
-    if (!content) {
+    const parsed = NewPostRequest.safeParse(body)
+    if (parsed.success === false) {
       return result.error({
         type: 'validation-error',
         status: 400,
-        error: 'Bad Request: Missing content!',
+        error: `Bad Request: ${parsed.error.format()._errors.join(', ')}`,
         module: 'bluesky'
       })
     }
-
-    return await this.createPost({ ...post, content })
+    return await this.createPost(parsed.data)
   }
 
   createPostHttpRoute = async (req: Request, res: Response): Promise<void> => {

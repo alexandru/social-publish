@@ -41,6 +41,7 @@ export const startServer = async (
 
   // RSS export
   app.get('/rss', rss.generateRssHttpRoute)
+  app.get('/rss/target/:target', rss.generateRssHttpRoute)
   app.get('/rss/:uuid', rss.getRssItemHttpRoute)
   // Other static content
   app.get('/files/:uuid', files.getUploadedFileRoute)
