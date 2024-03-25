@@ -259,9 +259,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
             <input type="checkbox" id="linkedin" name="linkedin" onInput={onTargetCheck('linkedin')} /> LinkedIn
           </label>
           <p className="help">
-            <a href="/rss/target/linkedin" target="_blank">
-              Via RSS feed
-            </a>
+            <a href="/rss/target/linkedin" target="_blank">Via RSS feed</a> (needs <a href="https://ifttt.com" target="_blank">ifttt.com</a> setup)
           </p>
         </div>
         <div className="field">
