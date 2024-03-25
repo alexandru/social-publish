@@ -27,7 +27,7 @@
     "typescript": "^5.4.2"
   },
   "dependencies": {
-    "@atproto/api": "^0.11.2",
+    "@atproto/api": "^0.12.2",
     "axios": "^1.6.8",
     "express": "^4.18.3",
     "express-basic-auth": "^1.2.1",
