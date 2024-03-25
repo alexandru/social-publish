@@ -4,7 +4,7 @@ import { ApiError } from './errors'
 
 export type Target = 'mastodon' | 'bluesky' | 'twitter' | 'linkedin'
 
-export const NewPostRequest = z.object({
+export const NewPostRequestSchema = z.object({
   content: z.string().min(1).max(1000),
   targets: z.array(z.enum(['mastodon', 'bluesky', 'twitter', 'linkedin'])).optional(),
   link: z.string().optional(),
@@ -13,7 +13,7 @@ export const NewPostRequest = z.object({
   images: z.array(z.string()).optional()
 })
 
-export type NewPostRequest = z.infer<typeof NewPostRequest>
+export type NewPostRequest = z.infer<typeof NewPostRequestSchema>
 
 export type NewPostResponse =
   | NewMastodonPostResponse

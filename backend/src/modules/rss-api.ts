@@ -6,10 +6,9 @@ import RSS from 'rss'
 import logger from '../utils/logger'
 import { HttpConfig } from './http'
 import { FilesDatabase } from '../db/files'
-import { NewPostRequest, NewPostResponse, CreatePostFunction } from '../models/posts'
+import { NewPostRequestSchema, NewPostResponse, CreatePostFunction } from '../models/posts'
 import result, { Result } from '../models/result'
 import { ApiError, writeErrorToResponse } from '../models/errors'
-import { Create } from 'sharp'
 
 export class RssModule {
   constructor(
@@ -47,10 +46,8 @@ export class RssModule {
     }
   }
 
-  createPostRoute = async (
-    body: unknown
-  ): Promise<Result<NewPostResponse, ApiError>> => {
-    const parsed = NewPostRequest.safeParse(body)
+  createPostRoute = async (body: unknown): Promise<Result<NewPostResponse, ApiError>> => {
+    const parsed = NewPostRequestSchema.safeParse(body)
     if (parsed.success === false) {
       return result.error({
         type: 'validation-error',
@@ -123,7 +120,7 @@ export class RssModule {
           })
       }
 
-      const categories = [...post.tags||[]]
+      const categories = [...(post.tags || [])]
       if (post.targets && post.targets.length > 0) {
         categories.push(...post.targets)
       }

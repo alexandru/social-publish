@@ -11,7 +11,7 @@ import {
   extractStatusFrom,
   writeErrorToResponse
 } from '../models/errors'
-import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
+import { CreatePostFunction, NewPostRequestSchema, NewPostResponse } from '../models/posts'
 
 export type MastodonApiConfig = {
   mastodonHost: string
@@ -166,10 +166,8 @@ export class MastodonApiModule {
     }
   }
 
-  createPostRoute = async (
-    body: unknown
-  ): Promise<Result<NewPostResponse, ApiError>> => {
-    const parsed = NewPostRequest.safeParse(body)
+  createPostRoute = async (body: unknown): Promise<Result<NewPostResponse, ApiError>> => {
+    const parsed = NewPostRequestSchema.safeParse(body)
     if (parsed.success === false) {
       return result.error({
         type: 'validation-error',

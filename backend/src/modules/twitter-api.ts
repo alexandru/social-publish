@@ -6,7 +6,7 @@ import {
 } from '../models/errors'
 import { DocumentsDatabase } from '../db/documents'
 import { HttpConfig } from './http'
-import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
+import { CreatePostFunction, NewPostRequestSchema, NewPostResponse } from '../models/posts'
 import { Request, Response } from 'express'
 import crypto from 'crypto'
 import logger from '../utils/logger'
@@ -330,7 +330,7 @@ export class TwitterApiModule {
   }
 
   createPostRoute = async (body: unknown): Promise<Result<NewPostResponse, ApiError>> => {
-    const parsed = NewPostRequest.safeParse(body)
+    const parsed = NewPostRequestSchema.safeParse(body)
     if (parsed.success === false) {
       return result.error({
         type: 'validation-error',

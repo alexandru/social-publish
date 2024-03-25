@@ -173,8 +173,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
   const onTargetCheck = (key: Target) => (event) => {
     const newData = { ...data }
     if (event.target.checked) {
-      if (!newData?.targets?.includes(key))
-        newData.targets = [...(data.targets || []), key]
+      if (!newData?.targets?.includes(key)) newData.targets = [...(data.targets || []), key]
     } else {
       newData.targets = (data.targets || []).filter((x) => x !== key)
     }
@@ -234,7 +233,12 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         ))}
         <div className="field">
           <label className="checkbox">
-            <input type="checkbox" id="mastodon" name="mastodon" onInput={onTargetCheck('mastodon')} />{' '}
+            <input
+              type="checkbox"
+              id="mastodon"
+              name="mastodon"
+              onInput={onTargetCheck('mastodon')}
+            />{' '}
             Mastodon
           </label>
         </div>
@@ -247,7 +251,12 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         <div className="field">
           <label className="checkbox">
             {hasAuth.twitter ? (
-              <input type="checkbox" id="twitter" name="twitter" onInput={onTargetCheck('twitter')} />
+              <input
+                type="checkbox"
+                id="twitter"
+                name="twitter"
+                onInput={onTargetCheck('twitter')}
+              />
             ) : (
               <input type="checkbox" id="twitter" name="twitter" disabled />
             )}{' '}
@@ -256,10 +265,23 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
         </div>
         <div className="field">
           <label className="checkbox">
-            <input type="checkbox" id="linkedin" name="linkedin" onInput={onTargetCheck('linkedin')} /> LinkedIn
+            <input
+              type="checkbox"
+              id="linkedin"
+              name="linkedin"
+              onInput={onTargetCheck('linkedin')}
+            />{' '}
+            LinkedIn
           </label>
           <p className="help">
-            <a href="/rss/target/linkedin" target="_blank">Via RSS feed</a> (needs <a href="https://ifttt.com" target="_blank">ifttt.com</a> setup)
+            <a href="/rss/target/linkedin" target="_blank">
+              Via RSS feed
+            </a>{' '}
+            (needs{' '}
+            <a href="https://ifttt.com" target="_blank" rel="noreferrer">
+              ifttt.com
+            </a>{' '}
+            setup)
           </p>
         </div>
         <div className="field">

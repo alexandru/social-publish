@@ -4,7 +4,7 @@ import { BlueskyApiModule } from './bluesky-api'
 import { RssModule } from './rss-api'
 import { extractStatusFrom, writeErrorToResponse } from '../models/errors'
 import { Dictionary } from '../models/base'
-import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
+import { CreatePostFunction, NewPostRequestSchema, NewPostResponse } from '../models/posts'
 import { TwitterApiModule } from './twitter-api'
 
 export class FormModule {
@@ -16,7 +16,7 @@ export class FormModule {
   ) {}
 
   broadcastPostToManyHttpRoute = async (req: Request, res: Response) => {
-    const parsed = NewPostRequest.safeParse(req.body)
+    const parsed = NewPostRequestSchema.safeParse(req.body)
     if (parsed.success === false) {
       return writeErrorToResponse(res, {
         type: 'validation-error',

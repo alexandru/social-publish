@@ -3,7 +3,7 @@ import utils from '../utils/text'
 import { Request, Response } from 'express'
 import logger from '../utils/logger'
 import { FilesModule } from './files'
-import { CreatePostFunction, NewPostRequest, NewPostResponse } from '../models/posts'
+import { CreatePostFunction, NewPostRequestSchema, NewPostResponse } from '../models/posts'
 import result, { Result } from '../models/result'
 import { ApiError, extractStatusFrom, writeErrorToResponse } from '../models/errors'
 
@@ -63,7 +63,7 @@ export class BlueskyApiModule {
     }
   }
 
-  createPost: CreatePostFunction = async (post: NewPostRequest): Promise<Result<NewPostResponse, ApiError>> => {
+  createPost: CreatePostFunction = async (post) => {
     try {
       const imageUploadsResults: Result<BlueskyMediaUploadResponse, ApiError>[] = await Promise.all(
         (post.images || []).map((imageUuid) =>
@@ -145,10 +145,8 @@ export class BlueskyApiModule {
     }
   }
 
-  createPostRoute = async (
-    body: unknown
-  ): Promise<Result<NewPostResponse, ApiError>> => {
-    const parsed = NewPostRequest.safeParse(body)
+  createPostRoute = async (body: unknown): Promise<Result<NewPostResponse, ApiError>> => {
+    const parsed = NewPostRequestSchema.safeParse(body)
     if (parsed.success === false) {
       return result.error({
         type: 'validation-error',

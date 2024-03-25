@@ -2,10 +2,10 @@ name: build
 on:
   push:
     branches:
-    - main
+      - main
   pull_request:
     branches:
-    - main
+      - main
 
 jobs:
   build:
@@ -20,4 +20,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
