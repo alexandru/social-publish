@@ -1,29 +1,28 @@
-import { render } from 'preact'
-import { LocationProvider, Router, Route } from 'preact-iso'
-
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { PublishFormPage } from './pages/PublishFormPage/index.js'
 import { NotFound } from './pages/_404.jsx'
-import './style.css'
 import { NavBar } from './components/NavBar.js'
 import { Login } from './pages/Login/index.js'
 import { Home } from './pages/Home.js'
 import { Account } from './pages/Account/index.js'
+import ReactDOM from 'react-dom/client'
+import './style.css'
 
 export function App() {
   return (
-    <LocationProvider>
+    <BrowserRouter>
       <NavBar />
       <main>
-        <Router>
-          <Route path="/" component={Home} />
-          <Route path="/form" component={PublishFormPage} />
-          <Route path="/login" component={Login} />
-          <Route path="/account" component={Account} />
-          <Route default component={NotFound} />
-        </Router>
+        <Routes>
+          <Route index path="/" element={<Home />} />
+          <Route path="/form" element={<PublishFormPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </main>
-    </LocationProvider>
+    </BrowserRouter>
   )
 }
 
-render(<App />, document.getElementById('app'))
+ReactDOM.createRoot(document.getElementById("app") as HTMLElement).render(<App />)

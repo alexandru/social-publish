@@ -1,8 +1,7 @@
-import { FunctionalComponent } from 'preact'
+import { FunctionComponent, useState } from 'react'
 import { Authorize } from '../../components/Authorize'
 import './style.css'
-import { useLocation } from 'preact-iso'
-import { useState } from 'preact/hooks'
+import { useLocation, redirect, useNavigate } from 'react-router-dom'
 import { MessageType, ModalMessage } from '../../components/ModalMessage'
 import { ImageUpload, SelectedImage } from '../../components/ImageUpload'
 import { getAuthStatus } from '../../utils/storage'
@@ -31,12 +30,12 @@ function CharsLeft(props: CharsLeftProps) {
   return <p className="help">Characters left: {280 - text.length}</p>
 }
 
-const PostForm: FunctionalComponent<Props> = (props: Props) => {
+const PostForm: FunctionComponent<Props> = (props: Props) => {
   let formRef = null
   const [data, setData] = useState({} as FormData)
   const [images, setImages] = useState({} as { [id: string]: SelectedImage })
-  const location = useLocation()
   const hasAuth = getAuthStatus()
+  const navigate = useNavigate()
 
   const addImageComponent = () => {
     const ids = Object.keys(images)
@@ -98,7 +97,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
             body: formData
           })
           if ([401, 403].includes(response.status)) {
-            location.route(`/login?error=${response.status}&redirect=/form`)
+            navigate(`/login?error=${response.status}&redirect=/form`)
             return
           }
           if (response.status !== 200) {
@@ -131,7 +130,7 @@ const PostForm: FunctionalComponent<Props> = (props: Props) => {
           })
         })
         if ([401, 403].includes(response.status)) {
-          location.route(`/login?error=${response.status}&redirect=/form`)
+          navigate(`/login?error=${response.status}&redirect=/form`)
           return
         }
         if (response.status !== 200) {

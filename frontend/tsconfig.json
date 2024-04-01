@@ -8,14 +8,10 @@
     "checkJs": true,
     "sourceMap": true,
 
-    /* Preact Config */
+    /* React Config */
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
-    "skipLibCheck": true,
-    "paths": {
-      "react": ["./node_modules/preact/compat/"],
-      "react-dom": ["./node_modules/preact/compat/"]
-    }
+    "jsxImportSource": "react",
+    "skipLibCheck": true
   },
   "include": ["node_modules/vite/client.d.ts", "**/*"]
 }

@@ -1,5 +1,5 @@
 import { logoTwitter } from 'ionicons/icons'
-import { useState } from 'preact/hooks'
+import { useState } from 'react'
 import { updateAuthStatus } from '../../utils/storage'
 import { Authorize } from '../../components/Authorize'
 

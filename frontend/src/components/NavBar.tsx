@@ -1,14 +1,14 @@
-import { useLocation } from 'preact-iso'
-import { useState } from 'preact/hooks'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { logOut, logIn, homeOutline, play, logoGithub } from 'ionicons/icons'
 import { clearJwtToken, hasJwtToken } from '../utils/storage'
 
 export function NavBar() {
   const [navbarIsActive, setNavbarIsActive] = useState('' as 'is-active' | '')
 
-  const { url } = useLocation()
+  const { pathname } = useLocation()
   const classOfLink = (mainClass: string, path: string) =>
-    url == path ? `${mainClass} is-active` : mainClass
+    pathname === path ? `${mainClass} is-active` : mainClass
 
   const isLoggedIn = hasJwtToken()
 
