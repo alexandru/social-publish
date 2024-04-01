@@ -34,3 +34,8 @@ run-local: build-local
 		-e "MASTODON_HOST=${MASTODON_HOST}" \
 		-e "MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}" \
 		${LATEST_TAG}
+
+update:
+	npx npm-check-updates -u && npm install && \
+	cd ./backend && npx npm-check-updates -u && npm install && cd .. && \
+	cd ./frontend && npx npm-check-updates -u && npm install && cd ..

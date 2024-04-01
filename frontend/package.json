@@ -5,8 +5,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist",
-    "update": "npm-check-updates -u && npm install"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "bulma": "^1.0.0",

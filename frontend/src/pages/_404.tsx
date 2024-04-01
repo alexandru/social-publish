@@ -4,7 +4,7 @@ export function NotFound() {
       <section className="section">
         <div className="container">
           <h1 className="title">404: Not Found</h1>
-          <p className="subtitle">It's gone 😞</p>
+          <p className="subtitle">It&apos;s gone 😞</p>
         </div>
       </section>
     </div>

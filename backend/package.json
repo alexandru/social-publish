@@ -7,8 +7,7 @@
     "dev": "nodemon",
     "start": "tsc --incremental && node --enable-source-maps build/main.js",
     "build": "tsc",
-    "clean": "rm -rf build",
-    "update": "npm-check-updates -u && npm install"
+    "clean": "rm -rf build"
   },
   "keywords": [],
   "author": "",
