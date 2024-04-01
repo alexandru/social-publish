@@ -25,4 +25,4 @@ export function App() {
   )
 }
 
-ReactDOM.createRoot(document.getElementById("app") as HTMLElement).render(<App />)
+ReactDOM.createRoot(document.getElementById('app') as HTMLElement).render(<App />)
