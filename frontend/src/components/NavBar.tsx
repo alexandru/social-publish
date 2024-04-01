@@ -97,7 +97,7 @@ function LoginOrLogoutButton(props: { isLoggedIn: boolean }) {
       </a>
     )
   }
-  const status = location.url == '/login' ? ' is-active' : ''
+  const status = location.pathname == '/login' ? ' is-active' : ''
   return (
     <a className={`button is-primary ${status}`} href="/login">
       <span className="icon">

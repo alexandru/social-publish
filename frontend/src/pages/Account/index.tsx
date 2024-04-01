@@ -40,7 +40,7 @@ export function Account() {
             <h2 className="subtitle">Social Accounts</h2>
             <button className="button is-link" onClick={authorizeTwitter}>
               <span className="icon">
-                <img src={logoTwitter} alt="" style="filter: invert(1)" />
+                <img src={logoTwitter} alt="" style={{ filter: 'invert(1)' }} />
               </span>
               <strong>Connect X (Twitter)</strong>
             </button>
