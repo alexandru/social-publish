@@ -1,10 +1,10 @@
 import { FunctionComponent, useState } from 'react'
 import { Authorize } from '../../components/Authorize'
-import './style.css'
-import { useLocation, redirect, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { MessageType, ModalMessage } from '../../components/ModalMessage'
 import { ImageUpload, SelectedImage } from '../../components/ImageUpload'
 import { getAuthStatus } from '../../utils/storage'
+import './style.css'
 
 type Target = 'mastodon' | 'twitter' | 'bluesky' | 'linkedin'
 

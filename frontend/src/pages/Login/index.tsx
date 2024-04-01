@@ -1,8 +1,8 @@
-import { FormEvent, FormEventHandler, useState } from 'react'
-import './style.css'
+import { FormEventHandler, useState } from 'react'
 import { ModalMessage } from '../../components/ModalMessage'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { setAuthStatus, setJwtToken } from '../../utils/storage'
+import './style.css'
 
 export function Login() {
   const [username, setUsername] = useState('')

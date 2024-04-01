@@ -8,13 +8,13 @@ type Props = {
 }
 
 export function Authorize(props: Props) {
+  const navigate = useNavigate()
   const [message, setMessage] = useState(
     'You are not authorized to view this page. Please log in...'
   )
   const token = getJwtToken()
 
   if (!token) {
-    const navigate = useNavigate()
     const disable = () => {
       setMessage(null)
       console.log('Redirecting to login...')
