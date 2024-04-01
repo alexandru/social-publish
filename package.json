@@ -7,7 +7,7 @@
     "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean",
     "format": "prettier . --write",
     "lint": "eslint . -f unix",
-    "update": "npm update && npm --prefix ./backend update && npm --prefix ./frontend update"
+    "update": "npm update --save && npm --prefix ./backend update --save && npm --prefix ./frontend update --save"
   },
   "repository": {
     "type": "git",
@@ -20,8 +20,8 @@
   },
   "homepage": "https://github.com/alexandru/social-publish#readme",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@typescript-eslint/parser": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.57.0",
     "eslint-config-preact": "^1.3.0",
