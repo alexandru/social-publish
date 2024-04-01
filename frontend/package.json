@@ -8,7 +8,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
     "bulma": "^0.9.4",
     "ionicons": "^7.2.2",
     "react": "^18.2.0",
@@ -16,9 +15,10 @@
     "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
-    "@types/react": "^18.2.73",
     "@types/react-dom": "^18.2.23",
     "@types/react-router-dom": "^5.3.3",
+    "@types/react": "^18.2.73",
+    "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.4.2",
     "vite": "^5.1.6"
   }

@@ -6,7 +6,8 @@
     "build": "npm run init && npm run clean && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
     "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean",
     "format": "prettier . --write",
-    "lint": "eslint . -f unix"
+    "lint": "eslint . -f unix",
+    "update": "npm update && npm --prefix ./backend update && npm --prefix ./frontend update"
   },
   "repository": {
     "type": "git",
