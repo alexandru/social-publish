@@ -7,7 +7,8 @@
     "dev": "nodemon",
     "start": "tsc --incremental && node --enable-source-maps build/main.js",
     "build": "tsc",
-    "clean": "rm -rf build"
+    "clean": "rm -rf build",
+    "update": "npm-check-updates -u && npm install"
   },
   "keywords": [],
   "author": "",
@@ -27,7 +28,7 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
-    "@atproto/api": "^0.11.2",
+    "@atproto/api": "^0.12.2",
     "axios": "^1.6.8",
     "express": "^4.19.2",
     "express-basic-auth": "^1.2.1",
