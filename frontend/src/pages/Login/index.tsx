@@ -1,18 +1,21 @@
-import { useState } from 'preact/hooks'
-import './style.css'
+import { FormEventHandler, useState } from 'react'
 import { ModalMessage } from '../../components/ModalMessage'
-import { useLocation } from 'preact-iso'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { setAuthStatus, setJwtToken } from '../../utils/storage'
+import './style.css'
 
 export function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null as string | null)
-  const location = useLocation()
-  const redirectTo = location.query.redirect || '/form'
 
-  if (location.query.error)
-    switch (location.query.error) {
+  const location = useLocation()
+  const query = new URLSearchParams(location.search)
+  const redirectTo = query.get('redirect') || '/form'
+  const navigate = useNavigate()
+
+  if (query.get('error'))
+    switch (query.get('error')) {
       case '401':
         setError('Unauthorized! Please log in...')
         break
@@ -22,20 +25,14 @@ export function Login() {
     }
 
   const hideError = () => {
-    if (location.query.error) {
-      let newPath = location.path
-      for (const key of Object.keys(location.query)) {
-        if (key === 'error') continue
-        newPath += newPath.includes('?')
-          ? '&'
-          : `?${key}=${encodeURIComponent(location.query[key])}`
-      }
-      location.route(newPath)
+    if (query.get('error')) {
+      query.set('error', '')
+      navigate({ search: query.toString() })
     }
     setError(null)
   }
 
-  const onSubmit = async (e: Event) => {
+  const onSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     try {
       const response = await fetch('/api/login', {
@@ -52,7 +49,7 @@ export function Login() {
         } else {
           setJwtToken(body.token)
           setAuthStatus(body.hasAuth)
-          location.route(redirectTo)
+          navigate(redirectTo)
         }
       } else if (body?.error) {
         setError(`${body.error}!`)
@@ -66,8 +63,10 @@ export function Login() {
     }
   }
 
-  const onUsernameChange = (e: Event) => setUsername((e.target as HTMLInputElement).value)
-  const onPasswordChange = (e: Event) => setPassword((e.target as HTMLInputElement).value)
+  const onUsernameChange: FormEventHandler<HTMLInputElement> = (e) =>
+    setUsername((e.target as HTMLInputElement).value)
+  const onPasswordChange: FormEventHandler<HTMLInputElement> = (e) =>
+    setPassword((e.target as HTMLInputElement).value)
 
   return (
     <div className="login" id="login">

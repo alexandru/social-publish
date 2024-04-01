@@ -8,14 +8,18 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "bulma": "^0.9.4",
-    "ionicons": "^7.2.2",
-    "preact": "^10.13.1",
-    "preact-iso": "^2.4.0"
+    "bulma": "^1.0.0",
+    "ionicons": "^7.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.8.2",
-    "typescript": "^5.4.2",
-    "vite": "^5.1.6"
+    "@types/react": "^18.2.73",
+    "@types/react-dom": "^18.2.23",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.7"
   }
 }

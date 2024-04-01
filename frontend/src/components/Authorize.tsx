@@ -1,24 +1,24 @@
-import { ComponentChildren } from 'preact'
-import { useLocation } from 'preact-iso'
+import { ReactNode, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ModalMessage } from './ModalMessage'
-import { useState } from 'preact/hooks'
 import { getJwtToken } from '../utils/storage'
 
 type Props = {
-  children?: ComponentChildren
+  children?: ReactNode
 }
 
 export function Authorize(props: Props) {
+  const navigate = useNavigate()
   const [message, setMessage] = useState(
     'You are not authorized to view this page. Please log in...'
   )
-  const location = useLocation()
   const token = getJwtToken()
 
   if (!token) {
     const disable = () => {
       setMessage(null)
-      location.route(`/login?redirect=${location.url}`)
+      console.log('Redirecting to login...')
+      navigate(`/login?redirect=${location.pathname}`)
     }
     return (
       <ModalMessage type="error" isEnabled={!!message} onDisable={disable}>

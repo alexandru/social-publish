@@ -1,10 +1,9 @@
-import { ComponentChildren } from 'preact'
-
+import { KeyboardEventHandler, ReactNode } from 'react'
 export type MessageType = 'info' | 'warning' | 'error'
 
 type ModalMessageProps = {
   type: MessageType
-  children?: ComponentChildren
+  children?: ReactNode
   isEnabled: boolean
   onDisable: () => void
 }
@@ -14,7 +13,7 @@ export const ModalMessage = (props: ModalMessageProps) => {
     props.onDisable()
   }
 
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {
     if (event.key === 'Escape' || event.keyCode === 27) {
       props.onDisable()
     }
