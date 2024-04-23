@@ -24,10 +24,10 @@
     "@types/yargs": "^17.0.32",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@atproto/api": "^0.12.2",
+    "@atproto/api": "^0.12.5",
     "axios": "^1.6.8",
     "express": "^4.19.2",
     "express-basic-auth": "^1.2.1",
@@ -38,13 +38,13 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "oauth-1.0a": "^2.2.6",
-    "qs": "^6.12.0",
+    "qs": "^6.12.1",
     "querystring": "^0.2.1",
     "rss": "^1.2.2",
     "sharp": "^0.33.3",
     "sqlite3": "^5.1.7",
     "uuid": "^9.0.1",
     "yargs": "^17.7.2",
-    "zod": "^3.22.4"
+    "zod": "^3.23.3"
   }
 }
