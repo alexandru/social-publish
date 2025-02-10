@@ -58,7 +58,7 @@ export class FilesDatabase {
         [
           `h:${payload.hash}`,
           `n:${payload.originalname}`,
-          `a:${payload.altText}` ?? '',
+          `a:${payload.altText ?? ''}`,
           `w:${payload.imageWidth ?? ''}`,
           `h:${payload.imageHeight ?? ''}`,
           `m:${payload.mimetype}`
