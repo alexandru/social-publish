@@ -8,18 +8,18 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "bulma": "^1.0.3",
-    "ionicons": "^7.4.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.5"
+    "bulma": "^1.0.4",
+    "ionicons": "^8.0.13",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.8",
-    "@types/react-dom": "^19.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "@vitejs/plugin-react": "^5.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
   }
 }

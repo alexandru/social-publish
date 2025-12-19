@@ -204,7 +204,9 @@ export class TwitterApiModule {
         const url = 'https://upload.twitter.com/1.1/media/upload.json'
         const authHeader = this.buildAuthHeader(url, token)
         const formData = new FormData()
-        formData.append('media', new Blob([r.bytes], { type: r.mimetype }), r.originalname)
+        // Create a proper Uint8Array with ArrayBuffer for Blob compatibility
+        const bytes = new Uint8Array(r.bytes)
+        formData.append('media', new Blob([bytes], { type: r.mimetype }), r.originalname)
         formData.append('media_category', 'tweet_image')
         const response = await fetch(url, {
           method: 'POST',
