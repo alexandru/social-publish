@@ -15,6 +15,7 @@ trait DocumentsDatabase:
   def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document]
   def getAll(kind: String, orderBy: String): IO[List[Document]]
   def searchByUUID(uuid: UUID): IO[Option[Document]]
+  def searchByKey(key: String): IO[Option[Document]]
   def upsertTag(docUuid: UUID, tag: DocumentTag): IO[Unit]
   def getTagsForDocument(docUuid: UUID): IO[List[DocumentTag]]
 
@@ -97,6 +98,25 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
         case Some((uuidStr, kind, payload, createdMs)) =>
           getTagsForDocumentQuery(uuid).to[List].map { tags =>
             Some(Document(UUID.fromString(uuidStr), kind, payload, tags, Instant.ofEpochMilli(createdMs)))
+          }
+        case None => doobie.free.connection.pure(None)
+      }
+      .transact(xa)
+  
+  override def searchByKey(key: String): IO[Option[Document]] =
+    sql"""
+      SELECT d.uuid, d.kind, d.payload, d.created_at
+      FROM documents d
+      INNER JOIN document_tags dt ON d.uuid = dt.document_uuid
+      WHERE dt.name = $key AND dt.kind = 'key'
+    """
+      .query[(String, String, String, Long)]
+      .option
+      .flatMap {
+        case Some((uuidStr, kind, payload, createdMs)) =>
+          val uuid = UUID.fromString(uuidStr)
+          getTagsForDocumentQuery(uuid).to[List].map { tags =>
+            Some(Document(uuid, kind, payload, tags, Instant.ofEpochMilli(createdMs)))
           }
         case None => doobie.free.connection.pure(None)
       }

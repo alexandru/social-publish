@@ -15,7 +15,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import socialpublish.api.{BlueskyApi, MastodonApi, TwitterApi}
 import socialpublish.config.AppConfig
 import socialpublish.db.{DocumentsDatabase, FilesDatabase, PostsDatabaseImpl}
-import socialpublish.http.Routes
+import socialpublish.http.{Routes, AuthMiddleware}
 import socialpublish.services.FilesService
 
 object Main extends CommandIOApp(
@@ -55,8 +55,11 @@ object Main extends CommandIOApp(
           mastodonApi = MastodonApi(config, httpClient, filesService, logger)
           twitterApi = TwitterApi(config, httpClient, filesService, docsDb, logger)
           
+          // Create authentication middleware
+          authMiddleware = new AuthMiddleware(config, twitterApi, logger)
+          
           // Create HTTP routes
-          routes = new Routes(config, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
+          routes = new Routes(config, authMiddleware, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
           
           // Add middleware
           httpApp = ServerLogger.httpApp(logHeaders = true, logBody = false)(
