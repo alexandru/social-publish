@@ -1,0 +1,56 @@
+# Build stage
+FROM gradle:8.11-jdk17-alpine AS build
+
+WORKDIR /app
+
+# Copy Gradle files
+COPY backend-kotlin/build.gradle.kts backend-kotlin/settings.gradle.kts backend-kotlin/gradle.properties ./backend-kotlin/
+
+# Copy source code
+COPY backend-kotlin/src ./backend-kotlin/src
+
+# Build the application
+WORKDIR /app/backend-kotlin
+RUN gradle build --no-daemon -x test
+
+# Build frontend
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm install
+
+WORKDIR /app
+COPY frontend ./frontend
+WORKDIR /app/frontend
+RUN npm run build
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Create user
+RUN adduser -u 1001 -h /app -s /bin/sh -D appuser
+RUN chown -R appuser /app && chmod -R "g+rwX" /app
+RUN mkdir -p /var/lib/social-publish
+RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
+
+# Copy application
+COPY --from=build --chown=appuser:root /app/backend-kotlin/build/libs/social-publish-1.0.0.jar /app/app.jar
+COPY --from=frontend-build --chown=appuser:root /app/frontend/dist /app/public
+
+# Expose port 3000
+EXPOSE 3000
+USER appuser
+
+# Environment variables
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
+ENV HTTP_PORT=3000
+
+RUN mkdir -p "${UPLOADED_FILES_PATH}"
+
+# Run the application
+CMD ["java", "-jar", "/app/app.jar"]
