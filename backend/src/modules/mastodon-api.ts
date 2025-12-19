@@ -49,7 +49,7 @@ export class MastodonApiModule {
         })
 
       const formData = new FormData()
-      formData.append('file', new Blob([r.bytes], { type: r.mimetype }), r.originalname)
+      formData.append('file', new Blob([new Uint8Array(r.bytes)], { type: r.mimetype }), r.originalname)
       if (r.altText) formData.append('description', r.altText)
 
       const response = await fetch(this.mediaUrlV2, {

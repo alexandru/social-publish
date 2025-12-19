@@ -122,7 +122,8 @@ export class FilesModule {
       })()
 
       logger.info(`Resized image:`, r)
-      const newSize = await imageSize(path2)
+      const newSizeBuffer = await fs.promises.readFile(path2)
+      const newSize = imageSize(new Uint8Array(newSizeBuffer))
       if (newSize.width && newSize.height)
         return {
           width: newSize.width,
@@ -147,7 +148,8 @@ export class FilesModule {
       let [width, height] = [upload.imageWidth, upload.imageHeight]
 
       if (!width || !height) {
-        const size = await imageSize(pathOrig)
+        const sizeBuffer = await fs.promises.readFile(pathOrig)
+        const size = imageSize(new Uint8Array(sizeBuffer))
         width = size.width
         height = size.height
       }
@@ -197,7 +199,8 @@ export class FilesModule {
       // Calculate the hash of the file
       const hash = await calculateFileHash('sha256', file.path)
       // File size and type
-      const imageInfo = await imageSize(file.path)
+      const fileBuffer = await fs.promises.readFile(file.path)
+      const imageInfo = imageSize(new Uint8Array(fileBuffer))
       logger.info(`Image info:`, imageInfo)
 
       let mimetype = file.mimetype
