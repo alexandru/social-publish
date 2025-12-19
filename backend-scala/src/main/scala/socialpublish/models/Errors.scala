@@ -4,33 +4,12 @@ import cats.data.EitherT
 import cats.effect.IO
 
 // Custom error types using ADTs
-enum ApiError:
-  case ValidationError(status: Int, message: String, module: String)
-  case RequestError(status: Int, message: String, module: String, body: String)
-  case CaughtException(message: String, module: String, cause: Throwable)
-  case NotFound(message: String)
-  case Unauthorized(message: String)
-  
-  def status: Int = this match
-    case ValidationError(s, _, _) => s
-    case RequestError(s, _, _, _) => s
-    case CaughtException(_, _, _) => 500
-    case NotFound(_) => 404
-    case Unauthorized(_) => 401
-  
-  def message: String = this match
-    case ValidationError(_, m, _) => m
-    case RequestError(_, m, _, _) => m
-    case CaughtException(m, _, _) => m
-    case NotFound(m) => m
-    case Unauthorized(m) => m
-  
-  def module: String = this match
-    case ValidationError(_, _, mod) => mod
-    case RequestError(_, _, mod, _) => mod
-    case CaughtException(_, mod, _) => mod
-    case NotFound(_) => "server"
-    case Unauthorized(_) => "auth"
+enum ApiError(val status: Int, val message: String, val module: String):
+  case ValidationError(s: Int, m: String, mod: String) extends ApiError(s, m, mod)
+  case RequestError(s: Int, m: String, mod: String, body: String) extends ApiError(s, m, mod)
+  case CaughtException(m: String, mod: String, cause: Throwable) extends ApiError(500, m, mod)
+  case NotFound(m: String) extends ApiError(404, m, "server")
+  case Unauthorized(m: String) extends ApiError(401, m, "auth")
 
 object ApiError:
   def validationError(message: String, module: String = "server"): ApiError =

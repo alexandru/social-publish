@@ -23,13 +23,14 @@ trait BlueskyApi:
   def createPost(request: NewPostRequest): Result[NewPostResponse]
 
 object BlueskyApi:
+  case class LoginResponse(accessJwt: String, refreshJwt: String, handle: String, did: String) derives Codec.AsObject
+  
   def apply(config: AppConfig, client: Client[IO], files: FilesService, logger: Logger[IO]): IO[BlueskyApi] =
     for
       session <- login(config, client, logger)
     yield new BlueskyApiImpl(config, client, files, logger, session)
   
   private case class LoginRequest(identifier: String, password: String) derives Codec.AsObject
-  private case class LoginResponse(accessJwt: String, refreshJwt: String, handle: String, did: String) derives Codec.AsObject
   
   private def login(config: AppConfig, client: Client[IO], logger: Logger[IO]): IO[LoginResponse] =
     val uri = Uri.unsafeFromString(s"${config.blueskyService}/xrpc/com.atproto.server.createSession")

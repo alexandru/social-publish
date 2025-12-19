@@ -3,9 +3,9 @@ package socialpublish
 import cats.effect.*
 import cats.syntax.all.*
 import com.comcast.ip4s.*
+import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
 import doobie.*
-import doobie.implicits.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.server.Server
@@ -14,8 +14,8 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import socialpublish.api.{BlueskyApi, MastodonApi, TwitterApi}
 import socialpublish.config.AppConfig
-import socialpublish.db.{DocumentsDatabase, FilesDatabase, PostsDatabase}
-import socialpublish.http.HttpRoutes
+import socialpublish.db.{DocumentsDatabase, FilesDatabase, PostsDatabaseImpl}
+import socialpublish.http.Routes
 import socialpublish.services.FilesService
 
 object Main extends CommandIOApp(
@@ -43,7 +43,7 @@ object Main extends CommandIOApp(
       // Initialize databases
       docsDb <- DocumentsDatabase(xa)
       filesDb <- FilesDatabase(xa)
-      postsDb = new PostsDatabase(docsDb)
+      postsDb = new PostsDatabaseImpl(docsDb)
       
       // Initialize services
       filesService <- FilesService(config, filesDb)
@@ -56,7 +56,7 @@ object Main extends CommandIOApp(
           twitterApi = TwitterApi(config, httpClient, filesService, docsDb, logger)
           
           // Create HTTP routes
-          routes = new socialpublish.http.Routes(config, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
+          routes = new Routes(config, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
           
           // Add middleware
           httpApp = ServerLogger.httpApp(logHeaders = true, logBody = false)(
