@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as the base image
-FROM alpine:latest AS build
+FROM alpine:3.23 AS build
 
 # Set the working directory in the container to /app
 WORKDIR /app
@@ -24,7 +24,7 @@ RUN npm run build
 RUN ./scripts/package.sh
 
 ###
-FROM alpine:latest
+FROM alpine:3.23
 
 WORKDIR /app
 
