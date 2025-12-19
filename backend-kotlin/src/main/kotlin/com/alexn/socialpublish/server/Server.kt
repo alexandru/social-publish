@@ -7,6 +7,8 @@ import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.modules.AuthModule
 import com.alexn.socialpublish.modules.FilesModule
+import com.alexn.socialpublish.modules.FormModule
+import com.alexn.socialpublish.modules.MastodonApiModule
 import com.alexn.socialpublish.modules.RssModule
 import com.alexn.socialpublish.modules.configureAuth
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -37,6 +39,8 @@ suspend fun startServer(
     val authModule = AuthModule(config)
     val rssModule = RssModule(config, postsDb, filesDb)
     val filesModule = FilesModule(config, filesDb)
+    val mastodonModule = MastodonApiModule(config, filesModule)
+    val formModule = FormModule(mastodonModule, rssModule)
     
     embeddedServer(Netty, port = config.httpPort) {
         install(ContentNegotiation) {
@@ -104,11 +108,11 @@ suspend fun startServer(
                 }
                 
                 post("/api/mastodon/post") {
-                    call.respondText("Mastodon post - not yet implemented", status = HttpStatusCode.NotImplemented)
+                    mastodonModule.createPostRoute(call)
                 }
                 
                 post("/api/multiple/post") {
-                    call.respondText("Multiple post - not yet implemented", status = HttpStatusCode.NotImplemented)
+                    formModule.broadcastPostRoute(call)
                 }
             }
             
