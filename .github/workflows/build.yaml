@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  build:
+  node-build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +17,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
+          cache: 'npm'
 
       - name: Build
         run: npm run build
+
+  docker-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Pull cache image (if exists)
+        run: docker pull ghcr.io/alexandru/social-publish:build-cache || true
+
+      - name: Build Docker image (uses cache)
+        run: |
+          docker build \
+            -f ./Dockerfile \
+            --cache-from ghcr.io/alexandru/social-publish:build-cache \
+            -t ghcr.io/alexandru/social-publish:build-cache \
+            .
+
+      - name: Push cache image (main branch only)
+        if: github.ref == 'refs/heads/main'
+        run: docker push ghcr.io/alexandru/social-publish:build-cache
