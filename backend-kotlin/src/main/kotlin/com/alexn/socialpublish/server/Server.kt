@@ -11,6 +11,7 @@ import com.alexn.socialpublish.modules.FilesModule
 import com.alexn.socialpublish.modules.FormModule
 import com.alexn.socialpublish.modules.MastodonApiModule
 import com.alexn.socialpublish.modules.RssModule
+import com.alexn.socialpublish.modules.TwitterApiModule
 import com.alexn.socialpublish.modules.configureAuth
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.serialization.kotlinx.json.*
@@ -43,7 +44,8 @@ suspend fun startServer(
     val filesModule = FilesModule(config, filesDb)
     val blueskyModule = BlueskyApiModule(config, filesModule)
     val mastodonModule = MastodonApiModule(config, filesModule)
-    val formModule = FormModule(mastodonModule, blueskyModule, rssModule)
+    val twitterModule = TwitterApiModule(config, documentsDb, filesModule)
+    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
     
     embeddedServer(Netty, port = config.httpPort) {
         install(ContentNegotiation) {
@@ -114,9 +116,28 @@ suspend fun startServer(
                     mastodonModule.createPostRoute(call)
                 }
                 
+                post("/api/twitter/post") {
+                    twitterModule.createPostRoute(call)
+                }
+                
+                // Twitter OAuth flow
+                get("/api/twitter/authorize") {
+                    val token = call.request.queryParameters["access_token"] ?: ""
+                    twitterModule.authorizeRoute(call, token)
+                }
+                
+                get("/api/twitter/status") {
+                    twitterModule.statusRoute(call)
+                }
+                
                 post("/api/multiple/post") {
                     formModule.broadcastPostRoute(call)
                 }
+            }
+            
+            // Twitter OAuth callback (public, no auth required)
+            get("/api/twitter/callback") {
+                twitterModule.callbackRoute(call)
             }
             
             // Public RSS feed
