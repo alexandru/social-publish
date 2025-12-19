@@ -7,7 +7,8 @@ import io.circe.*
 import io.circe.syntax.*
 import org.http4s.*
 import org.http4s.dsl.io.*
-import org.http4s.circe.*
+import org.http4s.circe.CirceEntityEncoder.*
+import org.http4s.circe.CirceEntityDecoder.*
 import socialpublish.api.{BlueskyApi, MastodonApi, TwitterApi}
 import socialpublish.config.AppConfig
 import socialpublish.db.PostsDatabase
@@ -26,8 +27,6 @@ class Routes(
   posts: PostsDatabase,
   logger: Logger[IO]
 ):
-  
-  private given EntityDecoder[IO, NewPostRequest] = jsonOf[IO, NewPostRequest]
   
   val routes: org.http4s.HttpRoutes[IO] = org.http4s.HttpRoutes.of[IO] {
     // Health check

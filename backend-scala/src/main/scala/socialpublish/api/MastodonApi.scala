@@ -9,6 +9,7 @@ import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.multipart.*
 import org.http4s.headers.`Content-Type`
+import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
 import socialpublish.config.AppConfig
 import socialpublish.models.*

@@ -7,11 +7,9 @@ import doobie.implicits.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import socialpublish.models.*
+import socialpublish.db.Metas.given
 import java.time.Instant
 import java.util.UUID
-
-// UUID Meta instance for Doobie
-given Meta[UUID] = Meta[String].timap(UUID.fromString)(_.toString)
 
 trait DocumentsDatabase:
   def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document]
@@ -100,7 +98,7 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
           getTagsForDocumentQuery(uuid).to[List].map { tags =>
             Some(Document(UUID.fromString(uuidStr), kind, payload, tags, Instant.ofEpochMilli(createdMs)))
           }
-        case None => ConnectionIO.pure(None)
+        case None => doobie.free.connection.pure(None)
       }
       .transact(xa)
   
