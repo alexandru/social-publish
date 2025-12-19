@@ -6,6 +6,7 @@ import com.alexn.socialpublish.db.DocumentsDatabase
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.modules.AuthModule
+import com.alexn.socialpublish.modules.BlueskyApiModule
 import com.alexn.socialpublish.modules.FilesModule
 import com.alexn.socialpublish.modules.FormModule
 import com.alexn.socialpublish.modules.MastodonApiModule
@@ -39,8 +40,9 @@ suspend fun startServer(
     val authModule = AuthModule(config)
     val rssModule = RssModule(config, postsDb, filesDb)
     val filesModule = FilesModule(config, filesDb)
+    val blueskyModule = BlueskyApiModule(config, filesModule)
     val mastodonModule = MastodonApiModule(config, filesModule)
-    val formModule = FormModule(mastodonModule, rssModule)
+    val formModule = FormModule(mastodonModule, blueskyModule, rssModule)
     
     embeddedServer(Netty, port = config.httpPort) {
         install(ContentNegotiation) {
@@ -102,9 +104,9 @@ suspend fun startServer(
                     }
                 }
                 
-                // Placeholder routes - to be implemented
+                // Social media posts
                 post("/api/bluesky/post") {
-                    call.respondText("Bluesky post - not yet implemented", status = HttpStatusCode.NotImplemented)
+                    blueskyModule.createPostRoute(call)
                 }
                 
                 post("/api/mastodon/post") {

@@ -19,6 +19,7 @@ private val logger = KotlinLogging.logger {}
  */
 class FormModule(
     private val mastodonModule: MastodonApiModule,
+    private val blueskyModule: BlueskyApiModule,
     private val rssModule: RssModule
 ) {
     
@@ -44,14 +45,7 @@ class FormModule(
                 val result = async {
                     when (target.lowercase()) {
                         "mastodon" -> mastodonModule.createPost(request)
-                        "bluesky" -> {
-                            logger.warn { "Bluesky API not yet implemented" }
-                            ValidationError(
-                                status = 501,
-                                errorMessage = "Bluesky API not yet implemented",
-                                module = "bluesky"
-                            ).left()
-                        }
+                        "bluesky" -> blueskyModule.createPost(request)
                         "twitter" -> {
                             logger.warn { "Twitter API not yet implemented" }
                             ValidationError(
