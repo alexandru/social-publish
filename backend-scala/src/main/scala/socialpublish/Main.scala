@@ -56,7 +56,7 @@ object Main extends CommandIOApp(
           twitterApi = TwitterApi(config, httpClient, filesService, docsDb, logger)
           
           // Create HTTP routes
-          routes = new HttpRoutes(config, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
+          routes = new socialpublish.http.Routes(config, blueskyApi, mastodonApi, twitterApi, filesService, postsDb, logger)
           
           // Add middleware
           httpApp = ServerLogger.httpApp(logHeaders = true, logBody = false)(

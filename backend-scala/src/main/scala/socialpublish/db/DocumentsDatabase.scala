@@ -10,6 +10,9 @@ import socialpublish.models.*
 import java.time.Instant
 import java.util.UUID
 
+// UUID Meta instance for Doobie
+given Meta[UUID] = Meta[String].timap(UUID.fromString)(_.toString)
+
 trait DocumentsDatabase:
   def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document]
   def getAll(kind: String, orderBy: String): IO[List[Document]]
@@ -97,7 +100,7 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
           getTagsForDocumentQuery(uuid).to[List].map { tags =>
             Some(Document(UUID.fromString(uuidStr), kind, payload, tags, Instant.ofEpochMilli(createdMs)))
           }
-        case None => Monad[ConnectionIO].pure(None)
+        case None => ConnectionIO.pure(None)
       }
       .transact(xa)
   

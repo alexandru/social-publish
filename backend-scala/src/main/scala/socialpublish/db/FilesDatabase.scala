@@ -10,6 +10,9 @@ import socialpublish.models.*
 import java.time.Instant
 import java.util.UUID
 
+// UUID Meta instance for Doobie
+given Meta[UUID] = Meta[String].timap(UUID.fromString)(_.toString)
+
 trait FilesDatabase:
   def save(metadata: FileMetadata): IO[FileMetadata]
   def getByUUID(uuid: UUID): IO[Option[FileMetadata]]
