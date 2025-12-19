@@ -2,7 +2,7 @@ val scala3Version = "3.3.4"
 
 val http4sVersion = "0.23.30"
 val circeVersion = "0.14.10"
-val doobieVersion = "1.0.0-RC5"
+val doobieVersion = "1.0.0-RC4"
 val catsEffectVersion = "3.5.7"
 val declineVersion = "2.4.1"
 val log4catsVersion = "2.7.0"
@@ -31,9 +31,8 @@ lazy val root = project
       "io.circe" %% "circe-parser" % circeVersion,
       "io.circe" %% "circe-literal" % circeVersion,
       
-      // Doobie for database
+      // Doobie for database (core only, SQLite driver via JDBC)
       "org.tpolecat" %% "doobie-core" % doobieVersion,
-      "org.tpolecat" %% "doobie-sqlite" % doobieVersion,
       
       // CLI parsing
       "com.monovore" %% "decline-effect" % declineVersion,

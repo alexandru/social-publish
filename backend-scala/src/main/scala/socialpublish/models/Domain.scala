@@ -2,10 +2,24 @@ package socialpublish.models
 
 import java.time.Instant
 import java.util.UUID
+import io.circe.{Encoder, Decoder, Codec}
+import io.circe.generic.semiauto.*
 
 // Target social networks
-enum Target derives io.circe.Codec.AsObject:
+enum Target:
   case Mastodon, Bluesky, Twitter, LinkedIn
+
+object Target:
+  given Codec[Target] = Codec.from(
+    Decoder.decodeString.emap {
+      case "mastodon" | "Mastodon" => Right(Target.Mastodon)
+      case "bluesky" | "Bluesky" => Right(Target.Bluesky)
+      case "twitter" | "Twitter" => Right(Target.Twitter)
+      case "linkedin" | "LinkedIn" => Right(Target.LinkedIn)
+      case other => Left(s"Unknown target: $other")
+    },
+    Encoder.encodeString.contramap(_.toString.toLowerCase)
+  )
 
 // Post domain model
 case class Post(
@@ -27,10 +41,13 @@ case class NewPostRequest(
   language: Option[String],
   cleanupHtml: Option[Boolean],
   images: Option[List[UUID]]
-) derives io.circe.Codec.AsObject
+)
+
+object NewPostRequest:
+  given Codec[NewPostRequest] = deriveCodec
 
 // Response from creating a post
-enum NewPostResponse derives io.circe.Codec.AsObject:
+enum NewPostResponse:
   case Bluesky(uri: String, cid: Option[String])
   case Mastodon(uri: String)
   case Twitter(id: String)
@@ -41,6 +58,18 @@ enum NewPostResponse derives io.circe.Codec.AsObject:
     case Mastodon(_) => "mastodon"
     case Twitter(_) => "twitter"
     case Rss(_) => "rss"
+
+object NewPostResponse:
+  given Encoder[NewPostResponse] = Encoder.instance {
+    case Bluesky(uri, cid) => 
+      io.circe.Json.obj("module" -> io.circe.Json.fromString("bluesky"), "uri" -> io.circe.Json.fromString(uri), "cid" -> cid.fold(io.circe.Json.Null)(io.circe.Json.fromString))
+    case Mastodon(uri) => 
+      io.circe.Json.obj("module" -> io.circe.Json.fromString("mastodon"), "uri" -> io.circe.Json.fromString(uri))
+    case Twitter(id) => 
+      io.circe.Json.obj("module" -> io.circe.Json.fromString("twitter"), "id" -> io.circe.Json.fromString(id))
+    case Rss(uri) => 
+      io.circe.Json.obj("module" -> io.circe.Json.fromString("rss"), "uri" -> io.circe.Json.fromString(uri))
+  }
 
 // File/Image metadata
 case class FileMetadata(
