@@ -21,6 +21,7 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.statuspages.*
+import io.ktor.server.http.content.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.http.*
@@ -133,6 +134,19 @@ suspend fun startServer(
             
             get("/files/{uuid}") {
                 filesModule.getFile(call)
+            }
+            
+            // Static file serving for frontend
+            staticFiles("/", java.io.File("public"))
+            
+            // Frontend routing - serve index.html for SPA routes
+            get("/{path...}") {
+                val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
+                if (path.matches(Regex("^(login|form|account).*"))) {
+                    call.respondFile(java.io.File("public/index.html"))
+                } else {
+                    call.respond(HttpStatusCode.NotFound)
+                }
             }
         }
     }.start(wait = true)
