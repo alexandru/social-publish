@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as the base image
-FROM alpine:latest as build
+FROM alpine:latest AS build
 
 # Set the working directory in the container to /app
 WORKDIR /app
@@ -10,8 +10,8 @@ COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
-# Install required packages
-RUN apk add --no-cache nodejs npm
+# Install required packages including build dependencies for native modules
+RUN apk add --no-cache nodejs npm python3 py3-setuptools make g++
 
 # Install the application dependencies
 RUN npm install && npm run init
