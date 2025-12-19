@@ -24,3 +24,14 @@ build
 *.sln
 *.sw?
 .envrc
+
+# Kotlin/Gradle
+backend-kotlin/.gradle
+backend-kotlin/build
+*.class
+*.jar
+!backend-kotlin/gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
