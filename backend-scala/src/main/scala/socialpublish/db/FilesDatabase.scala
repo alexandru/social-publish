@@ -4,25 +4,25 @@ import cats.effect.*
 import cats.syntax.all.*
 import doobie.*
 import doobie.implicits.*
-import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import socialpublish.models.*
 import socialpublish.db.Metas.given
 import java.time.Instant
 import java.util.UUID
 
-trait FilesDatabase:
+trait FilesDatabase {
   def save(metadata: FileMetadata): IO[FileMetadata]
   def getByUUID(uuid: UUID): IO[Option[FileMetadata]]
   def getAll: IO[List[FileMetadata]]
+}
 
-object FilesDatabase:
+object FilesDatabase {
   def apply(xa: Transactor[IO]): IO[FilesDatabase] =
-    for
+    for {
       logger <- Slf4jLogger.create[IO]
       _ <- migrations.traverse_(m => m.run(xa, logger))
-    yield new FilesDatabaseImpl(xa)
-  
+    } yield new FilesDatabaseImpl(xa)
+
   private val migrations = List(
     Migration(
       ddl = List(
@@ -44,9 +44,10 @@ object FilesDatabase:
         .map(_.isDefined)
     )
   )
+}
 
-private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase:
-  
+private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
+
   override def save(metadata: FileMetadata): IO[FileMetadata] =
     sql"""INSERT INTO files (uuid, original_name, mime_type, size, alt_text, width, height, created_at)
           VALUES (
@@ -62,7 +63,7 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase:
       .update.run
       .transact(xa)
       .as(metadata)
-  
+
   override def getByUUID(uuid: UUID): IO[Option[FileMetadata]] =
     sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, created_at
           FROM files WHERE uuid = $uuid"""
@@ -81,7 +82,7 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase:
         )
       })
       .transact(xa)
-  
+
   override def getAll: IO[List[FileMetadata]] =
     sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, created_at
           FROM files ORDER BY created_at DESC"""
@@ -100,3 +101,4 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase:
         )
       })
       .transact(xa)
+}

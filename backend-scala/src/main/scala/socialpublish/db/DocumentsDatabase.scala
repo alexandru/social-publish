@@ -11,21 +11,22 @@ import socialpublish.db.Metas.given
 import java.time.Instant
 import java.util.UUID
 
-trait DocumentsDatabase:
+trait DocumentsDatabase {
   def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document]
   def getAll(kind: String, orderBy: String): IO[List[Document]]
   def searchByUUID(uuid: UUID): IO[Option[Document]]
   def searchByKey(key: String): IO[Option[Document]]
   def upsertTag(docUuid: UUID, tag: DocumentTag): IO[Unit]
   def getTagsForDocument(docUuid: UUID): IO[List[DocumentTag]]
+}
 
-object DocumentsDatabase:
+object DocumentsDatabase {
   def apply(xa: Transactor[IO]): IO[DocumentsDatabase] =
-    for
+    for {
       logger <- Slf4jLogger.create[IO]
       _ <- migrations.traverse_(m => m.run(xa, logger))
-    yield new DocumentsDatabaseImpl(xa)
-  
+    } yield new DocumentsDatabaseImpl(xa)
+
   private val migrations = List(
     Migration(
       ddl = List(
@@ -54,28 +55,35 @@ object DocumentsDatabase:
           |)""".stripMargin,
         "CREATE INDEX IF NOT EXISTS document_tags_document_uuid_idx ON document_tags (document_uuid)"
       ),
-      testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='document_tags'"
-        .query[String]
-        .option
-        .map(_.isDefined)
+      testIfApplied =
+        sql"SELECT name FROM sqlite_master WHERE type='table' AND name='document_tags'"
+          .query[String]
+          .option
+          .map(_.isDefined)
     )
   )
+}
 
-private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabase:
-  
-  override def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document] =
+private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabase {
+
+  override def createOrUpdate(
+      kind: String,
+      payload: String,
+      tags: List[DocumentTag]
+  ): IO[Document] = {
     val uuid = UUID.randomUUID()
     val now = Instant.now()
     val doc = Document(uuid, kind, payload, tags, now)
-    
-    (for
+
+    (for {
       _ <- sql"""INSERT INTO documents (uuid, kind, payload, created_at) 
                  VALUES ($uuid, $kind, $payload, ${now.toEpochMilli})"""
         .update.run
       _ <- tags.traverse_(tag => upsertTagQuery(uuid, tag).update.run)
-    yield doc).transact(xa)
-  
-  override def getAll(kind: String, orderBy: String): IO[List[Document]] =
+    } yield doc).transact(xa)
+  }
+
+  override def getAll(kind: String, orderBy: String): IO[List[Document]] = {
     val order = if orderBy.toLowerCase.contains("desc") then fr"DESC" else fr"ASC"
     (sql"SELECT uuid, kind, payload, created_at FROM documents WHERE kind = $kind ORDER BY created_at " ++ order)
       .query[(String, String, String, Long)]
@@ -89,7 +97,8 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
         }
       }
       .transact(xa)
-  
+  }
+
   override def searchByUUID(uuid: UUID): IO[Option[Document]] =
     sql"SELECT uuid, kind, payload, created_at FROM documents WHERE uuid = $uuid"
       .query[(String, String, String, Long)]
@@ -97,12 +106,18 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
       .flatMap {
         case Some((uuidStr, kind, payload, createdMs)) =>
           getTagsForDocumentQuery(uuid).to[List].map { tags =>
-            Some(Document(UUID.fromString(uuidStr), kind, payload, tags, Instant.ofEpochMilli(createdMs)))
+            Some(Document(
+              UUID.fromString(uuidStr),
+              kind,
+              payload,
+              tags,
+              Instant.ofEpochMilli(createdMs)
+            ))
           }
         case None => doobie.free.connection.pure(None)
       }
       .transact(xa)
-  
+
   override def searchByKey(key: String): IO[Option[Document]] =
     sql"""
       SELECT d.uuid, d.kind, d.payload, d.created_at
@@ -121,31 +136,32 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
         case None => doobie.free.connection.pure(None)
       }
       .transact(xa)
-  
+
   override def upsertTag(docUuid: UUID, tag: DocumentTag): IO[Unit] =
     upsertTagQuery(docUuid, tag).update.run.transact(xa).void
-  
+
   override def getTagsForDocument(docUuid: UUID): IO[List[DocumentTag]] =
     getTagsForDocumentQuery(docUuid).to[List].transact(xa)
-  
+
   private def upsertTagQuery(docUuid: UUID, tag: DocumentTag): Fragment =
     sql"""INSERT OR REPLACE INTO document_tags (document_uuid, name, kind) 
           VALUES ($docUuid, ${tag.name}, ${tag.kind})"""
-  
+
   private def getTagsForDocumentQuery(docUuid: UUID): Query0[DocumentTag] =
     sql"SELECT name, kind FROM document_tags WHERE document_uuid = $docUuid"
       .query[(String, String)]
       .map { case (name, kind) => DocumentTag(name, kind) }
+}
 
-case class Migration(ddl: List[String], testIfApplied: ConnectionIO[Boolean]):
+case class Migration(ddl: List[String], testIfApplied: ConnectionIO[Boolean]) {
   def run(xa: Transactor[IO], logger: Logger[IO]): IO[Unit] =
     testIfApplied.transact(xa).flatMap { applied =>
-      if !applied then
-        logger.info(s"Running migration...") *>
+      if !applied then logger.info(s"Running migration...") *>
         ddl.traverse_ { statement =>
           logger.info(s"Executing: $statement") *>
-          Fragment.const(statement).update.run.transact(xa).void
+            Fragment.const(statement).update.run.transact(xa).void
         }
       else
         logger.info("Migration already applied, skipping")
     }
+}

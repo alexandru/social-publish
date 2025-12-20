@@ -13,55 +13,61 @@ lazy val root = project
     name := "social-publish-backend",
     version := "1.0.0",
     scalaVersion := scala3Version,
-    
+    scalacOptions ++= Seq(
+      "-no-indent",
+      "-rewrite"
+    ),
     libraryDependencies ++= Seq(
       // Cats Effect for IO
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
       "org.typelevel" %% "cats-mtl" % "1.5.0",
-      
+
       // Http4s for HTTP server and client
       "org.http4s" %% "http4s-ember-server" % http4sVersion,
       "org.http4s" %% "http4s-ember-client" % http4sVersion,
       "org.http4s" %% "http4s-dsl" % http4sVersion,
       "org.http4s" %% "http4s-circe" % http4sVersion,
-      
+
       // Circe for JSON
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser" % circeVersion,
       "io.circe" %% "circe-literal" % circeVersion,
-      
+
       // Doobie for database (core only, SQLite driver via JDBC)
       "org.tpolecat" %% "doobie-core" % doobieVersion,
-      
+
       // CLI parsing
       "com.monovore" %% "decline-effect" % declineVersion,
-      
+
       // Logging
       "org.typelevel" %% "log4cats-slf4j" % log4catsVersion,
       "ch.qos.logback" % "logback-classic" % "1.5.16",
-      
+
       // Java libraries for utilities
       "com.github.jwt-scala" %% "jwt-circe" % "10.0.1",
       "org.xerial" % "sqlite-jdbc" % "3.48.0.0",
       "com.drewnoakes" % "metadata-extractor" % "2.19.0",
       "com.twelvemonkeys.imageio" % "imageio-core" % "3.12.0",
       "com.twelvemonkeys.imageio" % "imageio-jpeg" % "3.12.0",
-      
+
       // Testing
       "org.scalameta" %% "munit" % "1.0.3" % Test,
       "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
       "org.tpolecat" %% "doobie-munit" % doobieVersion % Test
     ),
-    
+
     // Assembly settings for building a fat JAR
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", "versions", xs @ _*) => MergeStrategy.first
       case PathList("META-INF", "maven", xs @ _*) => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
-      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".SF")) => MergeStrategy.discard
-      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".DSA")) => MergeStrategy.discard
-      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".RSA")) => MergeStrategy.discard
+      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".SF")) =>
+        MergeStrategy.discard
+      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".DSA")) =>
+        MergeStrategy.discard
+      case PathList("META-INF", xs @ _*) if xs.lastOption.exists(_.endsWith(".RSA")) =>
+        MergeStrategy.discard
       case PathList("module-info.class") => MergeStrategy.discard
       case "application.conf" => MergeStrategy.concat
       case "reference.conf" => MergeStrategy.concat
@@ -73,3 +79,5 @@ lazy val root = project
     assembly / mainClass := Some("socialpublish.Main"),
     assembly / assemblyJarName := "social-publish-backend.jar"
   )
+
+Global / onChangedBuildSource := ReloadOnSourceChanges

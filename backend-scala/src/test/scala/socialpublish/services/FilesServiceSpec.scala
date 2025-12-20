@@ -8,8 +8,8 @@ import socialpublish.db.FilesDatabase
 import java.nio.file.{Files, Path}
 import java.util.UUID
 
-class FilesServiceSpec extends CatsEffectSuite:
-  
+class FilesServiceSpec extends CatsEffectSuite {
+
   val fixture: FunFixture[(Path, FilesService)] = FunFixture[(Path, FilesService)](
     setup = { _ =>
       val tempDir = Files.createTempDirectory("files-service-test")
@@ -29,7 +29,7 @@ class FilesServiceSpec extends CatsEffectSuite:
         twitterOauth1ConsumerSecret = "",
         uploadedFilesPath = tempDir
       )
-      
+
       val xa = Transactor.fromDriverManager[IO](
         driver = "org.sqlite.JDBC",
         url = s"jdbc:sqlite:${tempDir.resolve("test.db")}",
@@ -37,58 +37,60 @@ class FilesServiceSpec extends CatsEffectSuite:
         password = "",
         logHandler = None
       )
-      
-      val service = (for
+
+      val service = (for {
         filesDb <- FilesDatabase(xa)
         filesService <- FilesService(config, filesDb)
-      yield filesService).unsafeRunSync()
-      
+      } yield filesService).unsafeRunSync()
+
       (tempDir, service)
     },
     teardown = { case (tempDir, _) =>
       // Clean up temp directory
-      def deleteRecursively(path: Path): Unit =
-        if Files.isDirectory(path) then
-          Files.list(path).forEach(deleteRecursively)
-        Files.deleteIfExists(path)
+      def deleteRecursively(path: Path): Unit = {
+        if Files.isDirectory(path) then Files.list(path).forEach(deleteRecursively)
+        val _ = Files.deleteIfExists(path)
+      }
       deleteRecursively(tempDir)
     }
   )
-  
+
   fixture.test("save and retrieve file") { case (_, service) =>
     val filename = "test.txt"
     val mimeType = "text/plain"
     val bytes = "test content".getBytes
     val altText = Some("Test file")
-    
-    for
+
+    for {
       metadata <- service.saveFile(filename, mimeType, bytes, altText)
       retrieved <- service.getFile(metadata.uuid)
-    yield
+    } yield {
       assert(retrieved.isDefined)
       val file = retrieved.get
       assertEquals(file.originalName, filename)
       assertEquals(file.mimeType, mimeType)
       assertEquals(new String(file.bytes), "test content")
       assertEquals(file.altText, altText)
+    }
   }
-  
+
   fixture.test("getFile returns None for non-existent UUID") { case (_, service) =>
-    for
+    for {
       result <- service.getFile(UUID.randomUUID())
-    yield
-      assertEquals(result, None)
+    } yield assertEquals(result, None)
   }
-  
+
   fixture.test("saveFile creates file on disk") { case (tempDir, service) =>
     val filename = "disk-test.txt"
     val bytes = "disk content".getBytes
-    
-    for
+
+    for {
       metadata <- service.saveFile(filename, "text/plain", bytes, None)
       filePath = service.getFilePath(metadata.uuid)
-    yield
+    } yield {
       assert(Files.exists(filePath))
       val content = Files.readAllBytes(filePath)
       assertEquals(new String(content), "disk content")
+    }
   }
+}
