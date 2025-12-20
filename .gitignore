@@ -13,6 +13,18 @@ dist-ssr
 build
 *.local
 
+# Scala / sbt
+target/
+project/target/
+project/project/
+*.class
+*.jar
+*.war
+.bsp/
+.metals/
+.bloop/
+metals.sbt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
