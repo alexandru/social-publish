@@ -4,7 +4,6 @@ import cats.effect.*
 import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import socialpublish.config.AppConfig
 import socialpublish.db.FilesDatabase
 import socialpublish.models.*
 import java.nio.file.{Files, Path}
@@ -37,7 +36,7 @@ trait FilesService {
 }
 
 object FilesService {
-  def apply(config: AppConfig, db: FilesDatabase): IO[FilesService] =
+  def apply(config: FilesConfig, db: FilesDatabase): IO[FilesService] =
     for {
       logger <- Slf4jLogger.create[IO]
       _ <- IO.blocking {
@@ -47,10 +46,28 @@ object FilesService {
         }
       }
     } yield new FilesServiceImpl(config, db, logger)
+
+  def resource(cfg: FilesConfig, db: FilesDatabase): Resource[IO, FilesService] =
+    Resource.eval {
+      for {
+        logger <- Slf4jLogger.create[IO]
+        _ <- IO.blocking {
+          val uploadPath = cfg.uploadedFilesPath
+          if !Files.exists(uploadPath) then {
+            val _ = Files.createDirectories(uploadPath)
+          }
+        }
+      } yield new FilesServiceImpl(
+        cfg,
+        db,
+        logger
+      )
+    }
+
 }
 
 private class FilesServiceImpl(
-    config: AppConfig,
+    config: FilesConfig,
     db: FilesDatabase,
     logger: Logger[IO]
 ) extends FilesService {

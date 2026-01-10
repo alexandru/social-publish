@@ -12,7 +12,6 @@ import org.http4s.multipart.Multipart
 import org.http4s.headers.{`Content-Type`, Location}
 import org.typelevel.ci.CIStringSyntax
 import socialpublish.api.{BlueskyApi, MastodonApi, TwitterApi}
-import socialpublish.config.AppConfig
 import socialpublish.db.PostsDatabase
 import socialpublish.models.*
 import socialpublish.services.FilesService
@@ -20,7 +19,7 @@ import org.typelevel.log4cats.Logger
 import java.util.UUID
 
 class Routes(
-    config: AppConfig,
+    server: ServerConfig,
     auth: AuthMiddleware,
     bluesky: BlueskyApi,
     mastodon: MastodonApi,
@@ -214,7 +213,7 @@ class Routes(
         )
       )
 
-      uri = s"${config.baseUrl}/rss/${post.uuid}"
+      uri = s"${server.baseUrl}/rss/${post.uuid}"
     } yield NewPostResponse.Rss(uri)
   }
 
@@ -321,7 +320,8 @@ class Routes(
        |<rss version="2.0">
        |  <channel>
        |    <title>$title</title>
-       |    <link>${config.baseUrl}/rss</link>
+        |    <link>${server.baseUrl}/rss</link>
+
        |    <description>Social media posts</description>
        |    $items
        |  </channel>

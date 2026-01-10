@@ -4,7 +4,6 @@ import cats.effect.*
 import com.comcast.ip4s.*
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import doobie.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.middleware.CORS
@@ -14,11 +13,8 @@ import socialpublish.api.BlueskyApi
 import socialpublish.api.MastodonApi
 import socialpublish.api.TwitterApi
 import socialpublish.config.AppConfig
-import socialpublish.db.DocumentsDatabase
-import socialpublish.db.FilesDatabase
-import socialpublish.db.PostsDatabaseImpl
-import socialpublish.http.AuthMiddleware
-import socialpublish.http.Routes
+import socialpublish.db.{DocumentsDatabase, FilesDatabase, DatabaseConfig, PostsDatabaseImpl}
+import socialpublish.http.{AuthMiddleware, Routes}
 import socialpublish.services.FilesService
 
 object Main extends CommandIOApp(
@@ -29,80 +25,66 @@ object Main extends CommandIOApp(
 
   override def main: Opts[IO[ExitCode]] =
     AppConfig.opts.map { config =>
-      program(config).as(ExitCode.Success)
-    }
+      val programResource: Resource[IO, Unit] = for {
+        logger <- Resource.eval(Slf4jLogger.create[IO])
+        _ <- Resource.eval(logger.info("Starting social-publish backend..."))
+        _ <- Resource.eval(logger.info(s"Database path: ${config.database.path}"))
+        _ <- Resource.eval(logger.info(s"HTTP port: ${config.server.port}"))
+        _ <- Resource.eval(logger.info(s"Base URL: ${config.server.baseUrl}"))
 
-  private def program(config: AppConfig): IO[Unit] =
-    for {
-      logger <- Slf4jLogger.create[IO]
-      _ <- logger.info("Starting social-publish backend...")
-      _ <- logger.info(s"Database path: ${config.dbPath}")
-      _ <- logger.info(s"HTTP port: ${config.httpPort}")
-      _ <- logger.info(s"Base URL: ${config.baseUrl}")
+        // Transactor resource
+        xa <- DatabaseConfig.transactorResource(config.database)
 
-      // Create transactor for database
-      xa <- createTransactor(config)
+        // Databases (migrations run inside apply)
+        docsDb <- Resource.eval(DocumentsDatabase(xa))
+        filesDb <- Resource.eval(FilesDatabase(xa))
+        _ <- Resource.eval(IO.delay(new PostsDatabaseImpl(docsDb)))
 
-      // Initialize databases
-      docsDb <- DocumentsDatabase(xa)
-      filesDb <- FilesDatabase(xa)
-      postsDb = new PostsDatabaseImpl(docsDb)
+        // Services
+        filesService <- FilesService.resource(config.files, filesDb)
 
-      // Initialize services
-      filesService <- FilesService(config, filesDb)
+        // HTTP client
+        httpClient <- EmberClientBuilder.default[IO].build
 
-      // Create HTTP client and API clients
-      _ <- EmberClientBuilder.default[IO].build.use { httpClient =>
-        for {
-          blueskyApi <- BlueskyApi(config, httpClient, filesService, logger)
-          mastodonApi = MastodonApi(config, httpClient, filesService, logger)
-          twitterApi = TwitterApi(config, httpClient, filesService, docsDb, logger)
+        // APIs
+        blueskyApi <- BlueskyApi.resource(config.bluesky, httpClient, filesService, logger)
+        mastodonApi <-
+          Resource.eval(IO.pure(MastodonApi(config.mastodon, httpClient, filesService, logger)))
+        twitterApi <- Resource.eval(IO.pure(TwitterApi(
+          config.server,
+          config.twitter,
+          httpClient,
+          filesService,
+          docsDb,
+          logger
+        )))
 
-          // Create authentication middleware
-          authMiddleware = new AuthMiddleware(config, twitterApi, logger)
+        // Auth middleware and routes
+        authMiddleware <-
+          Resource.eval(IO.delay(new AuthMiddleware(config.server, twitterApi, logger)))
+        routes <- Resource.eval(IO.delay(new Routes(
+          config.server,
+          authMiddleware,
+          blueskyApi,
+          mastodonApi,
+          twitterApi,
+          filesService,
+          new PostsDatabaseImpl(docsDb),
+          logger
+        )))
 
-          // Create HTTP routes
-          routes = new Routes(
-            config,
-            authMiddleware,
-            blueskyApi,
-            mastodonApi,
-            twitterApi,
-            filesService,
-            postsDb,
-            logger
-          )
+        // Server
+        _ <- EmberServerBuilder
+          .default[IO]
+          .withHost(ipv4"0.0.0.0")
+          .withPort(Port.fromInt(config.server.port).getOrElse(port"3000"))
+          .withHttpApp(ServerLogger.httpApp(
+            logHeaders = true,
+            logBody = false
+          )(CORS.policy.withAllowOriginAll(routes.routes).orNotFound))
+          .build
+      } yield ()
 
-          // Add middleware
-          httpApp = ServerLogger.httpApp(logHeaders = true, logBody = false)(
-            CORS.policy.withAllowOriginAll(routes.routes).orNotFound
-          )
-
-          // Start server
-          _ <- logger.info(s"Starting HTTP server on port ${config.httpPort}...")
-          server <- EmberServerBuilder
-            .default[IO]
-            .withHost(ipv4"0.0.0.0")
-            .withPort(Port.fromInt(config.httpPort).getOrElse(port"3000"))
-            .withHttpApp(httpApp)
-            .build
-            .use { server =>
-              logger.info(s"Server started at ${server.address}") *>
-                logger.info("Press Ctrl+C to stop...") *>
-                IO.never
-            }
-        } yield server
-      }
-    } yield ()
-
-  private def createTransactor(config: AppConfig): IO[Transactor[IO]] =
-    IO.delay {
-      Transactor.fromDriverManager[IO](
-        driver = "org.sqlite.JDBC",
-        url = s"jdbc:sqlite:${config.dbPath}",
-        user = "",
-        password = "",
-        logHandler = None
-      )
+      programResource.use(_ => IO.never).as(ExitCode.Success)
     }
 }

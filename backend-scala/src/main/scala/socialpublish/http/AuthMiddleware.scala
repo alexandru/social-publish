@@ -13,7 +13,6 @@ import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtCirce
 import pdi.jwt.JwtClaim
 import socialpublish.api.TwitterApi
-import socialpublish.config.AppConfig
 
 import java.time.Instant
 
@@ -23,7 +22,7 @@ case class LoginResponse(token: String, hasAuth: AuthStatus) derives Codec.AsObj
 case class AuthStatus(twitter: Boolean) derives Codec.AsObject
 
 class AuthMiddleware(
-    config: AppConfig,
+    server: ServerConfig,
     twitter: TwitterApi,
     logger: Logger[IO]
 ) {
@@ -39,8 +38,8 @@ class AuthMiddleware(
 
   def login(req: Request[IO]): IO[Response[IO]] =
     req.as[LoginRequest].flatMap { credentials =>
-      if credentials.username == config.serverAuthUsername &&
-      credentials.password == config.serverAuthPassword then for {
+      if credentials.username == server.authUser &&
+      credentials.password == server.authPass then for {
         hasTwitter <- twitter.hasTwitterAuth
         token = generateToken(credentials.username)
         response = LoginResponse(token, AuthStatus(hasTwitter))
@@ -73,7 +72,7 @@ class AuthMiddleware(
       extractToken(req).flatMap { token =>
         JwtCirce.decode(
           token,
-          config.serverAuthJwtSecret,
+          server.jwtSecret,
           Seq(JwtAlgorithm.HS256)
         ).toOption.flatMap { claim =>
           io.circe.parser.decode[UserPayload](claim.content).toOption
@@ -107,6 +106,6 @@ class AuthMiddleware(
       expiration = Some(now.plusSeconds(168 * 3600).getEpochSecond),
       issuedAt = Some(now.getEpochSecond)
     )
-    JwtCirce.encode(claim, config.serverAuthJwtSecret, JwtAlgorithm.HS256)
+    JwtCirce.encode(claim, server.jwtSecret, JwtAlgorithm.HS256)
   }
 }

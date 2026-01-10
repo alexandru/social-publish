@@ -14,7 +14,7 @@ import org.http4s.headers.`Content-Type`
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
 import fs2.Stream
-import socialpublish.config.AppConfig
+import socialpublish.http.ServerConfig
 import socialpublish.db.DocumentsDatabase
 import socialpublish.models.*
 import socialpublish.services.FilesService
@@ -41,13 +41,14 @@ trait TwitterApi {
 
 object TwitterApi {
   def apply(
-      config: AppConfig,
+      server: ServerConfig,
+      config: TwitterConfig,
       client: Client[IO],
       files: FilesService,
       docsDb: DocumentsDatabase,
       logger: Logger[IO]
   ): TwitterApi =
-    new TwitterApiImpl(config, client, files, docsDb, logger)
+    new TwitterApiImpl(server, config, client, files, docsDb, logger)
 }
 
 private case class AuthorizedToken(
@@ -72,7 +73,8 @@ private case class TweetResponse(
 ) derives Codec.AsObject
 
 private class TwitterApiImpl(
-    config: AppConfig,
+    server: ServerConfig,
+    config: TwitterConfig,
     client: Client[IO],
     files: FilesService,
     docsDb: DocumentsDatabase,
@@ -94,7 +96,7 @@ private class TwitterApiImpl(
 
   override def getAuthorizationUrl(jwtAccessToken: String): Result[String] = {
     val callbackUrl =
-      s"${config.baseUrl}/api/twitter/callback?access_token=${URLEncoder.encode(jwtAccessToken, "UTF-8")}"
+      s"${server.baseUrl}/api/twitter/callback?access_token=${URLEncoder.encode(jwtAccessToken, "UTF-8")}"
     val reqUrl =
       s"$requestTokenURL?oauth_callback=${URLEncoder.encode(callbackUrl, "UTF-8")}&x_auth_access_type=write"
     val oauthParams = generateOAuthParams("POST", reqUrl, Map.empty, None)
@@ -269,7 +271,7 @@ private class TwitterApiImpl(
     val timestamp = (System.currentTimeMillis() / 1000).toString
 
     val baseParams = Map(
-      "oauth_consumer_key" -> config.twitterOauth1ConsumerKey,
+      "oauth_consumer_key" -> config.oauth1ConsumerKey,
       "oauth_nonce" -> nonce,
       "oauth_signature_method" -> "HMAC-SHA1",
       "oauth_timestamp" -> timestamp,
@@ -301,8 +303,8 @@ private class TwitterApiImpl(
 
     val signingKey = token match {
       case Some(t) =>
-        s"${percentEncode(config.twitterOauth1ConsumerSecret)}&${percentEncode(t.secret)}"
-      case None => s"${percentEncode(config.twitterOauth1ConsumerSecret)}&"
+        s"${percentEncode(config.oauth1ConsumerSecret)}&${percentEncode(t.secret)}"
+      case None => s"${percentEncode(config.oauth1ConsumerSecret)}&"
     }
 
     val mac = Mac.getInstance("HmacSHA1")

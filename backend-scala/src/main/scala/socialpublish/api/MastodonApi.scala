@@ -10,7 +10,6 @@ import org.http4s.circe.CirceEntityEncoder.*
 import org.http4s.circe.CirceEntityDecoder.*
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
-import socialpublish.config.AppConfig
 import socialpublish.models.*
 import socialpublish.services.FilesService
 import socialpublish.utils.TextUtils
@@ -25,7 +24,7 @@ trait MastodonApi {
 
 object MastodonApi {
   def apply(
-      config: AppConfig,
+      config: MastodonConfig,
       client: Client[IO],
       files: FilesService,
       logger: Logger[IO]
@@ -34,7 +33,7 @@ object MastodonApi {
 }
 
 private class MastodonApiImpl(
-    config: AppConfig,
+    config: MastodonConfig,
     client: Client[IO],
     files: FilesService,
     logger: Logger[IO]
@@ -87,7 +86,7 @@ private class MastodonApiImpl(
       mediaIds: List[String],
       language: Option[String]
   ): Result[StatusResponse] = {
-    val uri = Uri.unsafeFromString(s"${config.mastodonHost}/api/v1/statuses")
+    val uri = Uri.unsafeFromString(s"${config.host}/api/v1/statuses")
 
     val payload = Json.obj(
       "status" -> Json.fromString(text),
@@ -96,7 +95,7 @@ private class MastodonApiImpl(
     )
 
     val request = Request[IO](Method.POST, uri)
-      .withHeaders(Header.Raw(ci"Authorization", s"Bearer ${config.mastodonAccessToken}"))
+      .withHeaders(Header.Raw(ci"Authorization", s"Bearer ${config.accessToken}"))
       .withEntity(payload)
 
     Result.liftIO {

@@ -6,7 +6,7 @@ It's built in Scala 3, making use of functional programming and the Typelevel ec
 
 ## Building and testing
 
-Project uses Scala's `sbt` build tool. Before invoking it, prefer to set this:
+Project uses Scala's `sbt` build tool. Before EACH command below, do this:
 ```bash
 export SBT_NATIVE_CLIENT=true
 ```
@@ -21,6 +21,7 @@ Commands:
 
 ## Coding style
 
+- DO NOT use Scala 3's braceless syntax. Use braces (also specified in `scalafmt.conf`).
 - Prefer Scala FP patterns to Java-style code:
   * For example, prefer named tuples (case classes) to ad-hoc Java-style wrapper classes.
 - Use FP, including when dealing with `IO`. DO NOT use `unsafeRunSync` in code, not even in tests.
@@ -31,8 +32,10 @@ Commands:
 
 ## Development Strategy
 
-For new developments, prefer a TDD style:
-- First create a unit test that fails;
+For both new developments or refactorings, prefer a TDD style:
+- First create or update a unit test that fails;
 - Add the code that makes the test pass.
 
 Adding or updating a test first, then see it fail, is REQUIRED to ensure that unit tests are actually testing what they claim.
+
+On refactoring, for safety, add unit tests if they are missing, before doing the refactoring.

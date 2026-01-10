@@ -34,8 +34,9 @@ lazy val root = project
       "io.circe" %% "circe-parser" % circeVersion,
       "io.circe" %% "circe-literal" % circeVersion,
 
-      // Doobie for database (core only, SQLite driver via JDBC)
+      // Doobie for database and HikariCP
       "org.tpolecat" %% "doobie-core" % doobieVersion,
+      "org.tpolecat" %% "doobie-hikari" % doobieVersion,
 
       // CLI parsing
       "com.monovore" %% "decline-effect" % declineVersion,

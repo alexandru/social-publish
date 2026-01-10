@@ -9,7 +9,6 @@ import org.http4s.client.Client
 import org.http4s.circe.*
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
-import socialpublish.config.AppConfig
 import socialpublish.models.*
 import socialpublish.services.FilesService
 import socialpublish.utils.TextUtils
@@ -27,36 +26,40 @@ object BlueskyApi {
   case class LoginResponse(accessJwt: String, refreshJwt: String, handle: String, did: String)
       derives Codec.AsObject
 
-  def apply(
-      config: AppConfig,
+  def resource(
+      cfg: BlueskyConfig,
       client: Client[IO],
       files: FilesService,
       logger: Logger[IO]
-  ): IO[BlueskyApi] =
-    for {
-      session <- login(config, client, logger)
-    } yield new BlueskyApiImpl(config, client, files, logger, session)
+  ): Resource[IO, BlueskyApi] =
+    Resource.eval(login(cfg, client, logger)).map(session =>
+      new BlueskyApiImpl(cfg, client, files, logger, session)
+    )
 
   private case class LoginRequest(identifier: String, password: String) derives Codec.AsObject
 
   private def login(
-      config: AppConfig,
+      cfg: BlueskyConfig,
+      client: Client[IO],
+      @unused logger: Logger[IO]
+  ): IO[LoginResponse] =
+    loginInternal(cfg.service, cfg.username, cfg.password, client, logger)
+
+  private def loginInternal(
+      service: String,
+      username: String,
+      password: String,
       client: Client[IO],
       @unused logger: Logger[IO]
   ): IO[LoginResponse] = {
-    val uri =
-      Uri.unsafeFromString(s"${config.blueskyService}/xrpc/com.atproto.server.createSession")
-    val request = Request[IO](Method.POST, uri)
-      .withEntity(LoginRequest(config.blueskyUsername, config.blueskyPassword).asJson)
-
-    client.expect[Json](request).flatMap { json =>
-      IO.fromEither(json.as[LoginResponse])
-    }
+    val uri = Uri.unsafeFromString(s"$service/xrpc/com.atproto.server.createSession")
+    val request = Request[IO](Method.POST, uri).withEntity(LoginRequest(username, password).asJson)
+    client.expect[Json](request).flatMap { json => IO.fromEither(json.as[LoginResponse]) }
   }
 }
 
 private class BlueskyApiImpl(
-    config: AppConfig,
+    config: BlueskyConfig,
     client: Client[IO],
     files: FilesService,
     logger: Logger[IO],
@@ -124,7 +127,7 @@ private class BlueskyApiImpl(
     )
 
   private def uploadBlob(bytes: Array[Byte], mimeType: String): Result[BlobRef] = {
-    val uri = Uri.unsafeFromString(s"${config.blueskyService}/xrpc/com.atproto.repo.uploadBlob")
+    val uri = Uri.unsafeFromString(s"${config.service}/xrpc/com.atproto.repo.uploadBlob")
     val request = Request[IO](Method.POST, uri)
       .withHeaders(
         Header.Raw(ci"Authorization", s"Bearer ${session.accessJwt}"),
@@ -201,7 +204,7 @@ private class BlueskyApiImpl(
   private case class CreatePostResponse(uri: String, cid: String) derives Codec.AsObject
 
   private def postToBluesky(record: PostRecord): Result[CreatePostResponse] = {
-    val uri = Uri.unsafeFromString(s"${config.blueskyService}/xrpc/com.atproto.repo.createRecord")
+    val uri = Uri.unsafeFromString(s"${config.service}/xrpc/com.atproto.repo.createRecord")
     val postRequest = CreatePostRequest(
       repo = session.did,
       collection = "app.bsky.feed.post",
