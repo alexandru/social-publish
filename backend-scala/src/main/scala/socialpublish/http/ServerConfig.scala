@@ -18,7 +18,9 @@ object ServerConfig {
       "http-port",
       help = "Port to listen on",
       metavar = "port"
-    ).orElse(Opts(sys.env.getOrElse("HTTP_PORT", "3000").toInt))
+    ).orElse(
+      Opts.env[Int]("HTTP_PORT", help = "Port to listen on")
+    ).withDefault(3000)
 
   private val baseUrlOpt =
     Opts.option[String](

@@ -14,7 +14,6 @@ import socialpublish.services.FilesService
 import socialpublish.utils.TextUtils
 
 import java.util.UUID
-import scala.annotation.unused
 
 // Bluesky API implementation
 // Based on AT Protocol: https://docs.bsky.app/docs/api/
@@ -33,25 +32,28 @@ object BlueskyApi {
     files: FilesService,
     logger: Logger[IO]
   ): Resource[IO, BlueskyApi] =
-    Resource.eval(login(cfg, client, logger)).map(session =>
-      new BlueskyApiImpl(cfg, client, files, logger, session)
-    )
+    cfg match {
+      case BlueskyConfig.Enabled(service, username, password) =>
+        Resource.eval(loginInternal(service, username, password, client)).map(session =>
+          new BlueskyApiImpl(
+            BlueskyConfig.Enabled(service, username, password),
+            client,
+            files,
+            logger,
+            session
+          )
+        )
+      case BlueskyConfig.Disabled =>
+        Resource.eval(IO.pure(new DisabledBlueskyApi()))
+    }
 
   private case class LoginRequest(identifier: String, password: String) derives Codec.AsObject
-
-  private def login(
-    cfg: BlueskyConfig,
-    client: Client[IO],
-    @unused logger: Logger[IO]
-  ): IO[LoginResponse] =
-    loginInternal(cfg.service, cfg.username, cfg.password, client, logger)
 
   private def loginInternal(
     service: String,
     username: String,
     password: String,
-    client: Client[IO],
-    @unused logger: Logger[IO]
+    client: Client[IO]
   ): IO[LoginResponse] = {
     val uri = Uri.unsafeFromString(s"$service/xrpc/com.atproto.server.createSession")
     val request = Request[IO](Method.POST, uri).withEntity(LoginRequest(username, password).asJson)
@@ -61,7 +63,7 @@ object BlueskyApi {
 }
 
 private class BlueskyApiImpl(
-  config: BlueskyConfig,
+  config: BlueskyConfig.Enabled,
   client: Client[IO],
   files: FilesService,
   logger: Logger[IO],
@@ -227,4 +229,9 @@ private class BlueskyApiImpl(
     }
   }
 
+}
+
+private class DisabledBlueskyApi() extends BlueskyApi {
+  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+    Result.error(ApiError.validationError("Bluesky integration is disabled", "bluesky"))
 }

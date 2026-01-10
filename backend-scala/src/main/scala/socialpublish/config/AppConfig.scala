@@ -17,7 +17,6 @@ case class AppConfig(
 )
 
 object AppConfig {
-
   val opts: Opts[AppConfig] =
     (
       DatabaseConfig.opts,
@@ -27,5 +26,4 @@ object AppConfig {
       TwitterConfig.opts,
       FilesConfig.opts
     ).mapN(AppConfig.apply)
-
 }

@@ -9,8 +9,7 @@ import org.http4s.*
 import org.http4s.client.Client
 import org.http4s.circe.CirceEntityEncoder.*
 import org.http4s.circe.CirceEntityDecoder.*
-import org.http4s.multipart.{Multipart, Part}
-import org.http4s.headers.`Content-Type`
+
 import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
 import fs2.Stream
@@ -26,8 +25,6 @@ import javax.crypto.spec.SecretKeySpec
 import java.util.Base64
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import scala.annotation.nowarn
-import scala.annotation.unused
 import scala.util.Random
 
 // Twitter API implementation with OAuth 1.0a
@@ -49,8 +46,30 @@ object TwitterApi {
     docsDb: DocumentsDatabase,
     logger: Logger[IO]
   ): TwitterApi =
-    new TwitterApiImpl(server, config, client, files, docsDb, logger)
+    config match {
+      case enabled: TwitterConfig.Enabled =>
+        new TwitterApiImpl(server, enabled, client, files, docsDb, logger)
+      case TwitterConfig.Disabled =>
+        new DisabledTwitterApi()
+    }
 
+}
+
+private class DisabledTwitterApi() extends TwitterApi {
+  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+
+  override def getAuthorizationUrl(accessToken: String): Result[String] =
+    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+
+  override def handleCallback(oauthToken: String, oauthVerifier: String): Result[Unit] =
+    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+
+  override def hasTwitterAuth: IO[Boolean] =
+    IO.pure(false)
+
+  override def getAuthStatus: IO[Option[Long]] =
+    IO.pure(None)
 }
 
 private case class AuthorizedToken(
@@ -81,7 +100,7 @@ private case class TweetResponse(
 
 private class TwitterApiImpl(
   server: ServerConfig,
-  config: TwitterConfig,
+  config: TwitterConfig.Enabled,
   client: Client[IO],
   files: FilesService,
   docsDb: DocumentsDatabase,
@@ -204,61 +223,63 @@ private class TwitterApiImpl(
       )
     } yield NewPostResponse.Twitter(response)
 
-  private def uploadMedia(token: AuthorizedToken, uuid: UUID): Result[String] =
+  private def uploadMedia(token: AuthorizedToken, uuid: UUID): Result[String] = {
     for {
       fileOpt <- Result.liftIO(files.getFile(uuid))
       file <- Result.fromOption(fileOpt, ApiError.notFound(s"File not found: $uuid"))
 
-      // Upload media file
       mediaId <- Result.liftIO {
-        val oauthParams = generateOAuthParams("POST", mediaUploadURL, Map.empty, Some(token))
-        @unused
-        val authHeader = buildAuthorizationHeader(oauthParams)
+        for {
+          boundary <- IO(java.util.UUID.randomUUID().toString)
 
-        // Create multipart form data
-        val filePart = Part.fileData[IO](
-          "media",
-          file.originalName,
-          Stream.emits(file.bytes).covary[IO],
-          `Content-Type`(MediaType.unsafeParse(file.mimeType))
-        )
+          oauthParams = generateOAuthParams("POST", mediaUploadURL, Map.empty, Some(token))
+          authHeader = buildAuthorizationHeader(oauthParams)
 
-        val categoryPart = Part.formData[IO]("media_category", "tweet_image")
-        @nowarn
-        val multipart = Multipart[IO](Vector(filePart, categoryPart))
+          start =
+            s"--$boundary\r\nContent-Disposition: form-data; name=\"media\"; filename=\"${file.originalName}\"\r\nContent-Type: ${file.mimeType}\r\n\r\n"
+          end = s"\r\n--$boundary--\r\n"
 
-        // For now, use simplified approach - in production would need proper multipart encoding
-        // This logs a warning and returns a placeholder
-        logger.warn(s"Twitter media upload for $uuid - using simplified implementation") *>
-          IO.pure(s"twitter-media-${uuid.toString.take(8)}")
+          body = Stream.emits(start.getBytes(StandardCharsets.UTF_8)).covary[IO] ++
+            Stream.emits(file.bytes).covary[IO] ++
+            Stream.emits(end.getBytes(StandardCharsets.UTF_8)).covary[IO]
+
+          req = Request[IO](Method.POST, Uri.unsafeFromString(mediaUploadURL))
+            .withHeaders(
+              Header.Raw(ci"Authorization", authHeader),
+              Header.Raw(ci"Content-Type", s"multipart/form-data; boundary=$boundary")
+            )
+            .withEntity(body)
+
+          json <- client.expect[Json](req)
+          id <- IO.fromEither(json.hcursor.get[String]("media_id_string"))
+        } yield id
       }
 
-      // Add alt text if present
       _ <- file.altText match {
         case Some(alt) =>
           Result.liftIO {
-            val oauthParams = generateOAuthParams("POST", altTextURL, Map.empty, Some(token))
-            val authHeader = buildAuthorizationHeader(oauthParams)
+            val oauthParamsAlt = generateOAuthParams("POST", altTextURL, Map.empty, Some(token))
+            val authHeaderAlt = buildAuthorizationHeader(oauthParamsAlt)
 
             val altTextData = Json.obj(
               "media_id" -> Json.fromString(mediaId),
               "alt_text" -> Json.obj("text" -> Json.fromString(alt))
             )
 
-            val request = Request[IO](Method.POST, Uri.unsafeFromString(altTextURL))
+            val req = Request[IO](Method.POST, Uri.unsafeFromString(altTextURL))
               .withHeaders(
-                Header.Raw(ci"Authorization", authHeader),
+                Header.Raw(ci"Authorization", authHeaderAlt),
                 Header.Raw(ci"Content-Type", "application/json")
               )
               .withEntity(altTextData)
 
-            client.expect[String](request).void
+            client.expect[String](req).void
           }
         case None =>
           Result.success(())
       }
     } yield mediaId
-
+  }
   private def restoreOauthTokenFromDb: IO[Option[AuthorizedToken]] =
     docsDb.searchByKey("twitter-oauth-token").flatMap {
       case Some(doc) =>

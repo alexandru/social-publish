@@ -15,7 +15,6 @@ import socialpublish.services.FilesService
 import socialpublish.utils.TextUtils
 
 import java.util.UUID
-import scala.annotation.unused
 
 // Mastodon API implementation
 trait MastodonApi {
@@ -30,19 +29,21 @@ object MastodonApi {
     files: FilesService,
     logger: Logger[IO]
   ): MastodonApi =
-    new MastodonApiImpl(config, client, files, logger)
+    config match {
+      case enabled: MastodonConfig.Enabled =>
+        new MastodonApiImpl(enabled, client, files, logger)
+      case MastodonConfig.Disabled =>
+        new DisabledMastodonApi()
+    }
 
 }
 
 private class MastodonApiImpl(
-  config: MastodonConfig,
+  config: MastodonConfig.Enabled,
   client: Client[IO],
   files: FilesService,
   logger: Logger[IO]
 ) extends MastodonApi {
-
-  @unused
-  private case class MediaUploadResponse(id: String, url: String) derives Codec.AsObject
 
   private case class StatusResponse(id: String, uri: String, url: String) derives Codec.AsObject
 
@@ -111,4 +112,9 @@ private class MastodonApiImpl(
     }
   }
 
+}
+
+private class DisabledMastodonApi() extends MastodonApi {
+  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+    Result.error(ApiError.validationError("Mastodon integration is disabled", "mastodon"))
 }
