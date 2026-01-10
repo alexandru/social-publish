@@ -17,16 +17,18 @@ trait FilesDatabase {
 }
 
 object FilesDatabase {
+
   def apply(xa: Transactor[IO]): IO[FilesDatabase] =
     for {
       logger <- Slf4jLogger.create[IO]
       _ <- migrations.traverse_(m => m.run(xa, logger))
     } yield new FilesDatabaseImpl(xa)
 
-  private val migrations = List(
-    Migration(
-      ddl = List(
-        """CREATE TABLE IF NOT EXISTS files (
+  private val migrations =
+    List(
+      Migration(
+        ddl = List(
+          """CREATE TABLE IF NOT EXISTS files (
           |  uuid TEXT PRIMARY KEY NOT NULL,
           |  original_name TEXT NOT NULL,
           |  mime_type TEXT NOT NULL,
@@ -36,14 +38,15 @@ object FilesDatabase {
           |  height INTEGER,
           |  created_at INTEGER NOT NULL
           |)""".stripMargin,
-        "CREATE INDEX IF NOT EXISTS files_created_at_idx ON files (created_at DESC)"
-      ),
-      testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
-        .query[String]
-        .option
-        .map(_.isDefined)
+          "CREATE INDEX IF NOT EXISTS files_created_at_idx ON files (created_at DESC)"
+        ),
+        testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
+          .query[String]
+          .option
+          .map(_.isDefined)
+      )
     )
-  )
+
 }
 
 private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
@@ -101,4 +104,5 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
         )
       })
       .transact(xa)
+
 }

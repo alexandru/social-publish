@@ -30,137 +30,142 @@ class Routes(
 ) {
 
   // Public routes (no authentication required)
-  val publicRoutes: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    // Health check
-    case GET -> Root / "ping" =>
-      Ok("pong")
+  val publicRoutes: HttpRoutes[IO] =
+    HttpRoutes.of[IO] {
+      // Health check
+      case GET -> Root / "ping" =>
+        Ok("pong")
 
-    // RSS feeds
-    case GET -> Root / "rss" =>
-      generateRssFeed(None)
+      // RSS feeds
+      case GET -> Root / "rss" =>
+        generateRssFeed(None)
 
-    case GET -> Root / "rss" / "target" / target =>
-      Target.values.find(_.toString.toLowerCase == target.toLowerCase) match {
-        case Some(t) => generateRssFeed(Some(t))
-        case None => NotFound()
-      }
+      case GET -> Root / "rss" / "target" / target =>
+        Target.values.find(_.toString.toLowerCase == target.toLowerCase) match {
+          case Some(t) => generateRssFeed(Some(t))
+          case None => NotFound()
+        }
 
-    case GET -> Root / "rss" / UUIDVar(uuid) =>
-      getRssItem(uuid)
+      case GET -> Root / "rss" / UUIDVar(uuid) =>
+        getRssItem(uuid)
 
-    // File serving
-    case GET -> Root / "files" / UUIDVar(uuid) =>
-      files.getFile(uuid).flatMap {
-        case Some(file) =>
-          Ok(file.bytes)
-            .map(_.withContentType(`Content-Type`(MediaType.unsafeParse(file.mimeType))))
-        case None => NotFound()
-      }
+      // File serving
+      case GET -> Root / "files" / UUIDVar(uuid) =>
+        files.getFile(uuid).flatMap {
+          case Some(file) =>
+            Ok(file.bytes)
+              .map(_.withContentType(`Content-Type`(MediaType.unsafeParse(file.mimeType))))
+          case None => NotFound()
+        }
 
-    // Authentication
-    case req @ POST -> Root / "api" / "login" =>
-      auth.login(req)
-  }
+      // Authentication
+      case req @ POST -> Root / "api" / "login" =>
+        auth.login(req)
+    }
 
   // Protected routes (authentication required)
-  val protectedRoutes: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case req @ GET -> Root / "api" / "protected" =>
-      auth.protectedRoute(req)
+  val protectedRoutes: HttpRoutes[IO] =
+    HttpRoutes.of[IO] {
+      case req @ GET -> Root / "api" / "protected" =>
+        auth.protectedRoute(req)
 
-    // Twitter OAuth routes
-    case req @ GET -> Root / "api" / "twitter" / "authorize" =>
-      auth.middleware.run(req).flatMap {
-        case Some(authedReq) =>
-          extractAccessToken(authedReq) match {
-            case Some(token) =>
-              twitter.getAuthorizationUrl(token).value.flatMap {
-                case Right(url) => Found(Location(Uri.unsafeFromString(url)))
-                case Left(error) => InternalServerError(error.message)
-              }
-            case None =>
-              IO.pure(Response[IO](
-                Status.Unauthorized
-              ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-          }
-        case None =>
-          IO.pure(Response[IO](
-            Status.Unauthorized
-          ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-      }
+      // Twitter OAuth routes
+      case req @ GET -> Root / "api" / "twitter" / "authorize" =>
+        auth.middleware.run(req).flatMap {
+          case Some(authedReq) =>
+            extractAccessToken(authedReq) match {
+              case Some(token) =>
+                twitter.getAuthorizationUrl(token).value.flatMap {
+                  case Right(url) => Found(Location(Uri.unsafeFromString(url)))
+                  case Left(error) => InternalServerError(error.message)
+                }
+              case None =>
+                IO.pure(Response[IO](
+                  Status.Unauthorized
+                ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+            }
+          case None =>
+            IO.pure(Response[IO](
+              Status.Unauthorized
+            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+        }
 
-    case req @ GET -> Root / "api" / "twitter" / "callback" =>
-      auth.middleware.run(req).flatMap {
-        case Some(authedReq) =>
-          (authedReq.params.get("oauth_token"), authedReq.params.get("oauth_verifier")) match {
-            case (Some(token), Some(verifier)) =>
-              twitter.handleCallback(token, verifier).value.flatMap {
-                case Right(_) =>
-                  Found(Location(Uri.unsafeFromString("/account")))
-                    .map(_.withHeaders(
-                      Header.Raw(ci"Cache-Control", "no-store, no-cache, must-revalidate, private"),
-                      Header.Raw(ci"Pragma", "no-cache"),
-                      Header.Raw(ci"Expires", "0")
-                    ))
-                case Left(error) => InternalServerError(error.message)
-              }
-            case _ => BadRequest("Missing oauth_token or oauth_verifier")
-          }
-        case None =>
-          IO.pure(Response[IO](
-            Status.Unauthorized
-          ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-      }
+      case req @ GET -> Root / "api" / "twitter" / "callback" =>
+        auth.middleware.run(req).flatMap {
+          case Some(authedReq) =>
+            (authedReq.params.get("oauth_token"), authedReq.params.get("oauth_verifier")) match {
+              case (Some(token), Some(verifier)) =>
+                twitter.handleCallback(token, verifier).value.flatMap {
+                  case Right(_) =>
+                    Found(Location(Uri.unsafeFromString("/account")))
+                      .map(_.withHeaders(
+                        Header.Raw(
+                          ci"Cache-Control",
+                          "no-store, no-cache, must-revalidate, private"
+                        ),
+                        Header.Raw(ci"Pragma", "no-cache"),
+                        Header.Raw(ci"Expires", "0")
+                      ))
+                  case Left(error) => InternalServerError(error.message)
+                }
+              case _ => BadRequest("Missing oauth_token or oauth_verifier")
+            }
+          case None =>
+            IO.pure(Response[IO](
+              Status.Unauthorized
+            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+        }
 
-    case req @ GET -> Root / "api" / "twitter" / "status" =>
-      auth.middleware.run(req).flatMap {
-        case Some(_) =>
-          twitter.getAuthStatus.flatMap { createdAt =>
-            Ok(Json.obj(
-              "hasAuthorization" -> Json.fromBoolean(createdAt.isDefined),
-              "createdAt" -> Json.fromLong(createdAt.getOrElse(0L))
-            ))
-          }
-        case None =>
-          IO.pure(Response[IO](
-            Status.Unauthorized
-          ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-      }
+      case req @ GET -> Root / "api" / "twitter" / "status" =>
+        auth.middleware.run(req).flatMap {
+          case Some(_) =>
+            twitter.getAuthStatus.flatMap { createdAt =>
+              Ok(Json.obj(
+                "hasAuthorization" -> Json.fromBoolean(createdAt.isDefined),
+                "createdAt" -> Json.fromLong(createdAt.getOrElse(0L))
+              ))
+            }
+          case None =>
+            IO.pure(Response[IO](
+              Status.Unauthorized
+            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+        }
 
-    // Social media posting routes
-    case req @ POST -> Root / "api" / "bluesky" / "post" =>
-      handleAuthenticatedPost(req, bluesky.createPost)
+      // Social media posting routes
+      case req @ POST -> Root / "api" / "bluesky" / "post" =>
+        handleAuthenticatedPost(req, bluesky.createPost)
 
-    case req @ POST -> Root / "api" / "mastodon" / "post" =>
-      handleAuthenticatedPost(req, mastodon.createPost)
+      case req @ POST -> Root / "api" / "mastodon" / "post" =>
+        handleAuthenticatedPost(req, mastodon.createPost)
 
-    case req @ POST -> Root / "api" / "twitter" / "post" =>
-      handleAuthenticatedPost(req, twitter.createPost)
+      case req @ POST -> Root / "api" / "twitter" / "post" =>
+        handleAuthenticatedPost(req, twitter.createPost)
 
-    case req @ POST -> Root / "api" / "rss" / "post" =>
-      handleAuthenticatedPost(req, createRssPost)
+      case req @ POST -> Root / "api" / "rss" / "post" =>
+        handleAuthenticatedPost(req, createRssPost)
 
-    // Multi-target posting
-    case req @ POST -> Root / "api" / "multiple" / "post" =>
-      auth.middleware.run(req).flatMap {
-        case Some(authedReq) =>
-          handleMultiplePost(authedReq)
-        case None =>
-          IO.pure(Response[IO](
-            Status.Unauthorized
-          ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-      }
+      // Multi-target posting
+      case req @ POST -> Root / "api" / "multiple" / "post" =>
+        auth.middleware.run(req).flatMap {
+          case Some(authedReq) =>
+            handleMultiplePost(authedReq)
+          case None =>
+            IO.pure(Response[IO](
+              Status.Unauthorized
+            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+        }
 
-    // File upload
-    case req @ POST -> Root / "api" / "files" / "upload" =>
-      auth.middleware.run(req).flatMap {
-        case Some(authedReq) =>
-          handleFileUpload(authedReq)
-        case None =>
-          IO.pure(Response[IO](
-            Status.Unauthorized
-          ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-      }
-  }
+      // File upload
+      case req @ POST -> Root / "api" / "files" / "upload" =>
+        auth.middleware.run(req).flatMap {
+          case Some(authedReq) =>
+            handleFileUpload(authedReq)
+          case None =>
+            IO.pure(Response[IO](
+              Status.Unauthorized
+            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+        }
+    }
 
   val routes: HttpRoutes[IO] = publicRoutes <+> protectedRoutes
 
@@ -361,4 +366,5 @@ class Routes(
         val value = header.head.value
         if value.startsWith("Bearer ") then Some(value.substring(7)) else None
       })
+
 }

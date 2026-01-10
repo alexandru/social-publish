@@ -21,47 +21,50 @@ trait DocumentsDatabase {
 }
 
 object DocumentsDatabase {
+
   def apply(xa: Transactor[IO]): IO[DocumentsDatabase] =
     for {
       logger <- Slf4jLogger.create[IO]
       _ <- migrations.traverse_(m => m.run(xa, logger))
     } yield new DocumentsDatabaseImpl(xa)
 
-  private val migrations = List(
-    Migration(
-      ddl = List(
-        """CREATE TABLE IF NOT EXISTS documents (
+  private val migrations =
+    List(
+      Migration(
+        ddl = List(
+          """CREATE TABLE IF NOT EXISTS documents (
           |  uuid TEXT PRIMARY KEY NOT NULL,
           |  kind TEXT NOT NULL,
           |  payload TEXT NOT NULL,
           |  created_at INTEGER NOT NULL
           |)""".stripMargin,
-        "CREATE INDEX IF NOT EXISTS documents_kind_idx ON documents (kind)",
-        "CREATE INDEX IF NOT EXISTS documents_created_at_idx ON documents (created_at DESC)"
+          "CREATE INDEX IF NOT EXISTS documents_kind_idx ON documents (kind)",
+          "CREATE INDEX IF NOT EXISTS documents_created_at_idx ON documents (created_at DESC)"
+        ),
+        testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
+          .query[String]
+          .option
+          .map(_.isDefined)
       ),
-      testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
-        .query[String]
-        .option
-        .map(_.isDefined)
-    ),
-    Migration(
-      ddl = List(
-        """CREATE TABLE IF NOT EXISTS document_tags (
+      Migration(
+        ddl = List(
+          """CREATE TABLE IF NOT EXISTS document_tags (
           |  document_uuid TEXT NOT NULL,
           |  name TEXT NOT NULL,
           |  kind TEXT NOT NULL,
           |  PRIMARY KEY (document_uuid, name, kind),
           |  FOREIGN KEY (document_uuid) REFERENCES documents(uuid) ON DELETE CASCADE
           |)""".stripMargin,
-        "CREATE INDEX IF NOT EXISTS document_tags_document_uuid_idx ON document_tags (document_uuid)"
-      ),
-      testIfApplied =
-        sql"SELECT name FROM sqlite_master WHERE type='table' AND name='document_tags'"
-          .query[String]
-          .option
-          .map(_.isDefined)
+          "CREATE INDEX IF NOT EXISTS document_tags_document_uuid_idx ON document_tags (document_uuid)"
+        ),
+        testIfApplied =
+          sql"SELECT name FROM sqlite_master WHERE type='table' AND name='document_tags'"
+            .query[String]
+            .option
+            .map(_.isDefined)
+      )
     )
-  )
+
 }
 
 private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabase {
@@ -151,9 +154,11 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
     sql"SELECT name, kind FROM document_tags WHERE document_uuid = $docUuid"
       .query[(String, String)]
       .map { case (name, kind) => DocumentTag(name, kind) }
+
 }
 
 case class Migration(ddl: List[String], testIfApplied: ConnectionIO[Boolean]) {
+
   def run(xa: Transactor[IO], logger: Logger[IO]): IO[Unit] =
     testIfApplied.transact(xa).flatMap { applied =>
       if !applied then logger.info(s"Running migration...") *>
@@ -164,4 +169,5 @@ case class Migration(ddl: List[String], testIfApplied: ConnectionIO[Boolean]) {
       else
         logger.info("Migration already applied, skipping")
     }
+
 }

@@ -32,4 +32,5 @@ object DatabaseFixtures {
     tempDocumentsDbResource.flatMap { tdocs =>
       Resource.eval(IO.pure(TestPostsDatabase(new PostsDatabaseImpl(tdocs.db), tdocs.path)))
     }
+
 }

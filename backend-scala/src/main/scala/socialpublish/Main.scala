@@ -87,4 +87,5 @@ object Main extends CommandIOApp(
 
       programResource.use(_ => IO.never).as(ExitCode.Success)
     }
+
 }

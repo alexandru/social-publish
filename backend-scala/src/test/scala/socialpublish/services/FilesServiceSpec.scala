@@ -73,4 +73,5 @@ class FilesServiceSpec extends CatsEffectSuite {
       }
     }
   }
+
 }

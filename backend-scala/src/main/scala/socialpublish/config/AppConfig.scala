@@ -18,13 +18,14 @@ case class AppConfig(
 
 object AppConfig {
 
-  val opts: Opts[AppConfig] = (
-    DatabaseConfig.opts,
-    ServerConfig.opts,
-    BlueskyConfig.opts,
-    MastodonConfig.opts,
-    TwitterConfig.opts,
-    FilesConfig.opts
-  ).mapN(AppConfig.apply)
+  val opts: Opts[AppConfig] =
+    (
+      DatabaseConfig.opts,
+      ServerConfig.opts,
+      BlueskyConfig.opts,
+      MastodonConfig.opts,
+      TwitterConfig.opts,
+      FilesConfig.opts
+    ).mapN(AppConfig.apply)
 
 }

@@ -23,6 +23,7 @@ trait BlueskyApi {
 }
 
 object BlueskyApi {
+
   case class LoginResponse(accessJwt: String, refreshJwt: String, handle: String, did: String)
       derives Codec.AsObject
 
@@ -56,6 +57,7 @@ object BlueskyApi {
     val request = Request[IO](Method.POST, uri).withEntity(LoginRequest(username, password).asJson)
     client.expect[Json](request).flatMap { json => IO.fromEither(json.as[LoginResponse]) }
   }
+
 }
 
 private class BlueskyApiImpl(
@@ -224,4 +226,5 @@ private class BlueskyApiImpl(
       }
     }
   }
+
 }

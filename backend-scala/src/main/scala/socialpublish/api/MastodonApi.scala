@@ -23,6 +23,7 @@ trait MastodonApi {
 }
 
 object MastodonApi {
+
   def apply(
     config: MastodonConfig,
     client: Client[IO],
@@ -30,6 +31,7 @@ object MastodonApi {
     logger: Logger[IO]
   ): MastodonApi =
     new MastodonApiImpl(config, client, files, logger)
+
 }
 
 private class MastodonApiImpl(
@@ -41,6 +43,7 @@ private class MastodonApiImpl(
 
   @unused
   private case class MediaUploadResponse(id: String, url: String) derives Codec.AsObject
+
   private case class StatusResponse(id: String, uri: String, url: String) derives Codec.AsObject
 
   override def createPost(request: NewPostRequest): Result[NewPostResponse] =
@@ -107,4 +110,5 @@ private class MastodonApiImpl(
       }
     }
   }
+
 }

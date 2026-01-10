@@ -60,4 +60,5 @@ class PostsDatabaseSpec extends CatsEffectSuite {
       } yield assertEquals(result, None)
     }
   }
+
 }

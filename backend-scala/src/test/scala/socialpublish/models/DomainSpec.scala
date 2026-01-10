@@ -55,4 +55,5 @@ class DomainSpec extends FunSuite {
     val moduleField = json.hcursor.get[String]("module")
     assertEquals(moduleField, Right("mastodon"))
   }
+
 }

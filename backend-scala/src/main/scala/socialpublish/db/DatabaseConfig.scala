@@ -7,6 +7,7 @@ import cats.syntax.all.*
 case class DatabaseConfig(path: Path)
 
 object DatabaseConfig {
+
   private def envOrDefault(envName: String, default: => String): String =
     sys.env.getOrElse(envName, default)
 
@@ -33,4 +34,5 @@ object DatabaseConfig {
       "",
       ExecutionContext.global
     )
+
 }

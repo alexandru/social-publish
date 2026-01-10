@@ -11,16 +11,19 @@ enum Target {
 }
 
 object Target {
-  given Codec[Target] = Codec.from(
-    Decoder.decodeString.emap {
-      case "mastodon" | "Mastodon" => Right(Target.Mastodon)
-      case "bluesky" | "Bluesky" => Right(Target.Bluesky)
-      case "twitter" | "Twitter" => Right(Target.Twitter)
-      // case "linkedin" | "LinkedIn" => Right(Target.LinkedIn)
-      case other => Left(s"Unknown target: $other")
-    },
-    Encoder.encodeString.contramap(_.toString.toLowerCase)
-  )
+
+  given Codec[Target] =
+    Codec.from(
+      Decoder.decodeString.emap {
+        case "mastodon" | "Mastodon" => Right(Target.Mastodon)
+        case "bluesky" | "Bluesky" => Right(Target.Bluesky)
+        case "twitter" | "Twitter" => Right(Target.Twitter)
+        // case "linkedin" | "LinkedIn" => Right(Target.LinkedIn)
+        case other => Left(s"Unknown target: $other")
+      },
+      Encoder.encodeString.contramap(_.toString.toLowerCase)
+    )
+
 }
 
 // Post domain model
@@ -46,7 +49,10 @@ case class NewPostRequest(
 )
 
 object NewPostRequest {
-  given Codec[NewPostRequest] = deriveCodec
+
+  given Codec[NewPostRequest] =
+    deriveCodec
+
 }
 
 // Response from creating a post
@@ -56,38 +62,43 @@ enum NewPostResponse {
   case Twitter(id: String)
   case Rss(uri: String)
 
-  def module: String = this match {
-    case Bluesky(_, _) => "bluesky"
-    case Mastodon(_) => "mastodon"
-    case Twitter(_) => "twitter"
-    case Rss(_) => "rss"
-  }
+  def module: String =
+    this match {
+      case Bluesky(_, _) => "bluesky"
+      case Mastodon(_) => "mastodon"
+      case Twitter(_) => "twitter"
+      case Rss(_) => "rss"
+    }
+
 }
 
 object NewPostResponse {
-  given Encoder[NewPostResponse] = Encoder.instance {
-    case Bluesky(uri, cid) =>
-      io.circe.Json.obj(
-        "module" -> io.circe.Json.fromString("bluesky"),
-        "uri" -> io.circe.Json.fromString(uri),
-        "cid" -> cid.fold(io.circe.Json.Null)(io.circe.Json.fromString)
-      )
-    case Mastodon(uri) =>
-      io.circe.Json.obj(
-        "module" -> io.circe.Json.fromString("mastodon"),
-        "uri" -> io.circe.Json.fromString(uri)
-      )
-    case Twitter(id) =>
-      io.circe.Json.obj(
-        "module" -> io.circe.Json.fromString("twitter"),
-        "id" -> io.circe.Json.fromString(id)
-      )
-    case Rss(uri) =>
-      io.circe.Json.obj(
-        "module" -> io.circe.Json.fromString("rss"),
-        "uri" -> io.circe.Json.fromString(uri)
-      )
-  }
+
+  given Encoder[NewPostResponse] =
+    Encoder.instance {
+      case Bluesky(uri, cid) =>
+        io.circe.Json.obj(
+          "module" -> io.circe.Json.fromString("bluesky"),
+          "uri" -> io.circe.Json.fromString(uri),
+          "cid" -> cid.fold(io.circe.Json.Null)(io.circe.Json.fromString)
+        )
+      case Mastodon(uri) =>
+        io.circe.Json.obj(
+          "module" -> io.circe.Json.fromString("mastodon"),
+          "uri" -> io.circe.Json.fromString(uri)
+        )
+      case Twitter(id) =>
+        io.circe.Json.obj(
+          "module" -> io.circe.Json.fromString("twitter"),
+          "id" -> io.circe.Json.fromString(id)
+        )
+      case Rss(uri) =>
+        io.circe.Json.obj(
+          "module" -> io.circe.Json.fromString("rss"),
+          "uri" -> io.circe.Json.fromString(uri)
+        )
+    }
+
 }
 
 // File/Image metadata

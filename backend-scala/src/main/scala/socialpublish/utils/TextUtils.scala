@@ -1,6 +1,7 @@
 package socialpublish.utils
 
 object TextUtils {
+
   // Simple HTML to text conversion - removes tags
   def convertHtml(html: String): String =
     html
@@ -24,4 +25,5 @@ object TextUtils {
     val h = hashCode(str).abs
     (h % mod).toInt
   }
+
 }

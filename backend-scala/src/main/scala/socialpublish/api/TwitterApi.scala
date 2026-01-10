@@ -40,6 +40,7 @@ trait TwitterApi {
 }
 
 object TwitterApi {
+
   def apply(
     server: ServerConfig,
     config: TwitterConfig,
@@ -49,25 +50,31 @@ object TwitterApi {
     logger: Logger[IO]
   ): TwitterApi =
     new TwitterApiImpl(server, config, client, files, docsDb, logger)
+
 }
 
 private case class AuthorizedToken(
   key: String,
   secret: String
 ) derives Codec.AsObject
+
 private case class TwitterMediaUploadResponse(
   media_id_string: String
 ) derives Codec.AsObject
+
 private case class CreateNewPostRequest(
   text: String,
   media: Option[MediaIds]
 ) derives Codec.AsObject
+
 private case class MediaIds(
   media_ids: List[String]
 ) derives Codec.AsObject
+
 private case class TweetData(
   id: String
 ) derives Codec.AsObject
+
 private case class TweetResponse(
   data: TweetData
 ) derives Codec.AsObject
@@ -333,4 +340,5 @@ private class TwitterApiImpl(
       else
         parts(0) -> ""
     }.toMap
+
 }

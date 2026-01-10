@@ -8,6 +8,7 @@ import socialpublish.models.*
 import java.util.UUID
 
 trait PostsDatabase {
+
   def create(
     content: String,
     link: Option[String],
@@ -16,6 +17,7 @@ trait PostsDatabase {
     images: List[UUID],
     targets: List[Target]
   ): IO[Post]
+
   def getAll: IO[List[Post]]
   def searchByUUID(uuid: UUID): IO[Option[Post]]
 }
@@ -93,4 +95,5 @@ class PostsDatabaseImpl(docsDb: DocumentsDatabase) extends PostsDatabase {
         }
       )
     }
+
 }

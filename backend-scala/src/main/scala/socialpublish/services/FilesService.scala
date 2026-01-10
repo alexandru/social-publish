@@ -23,6 +23,7 @@ case class ProcessedFile(
 )
 
 trait FilesService {
+
   def saveFile(
     filename: String,
     mimeType: String,
@@ -36,6 +37,7 @@ trait FilesService {
 }
 
 object FilesService {
+
   def apply(config: FilesConfig, db: FilesDatabase): IO[FilesService] =
     for {
       logger <- Slf4jLogger.create[IO]
@@ -152,4 +154,5 @@ private class FilesServiceImpl(
       else
         (0, 0)
     }
+
 }

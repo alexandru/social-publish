@@ -13,6 +13,7 @@ enum ApiError(val status: Int, val message: String, val module: String) {
 }
 
 object ApiError {
+
   def validationError(message: String, module: String = "server"): ApiError =
     ValidationError(400, message, module)
 
@@ -27,16 +28,27 @@ object ApiError {
 
   def unauthorized(message: String): ApiError =
     Unauthorized(message)
+
 }
 
 // Type alias for IO-based Either
 type Result[A] = EitherT[IO, ApiError, A]
 
 object Result {
-  def success[A](value: A): Result[A] = EitherT.rightT(value)
-  def error[A](error: ApiError): Result[A] = EitherT.leftT(error)
-  def liftIO[A](io: IO[A]): Result[A] = EitherT.liftF(io)
-  def fromEither[A](either: Either[ApiError, A]): Result[A] = EitherT.fromEither(either)
+
+  def success[A](value: A): Result[A] =
+    EitherT.rightT(value)
+
+  def error[A](error: ApiError): Result[A] =
+    EitherT.leftT(error)
+
+  def liftIO[A](io: IO[A]): Result[A] =
+    EitherT.liftF(io)
+
+  def fromEither[A](either: Either[ApiError, A]): Result[A] =
+    EitherT.fromEither(either)
+
   def fromOption[A](option: Option[A], ifNone: => ApiError): Result[A] =
     EitherT.fromOption(option, ifNone)
+
 }

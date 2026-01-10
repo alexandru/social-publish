@@ -41,4 +41,5 @@ class ErrorsSpec extends CatsEffectSuite {
       assertEquals(either.left.toOption.get.message, "test error")
     }
   }
+
 }

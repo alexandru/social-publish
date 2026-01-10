@@ -108,4 +108,5 @@ class AuthMiddleware(
     )
     JwtCirce.encode(claim, server.jwtSecret, JwtAlgorithm.HS256)
   }
+
 }

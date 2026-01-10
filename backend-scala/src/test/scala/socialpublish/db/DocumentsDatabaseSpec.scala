@@ -66,4 +66,5 @@ class DocumentsDatabaseSpec extends CatsEffectSuite {
       } yield assertEquals(result, None)
     }
   }
+
 }
