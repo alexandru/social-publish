@@ -22,9 +22,9 @@ case class LoginResponse(token: String, hasAuth: AuthStatus) derives Codec.AsObj
 case class AuthStatus(twitter: Boolean) derives Codec.AsObject
 
 class AuthMiddleware(
-    server: ServerConfig,
-    twitter: TwitterApi,
-    logger: Logger[IO]
+  server: ServerConfig,
+  twitter: TwitterApi,
+  logger: Logger[IO]
 ) {
 
   // Middleware that validates JWT tokens - simplified version that just validates

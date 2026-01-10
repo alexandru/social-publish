@@ -25,24 +25,24 @@ object Target {
 
 // Post domain model
 case class Post(
-    uuid: UUID,
-    content: String,
-    link: Option[String],
-    tags: List[String],
-    language: Option[String],
-    images: List[UUID],
-    targets: List[Target],
-    createdAt: Instant
+  uuid: UUID,
+  content: String,
+  link: Option[String],
+  tags: List[String],
+  language: Option[String],
+  images: List[UUID],
+  targets: List[Target],
+  createdAt: Instant
 )
 
 // Request to create a new post
 case class NewPostRequest(
-    content: String,
-    targets: Option[List[Target]],
-    link: Option[String],
-    language: Option[String],
-    cleanupHtml: Option[Boolean],
-    images: Option[List[UUID]]
+  content: String,
+  targets: Option[List[Target]],
+  link: Option[String],
+  language: Option[String],
+  cleanupHtml: Option[Boolean],
+  images: Option[List[UUID]]
 )
 
 object NewPostRequest {
@@ -92,26 +92,26 @@ object NewPostResponse {
 
 // File/Image metadata
 case class FileMetadata(
-    uuid: UUID,
-    originalName: String,
-    mimeType: String,
-    size: Long,
-    altText: Option[String],
-    width: Option[Int],
-    height: Option[Int],
-    createdAt: Instant
+  uuid: UUID,
+  originalName: String,
+  mimeType: String,
+  size: Long,
+  altText: Option[String],
+  width: Option[Int],
+  height: Option[Int],
+  createdAt: Instant
 )
 
 // Document stored in database
 case class Document(
-    uuid: UUID,
-    kind: String,
-    payload: String,
-    tags: List[DocumentTag],
-    createdAt: Instant
+  uuid: UUID,
+  kind: String,
+  payload: String,
+  tags: List[DocumentTag],
+  createdAt: Instant
 )
 
 case class DocumentTag(
-    name: String,
-    kind: String
+  name: String,
+  kind: String
 )

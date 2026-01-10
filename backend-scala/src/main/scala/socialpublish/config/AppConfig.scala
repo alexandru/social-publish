@@ -8,12 +8,12 @@ import socialpublish.http.ServerConfig
 import socialpublish.services.FilesConfig
 
 case class AppConfig(
-    database: DatabaseConfig,
-    server: ServerConfig,
-    bluesky: BlueskyConfig,
-    mastodon: MastodonConfig,
-    twitter: TwitterConfig,
-    files: FilesConfig
+  database: DatabaseConfig,
+  server: ServerConfig,
+  bluesky: BlueskyConfig,
+  mastodon: MastodonConfig,
+  twitter: TwitterConfig,
+  files: FilesConfig
 )
 
 object AppConfig {

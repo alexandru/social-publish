@@ -67,9 +67,9 @@ object DocumentsDatabase {
 private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabase {
 
   override def createOrUpdate(
-      kind: String,
-      payload: String,
-      tags: List[DocumentTag]
+    kind: String,
+    payload: String,
+    tags: List[DocumentTag]
   ): IO[Document] = {
     val uuid = UUID.randomUUID()
     val now = Instant.now()

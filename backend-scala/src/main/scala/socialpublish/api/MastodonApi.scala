@@ -24,19 +24,19 @@ trait MastodonApi {
 
 object MastodonApi {
   def apply(
-      config: MastodonConfig,
-      client: Client[IO],
-      files: FilesService,
-      logger: Logger[IO]
+    config: MastodonConfig,
+    client: Client[IO],
+    files: FilesService,
+    logger: Logger[IO]
   ): MastodonApi =
     new MastodonApiImpl(config, client, files, logger)
 }
 
 private class MastodonApiImpl(
-    config: MastodonConfig,
-    client: Client[IO],
-    files: FilesService,
-    logger: Logger[IO]
+  config: MastodonConfig,
+  client: Client[IO],
+  files: FilesService,
+  logger: Logger[IO]
 ) extends MastodonApi {
 
   @unused
@@ -82,9 +82,9 @@ private class MastodonApiImpl(
     } yield mediaId
 
   private def createStatus(
-      text: String,
-      mediaIds: List[String],
-      language: Option[String]
+    text: String,
+    mediaIds: List[String],
+    language: Option[String]
   ): Result[StatusResponse] = {
     val uri = Uri.unsafeFromString(s"${config.host}/api/v1/statuses")
 

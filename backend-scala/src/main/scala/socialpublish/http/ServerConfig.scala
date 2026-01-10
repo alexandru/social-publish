@@ -4,11 +4,11 @@ import com.monovore.decline.Opts
 import cats.syntax.all.*
 
 case class ServerConfig(
-    port: Int,
-    baseUrl: String,
-    authUser: String,
-    authPass: String,
-    jwtSecret: String
+  port: Int,
+  baseUrl: String,
+  authUser: String,
+  authPass: String,
+  jwtSecret: String
 )
 
 object ServerConfig {

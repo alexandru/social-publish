@@ -13,21 +13,21 @@ import javax.imageio.ImageIO
 import java.io.ByteArrayInputStream
 
 case class ProcessedFile(
-    uuid: UUID,
-    originalName: String,
-    mimeType: String,
-    bytes: Array[Byte],
-    altText: Option[String],
-    width: Int,
-    height: Int
+  uuid: UUID,
+  originalName: String,
+  mimeType: String,
+  bytes: Array[Byte],
+  altText: Option[String],
+  width: Int,
+  height: Int
 )
 
 trait FilesService {
   def saveFile(
-      filename: String,
-      mimeType: String,
-      bytes: Array[Byte],
-      altText: Option[String]
+    filename: String,
+    mimeType: String,
+    bytes: Array[Byte],
+    altText: Option[String]
   ): IO[FileMetadata]
 
   def getFile(uuid: UUID): IO[Option[ProcessedFile]]
@@ -67,16 +67,16 @@ object FilesService {
 }
 
 private class FilesServiceImpl(
-    config: FilesConfig,
-    db: FilesDatabase,
-    logger: Logger[IO]
+  config: FilesConfig,
+  db: FilesDatabase,
+  logger: Logger[IO]
 ) extends FilesService {
 
   override def saveFile(
-      filename: String,
-      mimeType: String,
-      bytes: Array[Byte],
-      altText: Option[String]
+    filename: String,
+    mimeType: String,
+    bytes: Array[Byte],
+    altText: Option[String]
   ): IO[FileMetadata] =
     for {
       uuid <- IO.delay(UUID.randomUUID())

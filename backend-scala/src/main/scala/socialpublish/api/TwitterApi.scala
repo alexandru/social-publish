@@ -41,44 +41,44 @@ trait TwitterApi {
 
 object TwitterApi {
   def apply(
-      server: ServerConfig,
-      config: TwitterConfig,
-      client: Client[IO],
-      files: FilesService,
-      docsDb: DocumentsDatabase,
-      logger: Logger[IO]
-  ): TwitterApi =
-    new TwitterApiImpl(server, config, client, files, docsDb, logger)
-}
-
-private case class AuthorizedToken(
-    key: String,
-    secret: String
-) derives Codec.AsObject
-private case class TwitterMediaUploadResponse(
-    media_id_string: String
-) derives Codec.AsObject
-private case class CreateNewPostRequest(
-    text: String,
-    media: Option[MediaIds]
-) derives Codec.AsObject
-private case class MediaIds(
-    media_ids: List[String]
-) derives Codec.AsObject
-private case class TweetData(
-    id: String
-) derives Codec.AsObject
-private case class TweetResponse(
-    data: TweetData
-) derives Codec.AsObject
-
-private class TwitterApiImpl(
     server: ServerConfig,
     config: TwitterConfig,
     client: Client[IO],
     files: FilesService,
     docsDb: DocumentsDatabase,
     logger: Logger[IO]
+  ): TwitterApi =
+    new TwitterApiImpl(server, config, client, files, docsDb, logger)
+}
+
+private case class AuthorizedToken(
+  key: String,
+  secret: String
+) derives Codec.AsObject
+private case class TwitterMediaUploadResponse(
+  media_id_string: String
+) derives Codec.AsObject
+private case class CreateNewPostRequest(
+  text: String,
+  media: Option[MediaIds]
+) derives Codec.AsObject
+private case class MediaIds(
+  media_ids: List[String]
+) derives Codec.AsObject
+private case class TweetData(
+  id: String
+) derives Codec.AsObject
+private case class TweetResponse(
+  data: TweetData
+) derives Codec.AsObject
+
+private class TwitterApiImpl(
+  server: ServerConfig,
+  config: TwitterConfig,
+  client: Client[IO],
+  files: FilesService,
+  docsDb: DocumentsDatabase,
+  logger: Logger[IO]
 ) extends TwitterApi {
 
   private val requestTokenURL = "https://api.twitter.com/oauth/request_token"
@@ -262,10 +262,10 @@ private class TwitterApiImpl(
     }
 
   private def generateOAuthParams(
-      method: String,
-      url: String,
-      queryParams: Map[String, String],
-      token: Option[AuthorizedToken]
+    method: String,
+    url: String,
+    queryParams: Map[String, String],
+    token: Option[AuthorizedToken]
   ): Map[String, String] = {
     val nonce = Random.alphanumeric.take(32).mkString
     val timestamp = (System.currentTimeMillis() / 1000).toString
@@ -288,10 +288,10 @@ private class TwitterApiImpl(
   }
 
   private def generateSignature(
-      method: String,
-      url: String,
-      params: Map[String, String],
-      token: Option[AuthorizedToken]
+    method: String,
+    url: String,
+    params: Map[String, String],
+    token: Option[AuthorizedToken]
   ): String = {
     val sortedParams = params.toSeq.sortBy(_._1)
     val paramString = sortedParams.map { case (k, v) =>

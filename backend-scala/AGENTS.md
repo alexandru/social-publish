@@ -26,9 +26,10 @@ Commands:
   * For example, prefer named tuples (case classes) to ad-hoc Java-style wrapper classes.
 - Use FP, including when dealing with `IO`. DO NOT use `unsafeRunSync` in code, not even in tests.
   * Avoid using side-effectful Java APIs in production code without wrapping them in `IO` to make them safe — for instance, `UUID.randomUUID` is obviously a side-effectful call that's not safe without wrapping it in (Cats-Effect) `IO`.
-* Prefer beautiful and type-safe code, prefer encapsulation over ad-hoc grouping by file type — I want to see fully-baked components, and I don't see much value in project-wide MVC-style grouping of files (e.g., models/views/controllers directories, encompassing many components, suck)
-  - Components have to be encapsulated enough that they can be extracted in their own sub-projects or libraries;
-  - For instance, a component is the Twitter integration, another is the Mastodon integration, and yet another component is the HTTP server exposing these integrations.
+- Avoid public inner class/trait definitions; unless private, or unless part of a sealed trait/class (union type), all traits and classes must be top-level.
+- Prefer beautiful and type-safe code, prefer encapsulation over ad-hoc grouping by file type — I want to see fully-baked components, and I don't see much value in project-wide MVC-style grouping of files (e.g., models/views/controllers directories, encompassing many components, suck)
+  * Components have to be encapsulated enough that they can be extracted in their own sub-projects or libraries;
+  * For instance, a component is the Twitter integration, another is the Mastodon integration, and yet another component is the HTTP server exposing these integrations.
 
 ## Development Strategy
 

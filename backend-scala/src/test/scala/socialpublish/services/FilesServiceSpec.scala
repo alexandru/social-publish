@@ -9,7 +9,7 @@ import java.util.UUID
 class FilesServiceSpec extends CatsEffectSuite {
 
   private def mkResources(tempDir: Path)
-      : Resource[IO, (doobie.util.transactor.Transactor[IO], FilesService)] = {
+    : Resource[IO, (doobie.util.transactor.Transactor[IO], FilesService)] = {
     {
       val dbCfg = socialpublish.db.DatabaseConfig(tempDir.resolve("test.db"))
       for {

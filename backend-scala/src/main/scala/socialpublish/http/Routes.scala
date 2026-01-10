@@ -19,14 +19,14 @@ import org.typelevel.log4cats.Logger
 import java.util.UUID
 
 class Routes(
-    server: ServerConfig,
-    auth: AuthMiddleware,
-    bluesky: BlueskyApi,
-    mastodon: MastodonApi,
-    twitter: TwitterApi,
-    files: FilesService,
-    posts: PostsDatabase,
-    logger: Logger[IO]
+  server: ServerConfig,
+  auth: AuthMiddleware,
+  bluesky: BlueskyApi,
+  mastodon: MastodonApi,
+  twitter: TwitterApi,
+  files: FilesService,
+  posts: PostsDatabase,
+  logger: Logger[IO]
 ) {
 
   // Public routes (no authentication required)
@@ -165,8 +165,8 @@ class Routes(
   val routes: HttpRoutes[IO] = publicRoutes <+> protectedRoutes
 
   private def handleAuthenticatedPost(
-      req: Request[IO],
-      handler: NewPostRequest => Result[NewPostResponse]
+    req: Request[IO],
+    handler: NewPostRequest => Result[NewPostResponse]
   ): IO[Response[IO]] =
     auth.middleware.run(req).flatMap {
       case Some(authedReq) =>

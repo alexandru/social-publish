@@ -27,10 +27,10 @@ object BlueskyApi {
       derives Codec.AsObject
 
   def resource(
-      cfg: BlueskyConfig,
-      client: Client[IO],
-      files: FilesService,
-      logger: Logger[IO]
+    cfg: BlueskyConfig,
+    client: Client[IO],
+    files: FilesService,
+    logger: Logger[IO]
   ): Resource[IO, BlueskyApi] =
     Resource.eval(login(cfg, client, logger)).map(session =>
       new BlueskyApiImpl(cfg, client, files, logger, session)
@@ -39,18 +39,18 @@ object BlueskyApi {
   private case class LoginRequest(identifier: String, password: String) derives Codec.AsObject
 
   private def login(
-      cfg: BlueskyConfig,
-      client: Client[IO],
-      @unused logger: Logger[IO]
+    cfg: BlueskyConfig,
+    client: Client[IO],
+    @unused logger: Logger[IO]
   ): IO[LoginResponse] =
     loginInternal(cfg.service, cfg.username, cfg.password, client, logger)
 
   private def loginInternal(
-      service: String,
-      username: String,
-      password: String,
-      client: Client[IO],
-      @unused logger: Logger[IO]
+    service: String,
+    username: String,
+    password: String,
+    client: Client[IO],
+    @unused logger: Logger[IO]
   ): IO[LoginResponse] = {
     val uri = Uri.unsafeFromString(s"$service/xrpc/com.atproto.server.createSession")
     val request = Request[IO](Method.POST, uri).withEntity(LoginRequest(username, password).asJson)
@@ -59,11 +59,11 @@ object BlueskyApi {
 }
 
 private class BlueskyApiImpl(
-    config: BlueskyConfig,
-    client: Client[IO],
-    files: FilesService,
-    logger: Logger[IO],
-    session: BlueskyApi.LoginResponse
+  config: BlueskyConfig,
+  client: Client[IO],
+  files: FilesService,
+  logger: Logger[IO],
+  session: BlueskyApi.LoginResponse
 ) extends BlueskyApi {
 
   import BlueskyApi.*
@@ -99,20 +99,20 @@ private class BlueskyApiImpl(
   }
 
   private case class BlobRef(
-      `$type`: String,
-      ref: Json,
-      mimeType: String
+    `$type`: String,
+    ref: Json,
+    mimeType: String
   ) derives Codec.AsObject
 
   private case class ImageEmbed(
-      alt: String,
-      image: BlobRef,
-      aspectRatio: Option[AspectRatio]
+    alt: String,
+    image: BlobRef,
+    aspectRatio: Option[AspectRatio]
   ) derives Codec.AsObject
 
   private case class AspectRatio(
-      width: Int,
-      height: Int
+    width: Int,
+    height: Int
   ) derives Codec.AsObject
 
   private def uploadImage(uuid: UUID): Result[ImageEmbed] =
@@ -165,19 +165,19 @@ private class BlueskyApiImpl(
     }
 
   private case class PostRecord(
-      `$type`: String,
-      text: String,
-      langs: Option[List[String]],
-      facets: Option[List[Facet]],
-      embed: Option[Json],
-      createdAt: String
+    `$type`: String,
+    text: String,
+    langs: Option[List[String]],
+    facets: Option[List[Facet]],
+    embed: Option[Json],
+    createdAt: String
   ) derives Codec.AsObject
 
   private def createPostRecord(
-      text: String,
-      language: Option[String],
-      images: List[ImageEmbed],
-      facets: List[Facet]
+    text: String,
+    language: Option[String],
+    images: List[ImageEmbed],
+    facets: List[Facet]
   ): PostRecord = {
     val embed = if images.nonEmpty then Some(Json.obj(
       "$type" -> Json.fromString("app.bsky.embed.images"),
@@ -196,9 +196,9 @@ private class BlueskyApiImpl(
   }
 
   private case class CreatePostRequest(
-      repo: String,
-      collection: String,
-      record: PostRecord
+    repo: String,
+    collection: String,
+    record: PostRecord
   ) derives Codec.AsObject
 
   private case class CreatePostResponse(uri: String, cid: String) derives Codec.AsObject

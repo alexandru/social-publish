@@ -9,12 +9,12 @@ import java.util.UUID
 
 trait PostsDatabase {
   def create(
-      content: String,
-      link: Option[String],
-      tags: List[String],
-      language: Option[String],
-      images: List[UUID],
-      targets: List[Target]
+    content: String,
+    link: Option[String],
+    tags: List[String],
+    language: Option[String],
+    images: List[UUID],
+    targets: List[Target]
   ): IO[Post]
   def getAll: IO[List[Post]]
   def searchByUUID(uuid: UUID): IO[Option[Post]]
@@ -23,12 +23,12 @@ trait PostsDatabase {
 class PostsDatabaseImpl(docsDb: DocumentsDatabase) extends PostsDatabase {
 
   override def create(
-      content: String,
-      link: Option[String],
-      tags: List[String],
-      language: Option[String],
-      images: List[UUID],
-      targets: List[Target]
+    content: String,
+    link: Option[String],
+    tags: List[String],
+    language: Option[String],
+    images: List[UUID],
+    targets: List[Target]
   ): IO[Post] = {
     val payload = Map(
       "content" -> content.asJson,
