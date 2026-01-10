@@ -28,3 +28,11 @@ Commands:
 * Prefer beautiful and type-safe code, prefer encapsulation over ad-hoc grouping by file type — I want to see fully-baked components, and I don't see much value in project-wide MVC-style grouping of files (e.g., models/views/controllers directories, encompassing many components, suck)
   - Components have to be encapsulated enough that they can be extracted in their own sub-projects or libraries;
   - For instance, a component is the Twitter integration, another is the Mastodon integration, and yet another component is the HTTP server exposing these integrations.
+
+## Development Strategy
+
+For new developments, prefer a TDD style:
+- First create a unit test that fails;
+- Add the code that makes the test pass.
+
+Adding or updating a test first, then see it fail, is REQUIRED to ensure that unit tests are actually testing what they claim.
