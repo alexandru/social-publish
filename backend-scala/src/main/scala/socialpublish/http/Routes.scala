@@ -55,7 +55,8 @@ class Routes(
           case Some(file) =>
             Ok(file.bytes)
               .map(_.withContentType(`Content-Type`(MediaType.unsafeParse(file.mimeType))))
-          case None => NotFound()
+          case None =>
+            NotFound()
         }
 
       // Authentication
@@ -82,12 +83,16 @@ class Routes(
               case None =>
                 IO.pure(Response[IO](
                   Status.Unauthorized
-                ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+                ).withEntity(Json.obj(
+                  "error" -> Json.fromString("Unauthorized")
+                )))
             }
           case None =>
             IO.pure(Response[IO](
               Status.Unauthorized
-            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+            ).withEntity(Json.obj(
+              "error" -> Json.fromString("Unauthorized")
+            )))
         }
 
       case req @ GET -> Root / "api" / "twitter" / "callback" =>
@@ -106,9 +111,11 @@ class Routes(
                         Header.Raw(ci"Pragma", "no-cache"),
                         Header.Raw(ci"Expires", "0")
                       ))
-                  case Left(error) => InternalServerError(error.message)
+                  case Left(error) =>
+                    InternalServerError(error.message)
                 }
-              case _ => BadRequest("Missing oauth_token or oauth_verifier")
+              case _ =>
+                BadRequest("Missing oauth_token or oauth_verifier")
             }
           case None =>
             IO.pure(Response[IO](
@@ -322,15 +329,14 @@ class Routes(
     }
 
     s"""<?xml version="1.0" encoding="UTF-8"?>
-       |<rss version="2.0">
-       |  <channel>
-       |    <title>$title</title>
-        |    <link>${server.baseUrl}/rss</link>
-
-       |    <description>Social media posts</description>
-       |    $items
-       |  </channel>
-       |</rss>""".stripMargin
+      |<rss version="2.0">
+      |  <channel>
+      |    <title>$title</title>
+      |    <link>${server.baseUrl}/rss</link>
+      |    <description>Social media posts</description>
+      |    $items
+      |  </channel>
+      |</rss>""".stripMargin
   }
 
   private def buildRssItem(post: Post): String = {
@@ -340,11 +346,11 @@ class Routes(
     val pubDate = s"<pubDate>${post.createdAt}</pubDate>"
 
     s"""<item>
-       |  <title>$content</title>
-       |  $link
-       |  $guid
-       |  $pubDate
-       |</item>""".stripMargin
+        |  <title>$content</title>
+        |  $link
+        |  $guid
+        |  $pubDate
+        |</item>""".stripMargin
   }
 
   private def escapeXml(text: String): String =
