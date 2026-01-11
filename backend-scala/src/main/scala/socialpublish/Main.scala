@@ -1,20 +1,13 @@
 package socialpublish
 
 import cats.effect.*
-import com.comcast.ip4s.*
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import org.http4s.ember.client.EmberClientBuilder
-import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.server.middleware.CORS
-import org.http4s.server.middleware.Logger as ServerLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import socialpublish.api.BlueskyApi
-import socialpublish.api.MastodonApi
-import socialpublish.api.TwitterApi
+import socialpublish.integrations.Integrations
 import socialpublish.config.AppConfig
 import socialpublish.db.{DocumentsDatabase, FilesDatabase, DatabaseConfig, PostsDatabaseImpl}
-import socialpublish.http.{AuthMiddleware, Routes}
+import socialpublish.http.{AuthMiddleware, HttpServer, Routes}
 import socialpublish.services.FilesService
 
 object Main extends CommandIOApp(
@@ -43,46 +36,31 @@ object Main extends CommandIOApp(
         // Services
         filesService <- FilesService.resource(config.files, filesDb)
 
-        // HTTP client
-        httpClient <- EmberClientBuilder.default[IO].build
-
-        // APIs
-        blueskyApi <- BlueskyApi.resource(config.bluesky, httpClient, filesService, logger)
-        mastodonApi <-
-          Resource.eval(IO.pure(MastodonApi(config.mastodon, httpClient, filesService, logger)))
-        twitterApi <- Resource.eval(IO.pure(TwitterApi(
+        integrations <- Integrations.resource(
           config.server,
+          config.bluesky,
+          config.mastodon,
           config.twitter,
-          httpClient,
           filesService,
-          docsDb,
-          logger
-        )))
+          docsDb
+        )
 
         // Auth middleware and routes
         authMiddleware <-
-          Resource.eval(IO.delay(new AuthMiddleware(config.server, twitterApi, logger)))
+          Resource.eval(IO.delay(new AuthMiddleware(config.server, integrations.twitter, logger)))
         routes <- Resource.eval(IO.delay(new Routes(
           config.server,
           authMiddleware,
-          blueskyApi,
-          mastodonApi,
-          twitterApi,
+          integrations.bluesky,
+          integrations.mastodon,
+          integrations.twitter,
           filesService,
           new PostsDatabaseImpl(docsDb),
           logger
         )))
 
         // Server
-        _ <- EmberServerBuilder
-          .default[IO]
-          .withHost(ipv4"0.0.0.0")
-          .withPort(Port.fromInt(config.server.port).getOrElse(port"3000"))
-          .withHttpApp(ServerLogger.httpApp(
-            logHeaders = true,
-            logBody = false
-          )(CORS.policy.withAllowOriginAll(routes.routes).orNotFound))
-          .build
+        _ <- HttpServer.resource(config.server, routes).map(_ => ())
       } yield ()
 
       programResource.use(_ => IO.never).as(ExitCode.Success)

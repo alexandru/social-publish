@@ -1,25 +1,60 @@
 package socialpublish.http
 
-import cats.data.Kleisli
 import cats.effect.*
+import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
-import org.http4s.*
-import org.http4s.circe.CirceEntityDecoder.*
-import org.http4s.circe.CirceEntityEncoder.*
-import org.typelevel.ci.CIStringSyntax
 import org.typelevel.log4cats.Logger
 import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtCirce
 import pdi.jwt.JwtClaim
-import socialpublish.api.TwitterApi
+import socialpublish.integrations.twitter.TwitterApi
+import socialpublish.models.ApiError
+import sttp.tapir.Schema
 
-import java.time.Instant
+case class UserPayload(username: String) derives Codec.AsObject
 
-case class UserPayload(username: String, iat: Long, exp: Long) derives Codec.AsObject
+object UserPayload {
+  given Schema[UserPayload] =
+    Schema.derived
+}
+
 case class LoginRequest(username: String, password: String) derives Codec.AsObject
+
+object LoginRequest {
+  given Schema[LoginRequest] =
+    Schema.derived
+}
+
 case class LoginResponse(token: String, hasAuth: AuthStatus) derives Codec.AsObject
+
+object LoginResponse {
+  given Schema[LoginResponse] =
+    Schema.derived
+}
+
 case class AuthStatus(twitter: Boolean) derives Codec.AsObject
+
+object AuthStatus {
+  given Schema[AuthStatus] =
+    Schema.derived
+}
+
+case class ProtectedResponse(username: String) derives Codec.AsObject
+
+object ProtectedResponse {
+  given Schema[ProtectedResponse] =
+    Schema.derived
+}
+
+case class AuthInputs(token: String)
+
+case class AuthContext(user: UserPayload, token: String)
+
+object AuthContext {
+  given Schema[AuthContext] =
+    Schema.derived
+}
 
 class AuthMiddleware(
   server: ServerConfig,
@@ -27,86 +62,53 @@ class AuthMiddleware(
   logger: Logger[IO]
 ) {
 
-  // Middleware that validates JWT tokens - simplified version that just validates
-  def middleware: Kleisli[IO, Request[IO], Option[Request[IO]]] =
-    Kleisli { req =>
-      validateToken(req).map {
-        case Some(_) => Some(req)
-        case None => None
-      }
-    }
-
-  def login(req: Request[IO]): IO[Response[IO]] =
-    req.as[LoginRequest].flatMap { credentials =>
-      if credentials.username == server.authUser &&
-      credentials.password == server.authPass then for {
+  def login(credentials: LoginRequest): IO[Either[ApiError, LoginResponse]] =
+    if credentials.username == server.authUser && credentials.password == server.authPass then {
+      for {
         hasTwitter <- twitter.hasTwitterAuth
-        token = generateToken(credentials.username)
+        token <- generateToken(credentials.username)
         response = LoginResponse(token, AuthStatus(hasTwitter))
-      } yield Response[IO](Status.Ok).withEntity(response.asJson)
-      else
-        IO.pure(Response[IO](
-          Status.Unauthorized
-        ).withEntity(Json.obj("error" -> Json.fromString("Invalid credentials"))))
-    }.handleErrorWith { err =>
-      logger.error(err)("Login failed") *>
-        IO.pure(Response[IO](
-          Status.BadRequest
-        ).withEntity(Json.obj("error" -> Json.fromString(err.getMessage))))
+      } yield response.asRight
+    } else {
+      logger.warn("Invalid login credentials") *>
+        IO.pure(ApiError.unauthorized("Invalid credentials").asLeft)
     }
 
-  def protectedRoute(req: Request[IO]): IO[Response[IO]] =
-    validateToken(req).flatMap {
-      case Some(user) =>
-        IO.pure(
-          Response[IO](Status.Ok).withEntity(Json.obj("username" -> Json.fromString(user.username)))
-        )
-      case None =>
-        IO.pure(Response[IO](
-          Status.Unauthorized
-        ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+  def authenticate(inputs: AuthInputs): IO[Either[ApiError, AuthContext]] =
+    validateToken(normalizeToken(inputs.token)).map {
+      case Some(user) => AuthContext(user, normalizeToken(inputs.token)).asRight
+      case None => ApiError.unauthorized("Unauthorized").asLeft
     }
 
-  private def validateToken(req: Request[IO]): IO[Option[UserPayload]] =
+  def protectedResponse(user: UserPayload): ProtectedResponse =
+    ProtectedResponse(user.username)
+
+  private def validateToken(token: String): IO[Option[UserPayload]] =
     IO {
-      extractToken(req).flatMap { token =>
-        JwtCirce.decode(
-          token,
-          server.jwtSecret,
-          Seq(JwtAlgorithm.HS256)
-        ).toOption.flatMap { claim =>
-          io.circe.parser.decode[UserPayload](claim.content).toOption
-        }
+      JwtCirce.decode(
+        token,
+        server.jwtSecret,
+        Seq(JwtAlgorithm.HS256)
+      ).toOption.flatMap { claim =>
+        io.circe.parser.decode[UserPayload](claim.content).toOption
       }
     }
 
-  private def extractToken(req: Request[IO]): Option[String] =
-    // Check Authorization header
-    req.headers.get(ci"Authorization").flatMap { header =>
-      val value = header.head.value
-      if value.startsWith("Bearer ") then Some(value.substring(7))
-      else
-        None
-    }.orElse {
-      // Check query parameter
-      req.uri.query.params.get("access_token")
-    }.orElse {
-      // Check cookie
-      req.cookies.find(_.name == "access_token").map(_.content)
+  private def normalizeToken(token: String): String =
+    if token.startsWith("Bearer ") then {
+      token.substring(7)
+    } else {
+      token
     }
 
-  private def generateToken(username: String): String = {
-    val now = Instant.now()
-    val claim = JwtClaim(
-      content = UserPayload(
-        username,
-        now.getEpochSecond,
-        now.plusSeconds(168 * 3600).getEpochSecond
-      ).asJson.noSpaces,
-      expiration = Some(now.plusSeconds(168 * 3600).getEpochSecond),
-      issuedAt = Some(now.getEpochSecond)
-    )
-    JwtCirce.encode(claim, server.jwtSecret, JwtAlgorithm.HS256)
-  }
+  private def generateToken(username: String): IO[String] =
+    for {
+      now <- Clock[IO].realTimeInstant
+      claim = JwtClaim(
+        content = UserPayload(username).asJson.noSpaces,
+        expiration = Some(now.plusSeconds(168 * 3600).getEpochSecond),
+        issuedAt = Some(now.getEpochSecond)
+      )
+    } yield JwtCirce.encode(claim, server.jwtSecret, JwtAlgorithm.HS256)
 
 }

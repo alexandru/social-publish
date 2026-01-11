@@ -7,33 +7,51 @@ It's built in Scala 3, making use of functional programming and the Typelevel ec
 ## Building and testing
 
 Project uses Scala's `sbt` build tool. Before EACH command below, do this:
+
 ```bash
 export SBT_NATIVE_CLIENT=true
 ```
 
 Commands:
-- To build the project: 
+
+- To build the project:
   `sbt Test/compile`
-- To build and test the project: 
+- To build and test the project:
   `sbt Test/compile test`
 - To format the source code (required):
   `sbt scalafmtAll`
 
 ## Coding style
 
-- DO NOT use Scala 3's braceless syntax. Use braces (also specified in `scalafmt.conf`).
-- Prefer Scala FP patterns to Java-style code:
-  * For example, prefer named tuples (case classes) to ad-hoc Java-style wrapper classes.
-- Use FP, including when dealing with `IO`. DO NOT use `unsafeRunSync` in code, not even in tests.
-  * Avoid using side-effectful Java APIs in production code without wrapping them in `IO` to make them safe — for instance, `UUID.randomUUID` is obviously a side-effectful call that's not safe without wrapping it in (Cats-Effect) `IO`.
-- Avoid public inner class/trait definitions; unless private, or unless part of a sealed trait/class (union type), all traits and classes must be top-level.
-- Prefer beautiful and type-safe code, prefer encapsulation over ad-hoc grouping by file type — I want to see fully-baked components, and I don't see much value in project-wide MVC-style grouping of files (e.g., models/views/controllers directories, encompassing many components, suck)
-  * Components have to be encapsulated enough that they can be extracted in their own sub-projects or libraries;
-  * For instance, a component is the Twitter integration, another is the Mastodon integration, and yet another component is the HTTP server exposing these integrations.
+DO NOT use Scala 3's braceless syntax. Use braces (also specified in `scalafmt.conf`).
+
+Prefer Scala FP patterns to Java-style code:
+
+- For example, prefer named tuples (case classes) to ad-hoc Java-style wrapper classes.
+
+Use FP, including when dealing with `IO`. DO NOT use `unsafeRunSync` in code, not even in tests.
+
+- Avoid using side-effectful Java APIs in production code without wrapping them in `IO` to make them safe — for instance, `UUID.randomUUID` is obviously a side-effectful call that's not safe without wrapping it in (Cats-Effect) `IO`.
+
+Avoid public inner class/trait definitions; unless private, or unless part of a sealed trait/class (union type), all traits and classes must be top-level.
+
+- If a namespace is needed, make packages instead of objects. This means, as a general rule (unless it's private, or a union type): don't define public classes in other classes or objects.
+- NOTE: Scala 3 supports file-level definitions, not everything has to be defined inside an object.
+
+Prefer beautiful and type-safe code, prefer encapsulation over ad-hoc grouping by file type — I want to see fully-baked components, and I don't see much value in project-wide MVC-style grouping of files (e.g., models/views/controllers directories, encompassing many components, suck).
+
+- Components have to be encapsulated enough that they can be extracted in their own sub-projects or libraries;
+- For instance, a component is the Twitter integration, another is the Mastodon integration, and yet another component is the HTTP server exposing these integrations.
+- Keep each social integration in its own package (e.g., `socialpublish.integrations.twitter`).
+
+Givens/implicits for type-classes must have "coherence", AKA "global uniqueness", therefore must be defined in a way to make them globally visible. E.g., for defining `TypeClass[MyType]`, the most obvious location for defining such a given/implicit is the companion object of `MyType`. This is especially important for encoders/decoders (e.g., Circe).
+
+Typelevel Cats' API: prefer readable operators. For example, avoid chaining operations with `*>` or `>>` and use `flatMap` instead, or better yet, a for-comprehension.
 
 ## Development Strategy
 
 For both new developments or refactorings, prefer a TDD style:
+
 - First create or update a unit test that fails;
 - Add the code that makes the test pass.
 

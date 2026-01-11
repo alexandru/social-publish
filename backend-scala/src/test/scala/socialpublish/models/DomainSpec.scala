@@ -38,7 +38,7 @@ class DomainSpec extends FunSuite {
   }
 
   test("NewPostResponse.Bluesky serialization") {
-    val response = NewPostResponse.Bluesky("test-uri", Some("test-cid"))
+    val response: NewPostResponse = NewPostResponse.Bluesky("test-uri", Some("test-cid"))
     val json = response.asJson
 
     val moduleField = json.hcursor.get[String]("module")
@@ -49,7 +49,7 @@ class DomainSpec extends FunSuite {
   }
 
   test("NewPostResponse.Mastodon serialization") {
-    val response = NewPostResponse.Mastodon("test-uri")
+    val response: NewPostResponse = NewPostResponse.Mastodon("test-uri")
     val json = response.asJson
 
     val moduleField = json.hcursor.get[String]("module")

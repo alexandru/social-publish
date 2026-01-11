@@ -1,4 +1,4 @@
-package socialpublish.api
+package socialpublish.integrations.mastodon
 
 import com.monovore.decline.*
 import cats.syntax.all.*

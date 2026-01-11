@@ -2,8 +2,9 @@ package socialpublish.models
 
 import java.time.Instant
 import java.util.UUID
-import io.circe.{Encoder, Decoder, Codec}
+import io.circe.{Codec, Decoder, DecodingFailure, Encoder}
 import io.circe.generic.semiauto.*
+import sttp.tapir.{Schema, Validator}
 
 // Target social networks
 enum Target {
@@ -22,6 +23,11 @@ object Target {
         case other => Left(s"Unknown target: $other")
       },
       Encoder.encodeString.contramap(_.toString.toLowerCase)
+    )
+
+  given Schema[Target] =
+    Schema.string.validate(
+      Validator.enumeration(Target.values.toList, target => Some(target.toString.toLowerCase))
     )
 
 }
@@ -53,51 +59,85 @@ object NewPostRequest {
   given Codec[NewPostRequest] =
     deriveCodec
 
+  given Schema[NewPostRequest] =
+    Schema.derived
+
 }
 
 // Response from creating a post
-enum NewPostResponse {
-  case Bluesky(uri: String, cid: Option[String])
-  case Mastodon(uri: String)
-  case Twitter(id: String)
-  case Rss(uri: String)
-
-  def module: String =
-    this match {
-      case Bluesky(_, _) => "bluesky"
-      case Mastodon(_) => "mastodon"
-      case Twitter(_) => "twitter"
-      case Rss(_) => "rss"
-    }
-
+sealed trait NewPostResponse {
+  def module: String
 }
 
 object NewPostResponse {
 
+  final case class Bluesky(
+    uri: String,
+    cid: Option[String],
+    module: String = "bluesky"
+  ) extends NewPostResponse
+
+  final case class Mastodon(
+    uri: String,
+    module: String = "mastodon"
+  ) extends NewPostResponse
+
+  final case class Twitter(
+    id: String,
+    module: String = "twitter"
+  ) extends NewPostResponse
+
+  final case class Rss(
+    uri: String,
+    module: String = "rss"
+  ) extends NewPostResponse
+
   given Encoder[NewPostResponse] =
     Encoder.instance {
-      case Bluesky(uri, cid) =>
+      case response @ Bluesky(uri, cid, _) =>
         io.circe.Json.obj(
-          "module" -> io.circe.Json.fromString("bluesky"),
+          "module" -> io.circe.Json.fromString(response.module),
           "uri" -> io.circe.Json.fromString(uri),
           "cid" -> cid.fold(io.circe.Json.Null)(io.circe.Json.fromString)
         )
-      case Mastodon(uri) =>
+      case response @ Mastodon(uri, _) =>
         io.circe.Json.obj(
-          "module" -> io.circe.Json.fromString("mastodon"),
+          "module" -> io.circe.Json.fromString(response.module),
           "uri" -> io.circe.Json.fromString(uri)
         )
-      case Twitter(id) =>
+      case response @ Twitter(id, _) =>
         io.circe.Json.obj(
-          "module" -> io.circe.Json.fromString("twitter"),
+          "module" -> io.circe.Json.fromString(response.module),
           "id" -> io.circe.Json.fromString(id)
         )
-      case Rss(uri) =>
+      case response @ Rss(uri, _) =>
         io.circe.Json.obj(
-          "module" -> io.circe.Json.fromString("rss"),
+          "module" -> io.circe.Json.fromString(response.module),
           "uri" -> io.circe.Json.fromString(uri)
         )
     }
+
+  given Decoder[NewPostResponse] =
+    Decoder.instance { cursor =>
+      cursor.get[String]("module").flatMap {
+        case "bluesky" =>
+          for {
+            uri <- cursor.get[String]("uri")
+            cid <- cursor.get[Option[String]]("cid")
+          } yield Bluesky(uri, cid)
+        case "mastodon" =>
+          cursor.get[String]("uri").map(uri => Mastodon(uri))
+        case "twitter" =>
+          cursor.get[String]("id").map(id => Twitter(id))
+        case "rss" =>
+          cursor.get[String]("uri").map(uri => Rss(uri))
+        case other =>
+          Left(DecodingFailure(s"Unknown module: $other", cursor.history))
+      }
+    }
+
+  given Schema[NewPostResponse] =
+    Schema.derived
 
 }
 

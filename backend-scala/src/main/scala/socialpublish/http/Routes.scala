@@ -2,20 +2,25 @@ package socialpublish.http
 
 import cats.effect.*
 import cats.syntax.all.*
-import io.circe.*
+import io.circe.Printer
 import io.circe.syntax.*
-import org.http4s.*
-import org.http4s.dsl.io.*
-import org.http4s.circe.CirceEntityEncoder.*
-import org.http4s.circe.CirceEntityDecoder.*
-import org.http4s.multipart.Multipart
-import org.http4s.headers.{`Content-Type`, Location}
-import org.typelevel.ci.CIStringSyntax
-import socialpublish.api.{BlueskyApi, MastodonApi, TwitterApi}
+import org.typelevel.log4cats.Logger
+import socialpublish.integrations.bluesky.BlueskyApi
+import socialpublish.integrations.mastodon.MastodonApi
+import socialpublish.integrations.twitter.TwitterApi
 import socialpublish.db.PostsDatabase
 import socialpublish.models.*
 import socialpublish.services.FilesService
-import org.typelevel.log4cats.Logger
+import sttp.apispec.openapi.Server
+import sttp.apispec.openapi.circe.*
+import sttp.model.{Header, MediaType, StatusCode}
+import sttp.model.Part
+import sttp.tapir.*
+import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
+import sttp.tapir.json.circe.*
+import sttp.tapir.server.ServerEndpoint
+import sttp.tapir.swagger.bundle.SwaggerInterpreter
+
 import java.util.UUID
 
 class Routes(
@@ -29,187 +34,315 @@ class Routes(
   logger: Logger[IO]
 ) {
 
-  // Public routes (no authentication required)
-  val publicRoutes: HttpRoutes[IO] =
-    HttpRoutes.of[IO] {
-      // Health check
-      case GET -> Root / "ping" =>
-        Ok("pong")
+  private type ErrorOut = (StatusCode, ErrorResponse)
 
-      // RSS feeds
-      case GET -> Root / "rss" =>
-        generateRssFeed(None)
+  private val errorOutput: EndpointOutput[ErrorOut] = statusCode.and(jsonBody[ErrorResponse])
 
-      case GET -> Root / "rss" / "target" / target =>
-        Target.values.find(_.toString.toLowerCase == target.toLowerCase) match {
-          case Some(t) => generateRssFeed(Some(t))
-          case None => NotFound()
+  private val authInput = sttp.tapir.auth.bearer[String]().map(AuthInputs.apply)(_.token)
+
+  private val secureEndpoint: Endpoint[AuthInputs, Unit, ErrorOut, Unit, Any] =
+    endpoint.securityIn(authInput).errorOut(errorOutput)
+
+  private def apiEndpoints: List[ServerEndpoint[Any, IO]] =
+    publicEndpoints ++ protectedEndpoints
+
+  private def swaggerEndpoints: List[ServerEndpoint[Any, IO]] =
+    SwaggerInterpreter()
+      .fromServerEndpoints[IO](apiEndpoints, "Social Publish API", "1.0.0")
+
+  private def openApiJson: String = {
+    val docs = OpenAPIDocsInterpreter()
+      .toOpenAPI(apiEndpoints.map(_.endpoint), "Social Publish API", "1.0.0")
+      .servers(List(Server(server.baseUrl)))
+    Printer.spaces2.print(docs.asJson)
+  }
+
+  private def openApiEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("openapi")
+      .out(header[String]("Content-Type"))
+      .out(stringBody)
+      .serverLogicSuccess(_ =>
+        IO.pure(("application/json", openApiJson))
+      )
+
+  def endpoints: List[ServerEndpoint[Any, IO]] =
+    apiEndpoints ++ swaggerEndpoints :+ openApiEndpoint
+
+  private def publicEndpoints: List[ServerEndpoint[Any, IO]] =
+    List(
+      pingEndpoint,
+      rssEndpoint,
+      rssTargetEndpoint,
+      rssItemEndpoint,
+      fileEndpoint,
+      loginEndpoint
+    )
+
+  private def protectedEndpoints: List[ServerEndpoint[Any, IO]] =
+    List(
+      protectedEndpoint,
+      twitterAuthorizeEndpoint,
+      twitterCallbackEndpoint,
+      twitterStatusEndpoint,
+      blueskyPostEndpoint,
+      mastodonPostEndpoint,
+      twitterPostEndpoint,
+      rssPostEndpoint,
+      multiplePostEndpoint,
+      uploadFileEndpoint
+    )
+
+  private val rssContentType = MediaType.unsafeParse("application/rss+xml")
+
+  private val pingEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("ping")
+      .out(stringBody)
+      .serverLogicSuccess(_ => IO.pure("pong"))
+
+  private val rssEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("rss")
+      .out(header[String]("Content-Type"))
+      .out(stringBody)
+      .serverLogicSuccess(_ =>
+        generateRssFeed(None).map { rssXml =>
+          (rssContentType.toString(), rssXml)
         }
+      )
 
-      case GET -> Root / "rss" / UUIDVar(uuid) =>
-        getRssItem(uuid)
+  private val rssTargetEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("rss" / "target" / path[String]("target"))
+      .out(header[String]("Content-Type"))
+      .out(stringBody)
+      .errorOut(errorOutput)
+      .serverLogic { target =>
+        Target.values
+          .find(_.toString.equalsIgnoreCase(target))
+          .map(targetValue =>
+            generateRssFeed(Some(targetValue)).map { rssXml =>
+              Right((rssContentType.toString(), rssXml))
+            }
+          )
+          .getOrElse(IO.pure(Left((StatusCode.NotFound, ErrorResponse("Target not found")))))
+      }
 
-      // File serving
-      case GET -> Root / "files" / UUIDVar(uuid) =>
-        files.getFile(uuid).flatMap {
+  private val rssItemEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("rss" / path[UUID]("uuid"))
+      .out(header[String]("Content-Type"))
+      .out(stringBody)
+      .errorOut(errorOutput)
+      .serverLogic { uuid =>
+        getRssItem(uuid).map {
+          case Some(item) => Right((MediaType.ApplicationXml.toString(), item))
+          case None => Left((StatusCode.NotFound, ErrorResponse("RSS item not found")))
+        }
+      }
+
+  private val fileEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("files" / path[UUID]("uuid"))
+      .out(header[String]("Content-Type"))
+      .out(byteArrayBody)
+      .errorOut(errorOutput)
+      .serverLogic { uuid =>
+        files.getFile(uuid).map {
           case Some(file) =>
-            Ok(file.bytes)
-              .map(_.withContentType(`Content-Type`(MediaType.unsafeParse(file.mimeType))))
+            Right((file.mimeType, file.bytes))
           case None =>
-            NotFound()
+            Left((StatusCode.NotFound, ErrorResponse("File not found")))
         }
+      }
 
-      // Authentication
-      case req @ POST -> Root / "api" / "login" =>
-        auth.login(req)
-    }
+  private val loginEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.post
+      .in("api" / "login")
+      .in(jsonBody[LoginRequest])
+      .out(jsonBody[LoginResponse])
+      .errorOut(errorOutput)
+      .serverLogic { credentials =>
+        auth.login(credentials).map(_.leftMap(toErrorOutput))
+      }
 
-  // Protected routes (authentication required)
-  val protectedRoutes: HttpRoutes[IO] =
-    HttpRoutes.of[IO] {
-      case req @ GET -> Root / "api" / "protected" =>
-        auth.protectedRoute(req)
+  private val protectedEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.get
+      .in("api" / "protected")
+      .out(jsonBody[ProtectedResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogicSuccess(context => _ => IO.pure(auth.protectedResponse(context.user)))
 
-      // Twitter OAuth routes
-      case req @ GET -> Root / "api" / "twitter" / "authorize" =>
-        auth.middleware.run(req).flatMap {
-          case Some(authedReq) =>
-            extractAccessToken(authedReq) match {
-              case Some(token) =>
-                twitter.getAuthorizationUrl(token).value.flatMap {
-                  case Right(url) => Found(Location(Uri.unsafeFromString(url)))
-                  case Left(error) => InternalServerError(error.message)
-                }
-              case None =>
-                IO.pure(Response[IO](
-                  Status.Unauthorized
-                ).withEntity(Json.obj(
-                  "error" -> Json.fromString("Unauthorized")
-                )))
-            }
-          case None =>
-            IO.pure(Response[IO](
-              Status.Unauthorized
-            ).withEntity(Json.obj(
-              "error" -> Json.fromString("Unauthorized")
-            )))
+  private val twitterAuthorizeEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.get
+      .in("api" / "twitter" / "authorize")
+      .out(statusCode(StatusCode.Found))
+      .out(header[String]("Location"))
+      .serverSecurityLogic(authenticate)
+      .serverLogic { context => _ =>
+        twitter.getAuthorizationUrl(context.token).value.map {
+          case Right(url) => Right(url)
+          case Left(error) => Left(toErrorOutput(error))
         }
+      }
 
-      case req @ GET -> Root / "api" / "twitter" / "callback" =>
-        auth.middleware.run(req).flatMap {
-          case Some(authedReq) =>
-            (authedReq.params.get("oauth_token"), authedReq.params.get("oauth_verifier")) match {
-              case (Some(token), Some(verifier)) =>
-                twitter.handleCallback(token, verifier).value.flatMap {
-                  case Right(_) =>
-                    Found(Location(Uri.unsafeFromString("/account")))
-                      .map(_.withHeaders(
-                        Header.Raw(
-                          ci"Cache-Control",
-                          "no-store, no-cache, must-revalidate, private"
-                        ),
-                        Header.Raw(ci"Pragma", "no-cache"),
-                        Header.Raw(ci"Expires", "0")
-                      ))
-                  case Left(error) =>
-                    InternalServerError(error.message)
-                }
-              case _ =>
-                BadRequest("Missing oauth_token or oauth_verifier")
-            }
-          case None =>
-            IO.pure(Response[IO](
-              Status.Unauthorized
-            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+  private val twitterCallbackEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.get
+      .in("api" / "twitter" / "callback")
+      .in(query[String]("oauth_token"))
+      .in(query[String]("oauth_verifier"))
+      .out(statusCode(StatusCode.Found))
+      .out(headers)
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => (token, verifier) =>
+        twitter.handleCallback(token, verifier).value.map {
+          case Right(_) =>
+            val responseHeaders = List(
+              Header("Location", "/account"),
+              Header("Cache-Control", "no-store, no-cache, must-revalidate, private"),
+              Header("Pragma", "no-cache"),
+              Header("Expires", "0")
+            )
+            Right(responseHeaders)
+          case Left(error) => Left(toErrorOutput(error))
         }
+      }
 
-      case req @ GET -> Root / "api" / "twitter" / "status" =>
-        auth.middleware.run(req).flatMap {
-          case Some(_) =>
-            twitter.getAuthStatus.flatMap { createdAt =>
-              Ok(Json.obj(
-                "hasAuthorization" -> Json.fromBoolean(createdAt.isDefined),
-                "createdAt" -> Json.fromLong(createdAt.getOrElse(0L))
-              ))
-            }
-          case None =>
-            IO.pure(Response[IO](
-              Status.Unauthorized
-            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-        }
-
-      // Social media posting routes
-      case req @ POST -> Root / "api" / "bluesky" / "post" =>
-        handleAuthenticatedPost(req, bluesky.createPost)
-
-      case req @ POST -> Root / "api" / "mastodon" / "post" =>
-        handleAuthenticatedPost(req, mastodon.createPost)
-
-      case req @ POST -> Root / "api" / "twitter" / "post" =>
-        handleAuthenticatedPost(req, twitter.createPost)
-
-      case req @ POST -> Root / "api" / "rss" / "post" =>
-        handleAuthenticatedPost(req, createRssPost)
-
-      // Multi-target posting
-      case req @ POST -> Root / "api" / "multiple" / "post" =>
-        auth.middleware.run(req).flatMap {
-          case Some(authedReq) =>
-            handleMultiplePost(authedReq)
-          case None =>
-            IO.pure(Response[IO](
-              Status.Unauthorized
-            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-        }
-
-      // File upload
-      case req @ POST -> Root / "api" / "files" / "upload" =>
-        auth.middleware.run(req).flatMap {
-          case Some(authedReq) =>
-            handleFileUpload(authedReq)
-          case None =>
-            IO.pure(Response[IO](
-              Status.Unauthorized
-            ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
-        }
-    }
-
-  val routes: HttpRoutes[IO] = publicRoutes <+> protectedRoutes
-
-  private def handleAuthenticatedPost(
-    req: Request[IO],
-    handler: NewPostRequest => Result[NewPostResponse]
-  ): IO[Response[IO]] =
-    auth.middleware.run(req).flatMap {
-      case Some(authedReq) =>
-        authedReq.as[NewPostRequest].flatMap { postReq =>
-          handler(postReq).value.flatMap {
-            case Right(response) => Ok(response.asJson)
-            case Left(error) =>
-              Status.fromInt(error.status) match {
-                case Right(status) => IO.pure(Response[IO](
-                    status
-                  ).withEntity(Json.obj("error" -> Json.fromString(error.message))))
-                case Left(_) => InternalServerError(error.message)
-              }
+  private val twitterStatusEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.get
+      .in("api" / "twitter" / "status")
+      .out(jsonBody[TwitterAuthStatusResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogicSuccess(_ =>
+        _ =>
+          twitter.getAuthStatus.map { createdAt =>
+            TwitterAuthStatusResponse(
+              hasAuthorization = createdAt.isDefined,
+              createdAt = createdAt.getOrElse(0L)
+            )
           }
-        }.handleErrorWith { err =>
-          logger.error(err)("Failed to handle post") *>
-            InternalServerError(err.getMessage)
+      )
+
+  private val blueskyPostEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "bluesky" / "post")
+      .in(jsonBody[NewPostRequest])
+      .out(jsonBody[NewPostResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => request =>
+        handleResult(bluesky.createPost(request))
+      }
+
+  private val mastodonPostEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "mastodon" / "post")
+      .in(jsonBody[NewPostRequest])
+      .out(jsonBody[NewPostResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => request =>
+        handleResult(mastodon.createPost(request))
+      }
+
+  private val twitterPostEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "twitter" / "post")
+      .in(jsonBody[NewPostRequest])
+      .out(jsonBody[NewPostResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => request =>
+        handleResult(twitter.createPost(request))
+      }
+
+  private val rssPostEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "rss" / "post")
+      .in(jsonBody[NewPostRequest])
+      .out(jsonBody[NewPostResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => request =>
+        handleResult(createRssPost(request))
+      }
+
+  private val multiplePostEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "multiple" / "post")
+      .in(jsonBody[NewPostRequest])
+      .out(jsonBody[MultiPostResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => request =>
+        handleMultiplePost(request)
+      }
+
+  private val uploadFileEndpoint: ServerEndpoint[Any, IO] =
+    secureEndpoint.post
+      .in("api" / "files" / "upload")
+      .in(multipartBody[FileUploadForm])
+      .out(jsonBody[FileUploadResponse])
+      .serverSecurityLogic(authenticate)
+      .serverLogic { _ => form =>
+        handleFileUpload(form)
+      }
+
+  private def authenticate(inputs: AuthInputs): IO[Either[ErrorOut, AuthContext]] =
+    auth.authenticate(inputs).map(_.leftMap(toErrorOutput))
+
+  private def handleResult[A](result: Result[A]): IO[Either[ErrorOut, A]] =
+    result.value.map(_.leftMap(toErrorOutput))
+
+  private def handleMultiplePost(request: NewPostRequest)
+    : IO[Either[ErrorOut, MultiPostResponse]] = {
+    val handlers: List[(String, Result[NewPostResponse])] =
+      List("rss" -> createRssPost(request)) ++
+        request.targets.getOrElse(Nil).map {
+          case Target.Mastodon => "mastodon" -> mastodon.createPost(request)
+          case Target.Bluesky => "bluesky" -> bluesky.createPost(request)
+          case Target.Twitter => "twitter" -> twitter.createPost(request)
         }
-      case None =>
-        IO.pure(Response[IO](
-          Status.Unauthorized
-        ).withEntity(Json.obj("error" -> Json.fromString("Unauthorized"))))
+
+    handlers.traverse { case (name, result) =>
+      result.value.map(either => (name, either))
+    }.map { results =>
+      val errors = results.collect { case (name, Left(error)) => (name, error) }
+      if errors.nonEmpty then {
+        val errorModules = errors.map(_._1).mkString(", ")
+        val status = errors.map(_._2.status).max
+        Left((StatusCode(status), ErrorResponse(s"Failed to create post via $errorModules")))
+      } else {
+        val payload = results.collect { case (name, Right(response)) => name -> response }.toMap
+        Right(MultiPostResponse(payload))
+      }
     }
+  }
+
+  private def handleFileUpload(form: FileUploadForm): IO[Either[ErrorOut, FileUploadResponse]] = {
+    val uploads = form.files.toList.collect {
+      case part if part.name == "files" => part
+    }
+
+    uploads.traverse { part =>
+      part.contentType match {
+        case Some(contentType) =>
+          val filename = part.fileName.getOrElse("upload")
+          files.saveFile(filename, contentType.toString, part.body, None).map { metadata =>
+            FileUploadItem(metadata.uuid, metadata.originalName)
+          }
+        case None =>
+          IO.raiseError(new IllegalArgumentException("Missing content type"))
+      }
+    }.map(items => Right(FileUploadResponse(items))).handleErrorWith { err =>
+      logger.error(err)("Failed to upload files") *>
+        IO.pure(Left((StatusCode.BadRequest, ErrorResponse(err.getMessage))))
+    }
+  }
 
   private def createRssPost(request: NewPostRequest): Result[NewPostResponse] = {
     val content =
-      if request.cleanupHtml.getOrElse(
-        false
-      ) then socialpublish.utils.TextUtils.convertHtml(request.content)
-      else
+      if request.cleanupHtml.getOrElse(false) then {
+        socialpublish.utils.TextUtils.convertHtml(request.content)
+      } else {
         request.content
+      }
 
     val tags = extractHashtags(request.content)
 
@@ -224,100 +357,23 @@ class Routes(
           targets = request.targets.getOrElse(Nil)
         )
       )
-
       uri = s"${server.baseUrl}/rss/${post.uuid}"
     } yield NewPostResponse.Rss(uri)
   }
 
-  private def handleMultiplePost(req: Request[IO]): IO[Response[IO]] =
-    req.as[NewPostRequest].flatMap { postReq =>
-      val handlers: List[(String, Result[NewPostResponse])] = List(
-        "rss" -> createRssPost(postReq)
-      ) ++ (postReq.targets.getOrElse(Nil).map {
-        case Target.Mastodon => "mastodon" -> mastodon.createPost(postReq)
-        case Target.Bluesky => "bluesky" -> bluesky.createPost(postReq)
-        case Target.Twitter => "twitter" -> twitter.createPost(postReq)
-      })
-
-      handlers.traverse { case (name, result) =>
-        result.value.map(either => (name, either))
-      }.flatMap { results =>
-        val errors = results.collect { case (name, Left(err)) => (name, err) }
-
-        if errors.nonEmpty then {
-          val errorModules = errors.map(_._1).mkString(", ")
-          val status = errors.map(_._2.status).max
-          Status.fromInt(status) match {
-            case Right(s) =>
-              IO.pure(Response[IO](s).withEntity(Json.obj(
-                "error" -> Json.fromString(s"Failed to create post via $errorModules")
-              )))
-            case Left(_) => InternalServerError(s"Failed to create post via $errorModules")
-          }
-        } else {
-          val successMap = results.collect { case (name, Right(resp)) =>
-            name -> resp.asJson
-          }.toMap
-          Ok(Json.obj(successMap.toSeq*))
-        }
-      }
-    }.handleErrorWith { err =>
-      logger.error(err)("Failed to handle multiple post") *>
-        BadRequest(Json.obj("error" -> Json.fromString(err.getMessage)))
-    }
-
-  private def handleFileUpload(req: Request[IO]): IO[Response[IO]] =
-    req.decode[Multipart[IO]] { multipart =>
-      multipart.parts.toList.traverse { part =>
-        part.name match {
-          case Some("files") =>
-            part.headers.get[`Content-Type`] match {
-              case Some(ct) =>
-                part.body.compile.toVector.flatMap { bytes =>
-                  val filename = part.filename.getOrElse("upload")
-                  val mimeType = ct.mediaType.toString
-                  val altText = None // Would extract from other parts if present
-
-                  files.saveFile(filename, mimeType, bytes.toArray, altText).map { metadata =>
-                    Some(Json.obj(
-                      "uuid" -> Json.fromString(metadata.uuid.toString),
-                      "filename" -> Json.fromString(metadata.originalName)
-                    ))
-                  }
-                }
-              case None =>
-                IO.pure(None)
-            }
-          case _ =>
-            IO.pure(None)
-        }
-      }.flatMap { results =>
-        val uploads = results.flatten
-        Ok(Json.obj("uploads" -> Json.arr(uploads*)))
-      }
-    }.handleErrorWith { err =>
-      logger.error(err)("Failed to upload files") *>
-        BadRequest(Json.obj("error" -> Json.fromString(err.getMessage)))
-    }
-
-  private def generateRssFeed(targetFilter: Option[Target]): IO[Response[IO]] =
-    posts.getAll.flatMap { allPosts =>
+  private def generateRssFeed(targetFilter: Option[Target]): IO[String] =
+    posts.getAll.map { allPosts =>
       val filtered = targetFilter match {
         case Some(target) => allPosts.filter(_.targets.contains(target))
         case None => allPosts
       }
-
-      val rssXml = buildRssFeed(filtered, targetFilter)
-      Ok(rssXml).map(_.withContentType(`Content-Type`(MediaType.application.`rss+xml`)))
+      buildRssFeed(filtered, targetFilter)
     }
 
-  private def getRssItem(uuid: UUID): IO[Response[IO]] =
-    posts.searchByUUID(uuid).flatMap {
-      case Some(post) =>
-        val itemXml = buildRssItem(post)
-        Ok(itemXml).map(_.withContentType(`Content-Type`(MediaType.application.xml)))
-      case None =>
-        NotFound()
+  private def getRssItem(uuid: UUID): IO[Option[String]] =
+    posts.searchByUUID(uuid).map {
+      case Some(post) => Some(buildRssItem(post))
+      case None => None
     }
 
   private def buildRssFeed(posts: List[Post], targetFilter: Option[Target]): String = {
@@ -329,14 +385,14 @@ class Routes(
     }
 
     s"""<?xml version="1.0" encoding="UTF-8"?>
-      |<rss version="2.0">
-      |  <channel>
-      |    <title>$title</title>
-      |    <link>${server.baseUrl}/rss</link>
-      |    <description>Social media posts</description>
-      |    $items
-      |  </channel>
-      |</rss>""".stripMargin
+       |<rss version="2.0">
+       |  <channel>
+       |    <title>$title</title>
+       |    <link>${server.baseUrl}/rss</link>
+       |    <description>Social media posts</description>
+       |    $items
+       |  </channel>
+       |</rss>""".stripMargin
   }
 
   private def buildRssItem(post: Post): String = {
@@ -366,11 +422,7 @@ class Routes(
     pattern.findAllMatchIn(text).map(_.group(1)).toList
   }
 
-  private def extractAccessToken(req: Request[IO]): Option[String] =
-    req.uri.query.params.get("access_token")
-      .orElse(req.headers.get(ci"Authorization").flatMap { header =>
-        val value = header.head.value
-        if value.startsWith("Bearer ") then Some(value.substring(7)) else None
-      })
+  private def toErrorOutput(error: ApiError): ErrorOut =
+    (StatusCode(error.status), ErrorResponse(error.message))
 
 }

@@ -1,0 +1,228 @@
+package socialpublish.integrations.bluesky
+
+import cats.effect.*
+import cats.syntax.all.*
+import socialpublish.integrations.bluesky.BlueskyEndpoints.*
+import socialpublish.models.*
+import socialpublish.services.FilesService
+import socialpublish.utils.TextUtils
+import sttp.client4.Backend
+import sttp.model.Uri
+import sttp.tapir.DecodeResult
+import sttp.tapir.client.sttp4.SttpClientInterpreter
+
+import java.util.UUID
+
+/** Bluesky API implementation
+  *
+  * Based on AT Protocol: <https://docs.bsky.app/docs/api/>
+  */
+trait BlueskyApi {
+  def createPost(request: NewPostRequest): Result[NewPostResponse]
+}
+
+object BlueskyApi {
+
+  def resource(
+    cfg: BlueskyConfig,
+    backend: Backend[IO],
+    files: FilesService
+  ): Resource[IO, BlueskyApi] =
+    cfg match {
+      case BlueskyConfig.Enabled(service, username, password) =>
+        Resource.eval(loginInternal(service, username, password, backend)).map(session =>
+          new BlueskyApiImpl(
+            BlueskyConfig.Enabled(service, username, password),
+            backend,
+            files,
+            session
+          )
+        )
+      case BlueskyConfig.Disabled =>
+        Resource.eval(IO.pure(new DisabledBlueskyApi()))
+    }
+
+  private def loginInternal(
+    service: String,
+    username: String,
+    password: String,
+    backend: Backend[IO]
+  ): IO[LoginResponse] = {
+    val baseUri = Uri.unsafeParse(service)
+    val interpreter = SttpClientInterpreter()
+    val request =
+      interpreter.toRequest(createSession, Some(baseUri))(LoginRequest(username, password))
+    backend.send(request).flatMap { response =>
+      IO.fromEither(decodeResponse(response.body, response.code.code, "bluesky"))
+    }
+  }
+
+  private def decodeResponse[A](
+    decoded: DecodeResult[Either[String, A]],
+    status: Int,
+    module: String
+  ): Either[Throwable, A] =
+    decoded match {
+      case DecodeResult.Value(Right(value)) =>
+        Right(value)
+      case DecodeResult.Value(Left(errorBody)) =>
+        Left(new RuntimeException(s"$module request failed with status $status: $errorBody"))
+      case DecodeResult.Error(original, error) =>
+        Left(new RuntimeException(s"$module decode failure: $original", error))
+      case DecodeResult.Missing =>
+        Left(new RuntimeException(s"$module response missing body"))
+      case DecodeResult.Mismatch(_, _) =>
+        Left(new RuntimeException(s"$module response mismatch"))
+      case DecodeResult.InvalidValue(errors) =>
+        Left(new RuntimeException(s"$module invalid response: ${errors.toList.mkString(", ")}"))
+      case DecodeResult.Multiple(errors) =>
+        Left(new RuntimeException(s"$module multiple responses: ${errors.toList.mkString(", ")}"))
+    }
+
+}
+
+private class BlueskyApiImpl(
+  config: BlueskyConfig.Enabled,
+  backend: Backend[IO],
+  files: FilesService,
+  session: LoginResponse
+) extends BlueskyApi {
+
+  private val interpreter = SttpClientInterpreter()
+  private val baseUri = Uri.unsafeParse(config.service)
+
+  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+    for {
+      images <- request.images.getOrElse(Nil).traverse(uuid => uploadImage(uuid))
+      text = prepareText(request)
+      facets <- detectFacets(text)
+      record = createPostRecord(text, request.language, images, facets)
+      response <- postToBluesky(record)
+    } yield NewPostResponse.Bluesky(response.uri, Some(response.cid))
+
+  private def prepareText(request: NewPostRequest): String = {
+    val content =
+      if request.cleanupHtml.getOrElse(false) then {
+        TextUtils.convertHtml(request.content)
+      } else {
+        request.content.trim()
+      }
+
+    request.link match {
+      case Some(link) => s"$content\n\n$link"
+      case None => content
+    }
+  }
+
+  private def uploadImage(uuid: UUID): Result[ImageEmbed] =
+    for {
+      fileOpt <- Result.liftIO(files.getFile(uuid))
+      file <- Result.fromOption(fileOpt, ApiError.notFound(s"File not found: $uuid"))
+      blobRef <- uploadBlobRef(file.bytes, file.mimeType)
+    } yield ImageEmbed(
+      alt = file.altText.getOrElse(""),
+      image = blobRef,
+      aspectRatio = Some(AspectRatio(file.width, file.height))
+    )
+
+  private def uploadBlobRef(bytes: Array[Byte], mimeType: String): Result[BlobRef] = {
+    val request = interpreter.toRequest(uploadBlob, Some(baseUri))(
+      (
+        bearerToken(session.accessJwt),
+        mimeType,
+        bytes
+      )
+    )
+
+    Result.liftIO(backend.send(request)).flatMap { response =>
+      Result.fromEither(decodeApiResponse(response.body, response.code.code))
+    }.map(_.blob)
+  }
+
+  private def detectFacets(text: String): Result[List[Facet]] =
+    Result.success {
+      val urlPattern = """https?://[^\s]+""".r
+      urlPattern.findAllMatchIn(text).toList.map { m =>
+        Facet(
+          ByteSlice(m.start, m.end),
+          List(Feature("app.bsky.richtext.facet#link", m.matched))
+        )
+      }
+    }
+
+  private def createPostRecord(
+    text: String,
+    language: Option[String],
+    images: List[ImageEmbed],
+    facets: List[Facet]
+  ): PostRecord = {
+    val embed =
+      if images.nonEmpty then {
+        Some(ImageEmbedPayload("app.bsky.embed.images", images))
+      } else {
+        None
+      }
+
+    PostRecord(
+      `$type` = "app.bsky.feed.post",
+      text = text,
+      langs = language.map(List(_)),
+      facets = if facets.nonEmpty then Some(facets) else None,
+      embed = embed,
+      createdAt = java.time.Instant.now().toString
+    )
+  }
+
+  private def postToBluesky(record: PostRecord): Result[CreatePostResponse] = {
+    val request = interpreter.toRequest(createRecord, Some(baseUri))(
+      bearerToken(session.accessJwt) ->
+        CreatePostRequest(
+          repo = session.did,
+          collection = "app.bsky.feed.post",
+          record = record
+        )
+    )
+
+    Result.liftIO(backend.send(request)).flatMap { response =>
+      Result.fromEither(decodeApiResponse(response.body, response.code.code))
+    }
+  }
+
+  private def decodeApiResponse[A](
+    decoded: DecodeResult[Either[String, A]],
+    status: Int
+  ): Either[ApiError, A] =
+    decoded match {
+      case DecodeResult.Value(Right(value)) =>
+        Right(value)
+      case DecodeResult.Value(Left(errorBody)) =>
+        Left(ApiError.requestError(status, "Bluesky request failed", "bluesky", errorBody))
+      case DecodeResult.Error(original, error) =>
+        Left(ApiError.caughtException(s"Bluesky decode failure: $original", "bluesky", error))
+      case DecodeResult.Missing =>
+        Left(ApiError.requestError(status, "Bluesky response missing body", "bluesky"))
+      case DecodeResult.Mismatch(_, _) =>
+        Left(ApiError.requestError(status, "Bluesky response mismatch", "bluesky"))
+      case DecodeResult.InvalidValue(errors) =>
+        Left(ApiError.requestError(
+          status,
+          s"Bluesky invalid response: ${errors.toList.mkString(", ")}",
+          "bluesky"
+        ))
+      case DecodeResult.Multiple(errors) =>
+        Left(ApiError.requestError(
+          status,
+          s"Bluesky multiple responses: ${errors.toList.mkString(", ")}",
+          "bluesky"
+        ))
+    }
+
+  private def bearerToken(token: String): String =
+    s"Bearer $token"
+
+}
+
+private class DisabledBlueskyApi() extends BlueskyApi {
+  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+    Result.error(ApiError.validationError("Bluesky integration is disabled", "bluesky"))
+}

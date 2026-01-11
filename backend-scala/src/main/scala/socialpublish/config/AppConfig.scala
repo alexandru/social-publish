@@ -2,7 +2,9 @@ package socialpublish.config
 
 import com.monovore.decline.Opts
 import cats.syntax.all.*
-import socialpublish.api.{BlueskyConfig, MastodonConfig, TwitterConfig}
+import socialpublish.integrations.bluesky.BlueskyConfig
+import socialpublish.integrations.mastodon.MastodonConfig
+import socialpublish.integrations.twitter.TwitterConfig
 import socialpublish.db.DatabaseConfig
 import socialpublish.http.ServerConfig
 import socialpublish.services.FilesConfig
