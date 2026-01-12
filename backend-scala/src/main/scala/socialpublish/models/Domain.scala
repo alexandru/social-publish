@@ -2,13 +2,15 @@ package socialpublish.models
 
 import java.time.Instant
 import java.util.UUID
+import cats.syntax.all.*
 import io.circe.{Codec, Decoder, DecodingFailure, Encoder}
 import io.circe.generic.semiauto.*
 import sttp.tapir.{Schema, Validator}
+import scala.util.Try
 
 // Target social networks
 enum Target {
-  case Mastodon, Bluesky, Twitter
+  case Mastodon, Bluesky, Twitter, LinkedIn
 }
 
 object Target {
@@ -19,7 +21,7 @@ object Target {
         case "mastodon" | "Mastodon" => Right(Target.Mastodon)
         case "bluesky" | "Bluesky" => Right(Target.Bluesky)
         case "twitter" | "Twitter" => Right(Target.Twitter)
-        // case "linkedin" | "LinkedIn" => Right(Target.LinkedIn)
+        case "linkedin" | "LinkedIn" => Right(Target.LinkedIn)
         case other => Left(s"Unknown target: $other")
       },
       Encoder.encodeString.contramap(_.toString.toLowerCase)
@@ -32,6 +34,28 @@ object Target {
 
 }
 
+given Codec[UUID] =
+  Codec.from(
+    Decoder.decodeString.emap { value =>
+      Try(UUID.fromString(value)).toEither.leftMap(_.getMessage)
+    },
+    Encoder.encodeString.contramap(_.toString)
+  )
+
+given Schema[UUID] =
+  Schema.string
+
+given Codec[Instant] =
+  Codec.from(
+    Decoder.decodeString.emap { value =>
+      Try(Instant.parse(value)).toEither.leftMap(_.getMessage)
+    },
+    Encoder.encodeString.contramap(_.toString)
+  )
+
+given Schema[Instant] =
+  Schema.string
+
 // Post domain model
 case class Post(
   uuid: UUID,
@@ -43,6 +67,16 @@ case class Post(
   targets: List[Target],
   createdAt: Instant
 )
+
+object Post {
+
+  given Codec[Post] =
+    deriveCodec
+
+  given Schema[Post] =
+    Schema.derived
+
+}
 
 // Request to create a new post
 case class NewPostRequest(
@@ -152,6 +186,16 @@ case class FileMetadata(
   height: Option[Int],
   createdAt: Instant
 )
+
+object FileMetadata {
+
+  given Codec[FileMetadata] =
+    deriveCodec
+
+  given Schema[FileMetadata] =
+    Schema.derived
+
+}
 
 // Document stored in database
 case class Document(

@@ -11,6 +11,7 @@ import sttp.model.Uri
 import sttp.tapir.DecodeResult
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 /** Bluesky API implementation
@@ -143,12 +144,17 @@ private class BlueskyApiImpl(
     Result.success {
       val urlPattern = """https?://[^\s]+""".r
       urlPattern.findAllMatchIn(text).toList.map { m =>
+        val start = utf8ByteOffset(text, m.start)
+        val end = utf8ByteOffset(text, m.end)
         Facet(
-          ByteSlice(m.start, m.end),
+          ByteSlice(start, end),
           List(Feature("app.bsky.richtext.facet#link", m.matched))
         )
       }
     }
+
+  private def utf8ByteOffset(text: String, charIndex: Int): Int =
+    text.substring(0, charIndex).getBytes(StandardCharsets.UTF_8).length
 
   private def createPostRecord(
     text: String,

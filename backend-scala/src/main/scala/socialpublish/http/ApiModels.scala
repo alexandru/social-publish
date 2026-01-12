@@ -1,7 +1,6 @@
 package socialpublish.http
 
 import io.circe.Codec
-import java.util.UUID
 import sttp.model.Part
 import sttp.tapir.Schema
 
@@ -9,20 +8,6 @@ case class ErrorResponse(error: String) derives Codec.AsObject
 
 object ErrorResponse {
   given Schema[ErrorResponse] =
-    Schema.derived
-}
-
-case class FileUploadItem(uuid: UUID, filename: String) derives Codec.AsObject
-
-object FileUploadItem {
-  given Schema[FileUploadItem] =
-    Schema.derived
-}
-
-case class FileUploadResponse(uploads: List[FileUploadItem]) derives Codec.AsObject
-
-object FileUploadResponse {
-  given Schema[FileUploadResponse] =
     Schema.derived
 }
 
@@ -44,7 +29,10 @@ object TwitterAuthStatusResponse {
     Schema.derived
 }
 
-case class FileUploadForm(files: List[Part[Array[Byte]]])
+case class FileUploadForm(
+  file: Part[Array[Byte]],
+  altText: Option[String]
+)
 
 object FileUploadForm {
   given Schema[FileUploadForm] =

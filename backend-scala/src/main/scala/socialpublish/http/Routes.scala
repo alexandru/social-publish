@@ -16,11 +16,13 @@ import sttp.apispec.openapi.circe.*
 import sttp.model.{Header, MediaType, StatusCode}
 import sttp.model.Part
 import sttp.tapir.*
+import sttp.tapir.DecodeResult
 import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
 import sttp.tapir.json.circe.*
 import sttp.tapir.server.ServerEndpoint
 import sttp.tapir.swagger.bundle.SwaggerInterpreter
 
+import java.nio.file.{Files as JavaFiles, Path, Paths}
 import java.util.UUID
 
 class Routes(
@@ -38,13 +40,19 @@ class Routes(
 
   private val errorOutput: EndpointOutput[ErrorOut] = statusCode.and(jsonBody[ErrorResponse])
 
-  private val authInput = sttp.tapir.auth.bearer[String]().map(AuthInputs.apply)(_.token)
+  private val authInput: EndpointInput[AuthInputs] =
+    header[Option[String]]("Authorization")
+      .and(query[Option[String]]("access_token"))
+      .and(header[Option[String]]("Cookie"))
+      .map { case (authHeader, queryToken, cookieHeader) =>
+        AuthInputs(authHeader, queryToken, extractCookieToken(cookieHeader))
+      }(inputs => (inputs.authHeader, inputs.accessTokenQuery, None))
 
   private val secureEndpoint: Endpoint[AuthInputs, Unit, ErrorOut, Unit, Any] =
     endpoint.securityIn(authInput).errorOut(errorOutput)
 
   private def apiEndpoints: List[ServerEndpoint[Any, IO]] =
-    publicEndpoints ++ protectedEndpoints
+    publicEndpoints ++ protectedEndpoints :+ staticFilesEndpoint
 
   private def swaggerEndpoints: List[ServerEndpoint[Any, IO]] =
     SwaggerInterpreter()
@@ -95,6 +103,17 @@ class Routes(
 
   private val rssContentType = MediaType.unsafeParse("application/rss+xml")
 
+  private enum FilterMode {
+    case Include, Exclude
+  }
+
+  private def parseFilter(value: Option[String]): Option[FilterMode] =
+    value.flatMap {
+      case mode if mode.equalsIgnoreCase("include") => Some(FilterMode.Include)
+      case mode if mode.equalsIgnoreCase("exclude") => Some(FilterMode.Exclude)
+      case _ => None
+    }
+
   private val pingEndpoint: ServerEndpoint[Any, IO] =
     endpoint.get
       .in("ping")
@@ -104,25 +123,37 @@ class Routes(
   private val rssEndpoint: ServerEndpoint[Any, IO] =
     endpoint.get
       .in("rss")
+      .in(query[Option[String]]("filterByLinks"))
+      .in(query[Option[String]]("filterByImages"))
       .out(header[String]("Content-Type"))
       .out(stringBody)
-      .serverLogicSuccess(_ =>
-        generateRssFeed(None).map { rssXml =>
+      .serverLogicSuccess { case (filterLinks, filterImages) =>
+        generateRssFeed(
+          targetFilter = None,
+          linkFilter = parseFilter(filterLinks),
+          imageFilter = parseFilter(filterImages)
+        ).map { rssXml =>
           (rssContentType.toString(), rssXml)
         }
-      )
+      }
 
   private val rssTargetEndpoint: ServerEndpoint[Any, IO] =
     endpoint.get
       .in("rss" / "target" / path[String]("target"))
+      .in(query[Option[String]]("filterByLinks"))
+      .in(query[Option[String]]("filterByImages"))
       .out(header[String]("Content-Type"))
       .out(stringBody)
       .errorOut(errorOutput)
-      .serverLogic { target =>
+      .serverLogic { case (target, filterLinks, filterImages) =>
         Target.values
           .find(_.toString.equalsIgnoreCase(target))
           .map(targetValue =>
-            generateRssFeed(Some(targetValue)).map { rssXml =>
+            generateRssFeed(
+              targetFilter = Some(targetValue),
+              linkFilter = parseFilter(filterLinks),
+              imageFilter = parseFilter(filterImages)
+            ).map { rssXml =>
               Right((rssContentType.toString(), rssXml))
             }
           )
@@ -132,12 +163,11 @@ class Routes(
   private val rssItemEndpoint: ServerEndpoint[Any, IO] =
     endpoint.get
       .in("rss" / path[UUID]("uuid"))
-      .out(header[String]("Content-Type"))
-      .out(stringBody)
+      .out(jsonBody[Post])
       .errorOut(errorOutput)
       .serverLogic { uuid =>
         getRssItem(uuid).map {
-          case Some(item) => Right((MediaType.ApplicationXml.toString(), item))
+          case Some(item) => Right(item)
           case None => Left((StatusCode.NotFound, ErrorResponse("RSS item not found")))
         }
       }
@@ -165,6 +195,31 @@ class Routes(
       .errorOut(errorOutput)
       .serverLogic { credentials =>
         auth.login(credentials).map(_.leftMap(toErrorOutput))
+      }
+
+  private val publicRoot = Paths.get("public").toAbsolutePath.normalize
+  private val spaPaths = Set("login", "form", "account")
+  private val reservedStaticPrefixes =
+    Set("api", "rss", "files", "openapi", "docs", "swagger", "ping")
+
+  private val staticPathInput: EndpointInput[List[String]] =
+    paths.mapDecode { segments =>
+      segments.headOption match {
+        case Some(head) if reservedStaticPrefixes.contains(head) =>
+          DecodeResult.Missing
+        case _ =>
+          DecodeResult.Value(segments)
+      }
+    }(identity)
+
+  private val staticFilesEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in(staticPathInput)
+      .out(header[String]("Content-Type"))
+      .out(byteArrayBody)
+      .errorOut(errorOutput)
+      .serverLogic { segments =>
+        serveStaticFile(segments)
       }
 
   private val protectedEndpoint: ServerEndpoint[Any, IO] =
@@ -278,7 +333,7 @@ class Routes(
     secureEndpoint.post
       .in("api" / "files" / "upload")
       .in(multipartBody[FileUploadForm])
-      .out(jsonBody[FileUploadResponse])
+      .out(jsonBody[FileMetadata])
       .serverSecurityLogic(authenticate)
       .serverLogic { _ => form =>
         handleFileUpload(form)
@@ -294,10 +349,11 @@ class Routes(
     : IO[Either[ErrorOut, MultiPostResponse]] = {
     val handlers: List[(String, Result[NewPostResponse])] =
       List("rss" -> createRssPost(request)) ++
-        request.targets.getOrElse(Nil).map {
-          case Target.Mastodon => "mastodon" -> mastodon.createPost(request)
-          case Target.Bluesky => "bluesky" -> bluesky.createPost(request)
-          case Target.Twitter => "twitter" -> twitter.createPost(request)
+        request.targets.getOrElse(Nil).flatMap {
+          case Target.Mastodon => Some("mastodon" -> mastodon.createPost(request))
+          case Target.Bluesky => Some("bluesky" -> bluesky.createPost(request))
+          case Target.Twitter => Some("twitter" -> twitter.createPost(request))
+          case Target.LinkedIn => None
         }
 
     handlers.traverse { case (name, result) =>
@@ -315,26 +371,58 @@ class Routes(
     }
   }
 
-  private def handleFileUpload(form: FileUploadForm): IO[Either[ErrorOut, FileUploadResponse]] = {
-    val uploads = form.files.toList.collect {
-      case part if part.name == "files" => part
-    }
+  private def handleFileUpload(form: FileUploadForm): IO[Either[ErrorOut, FileMetadata]] = {
+    val part = form.file
+    val allowedTypes = Set("image/png", "image/jpeg")
 
-    uploads.traverse { part =>
-      part.contentType match {
-        case Some(contentType) =>
-          val filename = part.fileName.getOrElse("upload")
-          files.saveFile(filename, contentType.toString, part.body, None).map { metadata =>
-            FileUploadItem(metadata.uuid, metadata.originalName)
+    part.contentType match {
+      case Some(contentType) if allowedTypes.contains(contentType.toString.toLowerCase) =>
+        val filename = part.fileName.getOrElse("upload")
+        files
+          .saveFile(filename, contentType.toString, part.body, form.altText)
+          .map(Right(_))
+          .handleErrorWith { err =>
+            logger.error(err)("Failed to upload file") *>
+              IO.pure(Left((StatusCode.BadRequest, ErrorResponse(err.getMessage))))
           }
-        case None =>
-          IO.raiseError(new IllegalArgumentException("Missing content type"))
-      }
-    }.map(items => Right(FileUploadResponse(items))).handleErrorWith { err =>
-      logger.error(err)("Failed to upload files") *>
-        IO.pure(Left((StatusCode.BadRequest, ErrorResponse(err.getMessage))))
+      case Some(contentType) =>
+        IO.pure(Left((
+          StatusCode.BadRequest,
+          ErrorResponse(s"Unsupported content type: ${contentType.toString}")
+        )))
+      case None =>
+        IO.pure(Left((StatusCode.BadRequest, ErrorResponse("Missing content type"))))
     }
   }
+
+  private def serveStaticFile(segments: List[String]): IO[Either[ErrorOut, (String, Array[Byte])]] =
+    resolveStaticPath(segments).flatMap {
+      case None =>
+        IO.pure(Left((StatusCode.NotFound, ErrorResponse("File not found"))))
+      case Some(path) =>
+        IO.blocking {
+          if !JavaFiles.exists(path) || JavaFiles.isDirectory(path) then {
+            Left((StatusCode.NotFound, ErrorResponse("File not found")))
+          } else {
+            val bytes = JavaFiles.readAllBytes(path)
+            val contentType = Option(JavaFiles.probeContentType(path))
+              .getOrElse("application/octet-stream")
+            Right((contentType, bytes))
+          }
+        }
+    }
+
+  private def resolveStaticPath(segments: List[String]): IO[Option[Path]] =
+    IO.blocking {
+      val normalizedSegments = segments.filter(_.nonEmpty)
+      val target = normalizedSegments.headOption match {
+        case None => publicRoot.resolve("index.html")
+        case Some(head) if spaPaths.contains(head) => publicRoot.resolve("index.html")
+        case _ => publicRoot.resolve(normalizedSegments.mkString("/"))
+      }
+      val normalized = target.normalize
+      if normalized.startsWith(publicRoot) then Some(normalized) else None
+    }
 
   private def createRssPost(request: NewPostRequest): Result[NewPostResponse] = {
     val content =
@@ -361,53 +449,100 @@ class Routes(
     } yield NewPostResponse.Rss(uri)
   }
 
-  private def generateRssFeed(targetFilter: Option[Target]): IO[String] =
-    posts.getAll.map { allPosts =>
-      val filtered = targetFilter match {
-        case Some(target) => allPosts.filter(_.targets.contains(target))
-        case None => allPosts
+  private def generateRssFeed(
+    targetFilter: Option[Target],
+    linkFilter: Option[FilterMode],
+    imageFilter: Option[FilterMode]
+  ): IO[String] =
+    posts.getAll.flatMap { allPosts =>
+      val filtered = allPosts.filter { post =>
+        val targetOk = targetFilter.forall(post.targets.contains)
+        val linkOk = linkFilter match {
+          case Some(FilterMode.Include) => post.link.nonEmpty
+          case Some(FilterMode.Exclude) => post.link.isEmpty
+          case None => true
+        }
+        val imageOk = imageFilter match {
+          case Some(FilterMode.Include) => post.images.nonEmpty
+          case Some(FilterMode.Exclude) => post.images.isEmpty
+          case None => true
+        }
+        targetOk && linkOk && imageOk
       }
       buildRssFeed(filtered, targetFilter)
     }
 
-  private def getRssItem(uuid: UUID): IO[Option[String]] =
-    posts.searchByUUID(uuid).map {
-      case Some(post) => Some(buildRssItem(post))
+  private def getRssItem(uuid: UUID): IO[Option[Post]] =
+    posts.searchByUUID(uuid)
+
+  private def buildRssFeed(posts: List[Post], targetFilter: Option[Target]): IO[String] = {
+    val baseTitle = server.baseUrl.replaceFirst("^https?://", "")
+    val title = targetFilter match {
+      case Some(target) => s"Feed of $baseTitle - ${target.toString.toLowerCase}"
+      case None => s"Feed of $baseTitle"
+    }
+
+    posts.traverse(buildRssItem).map { items =>
+      val itemsXml = items.mkString("\n")
+      s"""<?xml version="1.0" encoding="UTF-8"?>
+         |<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+         |  <channel>
+         |    <title>$title</title>
+         |    <link>${server.baseUrl}/rss</link>
+         |    <description>Social media posts</description>
+         |    $itemsXml
+         |  </channel>
+         |</rss>""".stripMargin
+    }
+  }
+
+  private def buildRssItem(post: Post): IO[String] = {
+    val content = escapeXml(post.content)
+    val linkValue = post.link.getOrElse(s"${server.baseUrl}/rss/${post.uuid}")
+    val link = s"<link>${escapeXml(linkValue)}</link>"
+    val guid = s"<guid>${post.uuid}</guid>"
+    val pubDate = s"<pubDate>${post.createdAt}</pubDate>"
+    val description = s"<description>$content</description>"
+    val categories = (post.tags ++ post.targets.map(_.toString.toLowerCase))
+      .map(tag => s"<category>${escapeXml(tag)}</category>")
+      .mkString("\n")
+
+    post.images.traverse(buildMediaElement).map { mediaElements =>
+      val mediaXml = mediaElements.flatten.mkString("\n")
+      s"""<item>
+          |  <title>$content</title>
+          |  $description
+          |  $categories
+          |  $link
+          |  $guid
+          |  $pubDate
+          |  $mediaXml
+          |</item>""".stripMargin
+    }
+  }
+
+  private def buildMediaElement(uuid: UUID): IO[Option[String]] =
+    files.getFileMetadata(uuid).map {
+      case Some(metadata) =>
+        val description = metadata.altText
+          .map(text => s"<media:description>${escapeXml(text)}</media:description>")
+          .getOrElse("")
+        Some(
+          s"""<media:content url="${server.baseUrl}/files/${metadata.uuid}" fileSize="${metadata.size}" type="${metadata.mimeType}">
+             |  <media:rating scheme="urn:simple">nonadult</media:rating>
+             |  $description
+             |</media:content>""".stripMargin
+        )
       case None => None
     }
 
-  private def buildRssFeed(posts: List[Post], targetFilter: Option[Target]): String = {
-    val items = posts.map(buildRssItem).mkString("\n")
-
-    val title = targetFilter match {
-      case Some(target) => s"Social Publish Feed - ${target.toString}"
-      case None => "Social Publish Feed"
+  private def extractCookieToken(headerValue: Option[String]): Option[String] =
+    headerValue.flatMap { header =>
+      header.split(';').toList.map(_.trim).collectFirst {
+        case entry if entry.startsWith("access_token=") =>
+          entry.stripPrefix("access_token=")
+      }
     }
-
-    s"""<?xml version="1.0" encoding="UTF-8"?>
-       |<rss version="2.0">
-       |  <channel>
-       |    <title>$title</title>
-       |    <link>${server.baseUrl}/rss</link>
-       |    <description>Social media posts</description>
-       |    $items
-       |  </channel>
-       |</rss>""".stripMargin
-  }
-
-  private def buildRssItem(post: Post): String = {
-    val content = escapeXml(post.content)
-    val link = post.link.map(l => s"<link>${escapeXml(l)}</link>").getOrElse("")
-    val guid = s"<guid>${post.uuid}</guid>"
-    val pubDate = s"<pubDate>${post.createdAt}</pubDate>"
-
-    s"""<item>
-        |  <title>$content</title>
-        |  $link
-        |  $guid
-        |  $pubDate
-        |</item>""".stripMargin
-  }
 
   private def escapeXml(text: String): String =
     text

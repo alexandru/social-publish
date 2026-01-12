@@ -27,28 +27,28 @@ object ServerConfig {
       "base-url",
       help = "Public URL of this server",
       metavar = "url"
-    ).orElse(Opts(sys.env.getOrElse("BASE_URL", "http://localhost:3000")))
+    ).orElse(Opts.env[String]("BASE_URL", help = "Public URL of this server"))
 
   private val serverAuthUsernameOpt =
     Opts.option[String](
       "server-auth-username",
       help = "Your username for this server",
       metavar = "username"
-    ).orElse(Opts(sys.env.getOrElse("SERVER_AUTH_USERNAME", "admin")))
+    ).orElse(Opts.env[String]("SERVER_AUTH_USERNAME", help = "Your username for this server"))
 
   private val serverAuthPasswordOpt =
     Opts.option[String](
       "server-auth-password",
       help = "Your password for this server",
       metavar = "password"
-    ).orElse(Opts(sys.env.getOrElse("SERVER_AUTH_PASSWORD", "admin")))
+    ).orElse(Opts.env[String]("SERVER_AUTH_PASSWORD", help = "Your password for this server"))
 
   private val serverAuthJwtSecretOpt =
     Opts.option[String](
       "server-auth-jwt-secret",
       help = "JWT secret for this server's authentication",
       metavar = "secret"
-    ).orElse(Opts(sys.env.getOrElse("JWT_SECRET", "changeme")))
+    ).orElse(Opts.env[String]("JWT_SECRET", help = "JWT secret for this server's authentication"))
 
   val opts: Opts[ServerConfig] =
     (

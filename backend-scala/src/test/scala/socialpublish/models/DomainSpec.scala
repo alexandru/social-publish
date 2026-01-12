@@ -21,6 +21,13 @@ class DomainSpec extends FunSuite {
     assertEquals(decoded, Right(Target.Bluesky))
   }
 
+  test("Target enum supports linkedin") {
+    val json = parse(""""linkedin"""")
+    assert(json.isRight)
+    val decoded = json.flatMap(_.as[Target])
+    assertEquals(decoded, Right(Target.LinkedIn))
+  }
+
   test("NewPostRequest serialization") {
     val request = NewPostRequest(
       content = "Test post",

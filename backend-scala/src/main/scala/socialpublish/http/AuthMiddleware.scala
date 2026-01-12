@@ -47,7 +47,11 @@ object ProtectedResponse {
     Schema.derived
 }
 
-case class AuthInputs(token: String)
+case class AuthInputs(
+  authHeader: Option[String],
+  accessTokenQuery: Option[String],
+  accessTokenCookie: Option[String]
+)
 
 case class AuthContext(user: UserPayload, token: String)
 
@@ -75,13 +79,22 @@ class AuthMiddleware(
     }
 
   def authenticate(inputs: AuthInputs): IO[Either[ApiError, AuthContext]] =
-    validateToken(normalizeToken(inputs.token)).map {
-      case Some(user) => AuthContext(user, normalizeToken(inputs.token)).asRight
-      case None => ApiError.unauthorized("Unauthorized").asLeft
+    tokenFromInputs(inputs) match {
+      case Some(token) =>
+        validateToken(token).map {
+          case Some(user) => AuthContext(user, token).asRight
+          case None => ApiError.unauthorized("Unauthorized").asLeft
+        }
+      case None =>
+        IO.pure(ApiError.unauthorized("Unauthorized").asLeft)
     }
 
   def protectedResponse(user: UserPayload): ProtectedResponse =
     ProtectedResponse(user.username)
+
+  private def tokenFromInputs(inputs: AuthInputs): Option[String] =
+    List(inputs.authHeader, inputs.accessTokenQuery, inputs.accessTokenCookie)
+      .collectFirst { case Some(token) => normalizeToken(token) }
 
   private def validateToken(token: String): IO[Option[UserPayload]] =
     IO {

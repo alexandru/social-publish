@@ -80,7 +80,7 @@ class PostsDatabaseImpl(docsDb: DocumentsDatabase) extends PostsDatabase {
           val images = imagesStr.getOrElse(Nil).map(UUID.fromString)
           val targets = doc.tags
             .filter(_.kind == "target")
-            .map(t => Target.valueOf(t.name.capitalize))
+            .flatMap(tag => Target.values.find(_.toString.equalsIgnoreCase(tag.name)))
 
           Post(
             uuid = doc.uuid,
