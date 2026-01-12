@@ -1,6 +1,7 @@
 package socialpublish.services
 
 import cats.effect.*
+import cats.effect.std.Semaphore
 import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -10,6 +11,7 @@ import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.file.{Files, Path}
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
 import javax.imageio.ImageIO
@@ -43,18 +45,20 @@ object FilesService {
   def apply(config: FilesConfig, db: FilesDatabase): IO[FilesService] =
     for {
       logger <- Slf4jLogger.create[IO]
+      locks <- Ref.of[IO, Map[String, Semaphore[IO]]](Map.empty)
       _ <- IO.blocking {
         val uploadPath = config.uploadedFilesPath
         if !Files.exists(uploadPath) then {
           val _ = Files.createDirectories(uploadPath)
         }
       }
-    } yield new FilesServiceImpl(config, db, logger)
+    } yield new FilesServiceImpl(config, db, logger, locks)
 
   def resource(cfg: FilesConfig, db: FilesDatabase): Resource[IO, FilesService] =
     Resource.eval {
       for {
         logger <- Slf4jLogger.create[IO]
+        locks <- Ref.of[IO, Map[String, Semaphore[IO]]](Map.empty)
         _ <- IO.blocking {
           val uploadPath = cfg.uploadedFilesPath
           if !Files.exists(uploadPath) then {
@@ -64,7 +68,8 @@ object FilesService {
       } yield new FilesServiceImpl(
         cfg,
         db,
-        logger
+        logger,
+        locks
       )
     }
 
@@ -73,7 +78,8 @@ object FilesService {
 private class FilesServiceImpl(
   config: FilesConfig,
   db: FilesDatabase,
-  logger: Logger[IO]
+  logger: Logger[IO],
+  locks: Ref[IO, Map[String, Semaphore[IO]]]
 ) extends FilesService {
 
   private val supportedImageTypes = Set("image/png", "image/jpeg")
@@ -87,25 +93,36 @@ private class FilesServiceImpl(
     altText: Option[String]
   ): IO[FileMetadata] =
     for {
-      uuid <- IO.delay(UUID.randomUUID())
-      dimensionsOpt <- extractImageDimensions(bytes, mimeType)
-      (widthOpt, heightOpt) = dimensionsOpt match {
-        case Some((width, height)) => (Some(width), Some(height))
-        case None => (None, None)
+      hash <- calculateHash(bytes)
+      existingFile <- db.getByHash(hash)
+      metadata <- existingFile match {
+        case Some(existing) =>
+          logger.info(s"File already exists with hash $hash, reusing ${existing.uuid}") *>
+            IO.pure(existing)
+        case None =>
+          for {
+            uuid <- IO.delay(UUID.randomUUID())
+            dimensionsOpt <- extractImageDimensions(bytes, mimeType)
+            (widthOpt, heightOpt) = dimensionsOpt match {
+              case Some((width, height)) => (Some(width), Some(height))
+              case None => (None, None)
+            }
+            _ <- writeFileToDisk(hash, bytes)
+            metadata = FileMetadata(
+              uuid = uuid,
+              originalName = filename,
+              mimeType = mimeType,
+              size = bytes.length.toLong,
+              altText = altText,
+              width = widthOpt,
+              height = heightOpt,
+              hash = Some(hash),
+              createdAt = Instant.now()
+            )
+            _ <- db.save(metadata)
+            _ <- logger.info(s"Saved new file $uuid ($filename) with hash $hash")
+          } yield metadata
       }
-      _ <- writeFileToDisk(uuid, bytes)
-      metadata = FileMetadata(
-        uuid = uuid,
-        originalName = filename,
-        mimeType = mimeType,
-        size = bytes.length.toLong,
-        altText = altText,
-        width = widthOpt,
-        height = heightOpt,
-        createdAt = Instant.now()
-      )
-      _ <- db.save(metadata)
-      _ <- logger.info(s"Saved file $uuid ($filename)")
     } yield metadata
 
   override def getFile(uuid: UUID): IO[Option[ProcessedFile]] =
@@ -114,33 +131,19 @@ private class FilesServiceImpl(
       result <- metadataOpt match {
         case None => IO.pure(None)
         case Some(metadata) =>
-          readFileFromDisk(uuid).flatMap { bytes =>
-            val processed =
-              if metadata.mimeType.startsWith("image/") then {
-                for {
-                  dimensionsOpt <- extractImageDimensions(bytes, metadata.mimeType)
-                  (width, height) = dimensionsOpt.getOrElse((0, 0))
-                  resized <- resizeImage(bytes, metadata.mimeType, width, height)
-                } yield resized
-              } else {
-                IO.pure((bytes, metadata.width.getOrElse(0), metadata.height.getOrElse(0)))
+          metadata.hash match {
+            case Some(hash) =>
+              withLock(hash) {
+                readFileFromDiskByHash(hash).flatMap { bytes =>
+                  processFile(metadata, bytes)
+                }
+              }.handleErrorWith { err =>
+                logger
+                  .error(err)(s"Failed to read file $uuid from disk")
+                  .as(None)
               }
-
-            processed.map { case (processedBytes, width, height) =>
-              Some(ProcessedFile(
-                uuid = uuid,
-                originalName = metadata.originalName,
-                mimeType = metadata.mimeType,
-                bytes = processedBytes,
-                altText = metadata.altText,
-                width = width,
-                height = height
-              ))
-            }
-          }.handleErrorWith { err =>
-            logger
-              .error(err)(s"Failed to read file $uuid from disk")
-              .as(None)
+            case None =>
+              logger.warn(s"File $uuid has no hash, cannot read") *> IO.pure(None)
           }
       }
     } yield result
@@ -151,17 +154,65 @@ private class FilesServiceImpl(
   override def getFilePath(uuid: UUID): Path =
     config.uploadedFilesPath.resolve(uuid.toString)
 
-  private def writeFileToDisk(uuid: UUID, bytes: Array[Byte]): IO[Unit] =
+  private def getFilePathByHash(hash: String): Path =
+    config.uploadedFilesPath.resolve(hash)
+
+  private def calculateHash(bytes: Array[Byte]): IO[String] =
     IO.blocking {
-      val path = getFilePath(uuid)
+      val digest = MessageDigest.getInstance("SHA-256")
+      val hashBytes = digest.digest(bytes)
+      hashBytes.map("%02x".format(_)).mkString
+    }
+
+  private def withLock[A](key: String)(f: IO[A]): IO[A] =
+    for {
+      sem <- locks.modify { current =>
+        current.get(key) match {
+          case Some(existing) => (current, existing.pure[IO])
+          case None => 
+            val newSem = Semaphore[IO](1)
+            (current + (key -> newSem.unsafeRunSync()(cats.effect.unsafe.IORuntime.global)), newSem)
+        }
+      }.flatten
+      result <- sem.permit.use(_ => f)
+    } yield result
+
+  private def writeFileToDisk(hash: String, bytes: Array[Byte]): IO[Unit] =
+    IO.blocking {
+      val path = getFilePathByHash(hash)
       val _ = Files.write(path, bytes)
     }
 
-  private def readFileFromDisk(uuid: UUID): IO[Array[Byte]] =
+  private def readFileFromDiskByHash(hash: String): IO[Array[Byte]] =
     IO.blocking {
-      val path = getFilePath(uuid)
+      val path = getFilePathByHash(hash)
       Files.readAllBytes(path)
     }
+
+  private def processFile(metadata: FileMetadata, bytes: Array[Byte]): IO[Option[ProcessedFile]] = {
+    val processed =
+      if metadata.mimeType.startsWith("image/") then {
+        for {
+          dimensionsOpt <- extractImageDimensions(bytes, metadata.mimeType)
+          (width, height) = dimensionsOpt.getOrElse((0, 0))
+          resized <- resizeImage(bytes, metadata.mimeType, width, height)
+        } yield resized
+      } else {
+        IO.pure((bytes, metadata.width.getOrElse(0), metadata.height.getOrElse(0)))
+      }
+
+    processed.map { case (processedBytes, width, height) =>
+      Some(ProcessedFile(
+        uuid = metadata.uuid,
+        originalName = metadata.originalName,
+        mimeType = metadata.mimeType,
+        bytes = processedBytes,
+        altText = metadata.altText,
+        width = width,
+        height = height
+      ))
+    }
+  }
 
   private def extractImageDimensions(
     bytes: Array[Byte],

@@ -13,6 +13,7 @@ import java.util.UUID
 trait FilesDatabase {
   def save(metadata: FileMetadata): IO[FileMetadata]
   def getByUUID(uuid: UUID): IO[Option[FileMetadata]]
+  def getByHash(hash: String): IO[Option[FileMetadata]]
   def getAll: IO[List[FileMetadata]]
 }
 
@@ -36,9 +37,11 @@ object FilesDatabase {
           |  alt_text TEXT,
           |  width INTEGER,
           |  height INTEGER,
+          |  hash TEXT,
           |  created_at INTEGER NOT NULL
           |)""".stripMargin,
-          "CREATE INDEX IF NOT EXISTS files_created_at_idx ON files (created_at DESC)"
+          "CREATE INDEX IF NOT EXISTS files_created_at_idx ON files (created_at DESC)",
+          "CREATE INDEX IF NOT EXISTS files_hash_idx ON files (hash)"
         ),
         testIfApplied = sql"SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
           .query[String]
@@ -52,7 +55,7 @@ object FilesDatabase {
 private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
 
   override def save(metadata: FileMetadata): IO[FileMetadata] =
-    sql"""INSERT INTO files (uuid, original_name, mime_type, size, alt_text, width, height, created_at)
+    sql"""INSERT INTO files (uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at)
           VALUES (
             ${metadata.uuid},
             ${metadata.originalName},
@@ -61,6 +64,7 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
             ${metadata.altText},
             ${metadata.width},
             ${metadata.height},
+            ${metadata.hash},
             ${metadata.createdAt.toEpochMilli}
           )"""
       .update.run
@@ -68,11 +72,11 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
       .as(metadata)
 
   override def getByUUID(uuid: UUID): IO[Option[FileMetadata]] =
-    sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, created_at
+    sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
           FROM files WHERE uuid = $uuid"""
-      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Long)]
+      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
       .option
-      .map(_.map { case (uuidStr, name, mime, size, alt, w, h, created) =>
+      .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
         FileMetadata(
           UUID.fromString(uuidStr),
           name,
@@ -81,17 +85,38 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
           alt,
           w,
           h,
+          hash,
+          Instant.ofEpochMilli(created)
+        )
+      })
+      .transact(xa)
+
+  override def getByHash(hash: String): IO[Option[FileMetadata]] =
+    sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
+          FROM files WHERE hash = $hash"""
+      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
+      .option
+      .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
+        FileMetadata(
+          UUID.fromString(uuidStr),
+          name,
+          mime,
+          size,
+          alt,
+          w,
+          h,
+          hash,
           Instant.ofEpochMilli(created)
         )
       })
       .transact(xa)
 
   override def getAll: IO[List[FileMetadata]] =
-    sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, created_at
+    sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
           FROM files ORDER BY created_at DESC"""
-      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Long)]
+      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
       .to[List]
-      .map(_.map { case (uuidStr, name, mime, size, alt, w, h, created) =>
+      .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
         FileMetadata(
           UUID.fromString(uuidStr),
           name,
@@ -100,6 +125,7 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
           alt,
           w,
           h,
+          hash,
           Instant.ofEpochMilli(created)
         )
       })

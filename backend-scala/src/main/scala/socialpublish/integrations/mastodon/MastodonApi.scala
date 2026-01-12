@@ -12,6 +12,7 @@ import sttp.tapir.DecodeResult
 import sttp.tapir.client.sttp4.SttpClientInterpreter
 
 import java.util.UUID
+import scala.concurrent.duration.*
 
 // Mastodon API implementation
 trait MastodonApi {
@@ -81,9 +82,58 @@ private class MastodonApiImpl(
       )
 
       response <- Result.liftIO(backend.send(request)).flatMap { response =>
-        Result.fromEither(decodeApiResponse(response.body, response.code.code))
+        response.code.code match {
+          case 200 =>
+            // Immediate success
+            Result.fromEither(decodeApiResponse(response.body, response.code.code))
+              .map(_.id)
+          case 202 =>
+            // Async processing - need to poll
+            Result.fromEither(decodeApiResponse(response.body, response.code.code))
+              .flatMap(initial => pollMediaUntilReady(initial.id))
+          case _ =>
+            Result.fromEither(decodeApiResponse(response.body, response.code.code))
+              .map(_.id)
+        }
       }
-    } yield response.id
+    } yield response
+
+  private def pollMediaUntilReady(mediaId: String): Result[String] = {
+    def poll(attempt: Int = 0): IO[Either[ApiError, String]] =
+      if attempt > 30 then {
+        // Max 30 attempts (6 seconds)
+        IO.pure(Left(ApiError.requestError(
+          408,
+          s"Mastodon media upload timeout for $mediaId",
+          "mastodon"
+        )))
+      } else {
+        val request = interpreter.toRequest(MastodonEndpoints.getMedia, Some(baseUri))(
+          bearerToken(config.accessToken) -> mediaId
+        )
+
+        backend.send(request).flatMap { response =>
+          response.code.code match {
+            case 200 =>
+              decodeApiResponse(response.body, response.code.code) match {
+                case Right(media) => IO.pure(Right(media.id))
+                case Left(error) => IO.pure(Left(error))
+              }
+            case 202 =>
+              // Still processing, wait and retry
+              IO.sleep(200.millis) *> poll(attempt + 1)
+            case _ =>
+              IO.pure(Left(ApiError.requestError(
+                response.code.code,
+                s"Mastodon media check failed for $mediaId",
+                "mastodon"
+              )))
+          }
+        }
+      }
+
+    Result(poll())
+  }
 
   private def createStatus(
     text: String,

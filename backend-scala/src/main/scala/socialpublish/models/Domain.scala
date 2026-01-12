@@ -184,6 +184,7 @@ case class FileMetadata(
   altText: Option[String],
   width: Option[Int],
   height: Option[Int],
+  hash: Option[String],
   createdAt: Instant
 )
 

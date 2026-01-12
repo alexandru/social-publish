@@ -46,12 +46,29 @@ object MastodonEndpoints {
       Schema.derived
   }
 
-  final case class MediaUploadResponse(id: String) derives Codec.AsObject
+  final case class MediaUploadResponse(
+    id: String,
+    url: Option[String] = None,
+    preview_url: Option[String] = None,
+    description: Option[String] = None
+  ) derives Codec.AsObject
 
   object MediaUploadResponse {
     given Schema[MediaUploadResponse] =
       Schema.derived
   }
+
+  /** Get media attachment by ID (for polling async uploads).
+    *
+    * Docs: https://docs.joinmastodon.org/methods/media/
+    */
+  val getMedia: PublicEndpoint[(String, String), String, MediaUploadResponse, Any] =
+    endpoint.get
+      .in("api" / "v1" / "media" / path[String]("id"))
+      .in(header[String]("Authorization"))
+      .errorOut(stringBody)
+      .out(jsonBody[MediaUploadResponse])
+      .name("mastodonGetMedia")
 
   final case class StatusCreateRequest(
     status: String,
