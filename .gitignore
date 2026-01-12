@@ -26,6 +26,7 @@ build
 .envrc
 
 # Kotlin/Gradle
+.kotlin
 backend-kotlin/.gradle
 backend-kotlin/build
 *.class

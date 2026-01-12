@@ -14,54 +14,56 @@ import java.io.File
 
 private val logger = KotlinLogging.logger {}
 
-fun main(args: Array<String>) = runBlocking {
-    logger.info { "Starting Social Publish application..." }
-    
-    val cliCommand = AppCliCommand()
-    cliCommand.main(args)
-    val config = cliCommand.config
-    
-    try {
-        // Initialize database
-        val dbFile = File(config.dbPath)
-        dbFile.parentFile?.mkdirs()
-        
-        val jdbi = Jdbi.create("jdbc:sqlite:${config.dbPath}")
-            .installPlugin(KotlinPlugin())
-        
-        // Run migrations
-        jdbi.useHandle<Exception> { handle ->
-            runMigrations(handle)
+fun main(args: Array<String>) =
+    runBlocking {
+        logger.info { "Starting Social Publish application..." }
+
+        val cliCommand = AppCliCommand()
+        cliCommand.main(args)
+        val config = cliCommand.config
+
+        try {
+            // Initialize database
+            val dbFile = File(config.dbPath)
+            dbFile.parentFile?.mkdirs()
+
+            val jdbi =
+                Jdbi.create("jdbc:sqlite:${config.dbPath}")
+                    .installPlugin(KotlinPlugin())
+
+            // Run migrations
+            jdbi.useHandle<Exception> { handle ->
+                runMigrations(handle)
+            }
+
+            // Initialize database repositories
+            val documentsDb = DocumentsDatabase(jdbi)
+            val postsDb = PostsDatabase(documentsDb)
+            val filesDb = FilesDatabase(jdbi)
+
+            logger.info { "Database initialized successfully" }
+
+            // Start HTTP server
+            startServer(config, documentsDb, postsDb, filesDb)
+        } catch (e: Exception) {
+            logger.error(e) { "Application failed to start" }
+            throw e
         }
-        
-        // Initialize database repositories
-        val documentsDb = DocumentsDatabase(jdbi)
-        val postsDb = PostsDatabase(documentsDb)
-        val filesDb = FilesDatabase(jdbi)
-        
-        logger.info { "Database initialized successfully" }
-        
-        // Start HTTP server
-        startServer(config, documentsDb, postsDb, filesDb)
-    } catch (e: Exception) {
-        logger.error(e) { "Application failed to start" }
-        throw e
     }
-}
 
 private fun runMigrations(handle: org.jdbi.v3.core.Handle) {
     logger.info { "Running database migrations..." }
-    
+
     fun tableExists(tableName: String): Boolean {
         return handle.createQuery(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name",
         )
             .bind("name", tableName)
             .mapTo(Int::class.java)
             .findOne()
             .isPresent
     }
-    
+
     // Documents table migration
     if (!tableExists("documents")) {
         logger.info { "Creating documents table" }
@@ -75,16 +77,16 @@ private fun runMigrations(handle: org.jdbi.v3.core.Handle) {
                 payload TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             )
-            """.trimIndent()
+            """.trimIndent(),
         )
         handle.execute(
             """
             CREATE INDEX IF NOT EXISTS documents_created_at
             ON documents(kind, created_at)
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
-    
+
     // Document tags table migration
     if (!tableExists("document_tags")) {
         logger.info { "Creating document_tags table" }
@@ -96,10 +98,10 @@ private fun runMigrations(handle: org.jdbi.v3.core.Handle) {
                kind VARCHAR(255) NOT NULL,
                PRIMARY KEY (document_uuid, name, kind)
             )
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
-    
+
     // Uploads table migration
     if (!tableExists("uploads")) {
         logger.info { "Creating uploads table" }
@@ -116,15 +118,15 @@ private fun runMigrations(handle: org.jdbi.v3.core.Handle) {
                 imageHeight INTEGER,
                 createdAt INTEGER NOT NULL
             )
-            """.trimIndent()
+            """.trimIndent(),
         )
         handle.execute(
             """
             CREATE INDEX IF NOT EXISTS uploads_createdAt
                 ON uploads(createdAt)
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
-    
+
     logger.info { "Database migrations completed" }
 }

@@ -2,7 +2,6 @@ package com.alexn.socialpublish.db
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jdbi.v3.core.Jdbi
 import java.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -13,7 +12,7 @@ data class PostPayload(
     val link: String? = null,
     val tags: List<String>? = null,
     val language: String? = null,
-    val images: List<String>? = null
+    val images: List<String>? = null,
 )
 
 data class Post(
@@ -24,18 +23,21 @@ data class Post(
     val link: String? = null,
     val tags: List<String>? = null,
     val language: String? = null,
-    val images: List<String>? = null
+    val images: List<String>? = null,
 )
 
 class PostsDatabase(private val docs: DocumentsDatabase) {
-    
-    fun create(payload: PostPayload, targets: List<String>): Post {
+    fun create(
+        payload: PostPayload,
+        targets: List<String>,
+    ): Post {
         val payloadJson = json.encodeToString(PostPayload.serializer(), payload)
-        val row = docs.createOrUpdate(
-            kind = "post",
-            payload = payloadJson,
-            tags = targets.map { Tag(it, "target") }
-        )
+        val row =
+            docs.createOrUpdate(
+                kind = "post",
+                payload = payloadJson,
+                tags = targets.map { Tag(it, "target") },
+            )
         return Post(
             uuid = row.uuid,
             createdAt = row.createdAt,
@@ -44,10 +46,10 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
             link = payload.link,
             tags = payload.tags,
             language = payload.language,
-            images = payload.images
+            images = payload.images,
         )
     }
-    
+
     fun getAll(): List<Post> {
         val rows = docs.getAll("post", "created_at DESC")
         return rows.map { row ->
@@ -60,11 +62,11 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
                 link = payload.link,
                 tags = payload.tags,
                 language = payload.language,
-                images = payload.images
+                images = payload.images,
             )
         }
     }
-    
+
     fun searchByUuid(uuid: String): Post? {
         val row = docs.searchByUuid(uuid) ?: return null
         val payload = json.decodeFromString<PostPayload>(row.payload)
@@ -76,7 +78,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
             link = payload.link,
             tags = payload.tags,
             language = payload.language,
-            images = payload.images
+            images = payload.images,
         )
     }
 }

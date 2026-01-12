@@ -4,43 +4,46 @@ import com.alexn.socialpublish.config.AppConfig
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.auth.principal
+import io.ktor.server.request.receiveParameters
+import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
-import java.util.*
+import java.util.Date
 
 private val logger = KotlinLogging.logger {}
 
 @Serializable
 data class LoginRequest(
     val username: String,
-    val password: String
+    val password: String,
 )
 
 @Serializable
 data class LoginResponse(
     val token: String,
-    val hasAuth: AuthStatus
+    val hasAuth: AuthStatus,
 )
 
 @Serializable
 data class AuthStatus(
-    val twitter: Boolean = false
+    val twitter: Boolean = false,
 )
 
 @Serializable
 data class UserResponse(
-    val username: String
+    val username: String,
 )
 
 class AuthModule(private val config: AppConfig) {
-    
     private val algorithm = Algorithm.HMAC256(config.serverAuthJwtSecret)
-    
+
     /**
      * Generate JWT token for authenticated user
      */
@@ -51,7 +54,7 @@ class AuthModule(private val config: AppConfig) {
             .withExpiresAt(Date(System.currentTimeMillis() + 168 * 60 * 60 * 1000)) // 168 hours = 7 days
             .sign(algorithm)
     }
-    
+
     /**
      * Verify JWT token
      */
@@ -65,7 +68,7 @@ class AuthModule(private val config: AppConfig) {
             null
         }
     }
-    
+
     /**
      * Login route handler
      */
@@ -73,27 +76,27 @@ class AuthModule(private val config: AppConfig) {
         val request = call.receiveParameters()
         val username = request["username"]
         val password = request["password"]
-        
+
         if (username == config.serverAuthUsername && password == config.serverAuthPassword) {
             val token = generateToken(username)
             call.respond(
                 LoginResponse(
                     token = token,
-                    hasAuth = AuthStatus(twitter = false) // TODO: Check Twitter auth status
-                )
+                    hasAuth = AuthStatus(twitter = false), // TODO: Check Twitter auth status
+                ),
             )
         } else {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
         }
     }
-    
+
     /**
      * Protected route handler
      */
     suspend fun protectedRoute(call: ApplicationCall) {
         val principal = call.principal<JWTPrincipal>()
         val username = principal?.getClaim("username", String::class)
-        
+
         if (username != null) {
             call.respond(UserResponse(username = username))
         } else {
@@ -111,7 +114,7 @@ fun Application.configureAuth(config: AppConfig) {
             realm = "social-publish"
             verifier(
                 JWT.require(Algorithm.HMAC256(config.serverAuthJwtSecret))
-                    .build()
+                    .build(),
             )
             validate { credential ->
                 val username = credential.payload.getClaim("username").asString()

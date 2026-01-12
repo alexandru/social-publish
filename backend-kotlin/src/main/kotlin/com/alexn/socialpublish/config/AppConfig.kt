@@ -3,7 +3,6 @@ package com.alexn.socialpublish.config
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 
 data class AppConfig(
@@ -20,7 +19,7 @@ data class AppConfig(
     val mastodonAccessToken: String,
     val twitterOauth1ConsumerKey: String,
     val twitterOauth1ConsumerSecret: String,
-    val uploadedFilesPath: String
+    val uploadedFilesPath: String,
 )
 
 class AppCliCommand : CliktCommand(name = "social-publish") {
@@ -71,21 +70,22 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
         private set
 
     override fun run() {
-        config = AppConfig(
-            dbPath = dbPath,
-            httpPort = httpPort,
-            baseUrl = baseUrl,
-            serverAuthUsername = serverAuthUsername,
-            serverAuthPassword = serverAuthPassword,
-            serverAuthJwtSecret = serverAuthJwtSecret,
-            blueskyService = blueskyService,
-            blueskyUsername = blueskyUsername,
-            blueskyPassword = blueskyPassword,
-            mastodonHost = mastodonHost,
-            mastodonAccessToken = mastodonAccessToken,
-            twitterOauth1ConsumerKey = twitterOauth1ConsumerKey,
-            twitterOauth1ConsumerSecret = twitterOauth1ConsumerSecret,
-            uploadedFilesPath = uploadedFilesPath
-        )
+        config =
+            AppConfig(
+                dbPath = dbPath,
+                httpPort = httpPort,
+                baseUrl = baseUrl,
+                serverAuthUsername = serverAuthUsername,
+                serverAuthPassword = serverAuthPassword,
+                serverAuthJwtSecret = serverAuthJwtSecret,
+                blueskyService = blueskyService,
+                blueskyUsername = blueskyUsername,
+                blueskyPassword = blueskyPassword,
+                mastodonHost = mastodonHost,
+                mastodonAccessToken = mastodonAccessToken,
+                twitterOauth1ConsumerKey = twitterOauth1ConsumerKey,
+                twitterOauth1ConsumerSecret = twitterOauth1ConsumerSecret,
+                uploadedFilesPath = uploadedFilesPath,
+            )
     }
 }

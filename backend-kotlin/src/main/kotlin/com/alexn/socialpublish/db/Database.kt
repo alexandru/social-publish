@@ -19,28 +19,30 @@ private val logger = KotlinLogging.logger {}
  * Database connection wrapper using Arrow's Resource for safe resource management
  */
 object Database {
-    fun resource(dbPath: String): Resource<Jdbi> = resource {
-        logger.info { "Connecting to database at $dbPath" }
-        
-        // Ensure parent directory exists
-        val dbFile = File(dbPath)
-        dbFile.parentFile?.mkdirs()
-        
-        val jdbi = Jdbi.create("jdbc:sqlite:$dbPath")
-            .installPlugin(KotlinPlugin())
-        
-        // Run migrations
-        jdbi.useHandle<Exception> { handle ->
-            runMigrations(handle)
+    fun resource(dbPath: String): Resource<Jdbi> =
+        resource {
+            logger.info { "Connecting to database at $dbPath" }
+
+            // Ensure parent directory exists
+            val dbFile = File(dbPath)
+            dbFile.parentFile?.mkdirs()
+
+            val jdbi =
+                Jdbi.create("jdbc:sqlite:$dbPath")
+                    .installPlugin(KotlinPlugin())
+
+            // Run migrations
+            jdbi.useHandle<Exception> { handle ->
+                runMigrations(handle)
+            }
+
+            logger.info { "Database connected and migrated" }
+            jdbi
         }
-        
-        logger.info { "Database connected and migrated" }
-        jdbi
-    }
-    
+
     private fun runMigrations(handle: Handle) {
         logger.info { "Running database migrations..." }
-        
+
         // Documents table migration
         if (!tableExists(handle, "documents")) {
             logger.info { "Creating documents table" }
@@ -54,16 +56,16 @@ object Database {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
-                """.trimIndent()
+                """.trimIndent(),
             )
             handle.execute(
                 """
                 CREATE INDEX IF NOT EXISTS documents_created_at
                 ON documents(kind, created_at)
-                """.trimIndent()
+                """.trimIndent(),
             )
         }
-        
+
         // Document tags table migration
         if (!tableExists(handle, "document_tags")) {
             logger.info { "Creating document_tags table" }
@@ -75,10 +77,10 @@ object Database {
                    kind VARCHAR(255) NOT NULL,
                    PRIMARY KEY (document_uuid, name, kind)
                 )
-                """.trimIndent()
+                """.trimIndent(),
             )
         }
-        
+
         // Uploads table migration
         if (!tableExists(handle, "uploads")) {
             logger.info { "Creating uploads table" }
@@ -95,22 +97,25 @@ object Database {
                     imageHeight INTEGER,
                     createdAt INTEGER NOT NULL
                 )
-                """.trimIndent()
+                """.trimIndent(),
             )
             handle.execute(
                 """
                 CREATE INDEX IF NOT EXISTS uploads_createdAt
                     ON uploads(createdAt)
-                """.trimIndent()
+                """.trimIndent(),
             )
         }
-        
+
         logger.info { "Database migrations completed" }
     }
-    
-    private fun tableExists(handle: Handle, tableName: String): Boolean {
+
+    private fun tableExists(
+        handle: Handle,
+        tableName: String,
+    ): Boolean {
         return handle.createQuery(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name",
         )
             .bind("name", tableName)
             .mapTo(Int::class.java)
@@ -130,7 +135,7 @@ suspend fun <T> safeDbOperation(block: suspend () -> T): Either<ApiError, T> {
         CaughtException(
             status = 500,
             module = "database",
-            errorMessage = "Database operation failed: ${e.message}"
+            errorMessage = "Database operation failed: ${e.message}",
         ).left()
     }
 }
