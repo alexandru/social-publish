@@ -87,7 +87,7 @@ class TwitterApiSpec extends CatsEffectSuite {
               val tags = List(DocumentTag("twitter-oauth-token", "key"))
 
               val request = NewPostRequest(
-                content = "Hello Twitter",
+                content = Content.unsafe("Hello Twitter"),
                 targets = None,
                 link = Some("https://example.com"),
                 language = None,

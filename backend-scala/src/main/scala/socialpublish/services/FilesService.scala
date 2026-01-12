@@ -94,19 +94,21 @@ private class FilesServiceImpl(
   ): IO[FileMetadata] =
     for {
       hash <- calculateHash(bytes)
-      existingFile <- db.getByHash(hash)
+      dimensionsOpt <- extractImageDimensions(bytes, mimeType)
+      (widthOpt, heightOpt) = dimensionsOpt match {
+        case Some((width, height)) => (Some(width), Some(height))
+        case None => (None, None)
+      }
+      // Generate UUID based on hash + filename + altText + dimensions + mimeType
+      // This ensures each unique combination gets its own database record (preserving alt text per upload)
+      uuid <- generateFileUUID(hash, filename, altText, widthOpt, heightOpt, mimeType)
+      existingFile <- db.getByUUID(uuid)
       metadata <- existingFile match {
         case Some(existing) =>
-          logger.info(s"File already exists with hash $hash, reusing ${existing.uuid}") *>
+          logger.info(s"File already exists with UUID $uuid (hash $hash), reusing") *>
             IO.pure(existing)
         case None =>
           for {
-            uuid <- IO.delay(UUID.randomUUID())
-            dimensionsOpt <- extractImageDimensions(bytes, mimeType)
-            (widthOpt, heightOpt) = dimensionsOpt match {
-              case Some((width, height)) => (Some(width), Some(height))
-              case None => (None, None)
-            }
             _ <- writeFileToDisk(hash, bytes)
             metadata = FileMetadata(
               uuid = uuid,
@@ -164,18 +166,70 @@ private class FilesServiceImpl(
       hashBytes.map("%02x".format(_)).mkString
     }
 
+  private def generateFileUUID(
+    hash: String,
+    filename: String,
+    altText: Option[String],
+    width: Option[Int],
+    height: Option[Int],
+    mimeType: String
+  ): IO[UUID] =
+    IO.blocking {
+      // Generate deterministic UUID from file attributes (like TypeScript's uuidv5)
+      // This ensures same file with same metadata gets same UUID
+      val namespace = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // DNS namespace
+      val components = List(
+        s"h:$hash",
+        s"n:$filename",
+        s"a:${altText.getOrElse("")}",
+        s"w:${width.map(_.toString).getOrElse("")}",
+        s"h:${height.map(_.toString).getOrElse("")}",
+        s"m:$mimeType"
+      ).mkString("/")
+      
+      // Generate UUID v5 (name-based SHA-1)
+      val nameBytes = components.getBytes("UTF-8")
+      val digest = MessageDigest.getInstance("SHA-1")
+      val namespaceBytes = toBytes(namespace)
+      digest.update(namespaceBytes)
+      digest.update(nameBytes)
+      val hash = digest.digest()
+      
+      // Set version (5) and variant bits
+      hash(6) = ((hash(6) & 0x0f) | 0x50).toByte
+      hash(8) = ((hash(8) & 0x3f) | 0x80).toByte
+      
+      fromBytes(hash)
+    }
+
+  private def toBytes(uuid: UUID): Array[Byte] = {
+    val buffer = java.nio.ByteBuffer.allocate(16)
+    buffer.putLong(uuid.getMostSignificantBits)
+    buffer.putLong(uuid.getLeastSignificantBits)
+    buffer.array()
+  }
+
+  private def fromBytes(bytes: Array[Byte]): UUID = {
+    val buffer = java.nio.ByteBuffer.wrap(bytes)
+    val high = buffer.getLong()
+    val low = buffer.getLong()
+    new UUID(high, low)
+  }
+
   private def withLock[A](key: String)(f: IO[A]): IO[A] =
-    for {
-      sem <- locks.modify { current =>
-        current.get(key) match {
-          case Some(existing) => (current, existing.pure[IO])
-          case None => 
-            val newSem = Semaphore[IO](1)
-            (current + (key -> newSem.unsafeRunSync()(cats.effect.unsafe.IORuntime.global)), newSem)
-        }
-      }.flatten
-      result <- sem.permit.use(_ => f)
-    } yield result
+    locks.get.flatMap { current =>
+      current.get(key) match {
+        case Some(existing) =>
+          // Semaphore already exists, use it
+          existing.permit.use(_ => f)
+        case None =>
+          // Create new semaphore and add to map
+          Semaphore[IO](1).flatMap { newSem =>
+            locks.update(_ + (key -> newSem)) *>
+              newSem.permit.use(_ => f)
+          }
+      }
+    }
 
   private def writeFileToDisk(hash: String, bytes: Array[Byte]): IO[Unit] =
     IO.blocking {

@@ -121,4 +121,43 @@ class FilesServiceSpec extends CatsEffectSuite {
     }
   }
 
+  test("saveFile preserves alt text per upload even with same file hash") {
+    val tempDir = Files.createTempDirectory("files-service-test")
+    val resources = mkResources(tempDir)
+
+    resources.use { case (_, service) =>
+      val filename = "test.txt"
+      val mimeType = "text/plain"
+      val bytes = "same content".getBytes
+      
+      for {
+        // First upload with alt text "First"
+        metadata1 <- service.saveFile(filename, mimeType, bytes, Some("First"))
+        // Second upload of same file with different alt text "Second"
+        metadata2 <- service.saveFile(filename, mimeType, bytes, Some("Second"))
+        // Third upload with no alt text
+        metadata3 <- service.saveFile(filename, mimeType, bytes, None)
+        
+        // Retrieve all three
+        file1 <- service.getFile(metadata1.uuid)
+        file2 <- service.getFile(metadata2.uuid)
+        file3 <- service.getFile(metadata3.uuid)
+      } yield {
+        // UUIDs should be different (different alt text = different UUID)
+        assert(metadata1.uuid != metadata2.uuid)
+        assert(metadata1.uuid != metadata3.uuid)
+        assert(metadata2.uuid != metadata3.uuid)
+        
+        // But all should have the same hash
+        assertEquals(metadata1.hash, metadata2.hash)
+        assertEquals(metadata1.hash, metadata3.hash)
+        
+        // Alt text should be preserved per upload
+        assertEquals(file1.flatMap(_.altText), Some("First"))
+        assertEquals(file2.flatMap(_.altText), Some("Second"))
+        assertEquals(file3.flatMap(_.altText), None)
+      }
+    }
+  }
+
 }

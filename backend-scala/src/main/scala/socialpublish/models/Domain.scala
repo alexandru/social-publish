@@ -56,6 +56,35 @@ given Codec[Instant] =
 given Schema[Instant] =
   Schema.string
 
+// Content with length validation (1-1000 characters like TypeScript version)
+opaque type Content = String
+
+object Content {
+  def apply(value: String): Either[String, Content] =
+    if value.isEmpty then Left("Content cannot be empty")
+    else if value.length > 1000 then Left("Content cannot exceed 1000 characters")
+    else Right(value)
+
+  def unsafe(value: String): Content = value
+
+  extension (content: Content) {
+    def value: String = content
+  }
+
+  given Decoder[Content] =
+    Decoder.decodeString.emap { str =>
+      Content.apply(str)
+    }
+
+  given Encoder[Content] =
+    Encoder.encodeString.contramap(_.value)
+
+  given Schema[Content] =
+    Schema.string.validate(
+      Validator.minLength(1).and(Validator.maxLength(1000))
+    )
+}
+
 // Post domain model
 case class Post(
   uuid: UUID,
@@ -80,7 +109,7 @@ object Post {
 
 // Request to create a new post
 case class NewPostRequest(
-  content: String,
+  content: Content,
   targets: Option[List[Target]],
   link: Option[String],
   language: Option[String],

@@ -109,7 +109,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                           IO.unit
                       } *> {
                         val postRequest = NewPostRequest(
-                          content = "Hello world",
+                          content = Content.unsafe("Hello world"),
                           targets = None,
                           link = None,
                           language = None,

@@ -27,7 +27,7 @@ class MastodonApiSpec extends CatsEffectSuite {
             val config = MastodonConfig.Enabled(server.baseUri.toString(), "token")
             val api = MastodonApi(config, backend, filesService)
             val request = NewPostRequest(
-              content = "Hello Mastodon",
+              content = Content.unsafe("Hello Mastodon"),
               targets = None,
               link = Some("https://example.com"),
               language = Some("pt"),

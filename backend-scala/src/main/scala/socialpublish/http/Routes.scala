@@ -425,19 +425,19 @@ class Routes(
     }
 
   private def createRssPost(request: NewPostRequest): Result[NewPostResponse] = {
-    val content =
+    val contentStr =
       if request.cleanupHtml.getOrElse(false) then {
-        socialpublish.utils.TextUtils.convertHtml(request.content)
+        socialpublish.utils.TextUtils.convertHtml(request.content.value)
       } else {
-        request.content
+        request.content.value
       }
 
-    val tags = extractHashtags(request.content)
+    val tags = extractHashtags(request.content.value)
 
     for {
       post <- Result.liftIO(
         posts.create(
-          content = content,
+          content = contentStr,
           link = request.link,
           tags = tags,
           language = request.language,

@@ -21,6 +21,37 @@ class DomainSpec extends FunSuite {
     assertEquals(decoded, Right(Target.Bluesky))
   }
 
+  test("Content opaque type validation") {
+    // Valid content
+    val validContent = Content.apply("Valid content")
+    assert(validContent.isRight)
+    assertEquals(validContent.map(_.value), Right("Valid content"))
+
+    // Empty content should fail
+    val emptyContent = Content.apply("")
+    assert(emptyContent.isLeft)
+    
+    // Content over 1000 characters should fail
+    val longContent = Content.apply("a" * 1001)
+    assert(longContent.isLeft)
+    
+    // Content at exactly 1000 characters should pass
+    val maxContent = Content.apply("a" * 1000)
+    assert(maxContent.isRight)
+  }
+
+  test("Content JSON serialization") {
+    val content = Content.unsafe("Test content")
+    val json = content.asJson
+    assertEquals(json.as[Content].map(_.value), Right("Test content"))
+    
+    // Test that invalid content is rejected during deserialization
+    val emptyJson = parse("""""""")
+    assert(emptyJson.isRight)
+    val decoded = emptyJson.flatMap(_.as[Content])
+    assert(decoded.isLeft)
+  }
+
   test("Target enum supports linkedin") {
     val json = parse(""""linkedin"""")
     assert(json.isRight)
@@ -30,7 +61,7 @@ class DomainSpec extends FunSuite {
 
   test("NewPostRequest serialization") {
     val request = NewPostRequest(
-      content = "Test post",
+      content = Content.unsafe("Test post"),
       targets = Some(List(Target.Bluesky, Target.Mastodon)),
       link = Some("https://example.com"),
       language = Some("en"),
@@ -41,7 +72,7 @@ class DomainSpec extends FunSuite {
     val json = request.asJson
     val decoded = json.as[NewPostRequest]
     assert(decoded.isRight)
-    assertEquals(decoded.map(_.content), Right("Test post"))
+    assertEquals(decoded.map(_.content.value), Right("Test post"))
   }
 
   test("NewPostResponse.Bluesky serialization") {

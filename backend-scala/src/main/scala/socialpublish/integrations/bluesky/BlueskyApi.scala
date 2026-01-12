@@ -102,16 +102,16 @@ private class BlueskyApiImpl(
     } yield NewPostResponse.Bluesky(response.uri, Some(response.cid))
 
   private def prepareText(request: NewPostRequest): String = {
-    val content =
+    val contentStr =
       if request.cleanupHtml.getOrElse(false) then {
-        TextUtils.convertHtml(request.content)
+        TextUtils.convertHtml(request.content.value)
       } else {
-        request.content.trim()
+        request.content.value.trim()
       }
 
     request.link match {
-      case Some(link) => s"$content\n\n$link"
-      case None => content
+      case Some(link) => s"$contentStr\n\n$link"
+      case None => contentStr
     }
   }
 

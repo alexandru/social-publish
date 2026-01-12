@@ -28,7 +28,7 @@ class BlueskyApiSpec extends CatsEffectSuite {
             val config = BlueskyConfig.Enabled(server.baseUri.toString(), "user", "pass")
             BlueskyApi.resource(config, backend, filesService).use { api =>
               val request = NewPostRequest(
-                content = "Hello Bluesky",
+                content = Content.unsafe("Hello Bluesky"),
                 targets = None,
                 link = Some("https://example.com"),
                 language = Some("en"),
