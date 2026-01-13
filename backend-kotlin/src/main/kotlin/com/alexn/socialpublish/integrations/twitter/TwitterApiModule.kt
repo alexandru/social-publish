@@ -1,9 +1,8 @@
-package com.alexn.socialpublish.modules
+package com.alexn.socialpublish.integrations.twitter
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.db.DocumentsDatabase
 import com.alexn.socialpublish.models.ApiResult
 import com.alexn.socialpublish.models.CaughtException
@@ -13,6 +12,7 @@ import com.alexn.socialpublish.models.NewTwitterPostResponse
 import com.alexn.socialpublish.models.RequestError
 import com.alexn.socialpublish.models.ResponseBody
 import com.alexn.socialpublish.models.ValidationError
+import com.alexn.socialpublish.modules.FilesModule
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -83,7 +83,8 @@ data class TwitterMedia(
  * Twitter API module with OAuth 1.0a implementation
  */
 class TwitterApiModule(
-    private val config: AppConfig,
+    private val config: TwitterConfig,
+    private val baseUrl: String,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
 ) {
@@ -101,8 +102,8 @@ class TwitterApiModule(
 
     private val consumer: OAuthConsumer =
         DefaultOAuthConsumer(
-            config.twitterOauth1ConsumerKey,
-            config.twitterOauth1ConsumerSecret,
+            config.oauth1ConsumerKey,
+            config.oauth1ConsumerSecret,
         )
 
     private val provider: OAuthProvider =
@@ -116,7 +117,7 @@ class TwitterApiModule(
      * Get OAuth callback URL
      */
     private fun getCallbackUrl(jwtToken: String): String {
-        return "${config.baseUrl}/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+        return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
     }
 
     /**
@@ -218,8 +219,8 @@ class TwitterApiModule(
             // Create OAuth consumer for this request
             val mediaConsumer =
                 DefaultOAuthConsumer(
-                    config.twitterOauth1ConsumerKey,
-                    config.twitterOauth1ConsumerSecret,
+                    config.oauth1ConsumerKey,
+                    config.oauth1ConsumerSecret,
                 )
             mediaConsumer.setTokenWithSecret(token.key, token.secret)
 
@@ -254,8 +255,8 @@ class TwitterApiModule(
                     val altTextUrl = "https://api.twitter.com/1.1/media/metadata/create.json"
                     val altConsumer =
                         DefaultOAuthConsumer(
-                            config.twitterOauth1ConsumerKey,
-                            config.twitterOauth1ConsumerSecret,
+                            config.oauth1ConsumerKey,
+                            config.oauth1ConsumerSecret,
                         )
                     altConsumer.setTokenWithSecret(token.key, token.secret)
                     val altAuthHeader = altConsumer.sign(altTextUrl) as String
@@ -332,8 +333,8 @@ class TwitterApiModule(
             val createPostURL = "https://api.twitter.com/2/tweets"
             val postConsumer =
                 DefaultOAuthConsumer(
-                    config.twitterOauth1ConsumerKey,
-                    config.twitterOauth1ConsumerSecret,
+                    config.oauth1ConsumerKey,
+                    config.oauth1ConsumerSecret,
                 )
             postConsumer.setTokenWithSecret(token.key, token.secret)
             val authHeader = postConsumer.sign(createPostURL) as String

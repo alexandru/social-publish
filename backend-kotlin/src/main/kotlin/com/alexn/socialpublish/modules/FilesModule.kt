@@ -2,7 +2,7 @@ package com.alexn.socialpublish.modules
 
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.config.AppConfig
+import com.alexn.socialpublish.FilesConfig
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.UploadPayload
 import com.alexn.socialpublish.models.ApiResult
@@ -45,7 +45,7 @@ data class ProcessedUpload(
 )
 
 class FilesModule(
-    private val config: AppConfig,
+    private val config: FilesConfig,
     private val db: FilesDatabase,
 ) {
     private val uploadedFilesPath = File(config.uploadedFilesPath)

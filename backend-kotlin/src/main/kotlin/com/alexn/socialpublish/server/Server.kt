@@ -5,13 +5,13 @@ import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.db.DocumentsDatabase
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
+import com.alexn.socialpublish.integrations.bluesky.BlueskyApiModule
+import com.alexn.socialpublish.integrations.mastodon.MastodonApiModule
+import com.alexn.socialpublish.integrations.twitter.TwitterApiModule
 import com.alexn.socialpublish.modules.AuthModule
-import com.alexn.socialpublish.modules.BlueskyApiModule
 import com.alexn.socialpublish.modules.FilesModule
 import com.alexn.socialpublish.modules.FormModule
-import com.alexn.socialpublish.modules.MastodonApiModule
 import com.alexn.socialpublish.modules.RssModule
-import com.alexn.socialpublish.modules.TwitterApiModule
 import com.alexn.socialpublish.modules.configureAuth
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
@@ -41,17 +41,20 @@ suspend fun startServer(
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
 ) {
-    logger.info { "Starting HTTP server on port ${config.httpPort}..." }
+    logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
-    val authModule = AuthModule(config)
-    val rssModule = RssModule(config, postsDb, filesDb)
-    val filesModule = FilesModule(config, filesDb)
-    val blueskyModule = BlueskyApiModule(config, filesModule)
-    val mastodonModule = MastodonApiModule(config, filesModule)
-    val twitterModule = TwitterApiModule(config, documentsDb, filesModule)
+    val authModule = AuthModule(config.server.auth)
+    val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
+    val filesModule = FilesModule(config.files, filesDb)
+
+    // Conditionally instantiate integration modules based on config
+    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule) }
+    val mastodonModule = config.mastodon?.let { MastodonApiModule(it, filesModule) }
+    val twitterModule = config.twitter?.let { TwitterApiModule(it, config.server.baseUrl, documentsDb, filesModule) }
+
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    embeddedServer(Netty, port = config.httpPort) {
+    embeddedServer(Netty, port = config.server.httpPort) {
         install(ContentNegotiation) {
             json(
                 Json {
@@ -77,7 +80,7 @@ suspend fun startServer(
         }
 
         // Configure JWT authentication
-        configureAuth(config)
+        configureAuth(config.server.auth)
 
         routing {
             // Health check endpoints
@@ -115,25 +118,45 @@ suspend fun startServer(
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                    blueskyModule.createPostRoute(call)
+                    if (blueskyModule != null) {
+                        blueskyModule.createPostRoute(call)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Bluesky integration not configured"))
+                    }
                 }
 
                 post("/api/mastodon/post") {
-                    mastodonModule.createPostRoute(call)
+                    if (mastodonModule != null) {
+                        mastodonModule.createPostRoute(call)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Mastodon integration not configured"))
+                    }
                 }
 
                 post("/api/twitter/post") {
-                    twitterModule.createPostRoute(call)
+                    if (twitterModule != null) {
+                        twitterModule.createPostRoute(call)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                    }
                 }
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
-                    val token = call.request.queryParameters["access_token"] ?: ""
-                    twitterModule.authorizeRoute(call, token)
+                    if (twitterModule != null) {
+                        val token = call.request.queryParameters["access_token"] ?: ""
+                        twitterModule.authorizeRoute(call, token)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                    }
                 }
 
                 get("/api/twitter/status") {
-                    twitterModule.statusRoute(call)
+                    if (twitterModule != null) {
+                        twitterModule.statusRoute(call)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                    }
                 }
 
                 post("/api/multiple/post") {
@@ -143,7 +166,11 @@ suspend fun startServer(
 
             // Twitter OAuth callback (public, no auth required)
             get("/api/twitter/callback") {
-                twitterModule.callbackRoute(call)
+                if (twitterModule != null) {
+                    twitterModule.callbackRoute(call)
+                } else {
+                    call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                }
             }
 
             // Public RSS feed

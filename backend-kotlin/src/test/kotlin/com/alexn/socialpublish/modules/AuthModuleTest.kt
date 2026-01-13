@@ -1,6 +1,6 @@
 package com.alexn.socialpublish.modules
 
-import com.alexn.socialpublish.config.AppConfig
+import com.alexn.socialpublish.server.ServerAuthConfig
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -8,21 +8,10 @@ import kotlin.test.assertTrue
 
 class AuthModuleTest {
     private val config =
-        AppConfig(
-            dbPath = "/tmp/test.db",
-            httpPort = 3000,
-            baseUrl = "http://localhost:3000",
-            serverAuthUsername = "testuser",
-            serverAuthPassword = "testpass",
-            serverAuthJwtSecret = "test-secret",
-            blueskyService = "https://bsky.social",
-            blueskyUsername = "",
-            blueskyPassword = "",
-            mastodonHost = "",
-            mastodonAccessToken = "",
-            twitterOauth1ConsumerKey = "",
-            twitterOauth1ConsumerSecret = "",
-            uploadedFilesPath = "/tmp/uploads",
+        ServerAuthConfig(
+            username = "testuser",
+            password = "testpass",
+            jwtSecret = "test-secret",
         )
 
     @Test

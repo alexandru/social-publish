@@ -3,7 +3,6 @@ package com.alexn.socialpublish.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostPayload
 import com.alexn.socialpublish.db.PostsDatabase
@@ -29,7 +28,7 @@ import java.util.Date
 private val logger = KotlinLogging.logger {}
 
 class RssModule(
-    private val config: AppConfig,
+    private val baseUrl: String,
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
@@ -68,7 +67,7 @@ class RssModule(
             val post = postsDb.create(payload, request.targets ?: emptyList())
 
             NewRssPostResponse(
-                uri = "${config.baseUrl}/rss/${post.uuid}",
+                uri = "$baseUrl/rss/${post.uuid}",
             ).right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save RSS item" }
@@ -93,8 +92,8 @@ class RssModule(
         val feed =
             SyndFeedImpl().apply {
                 feedType = "rss_2.0"
-                title = "Feed of ${config.baseUrl.replace(Regex("^https?://"), "")}"
-                link = config.baseUrl
+                title = "Feed of ${baseUrl.replace(Regex("^https?://"), "")}"
+                link = baseUrl
                 description = "Social publish RSS feed"
                 publishedDate = Date()
             }
@@ -120,7 +119,7 @@ class RssModule(
 
                 SyndEntryImpl().apply {
                     title = post.content.take(100) + if (post.content.length > 100) "..." else ""
-                    link = "${config.baseUrl}/rss/${post.uuid}"
+                    link = "$baseUrl/rss/${post.uuid}"
                     publishedDate = Date.from(post.createdAt)
 
                     val description =
@@ -132,7 +131,7 @@ class RssModule(
                                     post.link?.let { append("<p><a href=\"$it\">$it</a></p>") }
                                     if (!post.images.isNullOrEmpty()) {
                                         post.images.forEach { imageUuid ->
-                                            append("<p><img src=\"${config.baseUrl}/files/$imageUuid\" /></p>")
+                                            append("<p><img src=\"$baseUrl/files/$imageUuid\" /></p>")
                                         }
                                     }
                                 }

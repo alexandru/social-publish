@@ -1,7 +1,6 @@
 package com.alexn.socialpublish.modules
 
 import arrow.core.Either
-import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.models.NewPostRequest
@@ -17,7 +16,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class RssModuleTest {
-    private lateinit var config: AppConfig
+    private lateinit var baseUrl: String
     private lateinit var jdbi: Jdbi
     private lateinit var postsDb: PostsDatabase
     private lateinit var filesDb: FilesDatabase
@@ -27,26 +26,11 @@ class RssModuleTest {
     fun setup(
         @TempDir tempDir: Path,
     ) {
-        config =
-            AppConfig(
-                dbPath = tempDir.resolve("test.db").toString(),
-                httpPort = 3000,
-                baseUrl = "http://localhost:3000",
-                serverAuthUsername = "test",
-                serverAuthPassword = "test",
-                serverAuthJwtSecret = "secret",
-                blueskyService = "https://bsky.social",
-                blueskyUsername = "",
-                blueskyPassword = "",
-                mastodonHost = "",
-                mastodonAccessToken = "",
-                twitterOauth1ConsumerKey = "",
-                twitterOauth1ConsumerSecret = "",
-                uploadedFilesPath = tempDir.resolve("uploads").toString(),
-            )
+        baseUrl = "http://localhost:3000"
+        val dbPath = tempDir.resolve("test.db").toString()
 
         jdbi =
-            Jdbi.create("jdbc:sqlite:${config.dbPath}")
+            Jdbi.create("jdbc:sqlite:$dbPath")
                 .installPlugin(KotlinPlugin())
 
         // Run migrations
@@ -77,7 +61,7 @@ class RssModuleTest {
         val documentsDb = com.alexn.socialpublish.db.DocumentsDatabase(jdbi)
         postsDb = PostsDatabase(documentsDb)
         filesDb = FilesDatabase(jdbi)
-        rssModule = RssModule(config, postsDb, filesDb)
+        rssModule = RssModule(baseUrl, postsDb, filesDb)
     }
 
     @Test

@@ -1,9 +1,8 @@
-package com.alexn.socialpublish.modules
+package com.alexn.socialpublish.integrations.bluesky
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.models.ApiResult
 import com.alexn.socialpublish.models.CaughtException
 import com.alexn.socialpublish.models.NewBlueSkyPostResponse
@@ -12,6 +11,7 @@ import com.alexn.socialpublish.models.NewPostResponse
 import com.alexn.socialpublish.models.RequestError
 import com.alexn.socialpublish.models.ResponseBody
 import com.alexn.socialpublish.models.ValidationError
+import com.alexn.socialpublish.modules.FilesModule
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -78,7 +78,7 @@ data class BlueskyPostResponse(
  * Bluesky API module implementing AT Protocol
  */
 class BlueskyApiModule(
-    private val config: AppConfig,
+    private val config: BlueskyConfig,
     private val filesModule: FilesModule,
 ) {
     private val httpClient =
@@ -106,12 +106,12 @@ class BlueskyApiModule(
 
         return try {
             val response =
-                httpClient.post("${config.blueskyService}/xrpc/com.atproto.server.createSession") {
+                httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
                     contentType(ContentType.Application.Json)
                     setBody(
                         buildJsonObject {
-                            put("identifier", config.blueskyUsername)
-                            put("password", config.blueskyPassword)
+                            put("identifier", config.username)
+                            put("password", config.password)
                         },
                     )
                 }
@@ -161,7 +161,7 @@ class BlueskyApiModule(
             }
 
             val response =
-                httpClient.post("${config.blueskyService}/xrpc/com.atproto.repo.uploadBlob") {
+                httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer $accessToken")
                     contentType(ContentType.parse(file.mimetype))
                     setBody(file.bytes)
@@ -334,7 +334,7 @@ class BlueskyApiModule(
 
             // Create the post
             val response =
-                httpClient.post("${config.blueskyService}/xrpc/com.atproto.repo.createRecord") {
+                httpClient.post("${config.service}/xrpc/com.atproto.repo.createRecord") {
                     header("Authorization", "Bearer $accessToken")
                     contentType(ContentType.Application.Json)
                     setBody(

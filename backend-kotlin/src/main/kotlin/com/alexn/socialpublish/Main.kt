@@ -24,11 +24,11 @@ fun main(args: Array<String>) =
 
         try {
             // Initialize database
-            val dbFile = File(config.dbPath)
+            val dbFile = File(config.server.dbPath)
             dbFile.parentFile?.mkdirs()
 
             val jdbi =
-                Jdbi.create("jdbc:sqlite:${config.dbPath}")
+                Jdbi.create("jdbc:sqlite:${config.server.dbPath}")
                     .installPlugin(KotlinPlugin())
 
             // Run migrations

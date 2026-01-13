@@ -1,6 +1,6 @@
 package com.alexn.socialpublish.modules
 
-import com.alexn.socialpublish.config.AppConfig
+import com.alexn.socialpublish.server.ServerAuthConfig
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -41,8 +41,8 @@ data class UserResponse(
     val username: String,
 )
 
-class AuthModule(private val config: AppConfig) {
-    private val algorithm = Algorithm.HMAC256(config.serverAuthJwtSecret)
+class AuthModule(private val config: ServerAuthConfig) {
+    private val algorithm = Algorithm.HMAC256(config.jwtSecret)
 
     /**
      * Generate JWT token for authenticated user
@@ -77,7 +77,7 @@ class AuthModule(private val config: AppConfig) {
         val username = request["username"]
         val password = request["password"]
 
-        if (username == config.serverAuthUsername && password == config.serverAuthPassword) {
+        if (username == config.username && password == config.password) {
             val token = generateToken(username)
             call.respond(
                 LoginResponse(
@@ -108,12 +108,12 @@ class AuthModule(private val config: AppConfig) {
 /**
  * Configure JWT authentication for Ktor
  */
-fun Application.configureAuth(config: AppConfig) {
+fun Application.configureAuth(config: ServerAuthConfig) {
     install(Authentication) {
         jwt("auth-jwt") {
             realm = "social-publish"
             verifier(
-                JWT.require(Algorithm.HMAC256(config.serverAuthJwtSecret))
+                JWT.require(Algorithm.HMAC256(config.jwtSecret))
                     .build(),
             )
             validate { credential ->

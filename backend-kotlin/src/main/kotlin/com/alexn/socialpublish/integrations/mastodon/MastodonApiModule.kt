@@ -1,9 +1,8 @@
-package com.alexn.socialpublish.modules
+package com.alexn.socialpublish.integrations.mastodon
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.config.AppConfig
 import com.alexn.socialpublish.models.ApiResult
 import com.alexn.socialpublish.models.CaughtException
 import com.alexn.socialpublish.models.NewMastodonPostResponse
@@ -12,6 +11,7 @@ import com.alexn.socialpublish.models.NewPostResponse
 import com.alexn.socialpublish.models.RequestError
 import com.alexn.socialpublish.models.ResponseBody
 import com.alexn.socialpublish.models.ValidationError
+import com.alexn.socialpublish.modules.FilesModule
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -53,7 +53,7 @@ data class MastodonStatusResponse(
 )
 
 class MastodonApiModule(
-    private val config: AppConfig,
+    private val config: MastodonConfig,
     private val filesModule: FilesModule,
 ) {
     private val httpClient =
@@ -68,9 +68,9 @@ class MastodonApiModule(
             }
         }
 
-    private val mediaUrlV2 = "${config.mastodonHost}/api/v2/media"
-    private val mediaUrlV1 = "${config.mastodonHost}/api/v1/media"
-    private val statusesUrlV1 = "${config.mastodonHost}/api/v1/statuses"
+    private val mediaUrlV2 = "${config.host}/api/v2/media"
+    private val mediaUrlV1 = "${config.host}/api/v1/media"
+    private val statusesUrlV1 = "${config.host}/api/v1/statuses"
 
     /**
      * Upload media to Mastodon
@@ -101,7 +101,7 @@ class MastodonApiModule(
                             file.altText?.let { append("description", it) }
                         },
                 ) {
-                    header("Authorization", "Bearer ${config.mastodonAccessToken}")
+                    header("Authorization", "Bearer ${config.accessToken}")
                 }
 
             when (response.status.value) {
@@ -144,7 +144,7 @@ class MastodonApiModule(
 
             val response =
                 httpClient.get("$mediaUrlV1/$mediaId") {
-                    header("Authorization", "Bearer ${config.mastodonAccessToken}")
+                    header("Authorization", "Bearer ${config.accessToken}")
                 }
 
             when (response.status.value) {
@@ -219,7 +219,7 @@ class MastodonApiModule(
                             request.language?.let { append("language", it) }
                         },
                 ) {
-                    header("Authorization", "Bearer ${config.mastodonAccessToken}")
+                    header("Authorization", "Bearer ${config.accessToken}")
                 }
 
             if (response.status.value == 200) {

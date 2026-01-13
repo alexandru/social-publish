@@ -3,6 +3,9 @@ package com.alexn.socialpublish.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.alexn.socialpublish.integrations.bluesky.BlueskyApiModule
+import com.alexn.socialpublish.integrations.mastodon.MastodonApiModule
+import com.alexn.socialpublish.integrations.twitter.TwitterApiModule
 import com.alexn.socialpublish.models.ApiError
 import com.alexn.socialpublish.models.ApiResult
 import com.alexn.socialpublish.models.NewPostRequest
@@ -22,9 +25,9 @@ private val logger = KotlinLogging.logger {}
  * Form module for broadcasting posts to multiple social media platforms
  */
 class FormModule(
-    private val mastodonModule: MastodonApiModule,
-    private val blueskyModule: BlueskyApiModule,
-    private val twitterModule: TwitterApiModule,
+    private val mastodonModule: MastodonApiModule?,
+    private val blueskyModule: BlueskyApiModule?,
+    private val twitterModule: TwitterApiModule?,
     private val rssModule: RssModule,
 ) {
     /**
@@ -49,9 +52,27 @@ class FormModule(
                 val result =
                     async {
                         when (target.lowercase()) {
-                            "mastodon" -> mastodonModule.createPost(request)
-                            "bluesky" -> blueskyModule.createPost(request)
-                            "twitter" -> twitterModule.createPost(request)
+                            "mastodon" ->
+                                mastodonModule?.createPost(request)
+                                    ?: ValidationError(
+                                        status = 503,
+                                        errorMessage = "Mastodon integration not configured",
+                                        module = "form",
+                                    ).left()
+                            "bluesky" ->
+                                blueskyModule?.createPost(request)
+                                    ?: ValidationError(
+                                        status = 503,
+                                        errorMessage = "Bluesky integration not configured",
+                                        module = "form",
+                                    ).left()
+                            "twitter" ->
+                                twitterModule?.createPost(request)
+                                    ?: ValidationError(
+                                        status = 503,
+                                        errorMessage = "Twitter integration not configured",
+                                        module = "form",
+                                    ).left()
                             "linkedin", "rss" -> rssModule.createPost(request)
                             else -> {
                                 ValidationError(
