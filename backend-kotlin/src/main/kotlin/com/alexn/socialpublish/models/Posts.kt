@@ -29,6 +29,7 @@ data class NewPostRequest(
     }
 }
 
+@Serializable
 sealed class NewPostResponse {
     abstract val module: String
 }

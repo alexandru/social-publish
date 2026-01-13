@@ -4,7 +4,9 @@ import com.alexn.socialpublish.server.ServerAuthConfig
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
@@ -12,6 +14,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
@@ -41,7 +44,10 @@ data class UserResponse(
     val username: String,
 )
 
-class AuthModule(private val config: ServerAuthConfig) {
+class AuthModule(
+    private val config: ServerAuthConfig,
+    private val twitterAuthProvider: (suspend () -> Boolean)? = null,
+) {
     private val algorithm = Algorithm.HMAC256(config.jwtSecret)
 
     /**
@@ -69,20 +75,42 @@ class AuthModule(private val config: ServerAuthConfig) {
         }
     }
 
+    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? {
+        val jsonRequest =
+            runCatching {
+                call.receive<LoginRequest>()
+            }.getOrNull()
+        if (jsonRequest != null) {
+            return jsonRequest
+        }
+
+        val params = runCatching { call.receiveParameters() }.getOrNull()
+        val username = params?.get("username")
+        val password = params?.get("password")
+        return if (username != null && password != null) {
+            LoginRequest(username = username, password = password)
+        } else {
+            null
+        }
+    }
+
     /**
      * Login route handler
      */
     suspend fun login(call: ApplicationCall) {
-        val request = call.receiveParameters()
-        val username = request["username"]
-        val password = request["password"]
+        val request = receiveLoginRequest(call)
+        if (request == null) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid credentials"))
+            return
+        }
 
-        if (username == config.username && password == config.password) {
-            val token = generateToken(username)
+        if (request.username == config.username && request.password == config.password) {
+            val token = generateToken(request.username)
+            val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
             call.respond(
                 LoginResponse(
                     token = token,
-                    hasAuth = AuthStatus(twitter = false), // TODO: Check Twitter auth status
+                    hasAuth = AuthStatus(twitter = hasTwitterAuth),
                 ),
             )
         } else {
@@ -105,6 +133,20 @@ class AuthModule(private val config: ServerAuthConfig) {
     }
 }
 
+fun extractJwtToken(call: ApplicationCall): String? {
+    val authHeader = call.request.headers[HttpHeaders.Authorization]
+    if (!authHeader.isNullOrBlank()) {
+        val parts = authHeader.trim().split(" ")
+        if (parts.size == 2 && parts[0].equals("Bearer", ignoreCase = true)) {
+            return parts[1]
+        }
+    }
+
+    call.request.queryParameters["access_token"]?.let { return it }
+    call.request.cookies["access_token"]?.let { return it }
+    return null
+}
+
 /**
  * Configure JWT authentication for Ktor
  */
@@ -112,6 +154,11 @@ fun Application.configureAuth(config: ServerAuthConfig) {
     install(Authentication) {
         jwt("auth-jwt") {
             realm = "social-publish"
+            authHeader { call ->
+                extractJwtToken(call)?.let { token ->
+                    HttpAuthHeader.Single("Bearer", token)
+                }
+            }
             verifier(
                 JWT.require(Algorithm.HMAC256(config.jwtSecret))
                     .build(),

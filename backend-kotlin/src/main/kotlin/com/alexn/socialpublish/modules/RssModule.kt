@@ -20,9 +20,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import org.jdom2.Element
+import org.jdom2.Namespace
 import java.util.Date
 
 private val logger = KotlinLogging.logger {}
@@ -88,19 +91,20 @@ class RssModule(
         target: String? = null,
     ): String {
         val posts = postsDb.getAll()
+        val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
             SyndFeedImpl().apply {
                 feedType = "rss_2.0"
                 title = "Feed of ${baseUrl.replace(Regex("^https?://"), "")}"
                 link = baseUrl
+                uri = "$baseUrl/rss"
                 description = "Social publish RSS feed"
                 publishedDate = Date()
             }
 
         val entries =
             posts.mapNotNull { post ->
-                // Apply filters
                 if (target != null && !post.targets.contains(target)) {
                     return@mapNotNull null
                 }
@@ -117,35 +121,58 @@ class RssModule(
                     return@mapNotNull null
                 }
 
+                val guid = "$baseUrl/rss/${post.uuid}"
+                val mediaElements = mutableListOf<Element>()
+
+                post.images.orEmpty().forEach { imageUuid ->
+                    val upload = filesDb.getFileByUuid(imageUuid) ?: return@forEach
+                    val content = Element("content", mediaNamespace)
+                    content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
+                    content.setAttribute("fileSize", upload.size.toString())
+                    content.setAttribute("type", upload.mimetype)
+
+                    val rating = Element("rating", mediaNamespace)
+                    rating.setAttribute("scheme", "urn:simple")
+                    rating.text = "nonadult"
+                    content.addContent(rating)
+
+                    upload.altText?.let { altText ->
+                        val description = Element("description", mediaNamespace)
+                        description.text = altText
+                        content.addContent(description)
+                    }
+
+                    mediaElements.add(content)
+                }
+
+                val categoryNames = mutableListOf<String>()
+                post.tags?.let { categoryNames.addAll(it) }
+                if (post.targets.isNotEmpty()) {
+                    categoryNames.addAll(post.targets)
+                }
+
                 SyndEntryImpl().apply {
-                    title = post.content.take(100) + if (post.content.length > 100) "..." else ""
-                    link = "$baseUrl/rss/${post.uuid}"
+                    title = post.content
+                    link = post.link ?: guid
+                    uri = guid
                     publishedDate = Date.from(post.createdAt)
-
-                    val description =
+                    description =
                         SyndContentImpl().apply {
-                            type = "text/html"
-                            value =
-                                buildString {
-                                    append("<p>${escapeHtml(post.content)}</p>")
-                                    post.link?.let { append("<p><a href=\"$it\">$it</a></p>") }
-                                    if (!post.images.isNullOrEmpty()) {
-                                        post.images.forEach { imageUuid ->
-                                            append("<p><img src=\"$baseUrl/files/$imageUuid\" /></p>")
-                                        }
-                                    }
-                                }
+                            type = "text/plain"
+                            value = post.content
                         }
-                    this.description = description
 
-                    // Add categories for tags
-                    if (!post.tags.isNullOrEmpty()) {
+                    if (categoryNames.isNotEmpty()) {
                         categories =
-                            post.tags.map { tag ->
+                            categoryNames.map { name ->
                                 SyndCategoryImpl().apply {
-                                    name = tag
+                                    this.name = name
                                 }
                             }
+                    }
+
+                    if (mediaElements.isNotEmpty()) {
+                        foreignMarkup = mediaElements
                     }
                 }
             }
@@ -160,16 +187,21 @@ class RssModule(
      * Handle RSS post creation HTTP route
      */
     suspend fun createPostRoute(call: ApplicationCall) {
-        val params = call.receiveParameters()
         val request =
-            NewPostRequest(
-                content = params["content"] ?: "",
-                targets = params.getAll("targets[]"),
-                link = params["link"],
-                language = params["language"],
-                cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                images = params.getAll("images[]"),
-            )
+            runCatching {
+                call.receive<NewPostRequest>()
+            }.getOrNull()
+                ?: run {
+                    val params = call.receiveParameters()
+                    NewPostRequest(
+                        content = params["content"] ?: "",
+                        targets = params.getAll("targets[]"),
+                        link = params["link"],
+                        language = params["language"],
+                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
+                        images = params.getAll("images[]"),
+                    )
+                }
 
         when (val result = createPost(request)) {
             is Either.Right -> call.respond(result.value)
@@ -220,14 +252,5 @@ class RssModule(
             .replace("&gt;", ">")
             .replace("&amp;", "&")
             .trim()
-    }
-
-    private fun escapeHtml(text: String): String {
-        return text
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&#39;")
     }
 }

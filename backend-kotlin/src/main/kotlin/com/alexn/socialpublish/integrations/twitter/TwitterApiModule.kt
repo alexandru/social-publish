@@ -32,6 +32,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -108,7 +109,7 @@ class TwitterApiModule(
 
     private val provider: OAuthProvider =
         DefaultOAuthProvider(
-            "https://api.twitter.com/oauth/request_token",
+            "https://api.twitter.com/oauth/request_token?x_auth_access_type=write",
             "https://api.twitter.com/oauth/access_token",
             "https://api.twitter.com/oauth/authorize",
         )
@@ -399,8 +400,8 @@ class TwitterApiModule(
      * Handle OAuth callback HTTP route
      */
     suspend fun callbackRoute(call: ApplicationCall) {
-        val token = call.parameters["oauth_token"]
-        val verifier = call.parameters["oauth_verifier"]
+        val token = call.request.queryParameters["oauth_token"]
+        val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid request"))
@@ -440,16 +441,21 @@ class TwitterApiModule(
      * Handle Twitter post creation HTTP route
      */
     suspend fun createPostRoute(call: ApplicationCall) {
-        val params = call.receiveParameters()
         val request =
-            NewPostRequest(
-                content = params["content"] ?: "",
-                targets = params.getAll("targets[]"),
-                link = params["link"],
-                language = params["language"],
-                cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                images = params.getAll("images[]"),
-            )
+            runCatching {
+                call.receive<NewPostRequest>()
+            }.getOrNull()
+                ?: run {
+                    val params = call.receiveParameters()
+                    NewPostRequest(
+                        content = params["content"] ?: "",
+                        targets = params.getAll("targets[]"),
+                        link = params["link"],
+                        language = params["language"],
+                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
+                        images = params.getAll("images[]"),
+                    )
+                }
 
         when (val result = createPost(request)) {
             is Either.Right -> call.respond(result.value)

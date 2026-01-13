@@ -41,10 +41,20 @@ data class CaughtException(
 ) : ApiError()
 
 @Serializable
+data class CompositeErrorResponse(
+    val type: String,
+    val module: String? = null,
+    val status: Int? = null,
+    val error: String? = null,
+    val result: NewPostResponse? = null,
+)
+
+@Serializable
 data class CompositeError(
     override val status: Int = 400,
     override val module: String? = null,
     override val errorMessage: String = "Multiple API requests failed",
+    val responses: List<CompositeErrorResponse> = emptyList(),
 ) : ApiError()
 
 /**

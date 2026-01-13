@@ -29,6 +29,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.coroutines.delay
@@ -251,16 +252,21 @@ class MastodonApiModule(
      * Handle Mastodon post creation HTTP route
      */
     suspend fun createPostRoute(call: ApplicationCall) {
-        val params = call.receiveParameters()
         val request =
-            NewPostRequest(
-                content = params["content"] ?: "",
-                targets = params.getAll("targets[]"),
-                link = params["link"],
-                language = params["language"],
-                cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                images = params.getAll("images[]"),
-            )
+            runCatching {
+                call.receive<NewPostRequest>()
+            }.getOrNull()
+                ?: run {
+                    val params = call.receiveParameters()
+                    NewPostRequest(
+                        content = params["content"] ?: "",
+                        targets = params.getAll("targets[]"),
+                        link = params["link"],
+                        language = params["language"],
+                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
+                        images = params.getAll("images[]"),
+                    )
+                }
 
         when (val result = createPost(request)) {
             is Either.Right -> call.respond(result.value)

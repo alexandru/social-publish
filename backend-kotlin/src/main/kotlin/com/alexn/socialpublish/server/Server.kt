@@ -13,6 +13,7 @@ import com.alexn.socialpublish.modules.FilesModule
 import com.alexn.socialpublish.modules.FormModule
 import com.alexn.socialpublish.modules.RssModule
 import com.alexn.socialpublish.modules.configureAuth
+import com.alexn.socialpublish.modules.extractJwtToken
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -43,7 +44,6 @@ suspend fun startServer(
 ) {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
-    val authModule = AuthModule(config.server.auth)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule(config.files, filesDb)
 
@@ -51,6 +51,12 @@ suspend fun startServer(
     val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule) }
     val mastodonModule = config.mastodon?.let { MastodonApiModule(it, filesModule) }
     val twitterModule = config.twitter?.let { TwitterApiModule(it, config.server.baseUrl, documentsDb, filesModule) }
+
+    val authModule =
+        AuthModule(
+            config.server.auth,
+            twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
+        )
 
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
@@ -144,8 +150,21 @@ suspend fun startServer(
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
                     if (twitterModule != null) {
-                        val token = call.request.queryParameters["access_token"] ?: ""
+                        val token =
+                            extractJwtToken(call)
+                                ?: run {
+                                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                                    return@get
+                                }
                         twitterModule.authorizeRoute(call, token)
+                    } else {
+                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                    }
+                }
+
+                get("/api/twitter/callback") {
+                    if (twitterModule != null) {
+                        twitterModule.callbackRoute(call)
                     } else {
                         call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
                     }
@@ -161,15 +180,6 @@ suspend fun startServer(
 
                 post("/api/multiple/post") {
                     formModule.broadcastPostRoute(call)
-                }
-            }
-
-            // Twitter OAuth callback (public, no auth required)
-            get("/api/twitter/callback") {
-                if (twitterModule != null) {
-                    twitterModule.callbackRoute(call)
-                } else {
-                    call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
                 }
             }
 

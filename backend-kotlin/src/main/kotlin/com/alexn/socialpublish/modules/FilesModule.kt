@@ -12,19 +12,23 @@ import com.sksamuel.scrimage.ImmutableImage
 import com.sksamuel.scrimage.nio.JpegWriter
 import com.sksamuel.scrimage.nio.PngWriter
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveMultipart
+import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.MessageDigest
+import javax.imageio.ImageIO
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,7 +71,6 @@ class FilesModule(
             var altText: String? = null
             var fileBytes: ByteArray? = null
             var fileName: String? = null
-            var contentType: String? = null
 
             multipart.forEachPart { part ->
                 when (part) {
@@ -78,7 +81,6 @@ class FilesModule(
                     }
                     is PartData.FileItem -> {
                         fileName = part.originalFileName ?: "unknown"
-                        contentType = part.contentType?.toString() ?: "application/octet-stream"
                         fileBytes =
                             withContext(Dispatchers.IO) {
                                 val channel = part.provider()
@@ -107,21 +109,17 @@ class FilesModule(
             // Calculate hash
             val hash = calculateHash(fileBytes)
 
-            // Process image if it's an image type
-            val processed =
-                if (contentType?.startsWith("image/") == true) {
-                    processImage(fileBytes, fileName, contentType, altText)
-                } else {
-                    ProcessedUpload(
-                        originalname = fileName,
-                        mimetype = contentType!!,
-                        altText = altText,
-                        width = 0,
-                        height = 0,
-                        size = fileBytes.size.toLong(),
-                        bytes = fileBytes,
-                    )
-                }
+            val formatName = detectImageFormat(fileBytes)
+            val mimeType = formatName?.let { toSupportedMimeType(it) }
+            if (mimeType == null) {
+                return ValidationError(
+                    status = 400,
+                    errorMessage = "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
+                    module = "files",
+                ).left()
+            }
+
+            val processed = processImage(fileBytes, fileName, mimeType, altText)
 
             // Save to database
             val upload =
@@ -179,6 +177,8 @@ class FilesModule(
             return
         }
 
+        call.response.header(HttpHeaders.ContentType, upload.mimetype)
+        call.response.header(HttpHeaders.ContentDisposition, "inline; filename=\"${upload.originalname}\"")
         call.respondFile(filePath)
     }
 
@@ -200,6 +200,31 @@ class FilesModule(
             size = upload.size,
             bytes = filePath.readBytes(),
         )
+    }
+
+    private fun detectImageFormat(bytes: ByteArray): String? {
+        val inputStream = ByteArrayInputStream(bytes)
+        val imageStream = ImageIO.createImageInputStream(inputStream) ?: return null
+        return imageStream.use {
+            val readers = ImageIO.getImageReaders(it)
+            if (!readers.hasNext()) {
+                return@use null
+            }
+            val reader = readers.next()
+            try {
+                reader.formatName.lowercase()
+            } finally {
+                reader.dispose()
+            }
+        }
+    }
+
+    private fun toSupportedMimeType(format: String): String? {
+        return when (format.lowercase()) {
+            "png" -> "image/png"
+            "jpg", "jpeg" -> "image/jpeg"
+            else -> null
+        }
     }
 
     private fun processImage(
