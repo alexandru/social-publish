@@ -1,22 +1,30 @@
 package com.alexn.socialpublish.integrations
 
 import arrow.core.Either
-import com.alexn.socialpublish.FilesConfig
-import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.integrations.bluesky.BlueskyApiModule
 import com.alexn.socialpublish.integrations.bluesky.BlueskyConfig
 import com.alexn.socialpublish.models.NewPostRequest
-import com.alexn.socialpublish.modules.FilesModule
+import com.alexn.socialpublish.testutils.ImageDimensions
+import com.alexn.socialpublish.testutils.createFilesModule
+import com.alexn.socialpublish.testutils.createTestDatabase
+import com.alexn.socialpublish.testutils.imageDimensions
+import com.alexn.socialpublish.testutils.loadTestResourceBytes
+import com.alexn.socialpublish.testutils.uploadTestImage
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
+import io.ktor.server.request.receiveStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -28,12 +36,8 @@ class BlueskyApiTest {
     fun `creates post without images`(
         @TempDir tempDir: Path,
     ) = testApplication {
-        val dbPath = tempDir.resolve("test.db").toString()
-        val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-        Database.migrate(jdbi)
-
-        val filesConfig = FilesConfig(uploadedFilesPath = tempDir.resolve("uploads").toString(), baseUrl = "http://localhost")
-        val filesModule = FilesModule(filesConfig, com.alexn.socialpublish.db.FilesDatabase(jdbi))
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
 
         application {
             routing {
@@ -42,9 +46,6 @@ class BlueskyApiTest {
                         "{" + "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
                         io.ktor.http.ContentType.Application.Json,
                     )
-                }
-                post("/xrpc/com.atproto.repo.uploadBlob") {
-                    call.respondText("{" + "\"blob\":{\"ref\":{\"something\":\"ok\"}}}", io.ktor.http.ContentType.Application.Json)
                 }
                 post("/xrpc/com.atproto.repo.createRecord") {
                     call.respondText(
@@ -74,6 +75,102 @@ class BlueskyApiTest {
 
         assertTrue(result.isRight())
         (result as Either.Right).value
+
+        blueskyClient.close()
+    }
+
+    @Test
+    fun `creates post with images and alt text`(
+        @TempDir tempDir: Path,
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val uploadedImages = mutableListOf<ImageDimensions>()
+        var createRecordBody: JsonObject? = null
+
+        application {
+            routing {
+                post("/api/files/upload") {
+                    val result = filesModule.uploadFile(call)
+                    when (result) {
+                        is Either.Right ->
+                            call.respondText(
+                                Json.encodeToString(result.value),
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        is Either.Left ->
+                            call.respondText(
+                                "{\"error\":\"${result.value.errorMessage}\"}",
+                                io.ktor.http.ContentType.Application.Json,
+                                io.ktor.http.HttpStatusCode.fromValue(result.value.status),
+                            )
+                    }
+                }
+                post("/xrpc/com.atproto.server.createSession") {
+                    call.respondText(
+                        "{" + "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                        io.ktor.http.ContentType.Application.Json,
+                    )
+                }
+                post("/xrpc/com.atproto.repo.uploadBlob") {
+                    val bytes = call.receiveStream().readBytes()
+                    uploadedImages.add(imageDimensions(bytes))
+                    call.respondText("{" + "\"blob\":{\"ref\":{\"something\":\"ok\"}}}", io.ktor.http.ContentType.Application.Json)
+                }
+                post("/xrpc/com.atproto.repo.createRecord") {
+                    val body = call.receiveStream().readBytes().decodeToString()
+                    createRecordBody = Json.parseToJsonElement(body).jsonObject
+                    call.respondText(
+                        "{" + "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                        io.ktor.http.ContentType.Application.Json,
+                    )
+                }
+            }
+        }
+
+        val blueskyClient =
+            createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        },
+                    )
+                }
+            }
+        val upload1 = uploadTestImage(blueskyClient, "flower1.jpeg", "rose")
+        val upload2 = uploadTestImage(blueskyClient, "flower2.jpeg", "tulip")
+
+        val blueskyModule =
+            BlueskyApiModule(BlueskyConfig(service = "http://localhost", username = "u", password = "p"), filesModule, blueskyClient)
+
+        val req = NewPostRequest(content = "Hello bluesky", images = listOf(upload1.uuid, upload2.uuid))
+        val result = runBlocking { blueskyModule.createPost(req) }
+
+        assertTrue(result.isRight())
+        assertEquals(2, uploadedImages.size)
+
+        val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
+        val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
+        assertTrue(uploadedImages[0].width <= 1920)
+        assertTrue(uploadedImages[0].height <= 1080)
+        assertTrue(uploadedImages[1].width <= 1920)
+        assertTrue(uploadedImages[1].height <= 1080)
+        assertTrue(uploadedImages[0].width < original1.width || uploadedImages[0].height < original1.height)
+        assertTrue(uploadedImages[1].width < original2.width || uploadedImages[1].height < original2.height)
+
+        val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
+        val embed = requireNotNull(record["embed"]?.jsonObject)
+
+        val images = embed["images"] as JsonArray
+        assertEquals(listOf("rose", "tulip"), images.map { it.jsonObject["alt"]?.jsonPrimitive?.content })
+
+        val ratios = images.map { it.jsonObject["aspectRatio"]?.jsonObject }
+        assertEquals(uploadedImages[0].width, ratios[0]?.get("width")?.jsonPrimitive?.content?.toInt())
+        assertEquals(uploadedImages[0].height, ratios[0]?.get("height")?.jsonPrimitive?.content?.toInt())
+        assertEquals(uploadedImages[1].width, ratios[1]?.get("width")?.jsonPrimitive?.content?.toInt())
+        assertEquals(uploadedImages[1].height, ratios[1]?.get("height")?.jsonPrimitive?.content?.toInt())
 
         blueskyClient.close()
     }

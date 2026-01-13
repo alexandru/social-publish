@@ -1,24 +1,31 @@
 package com.alexn.socialpublish.integrations
 
 import arrow.core.Either
-import com.alexn.socialpublish.FilesConfig
-import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.integrations.twitter.TwitterApiModule
 import com.alexn.socialpublish.integrations.twitter.TwitterConfig
 import com.alexn.socialpublish.models.NewPostRequest
-import com.alexn.socialpublish.modules.FilesModule
-import io.ktor.http.ContentType
+import com.alexn.socialpublish.testutils.ImageDimensions
+import com.alexn.socialpublish.testutils.createFilesModule
+import com.alexn.socialpublish.testutils.createTestDatabase
+import com.alexn.socialpublish.testutils.imageDimensions
+import com.alexn.socialpublish.testutils.loadTestResourceBytes
+import com.alexn.socialpublish.testutils.receiveMultipart
+import com.alexn.socialpublish.testutils.uploadTestImage
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
+import io.ktor.server.request.receiveStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -27,29 +34,68 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientCon
 
 class TwitterApiTest {
     @Test
-    fun `uploads media and creates tweet`(
+    fun `uploads media with alt text and creates tweet`(
         @TempDir tempDir: Path,
     ) = testApplication {
-        val dbPath = tempDir.resolve("test.db").toString()
-        val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-        Database.migrate(jdbi)
-
-        val filesConfig = FilesConfig(uploadedFilesPath = tempDir.resolve("uploads").toString(), baseUrl = "http://localhost")
-        val filesModule = FilesModule(filesConfig, com.alexn.socialpublish.db.FilesDatabase(jdbi))
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val uploadedImages = mutableListOf<ImageDimensions>()
+        val altTextRequests = mutableListOf<Pair<String, String>>()
+        var tweetMediaIds: List<String>? = null
+        var mediaCounter = 0
 
         application {
             routing {
+                post("/api/files/upload") {
+                    val result = filesModule.uploadFile(call)
+                    when (result) {
+                        is Either.Right ->
+                            call.respondText(
+                                Json.encodeToString(result.value),
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        is Either.Left ->
+                            call.respondText(
+                                "{\"error\":\"${result.value.errorMessage}\"}",
+                                io.ktor.http.ContentType.Application.Json,
+                                HttpStatusCode.fromValue(result.value.status),
+                            )
+                    }
+                }
                 post("/1.1/media/upload.json") {
-                    call.respondText("{" + "\"media_id_string\":\"mid123\"}", io.ktor.http.ContentType.Application.Json)
+                    val multipart = receiveMultipart(call)
+                    val file = multipart.files.single()
+                    uploadedImages.add(imageDimensions(file.bytes))
+                    val mediaId = "mid${++mediaCounter}"
+                    call.respondText("{" + "\"media_id_string\":\"$mediaId\"}", io.ktor.http.ContentType.Application.Json)
                 }
                 post("/2/tweets") {
+                    val body = call.receiveStream().readBytes().decodeToString()
+                    val payload = Json.parseToJsonElement(body).jsonObject
+                    tweetMediaIds =
+                        payload["media"]
+                            ?.jsonObject
+                            ?.get("media_ids")
+                            ?.jsonArray
+                            ?.map { it.jsonPrimitive.content }
                     call.respondText(
                         "{" + "\"data\":{\"id\":\"tweet123\",\"text\":\"ok\"}}",
                         io.ktor.http.ContentType.Application.Json,
-                        io.ktor.http.HttpStatusCode.Created,
+                        HttpStatusCode.Created,
                     )
                 }
                 post("/1.1/media/metadata/create.json") {
+                    val body = call.receiveStream().readBytes().decodeToString()
+                    val payload = Json.parseToJsonElement(body).jsonObject
+                    val mediaId = payload["media_id"]?.jsonPrimitive?.content ?: ""
+                    val altText =
+                        payload["alt_text"]
+                            ?.jsonObject
+                            ?.get("text")
+                            ?.jsonPrimitive
+                            ?.content
+                            ?: ""
+                    altTextRequests.add(mediaId to altText)
                     call.respondText("{" + "\"ok\":true}", io.ktor.http.ContentType.Application.Json)
                 }
                 post("/oauth/request_token") {
@@ -89,7 +135,7 @@ class TwitterApiTest {
         documentsDb.createOrUpdate(
             kind = "twitter-oauth-token",
             payload =
-                kotlinx.serialization.json.Json.encodeToString(
+                Json.encodeToString(
                     com.alexn.socialpublish.integrations.twitter.TwitterOAuthToken.serializer(),
                     com.alexn.socialpublish.integrations.twitter.TwitterOAuthToken(key = "tok", secret = "sec"),
                 ),
@@ -97,10 +143,25 @@ class TwitterApiTest {
             tags = emptyList(),
         )
 
-        val req = NewPostRequest(content = "Hello twitter")
+        val upload1 = uploadTestImage(twitterClient, "flower1.jpeg", "rose")
+        val upload2 = uploadTestImage(twitterClient, "flower2.jpeg", "tulip")
+
+        val req = NewPostRequest(content = "Hello twitter", images = listOf(upload1.uuid, upload2.uuid))
         val result = runBlocking { twitterModule.createPost(req) }
         assertTrue(result.isRight())
-        (result as Either.Right).value
+
+        assertEquals(2, uploadedImages.size)
+        assertEquals(listOf("mid1", "mid2"), tweetMediaIds)
+        assertEquals(listOf("mid1" to "rose", "mid2" to "tulip"), altTextRequests)
+
+        val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
+        val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
+        assertTrue(uploadedImages[0].width <= 1920)
+        assertTrue(uploadedImages[0].height <= 1080)
+        assertTrue(uploadedImages[1].width <= 1920)
+        assertTrue(uploadedImages[1].height <= 1080)
+        assertTrue(uploadedImages[0].width < original1.width || uploadedImages[0].height < original1.height)
+        assertTrue(uploadedImages[1].width < original2.width || uploadedImages[1].height < original2.height)
 
         twitterClient.close()
     }

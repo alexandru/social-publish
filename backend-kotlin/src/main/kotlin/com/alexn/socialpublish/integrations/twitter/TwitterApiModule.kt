@@ -252,7 +252,7 @@ class TwitterApiModule(
 
                 // Add alt text if present
                 if (!file.altText.isNullOrEmpty()) {
-                    val altTextUrl = "https://api.twitter.com/1.1/media/metadata/create.json"
+                    val altTextUrl = "${config.apiBase}/1.1/media/metadata/create.json"
                     val altConsumer =
                         DefaultOAuthConsumer(
                             config.oauth1ConsumerKey,
