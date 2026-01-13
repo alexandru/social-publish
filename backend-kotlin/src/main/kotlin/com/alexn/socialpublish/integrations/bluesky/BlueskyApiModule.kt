@@ -17,6 +17,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -215,26 +216,125 @@ class BlueskyApiModule(
         }
     }
 
+    @Serializable
+    data class DidResolutionResponse(
+        val did: String,
+    )
+
+// ... (existing code)
+
+    /**
+     * Resolve a handle to a DID using the Bluesky API
+     */
+    private suspend fun resolveHandle(handle: String): String? {
+        return try {
+            val response =
+                httpClient.get("${config.service}/xrpc/com.atproto.identity.resolveHandle") {
+                    url {
+                        parameters.append("handle", handle)
+                    }
+                }
+
+            if (response.status.value == 200) {
+                val data = response.body<DidResolutionResponse>()
+                data.did
+            } else {
+                logger.warn { "Failed to resolve handle $handle: ${response.status}" }
+                null
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Error resolving handle $handle" }
+            null
+        }
+    }
+
     /**
      * Detect facets (mentions, links, hashtags) in text
-     * Simplified version - just detects URLs
+     * Supports:
+     * - URLs (app.bsky.richtext.facet#link)
+     * - Mentions @handle (app.bsky.richtext.facet#mention)
+     * - Hashtags #tag (app.bsky.richtext.facet#tag)
+     *
+     * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private fun detectFacets(text: String): List<JsonObject> {
+    private suspend fun detectFacets(text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
-        val urlRegex = Regex("""https?://[^\s]+""")
+        val bytes = text.toByteArray(Charsets.UTF_8)
 
+        // 1. Detect URLs
+        // Regex handles http/https and ensures valid surrounding characters
+        val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
         urlRegex.findAll(text).forEach { match ->
+            val byteStart = text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
+            val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
+
             val facet =
                 buildJsonObject {
                     putJsonObject("index") {
-                        put("byteStart", match.range.first)
-                        put("byteEnd", match.range.last + 1)
+                        put("byteStart", byteStart)
+                        put("byteEnd", byteEnd)
                     }
                     putJsonArray("features") {
                         add(
                             buildJsonObject {
                                 put("\$type", "app.bsky.richtext.facet#link")
                                 put("uri", match.value)
+                            },
+                        )
+                    }
+                }
+            facets.add(facet)
+        }
+
+        // 2. Detect Mentions (@handle.bsky.social)
+        val mentionRegex = Regex("""(?<=\s|^)(@[a-zA-Z0-9.-]+)""")
+        for (match in mentionRegex.findAll(text)) {
+            val handle = match.value.substring(1) // Remove '@'
+            // Only resolve if it looks like a valid handle (has at least one dot)
+            if (handle.contains(".")) {
+                val did = resolveHandle(handle)
+                if (did != null) {
+                    val byteStart = text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
+                    val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
+
+                    val facet =
+                        buildJsonObject {
+                            putJsonObject("index") {
+                                put("byteStart", byteStart)
+                                put("byteEnd", byteEnd)
+                            }
+                            putJsonArray("features") {
+                                add(
+                                    buildJsonObject {
+                                        put("\$type", "app.bsky.richtext.facet#mention")
+                                        put("did", did)
+                                    },
+                                )
+                            }
+                        }
+                    facets.add(facet)
+                }
+            }
+        }
+
+        // 3. Detect Hashtags (#tag)
+        val tagRegex = Regex("""(?<=\s|^)(#[a-zA-Z0-9]+)""")
+        tagRegex.findAll(text).forEach { match ->
+            val tag = match.value.substring(1) // Remove '#'
+            val byteStart = text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
+            val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
+
+            val facet =
+                buildJsonObject {
+                    putJsonObject("index") {
+                        put("byteStart", byteStart)
+                        put("byteEnd", byteEnd)
+                    }
+                    putJsonArray("features") {
+                        add(
+                            buildJsonObject {
+                                put("\$type", "app.bsky.richtext.facet#tag")
+                                put("tag", tag)
                             },
                         )
                     }

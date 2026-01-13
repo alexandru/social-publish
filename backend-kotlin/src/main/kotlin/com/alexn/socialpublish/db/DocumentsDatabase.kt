@@ -139,13 +139,18 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         }
     }
 
+    enum class OrderBy(val sql: String) {
+        CREATED_AT_DESC("created_at DESC"),
+        CREATED_AT_ASC("created_at ASC"),
+    }
+
     fun getAll(
         kind: String,
-        orderBy: String = "created_at DESC",
+        orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
     ): List<Document> {
         return jdbi.withHandle<List<Document>, Exception> { handle ->
             val rows =
-                handle.createQuery("SELECT * FROM documents WHERE kind = ? ORDER BY $orderBy")
+                handle.createQuery("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}")
                     .bind(0, kind)
                     .mapToMap()
                     .list()

@@ -30,7 +30,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
         .default(3000)
 
     private val baseUrl: String by option("--base-url", help = "Public URL of this server", envvar = "BASE_URL")
-        .default("http://localhost:3000")
+        .required()
 
     // Server authentication configuration
     private val serverAuthUsername: String by option(

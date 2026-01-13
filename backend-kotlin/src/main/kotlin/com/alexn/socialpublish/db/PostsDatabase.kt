@@ -51,7 +51,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
     }
 
     fun getAll(): List<Post> {
-        val rows = docs.getAll("post", "created_at DESC")
+        val rows = docs.getAll("post", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
         return rows.map { row ->
             val payload = json.decodeFromString<PostPayload>(row.payload)
             Post(

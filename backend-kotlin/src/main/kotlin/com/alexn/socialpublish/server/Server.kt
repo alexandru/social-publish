@@ -24,6 +24,7 @@ import io.ktor.server.http.content.staticFiles
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
@@ -61,6 +62,13 @@ suspend fun startServer(
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
     embeddedServer(Netty, port = config.server.httpPort) {
+        install(CORS) {
+            anyHost()
+            allowHeader(io.ktor.http.HttpHeaders.ContentType)
+            allowHeader(io.ktor.http.HttpHeaders.Authorization)
+            allowCredentials = true
+        }
+
         install(ContentNegotiation) {
             json(
                 Json {
