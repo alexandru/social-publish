@@ -88,8 +88,7 @@ class TwitterApiModule(
     private val baseUrl: String,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
-) {
-    private val httpClient =
+    private val httpClient: HttpClient =
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(
@@ -99,8 +98,8 @@ class TwitterApiModule(
                     },
                 )
             }
-        }
-
+        },
+) {
     private val consumer: OAuthConsumer =
         DefaultOAuthConsumer(
             config.oauth1ConsumerKey,
@@ -109,9 +108,9 @@ class TwitterApiModule(
 
     private val provider: OAuthProvider =
         DefaultOAuthProvider(
-            "https://api.twitter.com/oauth/request_token?x_auth_access_type=write",
-            "https://api.twitter.com/oauth/access_token",
-            "https://api.twitter.com/oauth/authorize",
+            config.oauthRequestTokenUrl,
+            config.oauthAccessTokenUrl,
+            config.oauthAuthorizeUrl,
         )
 
     /**
@@ -215,7 +214,7 @@ class TwitterApiModule(
                         module = "twitter",
                     ).left()
 
-            val url = "https://upload.twitter.com/1.1/media/upload.json"
+            val url = "${config.uploadBase}/1.1/media/upload.json"
 
             // Create OAuth consumer for this request
             val mediaConsumer =
@@ -331,7 +330,7 @@ class TwitterApiModule(
             logger.info { "Posting to Twitter:\n${text.trim().prependIndent("  |")}" }
 
             // Create the tweet
-            val createPostURL = "https://api.twitter.com/2/tweets"
+            val createPostURL = "${config.apiBase}/2/tweets"
             val postConsumer =
                 DefaultOAuthConsumer(
                     config.oauth1ConsumerKey,

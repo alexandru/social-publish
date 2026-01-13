@@ -32,13 +32,20 @@ object Database {
                     .installPlugin(KotlinPlugin())
 
             // Run migrations
-            jdbi.useHandle<Exception> { handle ->
-                runMigrations(handle)
-            }
+            migrate(jdbi)
 
             logger.info { "Database connected and migrated" }
             jdbi
         }
+
+    /**
+     * Expose migrations so tests and other callers can reuse the same DDLs.
+     */
+    fun migrate(jdbi: Jdbi) {
+        jdbi.useHandle<Exception> { handle ->
+            runMigrations(handle)
+        }
+    }
 
     private fun runMigrations(handle: Handle) {
         logger.info { "Running database migrations..." }

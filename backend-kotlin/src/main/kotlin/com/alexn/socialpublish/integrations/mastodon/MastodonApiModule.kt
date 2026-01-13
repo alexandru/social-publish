@@ -56,8 +56,7 @@ data class MastodonStatusResponse(
 class MastodonApiModule(
     private val config: MastodonConfig,
     private val filesModule: FilesModule,
-) {
-    private val httpClient =
+    private val httpClient: HttpClient =
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(
@@ -67,8 +66,8 @@ class MastodonApiModule(
                     },
                 )
             }
-        }
-
+        },
+) {
     private val mediaUrlV2 = "${config.host}/api/v2/media"
     private val mediaUrlV1 = "${config.host}/api/v1/media"
     private val statusesUrlV1 = "${config.host}/api/v1/statuses"

@@ -83,16 +83,20 @@ class FilesDatabase(private val jdbi: Jdbi) {
                     .orElse(null)
 
             if (existing != null) {
+                val row = existing.normalizeKeys()
+                val sizeVal = requireNotNull(row["size"] as? Number).toLong()
+                val createdAtMillis = requireNotNull(row["createdat"] as? Number).toLong()
+
                 return@inTransaction Upload(
-                    uuid = existing["uuid"] as String,
-                    hash = existing["hash"] as String,
-                    originalname = existing["originalname"] as String,
-                    mimetype = existing["mimetype"] as String,
-                    size = existing["size"] as Long,
-                    altText = existing["altText"] as String?,
-                    imageWidth = existing["imageWidth"] as Int?,
-                    imageHeight = existing["imageHeight"] as Int?,
-                    createdAt = Instant.ofEpochMilli(existing["createdAt"] as Long),
+                    uuid = row["uuid"] as String,
+                    hash = row["hash"] as String,
+                    originalname = row["originalname"] as String,
+                    mimetype = row["mimetype"] as String,
+                    size = sizeVal,
+                    altText = row["alttext"] as String?,
+                    imageWidth = (row["imagewidth"] as? Number)?.toInt(),
+                    imageHeight = (row["imageheight"] as? Number)?.toInt(),
+                    createdAt = Instant.ofEpochMilli(createdAtMillis),
                 )
             }
 
@@ -133,27 +137,35 @@ class FilesDatabase(private val jdbi: Jdbi) {
 
     fun getFileByUuid(uuid: String): Upload? {
         return jdbi.withHandle<Upload?, Exception> { handle ->
-            val row =
-                handle.createQuery("SELECT * FROM uploads WHERE uuid = ?")
-                    .bind(0, uuid)
-                    .mapToMap()
-                    .findOne()
-                    .orElse(null) ?: return@withHandle null
+            // Some JDBC drivers / sqlite variants may normalize column names; fetch all rows and match by uuid string
+            val rows = handle.createQuery("SELECT * FROM uploads").mapToMap().list()
+            val normalizedRows = rows.map { it.normalizeKeys() }
+            val row = normalizedRows.firstOrNull { r -> r["uuid"]?.toString() == uuid }
+
+            if (row == null) {
+                return@withHandle null
+            }
+
+            val sizeVal = (row["size"] as? Number)?.toLong() ?: return@withHandle null
+            val createdAtMillis =
+                (row["createdat"] as? Number)?.toLong() ?: return@withHandle null
 
             Upload(
                 uuid = row["uuid"] as String,
                 hash = row["hash"] as String,
                 originalname = row["originalname"] as String,
                 mimetype = row["mimetype"] as String,
-                size = row["size"] as Long,
-                altText = row["altText"] as String?,
-                imageWidth = row["imageWidth"] as Int?,
-                imageHeight = row["imageHeight"] as Int?,
-                createdAt = Instant.ofEpochMilli(row["createdAt"] as Long),
+                size = sizeVal,
+                altText = row["alttext"] as String?,
+                imageWidth = (row["imagewidth"] as? Number)?.toInt(),
+                imageHeight = (row["imageheight"] as? Number)?.toInt(),
+                createdAt = Instant.ofEpochMilli(createdAtMillis),
             )
         }
     }
 }
+
+private fun Map<String, Any?>.normalizeKeys(): Map<String, Any?> = this.mapKeys { it.key.lowercase() }
 
 private fun ByteBuffer.putUUID(uuid: UUID): ByteBuffer {
     putLong(uuid.mostSignificantBits)

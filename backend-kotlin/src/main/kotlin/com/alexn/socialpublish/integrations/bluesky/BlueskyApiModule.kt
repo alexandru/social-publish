@@ -81,8 +81,7 @@ data class BlueskyPostResponse(
 class BlueskyApiModule(
     private val config: BlueskyConfig,
     private val filesModule: FilesModule,
-) {
-    private val httpClient =
+    private val httpClient: io.ktor.client.HttpClient =
         HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(
@@ -92,8 +91,8 @@ class BlueskyApiModule(
                     },
                 )
             }
-        }
-
+        },
+) {
     private var accessToken: String? = null
     private var sessionDid: String? = null
 
