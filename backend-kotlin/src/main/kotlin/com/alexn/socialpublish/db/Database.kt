@@ -79,10 +79,10 @@ object Database {
             handle.execute(
                 """
                 CREATE TABLE IF NOT EXISTS document_tags (
-                   document_uuid VARCHAR(36) NOT NULL,
-                   name VARCHAR(255) NOT NULL,
-                   kind VARCHAR(255) NOT NULL,
-                   PRIMARY KEY (document_uuid, name, kind)
+                    document_uuid VARCHAR(36) NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    kind VARCHAR(255) NOT NULL,
+                    PRIMARY KEY (document_uuid, name, kind)
                 )
                 """.trimIndent(),
             )
