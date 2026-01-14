@@ -22,9 +22,10 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
-import kotlinx.io.readByteArray
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -49,18 +50,26 @@ data class ProcessedUpload(
     val bytes: ByteArray,
 )
 
-class FilesModule(
+class FilesModule private constructor(
     private val config: FilesConfig,
     private val db: FilesDatabase,
+    private val uploadedFilesPath: File,
+    private val processedPath: File,
 ) {
-    private val uploadedFilesPath = File(config.uploadedFilesPath)
-    private val processedPath = File(uploadedFilesPath, "processed")
-
-    init {
-        // Create directories
-        uploadedFilesPath.mkdirs()
-        processedPath.mkdirs()
-        logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
+    companion object {
+        suspend fun create(
+            config: FilesConfig,
+            db: FilesDatabase,
+        ): FilesModule {
+            val uploadedFilesPath = File(config.uploadedFilesPath)
+            val processedPath = File(uploadedFilesPath, "processed")
+            runInterruptible(Dispatchers.IO) {
+                uploadedFilesPath.mkdirs()
+                processedPath.mkdirs()
+            }
+            logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
+            return FilesModule(config, db, uploadedFilesPath, processedPath)
+        }
     }
 
     /**
@@ -136,7 +145,9 @@ class FilesModule(
 
             // Save file to disk
             val filePath = File(processedPath, upload.hash)
-            filePath.writeBytes(processed.bytes)
+            runInterruptible(Dispatchers.IO) {
+                filePath.writeBytes(processed.bytes)
+            }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
 
@@ -184,11 +195,19 @@ class FilesModule(
     /**
      * Read image file for API posting
      */
-    fun readImageFile(uuid: String): ProcessedUpload? {
+    suspend fun readImageFile(uuid: String): ProcessedUpload? {
         val upload = db.getFileByUuid(uuid) ?: return null
         val filePath = File(processedPath, upload.hash)
 
-        if (!filePath.exists()) return null
+        val bytes =
+            runInterruptible(Dispatchers.IO) {
+                if (!filePath.exists()) {
+                    null
+                } else {
+                    filePath.readBytes()
+                }
+            }
+                ?: return null
 
         return ProcessedUpload(
             originalname = upload.originalname,
@@ -197,7 +216,7 @@ class FilesModule(
             width = upload.imageWidth ?: 0,
             height = upload.imageHeight ?: 0,
             size = upload.size,
-            bytes = filePath.readBytes(),
+            bytes = bytes,
         )
     }
 

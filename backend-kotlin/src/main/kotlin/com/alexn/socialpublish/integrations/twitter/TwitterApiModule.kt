@@ -88,18 +88,22 @@ class TwitterApiModule(
     private val baseUrl: String,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
-    private val httpClient: HttpClient =
-        HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    },
-                )
-            }
-        },
+    private val httpClient: HttpClient = defaultHttpClient(),
 ) {
+    companion object {
+        fun defaultHttpClient(): HttpClient =
+            HttpClient(CIO) {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        },
+                    )
+                }
+            }
+    }
+
     private val consumer: OAuthConsumer =
         DefaultOAuthConsumer(
             config.oauth1ConsumerKey,

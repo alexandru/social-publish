@@ -6,7 +6,7 @@ import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.models.CompositeError
 import com.alexn.socialpublish.models.NewPostRequest
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
@@ -58,36 +58,38 @@ class FormModuleTest {
     }
 
     @Test
-    fun `broadcast should always include RSS`() {
-        val formModule = FormModule(null, null, null, rssModule)
-        val request = NewPostRequest(content = "Hello world")
+    fun `broadcast should always include RSS`() =
+        runTest {
+            val formModule = FormModule(null, null, null, rssModule)
+            val request = NewPostRequest(content = "Hello world")
 
-        val result = runBlocking { formModule.broadcastPost(request) }
+            val result = formModule.broadcastPost(request)
 
-        assertTrue(result.isRight())
-        when (result) {
-            is Either.Right -> {
-                assertTrue(result.value.containsKey("rss"))
+            assertTrue(result.isRight())
+            when (result) {
+                is Either.Right -> {
+                    assertTrue(result.value.containsKey("rss"))
+                }
+                is Either.Left -> assertTrue(false, "Expected success")
             }
-            is Either.Left -> assertTrue(false, "Expected success")
         }
-    }
 
     @Test
-    fun `broadcast should return composite error on partial failure`() {
-        val formModule = FormModule(null, null, null, rssModule)
-        val request =
-            NewPostRequest(
-                content = "Hello world",
-                targets = listOf("mastodon"),
-            )
+    fun `broadcast should return composite error on partial failure`() =
+        runTest {
+            val formModule = FormModule(null, null, null, rssModule)
+            val request =
+                NewPostRequest(
+                    content = "Hello world",
+                    targets = listOf("mastodon"),
+                )
 
-        val result = runBlocking { formModule.broadcastPost(request) }
+            val result = formModule.broadcastPost(request)
 
-        assertTrue(result.isLeft())
-        when (result) {
-            is Either.Left -> assertTrue(result.value is CompositeError)
-            is Either.Right -> assertTrue(false, "Expected failure")
+            assertTrue(result.isLeft())
+            when (result) {
+                is Either.Left -> assertTrue(result.value is CompositeError)
+                is Either.Right -> assertTrue(false, "Expected failure")
+            }
         }
-    }
 }

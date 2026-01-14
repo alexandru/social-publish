@@ -8,6 +8,8 @@ import arrow.fx.coroutines.resource
 import com.alexn.socialpublish.models.ApiError
 import com.alexn.socialpublish.models.CaughtException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import org.jdbi.v3.core.Handle
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
@@ -18,32 +20,54 @@ private val logger = KotlinLogging.logger {}
 /**
  * Database connection wrapper using Arrow's Resource for safe resource management
  */
+data class DatabaseResources(
+    val jdbi: Jdbi,
+    val documentsDb: DocumentsDatabase,
+    val postsDb: PostsDatabase,
+    val filesDb: FilesDatabase,
+)
+
 object Database {
     fun resource(dbPath: String): Resource<Jdbi> =
         resource {
             logger.info { "Connecting to database at $dbPath" }
 
-            // Ensure parent directory exists
-            val dbFile = File(dbPath)
-            dbFile.parentFile?.mkdirs()
-
             val jdbi =
-                Jdbi.create("jdbc:sqlite:$dbPath")
-                    .installPlugin(KotlinPlugin())
+                dbInterruptible {
+                    val dbFile = File(dbPath)
+                    dbFile.parentFile?.mkdirs()
+                    Jdbi.create("jdbc:sqlite:$dbPath")
+                        .installPlugin(KotlinPlugin())
+                }
 
-            // Run migrations
             migrate(jdbi)
 
             logger.info { "Database connected and migrated" }
             jdbi
         }
 
+    fun resourceBundle(dbPath: String): Resource<DatabaseResources> =
+        resource {
+            val jdbi = resource(dbPath).bind()
+            val documentsDb = DocumentsDatabase(jdbi)
+            val postsDb = PostsDatabase(documentsDb)
+            val filesDb = FilesDatabase(jdbi)
+            DatabaseResources(
+                jdbi = jdbi,
+                documentsDb = documentsDb,
+                postsDb = postsDb,
+                filesDb = filesDb,
+            )
+        }
+
     /**
      * Expose migrations so tests and other callers can reuse the same DDLs.
      */
-    fun migrate(jdbi: Jdbi) {
-        jdbi.useHandle<Exception> { handle ->
-            runMigrations(handle)
+    suspend fun migrate(jdbi: Jdbi) {
+        dbInterruptible {
+            jdbi.useHandle<Exception> { handle ->
+                runMigrations(handle)
+            }
         }
     }
 
@@ -130,6 +154,11 @@ object Database {
             .isPresent
     }
 }
+
+suspend fun <T> dbInterruptible(block: () -> T): T =
+    runInterruptible(Dispatchers.IO) {
+        block()
+    }
 
 /**
  * Execute a database operation safely with typed errors

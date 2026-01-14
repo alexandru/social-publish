@@ -27,7 +27,7 @@ data class Post(
 )
 
 class PostsDatabase(private val docs: DocumentsDatabase) {
-    fun create(
+    suspend fun create(
         payload: PostPayload,
         targets: List<String>,
     ): Post {
@@ -50,7 +50,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
         )
     }
 
-    fun getAll(): List<Post> {
+    suspend fun getAll(): List<Post> {
         val rows = docs.getAll("post", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
         return rows.map { row ->
             val payload = json.decodeFromString<PostPayload>(row.payload)
@@ -67,7 +67,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
         }
     }
 
-    fun searchByUuid(uuid: String): Post? {
+    suspend fun searchByUuid(uuid: String): Post? {
         val row = docs.searchByUuid(uuid) ?: return null
         val payload = json.decodeFromString<PostPayload>(row.payload)
         return Post(

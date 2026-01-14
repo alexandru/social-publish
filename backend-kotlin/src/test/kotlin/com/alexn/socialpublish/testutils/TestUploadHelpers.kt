@@ -15,7 +15,8 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveMultipart
-import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import java.io.ByteArrayInputStream
@@ -38,20 +39,20 @@ internal data class MultipartRequest(
     val fields: Map<String, List<String>>,
 )
 
-internal fun createTestDatabase(tempDir: Path): Jdbi {
+internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
     val dbPath = tempDir.resolve("test.db").toString()
     val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
     Database.migrate(jdbi)
     return jdbi
 }
 
-internal fun createFilesModule(
+internal suspend fun createFilesModule(
     tempDir: Path,
     jdbi: Jdbi,
 ): FilesModule {
     val uploadsDir = tempDir.resolve("uploads")
     val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir.toString(), baseUrl = "http://localhost")
-    return FilesModule(filesConfig, FilesDatabase(jdbi))
+    return FilesModule.create(filesConfig, FilesDatabase(jdbi))
 }
 
 internal fun loadTestResourceBytes(resourceName: String): ByteArray {
@@ -96,31 +97,28 @@ internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {
     val fields = mutableMapOf<String, MutableList<String>>()
 
     call.receiveMultipart().forEachPart { part ->
-        when (part) {
-            is PartData.FormItem -> {
-                val name = part.name ?: "unknown"
-                fields.getOrPut(name) { mutableListOf() }.add(part.value)
-            }
-            is PartData.FileItem -> {
-                val channel = part.provider()
-                val buffer = mutableListOf<Byte>()
-                val tempArray = ByteArray(8192)
-                var read: Int
-                while (channel.readAvailable(tempArray).also { read = it } > 0) {
-                    buffer.addAll(tempArray.take(read))
+        try {
+            when (part) {
+                is PartData.FormItem -> {
+                    val name = part.name ?: "unknown"
+                    fields.getOrPut(name) { mutableListOf() }.add(part.value)
                 }
-                files.add(
-                    MultipartFile(
-                        name = part.name,
-                        filename = part.originalFileName,
-                        contentType = part.contentType,
-                        bytes = buffer.toByteArray(),
-                    ),
-                )
+                is PartData.FileItem -> {
+                    val bytes = part.provider().readRemaining().readByteArray()
+                    files.add(
+                        MultipartFile(
+                            name = part.name,
+                            filename = part.originalFileName,
+                            contentType = part.contentType,
+                            bytes = bytes,
+                        ),
+                    )
+                }
+                else -> {}
             }
-            else -> {}
+        } finally {
+            part.dispose()
         }
-        part.dispose()
     }
 
     return MultipartRequest(files = files, fields = fields)

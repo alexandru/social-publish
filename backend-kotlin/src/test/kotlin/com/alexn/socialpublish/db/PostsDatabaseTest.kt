@@ -1,5 +1,6 @@
 package com.alexn.socialpublish.db
 
+import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.Test
@@ -12,7 +13,7 @@ class PostsDatabaseTest {
     @Test
     fun `test create and retrieve post`(
         @TempDir tempDir: Path,
-    ) {
+    ) = runTest {
         // Setup
         val dbPath = tempDir.resolve("test.db").toString()
         val jdbi =
@@ -57,16 +58,16 @@ class PostsDatabaseTest {
                 images = emptyList(),
             )
 
-        val post = postsDb.create(payload, listOf("mastodon", "bluesky"))
+        val created = postsDb.create(payload, listOf("mastodon", "bluesky"))
+        val retrieved = postsDb.searchByUuid(created.uuid)
 
         // Verify
-        assertNotNull(post.uuid)
-        assertEquals("Hello, World!", post.content)
-        assertEquals(2, post.targets.size)
+        assertNotNull(created.uuid)
+        assertEquals("Hello, World!", created.content)
+        assertEquals(2, created.targets.size)
 
         // Retrieve
-        val retrieved = postsDb.searchByUuid(post.uuid)
         assertNotNull(retrieved)
-        assertEquals(post.content, retrieved.content)
+        assertEquals(created.content, retrieved.content)
     }
 }

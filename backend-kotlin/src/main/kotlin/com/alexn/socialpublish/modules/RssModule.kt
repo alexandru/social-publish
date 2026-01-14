@@ -85,7 +85,7 @@ class RssModule(
     /**
      * Generate RSS feed
      */
-    fun generateRss(
+    suspend fun generateRss(
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
@@ -103,54 +103,55 @@ class RssModule(
                 publishedDate = Date()
             }
 
-        val entries =
-            posts.mapNotNull { post ->
-                if (target != null && !post.targets.contains(target)) {
-                    return@mapNotNull null
-                }
-                if (filterByLinks == "include" && post.link == null) {
-                    return@mapNotNull null
-                }
-                if (filterByLinks == "exclude" && post.link != null) {
-                    return@mapNotNull null
-                }
-                if (filterByImages == "include" && post.images.isNullOrEmpty()) {
-                    return@mapNotNull null
-                }
-                if (filterByImages == "exclude" && !post.images.isNullOrEmpty()) {
-                    return@mapNotNull null
-                }
+        val entries = mutableListOf<SyndEntryImpl>()
+        for (post in posts) {
+            if (target != null && !post.targets.contains(target)) {
+                continue
+            }
+            if (filterByLinks == "include" && post.link == null) {
+                continue
+            }
+            if (filterByLinks == "exclude" && post.link != null) {
+                continue
+            }
+            if (filterByImages == "include" && post.images.isNullOrEmpty()) {
+                continue
+            }
+            if (filterByImages == "exclude" && !post.images.isNullOrEmpty()) {
+                continue
+            }
 
-                val guid = "$baseUrl/rss/${post.uuid}"
-                val mediaElements = mutableListOf<Element>()
+            val guid = "$baseUrl/rss/${post.uuid}"
+            val mediaElements = mutableListOf<Element>()
 
-                post.images.orEmpty().forEach { imageUuid ->
-                    val upload = filesDb.getFileByUuid(imageUuid) ?: return@forEach
-                    val content = Element("content", mediaNamespace)
-                    content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
-                    content.setAttribute("fileSize", upload.size.toString())
-                    content.setAttribute("type", upload.mimetype)
+            for (imageUuid in post.images.orEmpty()) {
+                val upload = filesDb.getFileByUuid(imageUuid) ?: continue
+                val content = Element("content", mediaNamespace)
+                content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
+                content.setAttribute("fileSize", upload.size.toString())
+                content.setAttribute("type", upload.mimetype)
 
-                    val rating = Element("rating", mediaNamespace)
-                    rating.setAttribute("scheme", "urn:simple")
-                    rating.text = "nonadult"
-                    content.addContent(rating)
+                val rating = Element("rating", mediaNamespace)
+                rating.setAttribute("scheme", "urn:simple")
+                rating.text = "nonadult"
+                content.addContent(rating)
 
-                    upload.altText?.let { altText ->
-                        val description = Element("description", mediaNamespace)
-                        description.text = altText
-                        content.addContent(description)
-                    }
-
-                    mediaElements.add(content)
+                upload.altText?.let { altText ->
+                    val description = Element("description", mediaNamespace)
+                    description.text = altText
+                    content.addContent(description)
                 }
 
-                val categoryNames = mutableListOf<String>()
-                post.tags?.let { categoryNames.addAll(it) }
-                if (post.targets.isNotEmpty()) {
-                    categoryNames.addAll(post.targets)
-                }
+                mediaElements.add(content)
+            }
 
+            val categoryNames = mutableListOf<String>()
+            post.tags?.let { categoryNames.addAll(it) }
+            if (post.targets.isNotEmpty()) {
+                categoryNames.addAll(post.targets)
+            }
+
+            entries +=
                 SyndEntryImpl().apply {
                     title = post.content
                     link = post.link ?: guid
@@ -175,7 +176,7 @@ class RssModule(
                         foreignMarkup = mediaElements
                     }
                 }
-            }
+        }
 
         feed.entries = entries
 

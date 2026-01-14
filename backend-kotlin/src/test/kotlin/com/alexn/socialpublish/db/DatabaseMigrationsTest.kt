@@ -1,5 +1,6 @@
 package com.alexn.socialpublish.db
 
+import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.Test
@@ -11,7 +12,7 @@ class DatabaseMigrationsTest {
     @Test
     fun `database migrations create required tables`(
         @TempDir tempDir: Path,
-    ) {
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
         val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 

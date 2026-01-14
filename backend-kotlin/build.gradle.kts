@@ -26,6 +26,7 @@ dependencies {
     // Arrow for functional programming, typed errors, and resource safety
     implementation("io.arrow-kt:arrow-core:$arrowVersion")
     implementation("io.arrow-kt:arrow-fx-coroutines:$arrowVersion")
+    implementation("io.arrow-kt:suspendapp-jvm:2.1.2")
 
     // Ktor server
     implementation("io.ktor:ktor-server-core:$ktorVersion")

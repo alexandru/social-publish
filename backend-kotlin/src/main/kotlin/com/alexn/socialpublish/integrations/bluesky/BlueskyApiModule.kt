@@ -82,18 +82,22 @@ data class BlueskyPostResponse(
 class BlueskyApiModule(
     private val config: BlueskyConfig,
     private val filesModule: FilesModule,
-    private val httpClient: io.ktor.client.HttpClient =
-        HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    },
-                )
-            }
-        },
+    private val httpClient: HttpClient = defaultHttpClient(),
 ) {
+    companion object {
+        fun defaultHttpClient(): HttpClient =
+            HttpClient(CIO) {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        },
+                    )
+                }
+            }
+    }
+
     private var accessToken: String? = null
     private var sessionDid: String? = null
 

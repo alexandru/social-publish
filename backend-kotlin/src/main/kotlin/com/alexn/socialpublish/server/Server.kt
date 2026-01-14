@@ -19,9 +19,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.http.content.staticFiles
 import io.ktor.server.netty.Netty
+import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -42,16 +44,29 @@ suspend fun startServer(
     documentsDb: DocumentsDatabase,
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
-) {
+): EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
-    val filesModule = FilesModule(config.files, filesDb)
+    val filesModule = FilesModule.create(config.files, filesDb)
+
+    val blueskyClient = config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
+    val mastodonClient = config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
+    val twitterClient = config.twitter?.let { TwitterApiModule.defaultHttpClient() }
 
     // Conditionally instantiate integration modules based on config
-    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule) }
-    val mastodonModule = config.mastodon?.let { MastodonApiModule(it, filesModule) }
-    val twitterModule = config.twitter?.let { TwitterApiModule(it, config.server.baseUrl, documentsDb, filesModule) }
+    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule, blueskyClient!!) }
+    val mastodonModule = config.mastodon?.let { MastodonApiModule(it, filesModule, mastodonClient!!) }
+    val twitterModule =
+        config.twitter?.let {
+            TwitterApiModule(
+                it,
+                config.server.baseUrl,
+                documentsDb,
+                filesModule,
+                twitterClient!!,
+            )
+        }
 
     val authModule =
         AuthModule(
@@ -61,7 +76,7 @@ suspend fun startServer(
 
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    embeddedServer(Netty, port = config.server.httpPort) {
+    return embeddedServer(Netty, port = config.server.httpPort) {
         install(CORS) {
             anyHost()
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
@@ -81,6 +96,12 @@ suspend fun startServer(
 
         install(CallLogging) {
             level = Level.INFO
+        }
+
+        monitor.subscribe(io.ktor.server.application.ApplicationStopped) {
+            blueskyClient?.close()
+            mastodonClient?.close()
+            twitterClient?.close()
         }
 
         install(StatusPages) {
@@ -221,5 +242,5 @@ suspend fun startServer(
                 }
             }
         }
-    }.start(wait = true)
+    }
 }
