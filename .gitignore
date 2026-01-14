@@ -36,3 +36,6 @@ metals.sbt
 *.sln
 *.sw?
 .envrc
+
+# Misc
+opencode.json
