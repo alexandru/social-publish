@@ -4,7 +4,8 @@ import cats.effect.{IO, Resource}
 import socialpublish.integrations.bluesky.{BlueskyApi, BlueskyConfig}
 import socialpublish.integrations.mastodon.{MastodonApi, MastodonConfig}
 import socialpublish.integrations.twitter.{TwitterApi, TwitterConfig}
-import socialpublish.db.DocumentsDatabase
+import socialpublish.integrations.rss.{RssService, RssServiceImpl}
+import socialpublish.db.{DocumentsDatabase, PostsDatabaseImpl}
 import socialpublish.http.ServerConfig
 import socialpublish.services.FilesService
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
@@ -12,7 +13,8 @@ import sttp.client4.httpclient.cats.HttpClientCatsBackend
 final case class Integrations(
   bluesky: BlueskyApi,
   mastodon: MastodonApi,
-  twitter: TwitterApi
+  twitter: TwitterApi,
+  rss: RssService
 )
 
 object Integrations {
@@ -36,7 +38,12 @@ object Integrations {
           files,
           docsDb
         )))
-      } yield Integrations(bluesky, mastodon, twitter)
+        rss = new RssServiceImpl(
+          server,
+          new PostsDatabaseImpl(docsDb),
+          files
+        )
+      } yield Integrations(bluesky, mastodon, twitter, rss)
     }
 
 }

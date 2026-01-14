@@ -78,8 +78,8 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                     integrations.bluesky,
                     integrations.mastodon,
                     integrations.twitter,
+                    integrations.rss,
                     filesService,
-                    new PostsDatabaseImpl(docsDb.db),
                     logger
                   )
                   HttpServer.resource(serverConfig, routes).use { _ =>
@@ -190,8 +190,8 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                 integrations.bluesky,
                 integrations.mastodon,
                 integrations.twitter,
+                integrations.rss,
                 filesService,
-                new PostsDatabaseImpl(docsDb.db),
                 logger
               )
 
@@ -284,8 +284,8 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                 integrations.bluesky,
                 integrations.mastodon,
                 integrations.twitter,
+                integrations.rss,
                 filesService,
-                postsDb,
                 logger
               )
 
@@ -347,8 +347,8 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                 integrations.bluesky,
                 integrations.mastodon,
                 integrations.twitter,
+                integrations.rss,
                 filesService,
-                new PostsDatabaseImpl(docsDb.db),
                 logger
               )
 

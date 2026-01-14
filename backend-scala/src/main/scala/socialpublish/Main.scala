@@ -54,8 +54,8 @@ object Main extends CommandIOApp(
           integrations.bluesky,
           integrations.mastodon,
           integrations.twitter,
+          integrations.rss,
           filesService,
-          new PostsDatabaseImpl(docsDb),
           logger
         )))
 

@@ -14,19 +14,20 @@ import java.nio.file.Paths
 
 class RssServiceSpec extends CatsEffectSuite {
 
-  private val serverConfig = ServerConfig(
-    port = 8080,
-    baseUrl = "http://localhost:8080",
-    authUser = "admin",
-    authPass = "admin",
-    jwtSecret = "secret"
-  )
+  private val serverConfig =
+    ServerConfig(
+      port = 8080,
+      baseUrl = "http://localhost:8080",
+      authUser = "admin",
+      authPass = "admin",
+      jwtSecret = "secret"
+    )
 
   test("createPost creates a new post in the database") {
     val mockPostsDb = new MockPostsDatabase()
     val mockFilesService = new MockFilesService()
     val service = new RssServiceImpl(serverConfig, mockPostsDb, mockFilesService)
-    
+
     val request = NewPostRequest(
       content = Content.unsafe("Hello RSS"),
       targets = None,
@@ -65,7 +66,7 @@ class RssServiceSpec extends CatsEffectSuite {
       targets = Nil,
       createdAt = Instant.now()
     )
-    
+
     for {
       _ <- mockPostsDb.add(post1)
       xml <- service.generateFeed(None, None, None)
@@ -79,9 +80,10 @@ class RssServiceSpec extends CatsEffectSuite {
   class MockPostsDatabase extends PostsDatabase {
     private var posts: List[Post] = Nil
 
-    def add(post: Post): IO[Unit] = IO {
-      posts = post :: posts
-    }
+    def add(post: Post): IO[Unit] =
+      IO {
+        posts = post :: posts
+      }
 
     override def create(
       content: String,
@@ -104,14 +106,24 @@ class RssServiceSpec extends CatsEffectSuite {
       add(post).as(post)
     }
 
-    override def getAll: IO[List[Post]] = IO.pure(posts)
-    override def searchByUUID(uuid: UUID): IO[Option[Post]] = IO.pure(posts.find(_.uuid == uuid))
+    override def getAll: IO[List[Post]] =
+      IO.pure(posts)
+    override def searchByUUID(uuid: UUID): IO[Option[Post]] =
+      IO.pure(posts.find(_.uuid == uuid))
   }
 
   class MockFilesService extends FilesService {
-    override def saveFile(filename: String, bytes: Array[Byte], altText: Option[String]): IO[FileMetadata] = ???
-    override def getFile(uuid: UUID): IO[Option[ProcessedFile]] = ???
-    override def getFileMetadata(uuid: UUID): IO[Option[FileMetadata]] = IO.pure(None)
-    override def getFilePath(uuid: UUID): Path = Paths.get("/tmp", uuid.toString)
+    override def saveFile(
+      filename: String,
+      bytes: Array[Byte],
+      altText: Option[String]
+    ): IO[FileMetadata] =
+      ???
+    override def getFile(uuid: UUID): IO[Option[ProcessedFile]] =
+      ???
+    override def getFileMetadata(uuid: UUID): IO[Option[FileMetadata]] =
+      IO.pure(None)
+    override def getFilePath(uuid: UUID): Path =
+      Paths.get("/tmp", uuid.toString)
   }
 }
