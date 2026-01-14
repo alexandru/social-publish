@@ -72,7 +72,38 @@ class RssServiceSpec extends CatsEffectSuite {
       xml <- service.generateFeed(None, None, None)
       _ = assert(xml.contains("<title>Post 1</title>"))
       _ = assert(xml.contains("<description>Post 1</description>"))
-      _ = assert(xml.contains(s"<guid>${post1.uuid}</guid>"))
+      _ = assert(xml.contains(s"<guid>${serverConfig.baseUrl}/rss/${post1.uuid}</guid>"))
+      // Verify RFC-1123 date format (basic check for GMT)
+      _ = assert(xml.contains("GMT</pubDate>"))
+    } yield ()
+  }
+
+  test("generateFeed includes media elements") {
+    val mockPostsDb = new MockPostsDatabase()
+    val mockFilesService = new MockFilesService()
+    val service = new RssServiceImpl(serverConfig, mockPostsDb, mockFilesService)
+
+    val imageId = UUID.randomUUID()
+    val post = Post(
+      uuid = UUID.randomUUID(),
+      content = "Post with image",
+      link = None,
+      tags = Nil,
+      language = None,
+      images = List(imageId),
+      targets = Nil,
+      createdAt = Instant.now()
+    )
+
+    for {
+      _ <- mockPostsDb.add(post)
+      xml <- service.generateFeed(None, None, None)
+      // Check media:content attributes
+      _ = assert(xml.contains(s"""url="${serverConfig.baseUrl}/files/$imageId""""))
+      _ = assert(xml.contains("""type="image/jpeg""""))
+      _ = assert(xml.contains("""fileSize="1024""""))
+      // Check media description in CDATA
+      _ = assert(xml.contains("<![CDATA[An image]]>"))
     } yield ()
   }
 
@@ -122,7 +153,21 @@ class RssServiceSpec extends CatsEffectSuite {
     override def getFile(uuid: UUID): IO[Option[ProcessedFile]] =
       ???
     override def getFileMetadata(uuid: UUID): IO[Option[FileMetadata]] =
-      IO.pure(None)
+      IO.pure(
+        Some(
+          FileMetadata(
+            uuid = uuid,
+            originalName = "image.jpg",
+            mimeType = "image/jpeg",
+            size = 1024L,
+            altText = Some("An image"),
+            width = Some(800),
+            height = Some(600),
+            hash = Some("dummy-hash"),
+            createdAt = Instant.now()
+          )
+        )
+      )
     override def getFilePath(uuid: UUID): Path =
       Paths.get("/tmp", uuid.toString)
   }

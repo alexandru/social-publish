@@ -79,18 +79,15 @@ class RssServiceImpl(
         }
         targetOk && linkOk && imageOk
       }
-      buildRssFeed(filtered, targetFilter)
+      buildRssFeed(filtered)
     }
 
   override def getItem(uuid: UUID): IO[Option[Post]] =
     posts.searchByUUID(uuid)
 
-  private def buildRssFeed(posts: List[Post], targetFilter: Option[Target]): IO[String] = {
+  private def buildRssFeed(posts: List[Post]): IO[String] = {
     val baseTitle = server.baseUrl.replaceFirst("^https?://", "")
-    val title = targetFilter match {
-      case Some(target) => s"Feed of $baseTitle - ${target.toString.toLowerCase}"
-      case None => s"Feed of $baseTitle"
-    }
+    val title = s"Feed of $baseTitle"
 
     posts.traverse(buildRssItem).map { items =>
       val itemsXml = items.mkString("\n")
@@ -108,12 +105,17 @@ class RssServiceImpl(
 
   private def buildRssItem(post: Post): IO[String] = {
     val content = escapeXml(post.content)
-    val linkValue = post.link.getOrElse(s"${server.baseUrl}/rss/${post.uuid}")
+    val guidValue = s"${server.baseUrl}/rss/${post.uuid}"
+    val linkValue = post.link.getOrElse(guidValue)
     val link = s"<link>${escapeXml(linkValue)}</link>"
-    val guid = s"<guid>${post.uuid}</guid>"
-    val pubDate = s"<pubDate>${post.createdAt}</pubDate>"
+    val guid = s"<guid>${escapeXml(guidValue)}</guid>"
+    
+    val rfc1123 = java.time.ZonedDateTime.ofInstant(post.createdAt, java.time.ZoneOffset.UTC)
+      .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+    val pubDate = s"<pubDate>$rfc1123</pubDate>"
+    
     val description = s"<description>$content</description>"
-    val categories = (post.tags ++ post.targets.map(_.toString.toLowerCase))
+    val categories = (post.tags ++ post.targets.map(_.toString))
       .map(tag => s"<category>${escapeXml(tag)}</category>")
       .mkString("\n")
 
@@ -135,7 +137,7 @@ class RssServiceImpl(
     files.getFileMetadata(uuid).map {
       case Some(metadata) =>
         val description = metadata.altText
-          .map(text => s"<media:description>${escapeXml(text)}</media:description>")
+          .map(text => s"<media:description><![CDATA[$text]]></media:description>")
           .getOrElse("")
         Some(
           s"""<media:content url="${server.baseUrl}/files/${metadata.uuid}" fileSize="${metadata.size}" type="${metadata.mimeType}">
