@@ -8,6 +8,7 @@ val log4catsVersion = "2.7.0"
 val tapirVersion = "1.13.4"
 val sttpVersion = "4.0.13"
 val apispecVersion = "0.11.9"
+val http4sVersion = "0.23.27"
 
 lazy val root = project
   .in(file("."))
@@ -24,13 +25,17 @@ lazy val root = project
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
       "org.typelevel" %% "cats-mtl" % "1.5.0",
 
-      // Tapir + Netty server + OpenAPI
+      // Tapir + Http4s server + OpenAPI
       "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-netty-server-cats" % tapirVersion,
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-sttp-client4" % tapirVersion,
+
+      // Http4s Server
+      "org.http4s" %% "http4s-ember-server" % http4sVersion,
+      "org.http4s" %% "http4s-dsl" % http4sVersion,
 
       // sttp client (cats-effect backend)
       "com.softwaremill.sttp.client4" %% "cats" % sttpVersion,

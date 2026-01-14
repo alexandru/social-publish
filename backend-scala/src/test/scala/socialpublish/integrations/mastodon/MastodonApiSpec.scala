@@ -2,8 +2,9 @@ package socialpublish.integrations.mastodon
 
 import cats.effect.*
 import munit.CatsEffectSuite
-import socialpublish.models.NewPostRequest
-import socialpublish.testutils.{NettyTestServer, ServiceFixtures}
+import socialpublish.models.{Content, NewPostRequest}
+import socialpublish.testutils.{Http4sTestServer, ServiceFixtures}
+
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 
 class MastodonApiSpec extends CatsEffectSuite {
@@ -21,7 +22,7 @@ class MastodonApiSpec extends CatsEffectSuite {
             ))
         }
       )
-      response <- NettyTestServer.resource(endpoints).use { server =>
+      response <- Http4sTestServer.resource(endpoints).use { server =>
         ServiceFixtures.filesServiceResource.use { filesService =>
           HttpClientCatsBackend.resource[IO]().use { backend =>
             val config = MastodonConfig.Enabled(server.baseUri.toString(), "token")

@@ -13,9 +13,11 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 - **Organization**: By feature/component, NOT by type (no models/views/controllers)
 
 ### Code Principles
+
 - Functional programming patterns over imperative/OOP style when dealing with data modelling and transformations; OOP for encapsulation or dependency injection.
 - Meaningful names; readable operator chains over cryptic shortcuts
 - Prefer beautiful, readable and type-safe code.
+- Sleeping threads (e.g., `IO.sleep`, `Thread.sleep`) is banned in testing. Find better ways for simulating time or for ordering concurrent events.
 
 ---
 
@@ -27,12 +29,15 @@ Exposes an HTTP API that allows the client to publish posts on social media plat
 
 **Setup** (before each command):
 ```bash
+# Run sbt from the directory where `build.sbt` is:
+cd backend-scala/
+# Keep sbt server in background:
 export SBT_NATIVE_CLIENT=true
 ```
 
 **Commands**:
 - Build: `sbt Test/compile`
-- Test: `sbt Test/compile test`
+- Test: `sbt ";Test/compile;test"`
 - Format (required): `sbt scalafmtAll`
 
 ### Scala-specific rules

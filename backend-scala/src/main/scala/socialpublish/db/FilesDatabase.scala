@@ -74,7 +74,17 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
   override def getByUUID(uuid: UUID): IO[Option[FileMetadata]] =
     sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
           FROM files WHERE uuid = $uuid"""
-      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
+      .query[(
+        String,
+        String,
+        String,
+        Long,
+        Option[String],
+        Option[Int],
+        Option[Int],
+        Option[String],
+        Long
+      )]
       .option
       .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
         FileMetadata(
@@ -94,7 +104,17 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
   override def getByHash(hash: String): IO[Option[FileMetadata]] =
     sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
           FROM files WHERE hash = $hash"""
-      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
+      .query[(
+        String,
+        String,
+        String,
+        Long,
+        Option[String],
+        Option[Int],
+        Option[Int],
+        Option[String],
+        Long
+      )]
       .option
       .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
         FileMetadata(
@@ -114,7 +134,17 @@ private class FilesDatabaseImpl(xa: Transactor[IO]) extends FilesDatabase {
   override def getAll: IO[List[FileMetadata]] =
     sql"""SELECT uuid, original_name, mime_type, size, alt_text, width, height, hash, created_at
           FROM files ORDER BY created_at DESC"""
-      .query[(String, String, String, Long, Option[String], Option[Int], Option[Int], Option[String], Long)]
+      .query[(
+        String,
+        String,
+        String,
+        Long,
+        Option[String],
+        Option[Int],
+        Option[Int],
+        Option[String],
+        Long
+      )]
       .to[List]
       .map(_.map { case (uuidStr, name, mime, size, alt, w, h, hash, created) =>
         FileMetadata(

@@ -3,6 +3,7 @@ package socialpublish.models
 import munit.FunSuite
 import io.circe.syntax.*
 import io.circe.parser.*
+
 import java.util.UUID
 
 class DomainSpec extends FunSuite {
@@ -30,11 +31,11 @@ class DomainSpec extends FunSuite {
     // Empty content should fail
     val emptyContent = Content.apply("")
     assert(emptyContent.isLeft)
-    
+
     // Content over 1000 characters should fail
     val longContent = Content.apply("a" * 1001)
     assert(longContent.isLeft)
-    
+
     // Content at exactly 1000 characters should pass
     val maxContent = Content.apply("a" * 1000)
     assert(maxContent.isRight)
@@ -44,7 +45,7 @@ class DomainSpec extends FunSuite {
     val content = Content.unsafe("Test content")
     val json = content.asJson
     assertEquals(json.as[Content].map(_.value), Right("Test content"))
-    
+
     // Test that invalid content is rejected during deserialization
     val emptyJson = parse("""""""")
     assert(emptyJson.isRight)

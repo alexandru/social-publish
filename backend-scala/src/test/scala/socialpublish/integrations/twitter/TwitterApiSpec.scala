@@ -3,10 +3,10 @@ package socialpublish.integrations.twitter
 import cats.effect.*
 import io.circe.syntax.*
 import munit.CatsEffectSuite
-import socialpublish.models.DocumentTag
+import socialpublish.models.{Content, DocumentTag, NewPostRequest}
 import socialpublish.http.ServerConfig
-import socialpublish.models.NewPostRequest
-import socialpublish.testutils.{DatabaseFixtures, NettyTestServer, ServiceFixtures}
+import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
+
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 
 class TwitterApiSpec extends CatsEffectSuite {
@@ -22,7 +22,7 @@ class TwitterApiSpec extends CatsEffectSuite {
       }
     )
 
-    NettyTestServer.resource(endpoints).use { server =>
+    Http4sTestServer.resource(endpoints).use { server =>
       ServiceFixtures.filesServiceResource.use { filesService =>
         DatabaseFixtures.tempDocumentsDbResource.use { docsDb =>
           HttpClientCatsBackend.resource[IO]().use { backend =>
@@ -62,7 +62,7 @@ class TwitterApiSpec extends CatsEffectSuite {
             IO.pure(TwitterEndpoints.TweetResponse(TwitterEndpoints.TweetData("tweet-1")))
         }
       )
-      response <- NettyTestServer.resource(endpoints).use { server =>
+      response <- Http4sTestServer.resource(endpoints).use { server =>
         ServiceFixtures.filesServiceResource.use { filesService =>
           DatabaseFixtures.tempDocumentsDbResource.use { docsDb =>
             HttpClientCatsBackend.resource[IO]().use { backend =>

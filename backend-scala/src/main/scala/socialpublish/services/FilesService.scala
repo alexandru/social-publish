@@ -48,8 +48,9 @@ object FilesService {
       locks <- Ref.of[IO, Map[String, Semaphore[IO]]](Map.empty)
       _ <- IO.blocking {
         val uploadPath = config.uploadedFilesPath
-        if !Files.exists(uploadPath) then {
-          val _ = Files.createDirectories(uploadPath)
+        val processedPath = uploadPath.resolve("processed")
+        if !Files.exists(processedPath) then {
+          val _ = Files.createDirectories(processedPath)
         }
       }
     } yield new FilesServiceImpl(config, db, logger, locks)
@@ -61,8 +62,9 @@ object FilesService {
         locks <- Ref.of[IO, Map[String, Semaphore[IO]]](Map.empty)
         _ <- IO.blocking {
           val uploadPath = cfg.uploadedFilesPath
-          if !Files.exists(uploadPath) then {
-            val _ = Files.createDirectories(uploadPath)
+          val processedPath = uploadPath.resolve("processed")
+          if !Files.exists(processedPath) then {
+            val _ = Files.createDirectories(processedPath)
           }
         }
       } yield new FilesServiceImpl(
@@ -157,7 +159,7 @@ private class FilesServiceImpl(
     config.uploadedFilesPath.resolve(uuid.toString)
 
   private def getFilePathByHash(hash: String): Path =
-    config.uploadedFilesPath.resolve(hash)
+    config.uploadedFilesPath.resolve("processed").resolve(hash)
 
   private def calculateHash(bytes: Array[Byte]): IO[String] =
     IO.blocking {
@@ -167,7 +169,7 @@ private class FilesServiceImpl(
     }
 
   private def generateFileUUID(
-    hash: String,
+    hashStr: String,
     filename: String,
     altText: Option[String],
     width: Option[Int],
@@ -177,29 +179,32 @@ private class FilesServiceImpl(
     IO.blocking {
       // Generate deterministic UUID from file attributes (like TypeScript's uuidv5)
       // This ensures same file with same metadata gets same UUID
-      val namespace = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // DNS namespace
+      val namespace = UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac") // Correct namespace from TS codebase
       val components = List(
-        s"h:$hash",
+        s"h:$hashStr",
         s"n:$filename",
         s"a:${altText.getOrElse("")}",
         s"w:${width.map(_.toString).getOrElse("")}",
         s"h:${height.map(_.toString).getOrElse("")}",
         s"m:$mimeType"
       ).mkString("/")
-      
+
       // Generate UUID v5 (name-based SHA-1)
       val nameBytes = components.getBytes("UTF-8")
       val digest = MessageDigest.getInstance("SHA-1")
       val namespaceBytes = toBytes(namespace)
       digest.update(namespaceBytes)
       digest.update(nameBytes)
-      val hash = digest.digest()
-      
+      val sha1 = digest.digest()
+
+      // UUID requires 16 bytes; take first 16 bytes of SHA-1 digest
+      val uuidBytes = java.util.Arrays.copyOf(sha1, 16)
+
       // Set version (5) and variant bits
-      hash(6) = ((hash(6) & 0x0f) | 0x50).toByte
-      hash(8) = ((hash(8) & 0x3f) | 0x80).toByte
-      
-      fromBytes(hash)
+      uuidBytes(6) = ((uuidBytes(6) & 0x0f) | 0x50).toByte
+      uuidBytes(8) = ((uuidBytes(8) & 0x3f) | 0x80).toByte
+
+      fromBytes(uuidBytes)
     }
 
   private def toBytes(uuid: UUID): Array[Byte] = {

@@ -170,9 +170,9 @@ private class TwitterApiImpl(
 
       content =
         if postReq.cleanupHtml.getOrElse(false) then {
-          TextUtils.convertHtml(postReq.content)
+          TextUtils.convertHtml(postReq.content.value)
         } else {
-          postReq.content.trim()
+          postReq.content.value.trim()
         }
 
       text = postReq.link match {

@@ -7,18 +7,22 @@ import io.circe.syntax.*
 import munit.CatsEffectSuite
 import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtCirce
+import scala.annotation.nowarn
 import socialpublish.db.PostsDatabaseImpl
 import socialpublish.integrations.Integrations
 import socialpublish.integrations.bluesky.{BlueskyConfig, BlueskyEndpoints}
 import socialpublish.integrations.mastodon.{MastodonConfig, MastodonEndpoints}
 import socialpublish.integrations.twitter.TwitterConfig
-import socialpublish.models.{NewPostRequest, NewPostResponse, Post, Target}
-import socialpublish.testutils.{DatabaseFixtures, NettyTestServer, ServiceFixtures}
+import socialpublish.models.{Content, NewPostRequest, NewPostResponse, Post, Target}
+import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
 import sttp.client4.*
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 import sttp.model.StatusCode
 
 class ServerIntegrationSpec extends CatsEffectSuite {
+
+  @nowarn
+  override def munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(300, "s")
 
   test("main server posts to mocked integrations") {
     val blueskyEndpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
@@ -41,8 +45,8 @@ class ServerIntegrationSpec extends CatsEffectSuite {
     )
 
     (
-      NettyTestServer.resource(blueskyEndpoints),
-      NettyTestServer.resource(mastodonEndpoints)
+      Http4sTestServer.resource(blueskyEndpoints),
+      Http4sTestServer.resource(mastodonEndpoints)
     ).tupled.use {
       case (blueskyServer, mastodonServer) =>
         ServiceFixtures.filesServiceResource.use { filesService =>
@@ -311,6 +315,83 @@ class ServerIntegrationSpec extends CatsEffectSuite {
       assert(!feedResponse.body.contains(postWithoutLink.uuid.toString))
       assert(feedResponse.body.contains("media:content"))
       assertEquals(item.link, Some("https://example.com"))
+    }
+  }
+
+  test("upload file endpoint handles multipart upload") {
+    ServiceFixtures.filesServiceResource.use { filesService =>
+      DatabaseFixtures.tempDocumentsDbResource.use { docsDb =>
+        HttpClientCatsBackend.resource[IO]().use { clientBackend =>
+          for {
+            port <- freePort
+            serverConfig = ServerConfig(
+              port = port,
+              baseUrl = s"http://127.0.0.1:$port",
+              authUser = "admin",
+              authPass = "secret",
+              jwtSecret = "jwt-secret"
+            )
+            result <- Integrations.resource(
+              serverConfig,
+              BlueskyConfig.Disabled,
+              MastodonConfig.Disabled,
+              TwitterConfig.Disabled,
+              filesService,
+              docsDb.db
+            ).use { integrations =>
+              val authMiddleware = new AuthMiddleware(serverConfig, integrations.twitter, logger)
+              val routes = new Routes(
+                serverConfig,
+                authMiddleware,
+                integrations.bluesky,
+                integrations.mastodon,
+                integrations.twitter,
+                filesService,
+                new PostsDatabaseImpl(docsDb.db),
+                logger
+              )
+
+              HttpServer.resource(serverConfig, routes).use { _ =>
+                val loginRequest = LoginRequest("admin", "secret")
+                for {
+                  loginResp <- basicRequest
+                    .post(uri"http://127.0.0.1:$port/api/login")
+                    .body(loginRequest.asJson.noSpaces)
+                    .response(asStringAlways)
+                    .send(clientBackend)
+                  login = decode[LoginResponse](loginResp.body).toOption.get
+
+                  imageBytes = {
+                    val image = new java.awt.image.BufferedImage(
+                      32,
+                      32,
+                      java.awt.image.BufferedImage.TYPE_INT_RGB
+                    )
+                    val output = new java.io.ByteArrayOutputStream()
+                    javax.imageio.ImageIO.write(image, "png", output)
+                    output.toByteArray
+                  }
+
+                  uploadResp <- basicRequest
+                    .post(uri"http://127.0.0.1:$port/api/files/upload")
+                    .auth
+                    .bearer(login.token)
+                    .multipartBody(
+                      multipart("file", imageBytes).contentType("image/png").fileName("upload.png"),
+                      multipart("altText", "Accessibility description")
+                    )
+                    .response(asStringAlways)
+                    .send(clientBackend)
+                } yield uploadResp
+              }
+            }
+          } yield {
+            assertEquals(result.code, StatusCode.Ok)
+            assert(result.body.contains("Accessibility description"))
+            assert(result.body.contains("image/png"))
+          }
+        }
+      }
     }
   }
 

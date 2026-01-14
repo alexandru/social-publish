@@ -1,12 +1,10 @@
 package socialpublish.http
 
 import cats.effect.{IO, Resource}
-import cats.effect.std.Dispatcher
-import sttp.capabilities.fs2.Fs2Streams
-import sttp.tapir.server.ServerEndpoint
-import sttp.tapir.server.interceptor.cors.CORSInterceptor
-import sttp.tapir.server.netty.NettyConfig
-import sttp.tapir.server.netty.cats.{NettyCatsServer, NettyCatsServerOptions}
+import com.comcast.ip4s.{Host, Port}
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.server.Server
+import sttp.tapir.server.http4s.Http4sServerInterpreter
 import scala.concurrent.duration.*
 
 object HttpServer {
@@ -14,29 +12,23 @@ object HttpServer {
   def resource(
     config: ServerConfig,
     routes: Routes
-  ): Resource[IO, sttp.tapir.server.netty.cats.NettyCatsServerBinding[IO]] = {
-    Dispatcher.parallel[IO].flatMap { dispatcher =>
-      val serverOptions = NettyCatsServerOptions.customiseInterceptors[IO](dispatcher)
-        .corsInterceptor(CORSInterceptor.default)
-        .options
+  ): Resource[IO, Server] = {
+    val httpApp = Http4sServerInterpreter[IO]().toRoutes(routes.endpoints).orNotFound
 
-      val endpoints = routes.endpoints.map(toFs2)
-      val nettyConfig = NettyConfig.default.copy(gracefulShutdownTimeout = Some(1.second))
+    val host = Host.fromString("0.0.0.0").getOrElse(
+      throw new IllegalArgumentException("Invalid host")
+    )
+    val port = Port.fromInt(config.port).getOrElse(
+      throw new IllegalArgumentException(s"Invalid port: ${config.port}")
+    )
 
-      NettyCatsServer.io(nettyConfig).flatMap { server =>
-        Resource.make(
-          server
-            .options(serverOptions)
-            .host("0.0.0.0")
-            .port(config.port)
-            .addEndpoints(endpoints)
-            .start()
-        )(binding => binding.stop())
-      }
-    }
+    EmberServerBuilder
+      .default[IO]
+      .withHost(host)
+      .withPort(port)
+      .withHttpApp(httpApp)
+      .withShutdownTimeout(1.second)
+      .build
   }
-
-  private def toFs2(endpoint: ServerEndpoint[Any, IO]): ServerEndpoint[Fs2Streams[IO], IO] =
-    endpoint.asInstanceOf[ServerEndpoint[Fs2Streams[IO], IO]]
 
 }

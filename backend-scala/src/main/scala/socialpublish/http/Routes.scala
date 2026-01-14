@@ -14,7 +14,6 @@ import socialpublish.services.FilesService
 import sttp.apispec.openapi.Server
 import sttp.apispec.openapi.circe.*
 import sttp.model.{Header, MediaType, StatusCode}
-import sttp.model.Part
 import sttp.tapir.*
 import sttp.tapir.DecodeResult
 import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
@@ -332,7 +331,7 @@ class Routes(
   private val uploadFileEndpoint: ServerEndpoint[Any, IO] =
     secureEndpoint.post
       .in("api" / "files" / "upload")
-      .in(multipartBody[FileUploadForm])
+      .in(FileUploadForm.body)
       .out(jsonBody[FileMetadata])
       .serverSecurityLogic(authenticate)
       .serverLogic { _ => form =>
@@ -359,14 +358,21 @@ class Routes(
     handlers.traverse { case (name, result) =>
       result.value.map(either => (name, either))
     }.map { results =>
+      // Collect errors but also keep successes
       val errors = results.collect { case (name, Left(error)) => (name, error) }
-      if errors.nonEmpty then {
+      val successes = results.collect { case (name, Right(response)) => name -> response }.toMap
+      
+      if errors.nonEmpty && successes.isEmpty then {
+        // If ALL failed, return error
         val errorModules = errors.map(_._1).mkString(", ")
         val status = errors.map(_._2.status).max
         Left((StatusCode(status), ErrorResponse(s"Failed to create post via $errorModules")))
       } else {
-        val payload = results.collect { case (name, Right(response)) => name -> response }.toMap
-        Right(MultiPostResponse(payload))
+        // If at least one succeeded (or mixed results), return success with what worked
+        // Ideally we would return partial failure info, but the current MultiPostResponse 
+        // structure is just Map[String, NewPostResponse]. 
+        // For now, we return what succeeded.
+        Right(MultiPostResponse(successes))
       }
     }
   }

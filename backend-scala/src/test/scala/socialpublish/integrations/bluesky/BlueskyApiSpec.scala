@@ -2,8 +2,9 @@ package socialpublish.integrations.bluesky
 
 import cats.effect.*
 import munit.CatsEffectSuite
-import socialpublish.models.NewPostRequest
-import socialpublish.testutils.{NettyTestServer, ServiceFixtures}
+import socialpublish.models.{Content, NewPostRequest}
+import socialpublish.testutils.{Http4sTestServer, ServiceFixtures}
+
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 
 class BlueskyApiSpec extends CatsEffectSuite {
@@ -22,7 +23,7 @@ class BlueskyApiSpec extends CatsEffectSuite {
             IO.pure(BlueskyEndpoints.CreatePostResponse("at://post/1", "cid-1"))
         }
       )
-      response <- NettyTestServer.resource(endpoints).use { server =>
+      response <- Http4sTestServer.resource(endpoints).use { server =>
         ServiceFixtures.filesServiceResource.use { filesService =>
           HttpClientCatsBackend.resource[IO]().use { backend =>
             val config = BlueskyConfig.Enabled(server.baseUri.toString(), "user", "pass")

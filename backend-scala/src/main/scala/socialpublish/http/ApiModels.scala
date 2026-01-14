@@ -11,7 +11,9 @@ object ErrorResponse {
     Schema.derived
 }
 
-case class MultiPostResponse(results: Map[String, socialpublish.models.NewPostResponse])
+import socialpublish.models.NewPostResponse
+
+case class MultiPostResponse(results: Map[String, NewPostResponse])
     derives Codec.AsObject
 
 object MultiPostResponse {
@@ -37,4 +39,9 @@ case class FileUploadForm(
 object FileUploadForm {
   given Schema[FileUploadForm] =
     Schema.derived
+
+  // Define the multipart body input here to avoid codec conflicts in Routes.scala
+  // This ensures Array[Byte] is treated as binary (default Tapir behavior) rather than JSON (Circe behavior)
+  val body: sttp.tapir.EndpointInput[FileUploadForm] = 
+    sttp.tapir.multipartBody[FileUploadForm]
 }

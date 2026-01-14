@@ -12,7 +12,12 @@ import java.time.Instant
 import java.util.UUID
 
 trait DocumentsDatabase {
-  def createOrUpdate(kind: String, payload: String, tags: List[DocumentTag]): IO[Document]
+  def createOrUpdate(
+    kind: String,
+    payload: String,
+    tags: List[DocumentTag],
+    createdAt: Option[Instant] = None
+  ): IO[Document]
   def getAll(kind: String, orderBy: String): IO[List[Document]]
   def searchByUUID(uuid: UUID): IO[Option[Document]]
   def searchByKey(key: String): IO[Option[Document]]
@@ -72,10 +77,13 @@ private class DocumentsDatabaseImpl(xa: Transactor[IO]) extends DocumentsDatabas
   override def createOrUpdate(
     kind: String,
     payload: String,
-    tags: List[DocumentTag]
+    tags: List[DocumentTag],
+    createdAt: Option[Instant]
   ): IO[Document] = {
     val uuid = UUID.randomUUID()
-    val now = Instant.now()
+    val now = createdAt
+      .getOrElse(Instant.now())
+      .truncatedTo(java.time.temporal.ChronoUnit.MILLIS)
     val doc = Document(uuid, kind, payload, tags, now)
 
     (for {

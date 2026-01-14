@@ -51,4 +51,7 @@ object Result {
   def fromOption[A](option: Option[A], ifNone: => ApiError): Result[A] =
     EitherT.fromOption(option, ifNone)
 
+  def apply[A](io: IO[Either[ApiError, A]]): Result[A] =
+    EitherT(io)
+
 }

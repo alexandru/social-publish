@@ -81,7 +81,7 @@ class FilesServiceSpec extends CatsEffectSuite {
 
       for {
         metadata <- service.saveFile(filename, "text/plain", bytes, None)
-        filePath = service.getFilePath(metadata.uuid)
+        filePath = tempDir.resolve("processed").resolve(metadata.hash.get)
       } yield {
         assert(Files.exists(filePath))
         val content = Files.readAllBytes(filePath)
@@ -129,7 +129,7 @@ class FilesServiceSpec extends CatsEffectSuite {
       val filename = "test.txt"
       val mimeType = "text/plain"
       val bytes = "same content".getBytes
-      
+
       for {
         // First upload with alt text "First"
         metadata1 <- service.saveFile(filename, mimeType, bytes, Some("First"))
@@ -137,7 +137,7 @@ class FilesServiceSpec extends CatsEffectSuite {
         metadata2 <- service.saveFile(filename, mimeType, bytes, Some("Second"))
         // Third upload with no alt text
         metadata3 <- service.saveFile(filename, mimeType, bytes, None)
-        
+
         // Retrieve all three
         file1 <- service.getFile(metadata1.uuid)
         file2 <- service.getFile(metadata2.uuid)
@@ -147,11 +147,11 @@ class FilesServiceSpec extends CatsEffectSuite {
         assert(metadata1.uuid != metadata2.uuid)
         assert(metadata1.uuid != metadata3.uuid)
         assert(metadata2.uuid != metadata3.uuid)
-        
+
         // But all should have the same hash
         assertEquals(metadata1.hash, metadata2.hash)
         assertEquals(metadata1.hash, metadata3.hash)
-        
+
         // Alt text should be preserved per upload
         assertEquals(file1.flatMap(_.altText), Some("First"))
         assertEquals(file2.flatMap(_.altText), Some("Second"))
