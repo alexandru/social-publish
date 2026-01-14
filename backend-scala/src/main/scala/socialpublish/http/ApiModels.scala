@@ -42,6 +42,5 @@ object FileUploadForm {
 
   // Define the multipart body input here to avoid codec conflicts in Routes.scala
   // This ensures Array[Byte] is treated as binary (default Tapir behavior) rather than JSON (Circe behavior)
-  val body: sttp.tapir.EndpointInput[FileUploadForm] = 
-    sttp.tapir.multipartBody[FileUploadForm]
+  val body: sttp.tapir.EndpointInput[FileUploadForm] = sttp.tapir.multipartBody[FileUploadForm]
 }

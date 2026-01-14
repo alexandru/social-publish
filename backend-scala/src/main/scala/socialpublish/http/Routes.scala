@@ -361,7 +361,7 @@ class Routes(
       // Collect errors but also keep successes
       val errors = results.collect { case (name, Left(error)) => (name, error) }
       val successes = results.collect { case (name, Right(response)) => name -> response }.toMap
-      
+
       if errors.nonEmpty && successes.isEmpty then {
         // If ALL failed, return error
         val errorModules = errors.map(_._1).mkString(", ")
@@ -369,8 +369,8 @@ class Routes(
         Left((StatusCode(status), ErrorResponse(s"Failed to create post via $errorModules")))
       } else {
         // If at least one succeeded (or mixed results), return success with what worked
-        // Ideally we would return partial failure info, but the current MultiPostResponse 
-        // structure is just Map[String, NewPostResponse]. 
+        // Ideally we would return partial failure info, but the current MultiPostResponse
+        // structure is just Map[String, NewPostResponse].
         // For now, we return what succeeded.
         Right(MultiPostResponse(successes))
       }

@@ -179,7 +179,9 @@ private class FilesServiceImpl(
     IO.blocking {
       // Generate deterministic UUID from file attributes (like TypeScript's uuidv5)
       // This ensures same file with same metadata gets same UUID
-      val namespace = UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac") // Correct namespace from TS codebase
+      val namespace = UUID.fromString(
+        "5b9ba0d0-8825-4c51-a34e-f849613dbcac"
+      ) // Correct namespace from TS codebase
       val components = List(
         s"h:$hashStr",
         s"n:$filename",

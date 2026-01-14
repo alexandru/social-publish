@@ -28,7 +28,8 @@ object Http4sTestServer {
       .withShutdownTimeout(1.second)
       .build
       .map { server =>
-        val uri = Uri.unsafeParse(s"http://${server.address.getHostString}:${server.address.getPort}")
+        val uri =
+          Uri.unsafeParse(s"http://${server.address.getHostString}:${server.address.getPort}")
         Http4sTestServer(uri)
       }
   }

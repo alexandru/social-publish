@@ -22,7 +22,8 @@ import sttp.model.StatusCode
 class ServerIntegrationSpec extends CatsEffectSuite {
 
   @nowarn
-  override def munitTimeout: scala.concurrent.duration.Duration = scala.concurrent.duration.Duration(300, "s")
+  override def munitTimeout: scala.concurrent.duration.Duration =
+    scala.concurrent.duration.Duration(300, "s")
 
   test("main server posts to mocked integrations") {
     val blueskyEndpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
