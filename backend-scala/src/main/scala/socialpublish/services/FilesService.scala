@@ -30,7 +30,6 @@ trait FilesService {
 
   def saveFile(
     filename: String,
-    mimeType: String,
     bytes: Array[Byte],
     altText: Option[String]
   ): IO[FileMetadata]
@@ -90,20 +89,21 @@ private class FilesServiceImpl(
 
   override def saveFile(
     filename: String,
-    mimeType: String,
     bytes: Array[Byte],
     altText: Option[String]
   ): IO[FileMetadata] =
     for {
+      // Security: Detect true MIME type from magic bytes, ignoring the user-provided header
+      detectedMimeType <- detectMimeType(bytes)
       hash <- calculateHash(bytes)
-      dimensionsOpt <- extractImageDimensions(bytes, mimeType)
+      dimensionsOpt <- extractImageDimensions(bytes, detectedMimeType)
       (widthOpt, heightOpt) = dimensionsOpt match {
         case Some((width, height)) => (Some(width), Some(height))
         case None => (None, None)
       }
       // Generate UUID based on hash + filename + altText + dimensions + mimeType
       // This ensures each unique combination gets its own database record (preserving alt text per upload)
-      uuid <- generateFileUUID(hash, filename, altText, widthOpt, heightOpt, mimeType)
+      uuid <- generateFileUUID(hash, filename, altText, widthOpt, heightOpt, detectedMimeType)
       existingFile <- db.getByUUID(uuid)
       metadata <- existingFile match {
         case Some(existing) =>
@@ -115,7 +115,7 @@ private class FilesServiceImpl(
             metadata = FileMetadata(
               uuid = uuid,
               originalName = filename,
-              mimeType = mimeType,
+              mimeType = detectedMimeType,
               size = bytes.length.toLong,
               altText = altText,
               width = widthOpt,
@@ -274,6 +274,27 @@ private class FilesServiceImpl(
       ))
     }
   }
+
+  private def detectMimeType(bytes: Array[Byte]): IO[String] =
+    IO.blocking {
+      val isPng = bytes.length >= 8 &&
+        bytes(0) == 0x89.toByte &&
+        bytes(1) == 0x50.toByte && // P
+        bytes(2) == 0x4e.toByte && // N
+        bytes(3) == 0x47.toByte && // G
+        bytes(4) == 0x0d.toByte && // CR
+        bytes(5) == 0x0a.toByte && // LF
+        bytes(6) == 0x1a.toByte && // EOF
+        bytes(7) == 0x0a.toByte // LF
+
+      val isJpeg = bytes.length >= 2 &&
+        bytes(0) == 0xff.toByte &&
+        bytes(1) == 0xd8.toByte
+
+      if isPng then "image/png"
+      else if isJpeg then "image/jpeg"
+      else throw new IllegalArgumentException("Unsupported image type (magic bytes mismatch)")
+    }
 
   private def extractImageDimensions(
     bytes: Array[Byte],

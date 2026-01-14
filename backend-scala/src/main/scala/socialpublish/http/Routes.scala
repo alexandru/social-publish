@@ -385,7 +385,7 @@ class Routes(
       case Some(contentType) if allowedTypes.contains(contentType.toString.toLowerCase) =>
         val filename = part.fileName.getOrElse("upload")
         files
-          .saveFile(filename, contentType.toString, part.body, form.altText)
+          .saveFile(filename, part.body, form.altText)
           .map(Right(_))
           .handleErrorWith { err =>
             logger.error(err)("Failed to upload file") *>

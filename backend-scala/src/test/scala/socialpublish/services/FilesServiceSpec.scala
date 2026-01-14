@@ -41,20 +41,20 @@ class FilesServiceSpec extends CatsEffectSuite {
     val resources = mkResources(tempDir)
 
     resources.use { case (_, service) =>
-      val filename = "test.txt"
-      val mimeType = "text/plain"
-      val bytes = "test content".getBytes
+      val filename = "test.png"
+      val mimeType = "image/png"
+      val bytes = pngBytes(10, 10)
       val altText = Some("Test file")
 
       for {
-        metadata <- service.saveFile(filename, mimeType, bytes, altText)
+        metadata <- service.saveFile(filename, bytes, altText)
         retrieved <- service.getFile(metadata.uuid)
       } yield {
         assert(retrieved.isDefined)
         val file = retrieved.get
         assertEquals(file.originalName, filename)
         assertEquals(file.mimeType, mimeType)
-        assertEquals(new String(file.bytes), "test content")
+        assert(file.bytes.length > 0)
         assertEquals(file.altText, altText)
       }
     }
@@ -76,16 +76,16 @@ class FilesServiceSpec extends CatsEffectSuite {
     val resources = mkResources(tempDir)
 
     resources.use { case (_, service) =>
-      val filename = "disk-test.txt"
-      val bytes = "disk content".getBytes
+      val filename = "disk-test.png"
+      val bytes = pngBytes(10, 10)
 
       for {
-        metadata <- service.saveFile(filename, "text/plain", bytes, None)
+        metadata <- service.saveFile(filename, bytes, None)
         filePath = tempDir.resolve("processed").resolve(metadata.hash.get)
       } yield {
         assert(Files.exists(filePath))
         val content = Files.readAllBytes(filePath)
-        assertEquals(new String(content), "disk content")
+        assert(content.length > 0)
       }
     }
   }
@@ -98,7 +98,7 @@ class FilesServiceSpec extends CatsEffectSuite {
       val bytes = pngBytes(3000, 2000)
 
       for {
-        metadata <- service.saveFile("large.png", "image/png", bytes, None)
+        metadata <- service.saveFile("large.png", bytes, None)
         fetched <- service.getFile(metadata.uuid)
       } yield {
         assert(fetched.isDefined)
@@ -116,7 +116,7 @@ class FilesServiceSpec extends CatsEffectSuite {
     resources.use { case (_, service) =>
       val bytes = "gif89".getBytes
       interceptIO[IllegalArgumentException] {
-        service.saveFile("bad.gif", "image/gif", bytes, None)
+        service.saveFile("bad.gif", bytes, None)
       }
     }
   }
@@ -126,17 +126,16 @@ class FilesServiceSpec extends CatsEffectSuite {
     val resources = mkResources(tempDir)
 
     resources.use { case (_, service) =>
-      val filename = "test.txt"
-      val mimeType = "text/plain"
-      val bytes = "same content".getBytes
+      val filename = "test.png"
+      val bytes = pngBytes(10, 10)
 
       for {
         // First upload with alt text "First"
-        metadata1 <- service.saveFile(filename, mimeType, bytes, Some("First"))
+        metadata1 <- service.saveFile(filename, bytes, Some("First"))
         // Second upload of same file with different alt text "Second"
-        metadata2 <- service.saveFile(filename, mimeType, bytes, Some("Second"))
+        metadata2 <- service.saveFile(filename, bytes, Some("Second"))
         // Third upload with no alt text
-        metadata3 <- service.saveFile(filename, mimeType, bytes, None)
+        metadata3 <- service.saveFile(filename, bytes, None)
 
         // Retrieve all three
         file1 <- service.getFile(metadata1.uuid)

@@ -252,7 +252,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
               javax.imageio.ImageIO.write(image, "png", output)
               output.toByteArray
             }
-            upload <- filesService.saveFile("rss.png", "image/png", imageBytes, Some("Alt text"))
+            upload <- filesService.saveFile("rss.png", imageBytes, Some("Alt text"))
             postWithLink <- postsDb.create(
               content = "Post with link",
               link = Some("https://example.com"),
