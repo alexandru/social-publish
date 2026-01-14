@@ -13,7 +13,7 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 - **Organization**: By feature/component, NOT by type (no models/views/controllers)
 
 ### Code Principles
-- Functional programming patterns over imperative/OOP style when dealing with data; OOP is good for encapsulation or dependency injection.
+- Functional programming patterns over imperative/OOP style when dealing with data modelling and transformations; OOP for encapsulation or dependency injection.
 - Meaningful names; readable operator chains over cryptic shortcuts
 - Prefer beautiful, readable and type-safe code.
 
@@ -21,9 +21,7 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 
 ## Project: `./backend-scala` (Scala 3)
 
-This project is the backend for the Social Publish project. It's purpose is to expose an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn).
-
-It's built in Scala 3, making use of functional programming and the Typelevel ecosystem of libraries.
+Exposes an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn).  Build in Scala 3, making use of functional programming and the Typelevel ecosystem of libraries.
 
 ### Build & Test
 
@@ -43,7 +41,7 @@ export SBT_NATIVE_CLIENT=true
 - Prefer FP-idioms for dealing with data, e.g., case classes over OOP wrapper classes
 - Use `IO` for side effects; NO `unsafeRunSync` allowed
   - Wrap side-effectful / non-deterministic APIs (e.g., `UUID.randomUUID()`) in `IO`
-- No public inner class/trait definitions, unless it's a union-type (sealed trait); this includes definitions in objects; use top-level definitions in packages.
+- No public inner class/trait definitions, unless it's a union-type (sealed trait hierarchy); this includes definitions in objects; use top-level definitions in packages.
 - If a namespace is needed, make packages instead of objects (Scala 3 admits top-level definitions even for `def` or `val`).
 - Readable chains (`flatMap`, for-comprehensions) over operators (`*>`, `>>`)
 - Implicits/givens in companion objects for coherence / global visibility (no orphaned instances, no imports)
