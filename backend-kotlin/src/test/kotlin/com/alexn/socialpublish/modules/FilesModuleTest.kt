@@ -5,6 +5,8 @@ import com.alexn.socialpublish.testutils.createTestDatabase
 import com.alexn.socialpublish.testutils.imageDimensions
 import com.alexn.socialpublish.testutils.loadTestResourceBytes
 import com.alexn.socialpublish.testutils.uploadTestImage
+import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
@@ -88,6 +90,68 @@ class FilesModuleTest {
         assertEquals(resized1.height, processed1.height)
         assertEquals(resized2.width, processed2.width)
         assertEquals(resized2.height, processed2.height)
+
+        client.close()
+    }
+
+    @Test
+    fun `fails when file part name is incorrect`(
+        @TempDir tempDir: Path,
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+
+        application {
+            routing {
+                post("/api/files/upload") {
+                    val result = filesModule.uploadFile(call)
+                    when (result) {
+                        is arrow.core.Either.Right ->
+                            call.respondText(
+                                Json.encodeToString(result.value),
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        is arrow.core.Either.Left ->
+                            call.respondText(
+                                Json.encodeToString(mapOf("error" to result.value.errorMessage)),
+                                io.ktor.http.ContentType.Application.Json,
+                                HttpStatusCode.fromValue(result.value.status),
+                            )
+                    }
+                }
+            }
+        }
+
+        val client =
+            createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        },
+                    )
+                }
+            }
+
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/files/upload",
+                formData =
+                    io.ktor.client.request.forms.formData {
+                        append(
+                            "wrongName",
+                            loadTestResourceBytes("flower1.jpeg"),
+                            io.ktor.http.Headers.build {
+                                append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
+                                append(io.ktor.http.HttpHeaders.ContentDisposition, "filename=\"flower1.jpeg\"")
+                            },
+                        )
+                    },
+            )
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("Missing file in upload"))
 
         client.close()
     }

@@ -21,7 +21,8 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
-import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -73,29 +74,27 @@ class FilesModule(
             var fileName: String? = null
 
             multipart.forEachPart { part ->
-                when (part) {
-                    is PartData.FormItem -> {
-                        if (part.name == "altText") {
-                            altText = part.value
-                        }
-                    }
-                    is PartData.FileItem -> {
-                        fileName = part.originalFileName ?: "unknown"
-                        fileBytes =
-                            withContext(Dispatchers.IO) {
-                                val channel = part.provider()
-                                val buffer = mutableListOf<Byte>()
-                                val tempArray = ByteArray(8192)
-                                var read: Int
-                                while (channel.readAvailable(tempArray).also { read = it } > 0) {
-                                    buffer.addAll(tempArray.take(read))
-                                }
-                                buffer.toByteArray()
+                try {
+                    when (part) {
+                        is PartData.FormItem -> {
+                            if (part.name == "altText") {
+                                altText = part.value
                             }
+                        }
+                        is PartData.FileItem -> {
+                            if (part.name == "file") {
+                                fileName = part.originalFileName ?: "unknown"
+                                fileBytes =
+                                    withContext(Dispatchers.IO) {
+                                        part.provider().readRemaining().readByteArray()
+                                    }
+                            }
+                        }
+                        else -> {}
                     }
-                    else -> {}
+                } finally {
+                    part.dispose()
                 }
-                part.dispose()
             }
 
             if (fileBytes == null || fileName == null) {
