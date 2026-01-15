@@ -43,4 +43,4 @@ run-local: build-local
 update:
 	npx npm-check-updates -u && npm install && \
 	cd ./frontend && npx npm-check-updates -u && npm install && cd .. && \
-	cd ./backend-scala && sbt update && cd ..
+	cd ./backend-scala && ./sbt update && cd ..

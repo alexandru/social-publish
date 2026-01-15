@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+set -e
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+SBT_VERSION="$(awk -F= '/^sbt.version=/{print $2}' "$BASE_DIR/project/build.properties")"
+SBT_DIR="$BASE_DIR/.sbt"
+SBT_JAR="$SBT_DIR/sbt-launch-$SBT_VERSION.jar"
+SBT_URL="https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/$SBT_VERSION/sbt-launch-$SBT_VERSION.jar"
+
+if [ ! -f "$SBT_JAR" ]; then
+  mkdir -p "$SBT_DIR"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$SBT_URL" -o "$SBT_JAR"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$SBT_JAR" "$SBT_URL"
+  else
+    echo "curl or wget is required to download the sbt launcher." >&2
+    exit 1
+  fi
+fi
+
+exec java -jar "$SBT_JAR" "$@"

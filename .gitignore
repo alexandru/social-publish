@@ -20,6 +20,7 @@ project/project/
 *.class
 *.jar
 *.war
+.sbt/
 .bsp/
 .metals/
 .bloop/

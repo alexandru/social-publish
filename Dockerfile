@@ -8,18 +8,22 @@ RUN npm install
 COPY frontend/ .
 RUN npm run build
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.10_7_1.10.7_3.3.4 AS backend-build
+FROM eclipse-temurin:21-jdk-jammy AS backend-build
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+COPY backend-scala/sbt ./sbt
 COPY backend-scala/project ./project
 COPY backend-scala/build.sbt ./build.sbt
-RUN sbt -Dsbt.supershell=false update
+RUN chmod +x ./sbt
+RUN ./sbt -Dsbt.supershell=false update
 
 COPY backend-scala/ .
-RUN sbt -Dsbt.supershell=false assembly
+RUN ./sbt -Dsbt.supershell=false assembly
 
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /app
 
@@ -38,7 +42,7 @@ USER appuser
 ENV HTTP_PORT=3000
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
 ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=25.0 -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError"
 
 RUN mkdir -p "${UPLOADED_FILES_PATH}"
 

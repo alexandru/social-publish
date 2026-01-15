@@ -130,9 +130,9 @@ To start the development server (Scala backend + [Vite](https://vitejs.dev/) fro
 npm run dev
 ```
 
-You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>. The dev command uses local defaults for `BASE_URL`, `SERVER_AUTH_USERNAME`, `SERVER_AUTH_PASSWORD`, and `JWT_SECRET` unless you override them in your shell.
+You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>. Configure the backend via your usual environment tooling (e.g., `direnv`).
 
-Ensure you have Java 17 and `sbt` installed to run the Scala backend locally.
+Ensure you have Java 21 installed to run the Scala backend locally (the repo includes a `backend-scala/sbt` wrapper).
 
 To build and test the Docker image locally:
 
