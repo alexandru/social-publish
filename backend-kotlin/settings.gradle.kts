@@ -15,7 +15,7 @@ dependencyResolutionManagement {
             version("sqlite-jdbc", "3.51.1.0")
             version("kotlin-logging", "7.0.14")
             version("rome", "2.1.0")
-            version("signpost", "2.1.1")
+            version("scribejava", "8.3.3")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
 
@@ -69,7 +69,7 @@ dependencyResolutionManagement {
             library("rome", "com.rometools", "rome").versionRef("rome")
 
             // OAuth
-            library("signpost-core", "oauth.signpost", "signpost-core").versionRef("signpost")
+            library("scribejava-core", "com.github.scribejava", "scribejava-core").versionRef("scribejava")
 
             // Testing libraries
             library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").withoutVersion()

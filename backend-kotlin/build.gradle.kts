@@ -48,7 +48,7 @@ dependencies {
     implementation(libs.rome)
 
     // OAuth for Twitter
-    implementation(libs.signpost.core)
+    implementation(libs.scribejava.core)
 
     // Testing
     testImplementation(libs.kotlin.test)

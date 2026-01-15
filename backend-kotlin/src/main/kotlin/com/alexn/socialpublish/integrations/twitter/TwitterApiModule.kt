@@ -13,6 +13,13 @@ import com.alexn.socialpublish.models.RequestError
 import com.alexn.socialpublish.models.ResponseBody
 import com.alexn.socialpublish.models.ValidationError
 import com.alexn.socialpublish.modules.FilesModule
+import com.github.scribejava.core.builder.ServiceBuilder
+import com.github.scribejava.core.builder.api.DefaultApi10a
+import com.github.scribejava.core.model.OAuth1AccessToken
+import com.github.scribejava.core.model.OAuth1RequestToken
+import com.github.scribejava.core.model.OAuthRequest
+import com.github.scribejava.core.model.Verb
+import com.github.scribejava.core.oauth.OAuth10aService
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -37,12 +44,10 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import oauth.signpost.OAuthConsumer
-import oauth.signpost.OAuthProvider
-import oauth.signpost.basic.DefaultOAuthConsumer
-import oauth.signpost.basic.DefaultOAuthProvider
 import java.net.URLEncoder
 
 private val logger = KotlinLogging.logger {}
@@ -104,18 +109,25 @@ class TwitterApiModule(
             }
     }
 
-    private val consumer: OAuthConsumer =
-        DefaultOAuthConsumer(
-            config.oauth1ConsumerKey,
-            config.oauth1ConsumerSecret,
-        )
+    private class TwitterApi(private val config: TwitterConfig) : DefaultApi10a() {
+        override fun getRequestTokenEndpoint() = config.oauthRequestTokenUrl
 
-    private val provider: OAuthProvider =
-        DefaultOAuthProvider(
-            config.oauthRequestTokenUrl,
-            config.oauthAccessTokenUrl,
-            config.oauthAuthorizeUrl,
-        )
+        override fun getAccessTokenEndpoint() = config.oauthAccessTokenUrl
+
+        override fun getAuthorizationBaseUrl() = config.oauthAuthorizeUrl
+    }
+
+    private fun createOAuthService(callback: String? = null): OAuth10aService {
+        val builder =
+            ServiceBuilder(config.oauth1ConsumerKey)
+                .apiSecret(config.oauth1ConsumerSecret)
+        if (callback != null) {
+            builder.callback(callback)
+        }
+        return builder.build(TwitterApi(config))
+    }
+
+    private var requestToken: OAuth1RequestToken? = null
 
     /**
      * Get OAuth callback URL
@@ -155,7 +167,13 @@ class TwitterApiModule(
     suspend fun buildAuthorizeURL(jwtToken: String): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
-            val authUrl = provider.retrieveRequestToken(consumer, callbackUrl)
+            val service = createOAuthService(callbackUrl)
+            val token =
+                withContext(Dispatchers.IO) {
+                    service.requestToken
+                }
+            requestToken = token
+            val authUrl = service.getAuthorizationUrl(token)
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to get Twitter request token" }
@@ -175,13 +193,17 @@ class TwitterApiModule(
         verifier: String,
     ): ApiResult<Unit> {
         return try {
-            consumer.setTokenWithSecret(token, "")
-            provider.retrieveAccessToken(consumer, verifier)
+            val reqToken = requestToken ?: OAuth1RequestToken(token, "")
+            val service = createOAuthService()
+            val accessToken =
+                withContext(Dispatchers.IO) {
+                    service.getAccessToken(reqToken, verifier)
+                }
 
             val authorizedToken =
                 TwitterOAuthToken(
-                    key = consumer.token,
-                    secret = consumer.tokenSecret,
+                    key = accessToken.token,
+                    secret = accessToken.tokenSecret,
                 )
 
             documentsDb.createOrUpdate(
@@ -203,6 +225,22 @@ class TwitterApiModule(
     }
 
     /**
+     * Sign a request and return the Authorization header
+     */
+    private suspend fun signRequest(
+        url: String,
+        token: TwitterOAuthToken,
+        verb: Verb = Verb.POST,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val service = createOAuthService()
+            val accessToken = OAuth1AccessToken(token.key, token.secret)
+            val request = OAuthRequest(verb, url)
+            service.signRequest(accessToken, request)
+            request.headers["Authorization"] ?: throw IllegalStateException("Authorization header not found")
+        }
+
+    /**
      * Upload media to Twitter
      */
     private suspend fun uploadMedia(
@@ -220,16 +258,8 @@ class TwitterApiModule(
 
             val url = "${config.uploadBase}/1.1/media/upload.json"
 
-            // Create OAuth consumer for this request
-            val mediaConsumer =
-                DefaultOAuthConsumer(
-                    config.oauth1ConsumerKey,
-                    config.oauth1ConsumerSecret,
-                )
-            mediaConsumer.setTokenWithSecret(token.key, token.secret)
-
             // Generate auth header by signing URL
-            val authHeader = mediaConsumer.sign(url) as String
+            val authHeader = signRequest(url, token)
 
             val response =
                 httpClient.submitFormWithBinaryData(
@@ -257,13 +287,7 @@ class TwitterApiModule(
                 // Add alt text if present
                 if (!file.altText.isNullOrEmpty()) {
                     val altTextUrl = "${config.apiBase}/1.1/media/metadata/create.json"
-                    val altConsumer =
-                        DefaultOAuthConsumer(
-                            config.oauth1ConsumerKey,
-                            config.oauth1ConsumerSecret,
-                        )
-                    altConsumer.setTokenWithSecret(token.key, token.secret)
-                    val altAuthHeader = altConsumer.sign(altTextUrl) as String
+                    val altAuthHeader = signRequest(altTextUrl, token)
 
                     httpClient.post(altTextUrl) {
                         header("Authorization", altAuthHeader)
@@ -335,13 +359,7 @@ class TwitterApiModule(
 
             // Create the tweet
             val createPostURL = "${config.apiBase}/2/tweets"
-            val postConsumer =
-                DefaultOAuthConsumer(
-                    config.oauth1ConsumerKey,
-                    config.oauth1ConsumerSecret,
-                )
-            postConsumer.setTokenWithSecret(token.key, token.secret)
-            val authHeader = postConsumer.sign(createPostURL) as String
+            val authHeader = signRequest(createPostURL, token)
 
             val tweetData =
                 if (mediaIds.isNotEmpty()) {

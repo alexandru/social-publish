@@ -100,7 +100,7 @@ class TwitterApiTest {
                         call.respondText("{" + "\"ok\":true}", io.ktor.http.ContentType.Application.Json)
                     }
                     post("/oauth/request_token") {
-                        call.respondText("https://api.twitter.com/oauth/authorize?oauth_token=req123")
+                        call.respondText("oauth_token=req123&oauth_token_secret=secret123&oauth_callback_confirmed=true")
                     }
                     post("/oauth/access_token") {
                         call.respondText("oauth_token=tok&oauth_token_secret=sec")
