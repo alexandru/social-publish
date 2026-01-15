@@ -1,6 +1,7 @@
 package socialpublish.http
 
 import cats.effect.*
+import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -13,7 +14,7 @@ import socialpublish.integrations.Integrations
 import socialpublish.integrations.bluesky.{BlueskyConfig, BlueskyEndpoints}
 import socialpublish.integrations.mastodon.{MastodonConfig, MastodonEndpoints}
 import socialpublish.integrations.twitter.TwitterConfig
-import socialpublish.models.{Content, NewPostRequest, NewPostResponse, Post, Target}
+import socialpublish.models.{ApiError, Content, NewPostRequest, NewPostResponse, Post, Target}
 import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
 import sttp.client4.*
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
@@ -102,17 +103,16 @@ class ServerIntegrationSpec extends CatsEffectSuite {
 
                       IO.raiseWhen(!tokenValid) {
                         new RuntimeException("Login token could not be decoded")
-                      } *> authMiddleware.authenticate(
-                        AuthInputs(Some(login.token), None, None)
-                      ).flatMap {
-
-                        case Left(error) =>
-                          IO.raiseError(
-                            new RuntimeException(s"Auth check failed: ${error.message}")
-                          )
-                        case Right(_) =>
-                          IO.unit
-                      } *> {
+                      } *> Handle[IO, ApiError]
+                        .attempt(authMiddleware.authenticate(AuthInputs(Some(login.token), None, None)))
+                        .flatMap {
+                          case Left(error) =>
+                            IO.raiseError(
+                              new RuntimeException(s"Auth check failed: ${error.message}")
+                            )
+                          case Right(_) =>
+                            IO.unit
+                        } *> {
                         val postRequest = NewPostRequest(
                           content = Content.unsafe("Hello world"),
                           targets = None,

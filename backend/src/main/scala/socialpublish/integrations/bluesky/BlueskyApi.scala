@@ -1,10 +1,12 @@
 package socialpublish.integrations.bluesky
 
 import cats.effect.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import socialpublish.integrations.bluesky.BlueskyEndpoints.*
 import socialpublish.models.*
-import socialpublish.services.FilesService
+import socialpublish.services.{FilesService, ProcessedFile}
 import socialpublish.utils.TextUtils
 import sttp.client4.Backend
 import sttp.model.Uri
@@ -19,7 +21,7 @@ import java.util.UUID
   * Based on AT Protocol: <https://docs.bsky.app/docs/api/>
   */
 trait BlueskyApi {
-  def createPost(request: NewPostRequest): Result[NewPostResponse]
+  def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse]
 }
 
 object BlueskyApi {
@@ -92,7 +94,7 @@ private class BlueskyApiImpl(
   private val interpreter = SttpClientInterpreter()
   private val baseUri = Uri.unsafeParse(config.service)
 
-  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
+  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
     for {
       images <- request.images.getOrElse(Nil).traverse(uuid => uploadImage(uuid))
       text = prepareText(request)
@@ -115,10 +117,12 @@ private class BlueskyApiImpl(
     }
   }
 
-  private def uploadImage(uuid: UUID): Result[ImageEmbed] =
+  private def uploadImage(uuid: UUID)(using Raise[IO, ApiError]): IO[ImageEmbed] =
     for {
-      fileOpt <- Result.liftIO(files.getFile(uuid))
-      file <- Result.fromOption(fileOpt, ApiError.notFound(s"File not found: $uuid"))
+      fileOpt <- files.getFile(uuid)
+      file <- fileOpt.fold(
+        ApiError.notFound(s"File not found: $uuid").raise[IO, ProcessedFile]
+      )(IO.pure)
       blobRef <- uploadBlobRef(file.bytes, file.mimeType)
     } yield ImageEmbed(
       alt = file.altText.getOrElse(""),
@@ -126,7 +130,8 @@ private class BlueskyApiImpl(
       aspectRatio = Some(AspectRatio(file.width, file.height))
     )
 
-  private def uploadBlobRef(bytes: Array[Byte], mimeType: String): Result[BlobRef] = {
+  private def uploadBlobRef(bytes: Array[Byte], mimeType: String)
+    (using Raise[IO, ApiError]): IO[BlobRef] = {
     val request = interpreter.toRequest(uploadBlob, Some(baseUri))(
       (
         bearerToken(session.accessJwt),
@@ -135,13 +140,13 @@ private class BlueskyApiImpl(
       )
     )
 
-    Result.liftIO(backend.send(request)).flatMap { response =>
-      Result.fromEither(decodeApiResponse(response.body, response.code.code))
+    backend.send(request).flatMap { response =>
+      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
     }.map(_.blob)
   }
 
-  private def detectFacets(text: String): Result[List[Facet]] =
-    Result.success {
+  private def detectFacets(text: String): IO[List[Facet]] =
+    IO.pure {
       val urlPattern = """https?://[^\s]+""".r
       urlPattern.findAllMatchIn(text).toList.map { m =>
         val start = utf8ByteOffset(text, m.start)
@@ -179,7 +184,8 @@ private class BlueskyApiImpl(
     )
   }
 
-  private def postToBluesky(record: PostRecord): Result[CreatePostResponse] = {
+  private def postToBluesky(record: PostRecord)
+    (using Raise[IO, ApiError]): IO[CreatePostResponse] = {
     val request = interpreter.toRequest(createRecord, Some(baseUri))(
       bearerToken(session.accessJwt) ->
         CreatePostRequest(
@@ -189,8 +195,8 @@ private class BlueskyApiImpl(
         )
     )
 
-    Result.liftIO(backend.send(request)).flatMap { response =>
-      Result.fromEither(decodeApiResponse(response.body, response.code.code))
+    backend.send(request).flatMap { response =>
+      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
     }
   }
 
@@ -229,6 +235,8 @@ private class BlueskyApiImpl(
 }
 
 private class DisabledBlueskyApi() extends BlueskyApi {
-  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
-    Result.error(ApiError.validationError("Bluesky integration is disabled", "bluesky"))
+  override def createPost(request: NewPostRequest)
+    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+    ApiError.validationError("Bluesky integration is disabled", "bluesky")
+      .raise[IO, NewPostResponse]
 }

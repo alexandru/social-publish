@@ -1,6 +1,7 @@
 package socialpublish.http
 
 import cats.effect.*
+import cats.mtl.Handle
 import cats.syntax.all.*
 import io.circe.Printer
 import io.circe.syntax.*
@@ -38,6 +39,7 @@ class Routes(
   private type ErrorOut = (StatusCode, ErrorResponse)
 
   private val errorOutput: EndpointOutput[ErrorOut] = statusCode.and(jsonBody[ErrorResponse])
+  private val apiErrorHandle = Handle[IO, ApiError]
 
   private val authInput: EndpointInput[AuthInputs] =
     header[Option[String]]("Authorization")
@@ -193,7 +195,7 @@ class Routes(
       .out(jsonBody[LoginResponse])
       .errorOut(errorOutput)
       .serverLogic { credentials =>
-        auth.login(credentials).map(_.leftMap(toErrorOutput))
+        handleResult(auth.login(credentials))
       }
 
   private val publicRoot = Paths.get("public").toAbsolutePath.normalize
@@ -235,10 +237,7 @@ class Routes(
       .out(header[String]("Location"))
       .serverSecurityLogic(authenticate)
       .serverLogic { context => _ =>
-        twitter.getAuthorizationUrl(context.token).value.map {
-          case Right(url) => Right(url)
-          case Left(error) => Left(toErrorOutput(error))
-        }
+        handleResult(twitter.getAuthorizationUrl(context.token))
       }
 
   private val twitterCallbackEndpoint: ServerEndpoint[Any, IO] =
@@ -250,17 +249,13 @@ class Routes(
       .out(headers)
       .serverSecurityLogic(authenticate)
       .serverLogic { _ => (token, verifier) =>
-        twitter.handleCallback(token, verifier).value.map {
-          case Right(_) =>
-            val responseHeaders = List(
-              Header("Location", "/account"),
-              Header("Cache-Control", "no-store, no-cache, must-revalidate, private"),
-              Header("Pragma", "no-cache"),
-              Header("Expires", "0")
-            )
-            Right(responseHeaders)
-          case Left(error) => Left(toErrorOutput(error))
-        }
+        val responseHeaders = List(
+          Header("Location", "/account"),
+          Header("Cache-Control", "no-store, no-cache, must-revalidate, private"),
+          Header("Pragma", "no-cache"),
+          Header("Expires", "0")
+        )
+        handleResult(twitter.handleCallback(token, verifier)).map(_.map(_ => responseHeaders))
       }
 
   private val twitterStatusEndpoint: ServerEndpoint[Any, IO] =
@@ -339,14 +334,14 @@ class Routes(
       }
 
   private def authenticate(inputs: AuthInputs): IO[Either[ErrorOut, AuthContext]] =
-    auth.authenticate(inputs).map(_.leftMap(toErrorOutput))
+    handleResult(auth.authenticate(inputs))
 
-  private def handleResult[A](result: Result[A]): IO[Either[ErrorOut, A]] =
-    result.value.map(_.leftMap(toErrorOutput))
+  private def handleResult[A](result: IO[A]): IO[Either[ErrorOut, A]] =
+    apiErrorHandle.attempt(result).map(_.leftMap(toErrorOutput))
 
   private def handleMultiplePost(request: NewPostRequest)
     : IO[Either[ErrorOut, MultiPostResponse]] = {
-    val handlers: List[(String, Result[NewPostResponse])] =
+    val handlers: List[(String, IO[NewPostResponse])] =
       List("rss" -> rss.createPost(request)) ++
         request.targets.getOrElse(Nil).flatMap {
           case Target.Mastodon => Some("mastodon" -> mastodon.createPost(request))
@@ -356,7 +351,7 @@ class Routes(
         }
 
     handlers.traverse { case (name, result) =>
-      result.value.map(either => (name, either))
+      apiErrorHandle.attempt(result).map(either => (name, either))
     }.map { results =>
       // Collect errors but also keep successes
       val errors = results.collect { case (name, Left(error)) => (name, error) }

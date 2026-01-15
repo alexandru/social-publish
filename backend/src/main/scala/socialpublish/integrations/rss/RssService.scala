@@ -1,9 +1,10 @@
 package socialpublish.integrations.rss
 
 import cats.effect.IO
+import cats.mtl.Raise
 import socialpublish.db.PostsDatabase
 import socialpublish.http.ServerConfig
-import socialpublish.models.{NewPostRequest, NewPostResponse, Post, Result, Target}
+import socialpublish.models.{ApiError, NewPostRequest, NewPostResponse, Post, Target}
 import socialpublish.services.FilesService
 import socialpublish.utils.TextUtils
 
@@ -11,7 +12,7 @@ import java.util.UUID
 import cats.syntax.all.*
 
 trait RssService {
-  def createPost(request: NewPostRequest): Result[NewPostResponse]
+  def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse]
   def generateFeed(
     targetFilter: Option[Target],
     linkFilter: Option[RssService.FilterMode],
@@ -34,7 +35,7 @@ class RssServiceImpl(
 
   import RssService.*
 
-  override def createPost(request: NewPostRequest): Result[NewPostResponse] = {
+  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] = {
     val contentStr =
       if request.cleanupHtml.getOrElse(false) then {
         TextUtils.convertHtml(request.content.value)
@@ -45,15 +46,13 @@ class RssServiceImpl(
     val tags = extractHashtags(request.content.value)
 
     for {
-      post <- Result.liftIO(
-        posts.create(
-          content = contentStr,
-          link = request.link,
-          tags = tags,
-          language = request.language,
-          images = request.images.getOrElse(Nil),
-          targets = request.targets.getOrElse(Nil)
-        )
+      post <- posts.create(
+        content = contentStr,
+        link = request.link,
+        tags = tags,
+        language = request.language,
+        images = request.images.getOrElse(Nil),
+        targets = request.targets.getOrElse(Nil)
       )
       uri = s"${server.baseUrl}/rss/${post.uuid}"
     } yield NewPostResponse.Rss(uri)
