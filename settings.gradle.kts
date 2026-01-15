@@ -1,4 +1,7 @@
-rootProject.name = "social-publish"
+rootProject.name = "social-publish-multiproject"
+
+include("backend-kotlin")
+include("frontend-kotlin")
 
 dependencyResolutionManagement {
     versionCatalogs {
@@ -47,6 +50,9 @@ dependencyResolutionManagement {
 
             // Kotlinx Serialization
             library("kotlinx-serialization-json", "org.jetbrains.kotlinx", "kotlinx-serialization-json").versionRef("kotlinx-serialization")
+
+            // Kotlinx Coroutines
+            library("kotlinx-coroutines-core", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").versionRef("kotlinx-coroutines")
 
             // JDBI libraries
             library("jdbi-core", "org.jdbi", "jdbi3-core").versionRef("jdbi")

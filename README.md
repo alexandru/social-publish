@@ -120,13 +120,19 @@ While this service is able to publish directly to Mastodon and Bluesky, for othe
 
 ## Developing
 
-To start the development server (with incremental compilation, powered by [Vite](https://vitejs.dev/)):
+Legacy Node/Vite development (existing frontend/backend):
 
 ```sh
 npm run dev
 ```
 
-You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
+Kotlin backend + Kotlin/JS frontend development:
+
+```sh
+make dev-kotlin
+```
+
+You can navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
 
 To build and test the Docker image locally:
 

@@ -4,27 +4,17 @@ FROM gradle:8.11-jdk17-alpine AS build
 WORKDIR /app
 
 # Copy Gradle files
-COPY backend-kotlin/build.gradle.kts backend-kotlin/settings.gradle.kts backend-kotlin/gradle.properties ./backend-kotlin/
+COPY settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY gradle ./gradle
+COPY backend-kotlin/build.gradle.kts ./backend-kotlin/
+COPY frontend-kotlin/build.gradle.kts ./frontend-kotlin/
 
 # Copy source code
 COPY backend-kotlin/src ./backend-kotlin/src
+COPY frontend-kotlin/src ./frontend-kotlin/src
 
-# Build the application
-WORKDIR /app/backend-kotlin
-RUN gradle build --no-daemon -x test
-
-# Build frontend
-FROM node:20-alpine AS frontend-build
-
-WORKDIR /app
-COPY frontend/package*.json ./frontend/
-WORKDIR /app/frontend
-RUN npm install
-
-WORKDIR /app
-COPY frontend ./frontend
-WORKDIR /app/frontend
-RUN npm run build
+# Build the applications
+RUN gradle :backend-kotlin:build :frontend-kotlin:jsBrowserProductionWebpack --no-daemon -x test
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
@@ -39,7 +29,7 @@ RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social
 
 # Copy application
 COPY --from=build --chown=appuser:root /app/backend-kotlin/build/libs/social-publish-1.0.0.jar /app/app.jar
-COPY --from=frontend-build --chown=appuser:root /app/frontend/dist /app/public
+COPY --from=build --chown=appuser:root /app/frontend-kotlin/build/dist /app/public
 
 # Expose port 3000
 EXPOSE 3000

@@ -8,6 +8,19 @@
 - Update Dockerfile to build and run Kotlin backend + frontend.
 - Keep `frontend/` and `backend/` directories, remove other root leftovers once replaced.
 
+## Progress Checklist
+
+- [x] Root Gradle multi-project setup completed
+- [x] `frontend-kotlin` module structure and assets created
+- [x] Kotlin/JS frontend ported to Kotlin sources
+- [x] Makefile + Dockerfile.kotlin updated for Kotlin workflow
+- [x] `.gitignore` and README updated for Kotlin build
+- [x] Replace react-router with lightweight internal router
+- [x] Build with latest kotlin-wrappers only (no legacy)
+- [x] Re-run `./gradlew build` after routing changes
+- [ ] Verify webpack dev server proxy + production bundle
+- [x] Add `.envrc` defaults for backend config
+
 ## Frontend Analysis (Current `frontend/`)
 
 ### Build System & Dev Environment
@@ -108,12 +121,12 @@
 
 ### Kotlin Wrappers (React ecosystem)
 
-- **BOM**: `implementation(enforcedPlatform("org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom:1.0.0-pre.810"))`
-  - Latest stable version for Kotlin 2.3.0 compatibility
-- **Core React**:
-  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-react")`
-  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom")`
-- **Routing**: `implementation("org.jetbrains.kotlin-wrappers:kotlin-react-router-dom")`
+- **Versioning**: use explicit wrapper versions (Gradle `platform`/`enforcedPlatform` deprecated in Kotlin 2.3)
+  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-react:2026.1.5-19.2.3")`
+  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.1.5-19.2.3")`
+  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.1.5")`
+  - `implementation("org.jetbrains.kotlin-wrappers:kotlin-web:2026.1.5")`
+- **Routing**: use lightweight internal router (no react-router dependency)
 - **CSS-in-Kotlin** (optional): `implementation("org.jetbrains.kotlin-wrappers:kotlin-emotion")`
   - Only if we want type-safe inline styles; NOT required for Bulma classes
 
@@ -146,6 +159,10 @@ var AnchorHTMLAttributes<*>.dataTarget: String?
 
 operator fun HTMLAttributes<*>.get(key: String): String?
 operator fun HTMLAttributes<*>.set(key: String, value: String?)
+
+// Lightweight router helpers
+fun navigateTo(path: String)
+fun useCurrentPath(): String
 ```
 
 ### Entry Point Pattern
@@ -381,10 +398,9 @@ kotlin {
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom")
 
-                // React Router
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-router-dom")
-
                 // Browser APIs
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-browser")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-web")
                 implementation("org.jetbrains.kotlinx:kotlinx-browser:0.2")
 
                 // NPM dependencies (managed by Yarn)
@@ -428,38 +444,18 @@ fun main() {
 ```kotlin
 import react.FC
 import react.Props
-import react.router.dom.BrowserRouter
-import react.router.dom.Route
-import react.router.dom.Routes
 import react.dom.html.ReactHTML.main
 
 val App = FC<Props> {
-    BrowserRouter {
-        NavBar()
-        main {
-            Routes {
-                Route {
-                    index = true
-                    path = "/"
-                    element = Home.create()
-                }
-                Route {
-                    path = "/form"
-                    element = PublishFormPage.create()
-                }
-                Route {
-                    path = "/login"
-                    element = Login.create()
-                }
-                Route {
-                    path = "/account"
-                    element = Account.create()
-                }
-                Route {
-                    path = "*"
-                    element = NotFound.create()
-                }
-            }
+    val currentPath = useCurrentPath()
+    NavBar()
+    main {
+        when (currentPath) {
+            "/" -> Home()
+            "/form" -> PublishFormPage()
+            "/login" -> Login()
+            "/account" -> Account()
+            else -> NotFound()
         }
     }
 }
@@ -475,7 +471,7 @@ val App = FC<Props> {
 #### components/NavBar.kt
 
 - Use `var navbarIsActive by useState("")` for burger menu state
-- Use `useLocation()` hook for active link detection
+- Use `useCurrentPath()` hook for active link detection
 - Import icons from ionicons: `external val homeOutline: String` declarations
 - Bulma classes: `navbar`, `navbar-brand`, `navbar-burger`, `navbar-menu`, etc.
 
@@ -483,7 +479,7 @@ val App = FC<Props> {
 
 - Higher-order component pattern using FC
 - Check JWT token via `getJwtToken()`
-- Use `useNavigate()` for redirect
+- Use `navigateTo()` helper for redirect
 - Show `ModalMessage` if unauthorized
 
 #### components/ModalMessage.kt
@@ -508,7 +504,7 @@ val App = FC<Props> {
 
 - Form state: `var username by useState("")`, `var password by useState("")`
 - Error state management
-- Query param parsing: `useLocation()` + `URLSearchParams`
+- Query param parsing: `window.location.search` + `URLSearchParams`
 - Fetch API for `/api/login`
 - Cookie and localStorage updates on success
 
@@ -784,7 +780,7 @@ kotlin-js-store/
 
 # Keep existing entries
 
-````
+```
 
 ### 5.2: Verification Matrix
 
@@ -864,17 +860,12 @@ kotlin-js-store/
 - `window.fetch()` returns `Promise<Response>`
 - Must use `.await()` in suspend functions OR `.then {}` callbacks
 
-### React Router Compatibility
+### Routing Strategy
 
-- kotlin-react-router-dom wraps react-router-dom v6+
-- Uses hooks: `useLocation()`, `useNavigate()`, `useParams()`
-- Route definition syntax slightly different from JS:
-```kotlin
-Route {
-    path = "/login"
-    element = Login.create()
-}
-````
+- No react-router dependency (keeps wrappers single-version)
+- Use lightweight internal router with `window.history.pushState`
+- Provide `useCurrentPath()` hook and `navigateTo()` helper
+- Render page via `when (currentPath)` in `App`
 
 ### State Management Patterns
 
@@ -909,3 +900,4 @@ Route {
 5. Visual regression testing (screenshot comparison)
 6. Test in multiple browsers (Chrome, Firefox, Safari)
 7. Test mobile responsiveness (burger menu critical)
+```

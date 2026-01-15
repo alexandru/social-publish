@@ -1,0 +1,5 @@
+@import 'bulma/css/bulma.css';
+
+#login form {
+  max-width: 500px;
+}

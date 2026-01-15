@@ -37,6 +37,18 @@ run-local: build-local
 		-e "TWITTER_OAUTH1_CONSUMER_SECRET=${TWITTER_OAUTH1_CONSUMER_SECRET}" \
 		${LATEST_TAG}
 
+dev-kotlin:
+	./gradlew :backend-kotlin:run & ./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
+
+dev-kotlin-backend:
+	./gradlew :backend-kotlin:run
+
+dev-kotlin-frontend:
+	./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
+
+build-kotlin:
+	./gradlew build
+
 update:
 	npx npm-check-updates -u && npm install && \
 	cd ./backend && npx npm-check-updates -u && npm install && cd .. && \

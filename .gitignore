@@ -27,8 +27,10 @@ build
 
 # Kotlin/Gradle
 .kotlin
-backend-kotlin/.gradle
-backend-kotlin/build
+.gradle/
+**/build/
+kotlin-js-store/
+!kotlin-js-store/yarn.lock
 *.class
 *.jar
 !backend-kotlin/gradle/wrapper/gradle-wrapper.jar
@@ -36,3 +38,6 @@ backend-kotlin/build
 *.ear
 *.nar
 hs_err_pid*
+
+# Local development junk
+./var
