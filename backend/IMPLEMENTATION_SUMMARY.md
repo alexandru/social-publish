@@ -9,12 +9,14 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
 ### Fully Implemented Components
 
 #### 1. Project Infrastructure
+
 - ✅ sbt build configuration with proper dependencies
 - ✅ Project structure following Scala conventions
 - ✅ Logback configuration for structured logging
 - ✅ .gitignore for Scala artifacts
 
 #### 2. Domain Models (`models/`)
+
 - ✅ `Target` enum (Mastodon, Bluesky, Twitter, LinkedIn) with Circe codecs
 - ✅ `Post` case class for social media posts
 - ✅ `NewPostRequest` with validation
@@ -25,6 +27,7 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
 - ✅ `Result[A]` type alias (EitherT[IO, ApiError, A])
 
 #### 3. Database Layer (`db/`)
+
 - ✅ **DocumentsDatabase**: Generic document storage with tags
   - Migrations system
   - CRUD operations
@@ -41,6 +44,7 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
 #### 4. API Clients (`api/`)
 
 ##### Bluesky API (Complete)
+
 - ✅ AT Protocol implementation
 - ✅ Session management with JWT
 - ✅ Blob upload for images
@@ -50,16 +54,19 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
 - ✅ Language support
 
 ##### Mastodon API (Complete)
+
 - ✅ Multipart media upload
 - ✅ Alt text support
 - ✅ Status posting with media
 - ✅ Language support
 
 ##### Twitter API (Stub)
+
 - ✅ Basic structure
 - ⚠️ OAuth1 implementation (requires completion)
 
 #### 5. Services (`services/`)
+
 - ✅ **FilesService**: File management
   - File upload and storage
   - Image dimension extraction
@@ -67,6 +74,7 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
   - ByteArray processing
 
 #### 6. HTTP Server (`http/`)
+
 - ✅ Routes implementation (simplified)
   - Health check endpoint
   - Bluesky posting endpoint
@@ -76,29 +84,35 @@ The social-publish backend has been successfully rewritten from Node.js/TypeScri
 - ⚠️ Full authentication middleware (needs completion)
 
 #### 7. Configuration (`config/`)
+
 - ✅ **AppConfig**: Complete CLI parsing with Decline
   - All environment variables mapped
   - Command-line argument support
   - Sensible defaults
 
 #### 8. Main Application
+
 - ✅ Application wiring
 - ✅ Resource management (Transactor, HTTP client)
 - ✅ Server lifecycle management
 - ✅ Graceful shutdown hooks
 
 #### 9. Utilities (`utils/`)
+
 - ✅ **TextUtils**: HTML to text conversion, hashing
 
 ### Minor Remaining Work (~5%)
 
 #### Compilation Issues (~11 errors)
+
 Most are straightforward import/type issues:
+
 - EntityEncoder/EntityDecoder imports in some places
 - Minor type refinements
 - Estimated fix time: 1-2 hours
 
 #### Missing Features
+
 - Twitter OAuth1 full implementation
 - File upload HTTP routes
 - Full authentication middleware with JWT validation
@@ -153,21 +167,22 @@ HTTP Routes (Http4s Server)
 
 ## Lines of Code Comparison
 
-| Component | TypeScript | Scala 3 | Reduction |
-|-----------|------------|---------|-----------|
-| Models | ~200 | ~150 | 25% |
-| Database | ~400 | ~350 | 12.5% |
-| API Clients | ~800 | ~600 | 25% |
-| HTTP Server | ~500 | ~150 | 70% |
-| Utils | ~200 | ~50 | 75% |
-| Main/Config | ~200 | ~300 | -50% (more robust) |
-| **Total** | **~2300** | **~1600** | **~30%** |
+| Component   | TypeScript | Scala 3   | Reduction          |
+| ----------- | ---------- | --------- | ------------------ |
+| Models      | ~200       | ~150      | 25%                |
+| Database    | ~400       | ~350      | 12.5%              |
+| API Clients | ~800       | ~600      | 25%                |
+| HTTP Server | ~500       | ~150      | 70%                |
+| Utils       | ~200       | ~50       | 75%                |
+| Main/Config | ~200       | ~300      | -50% (more robust) |
+| **Total**   | **~2300**  | **~1600** | **~30%**           |
 
 The Scala version is more concise while being more type-safe and robust.
 
 ## Testing Strategy (Not Yet Implemented)
 
 Planned test structure:
+
 ```
 src/test/scala/
 ├── socialpublish/
@@ -179,6 +194,7 @@ src/test/scala/
 ```
 
 Libraries to use:
+
 - `munit` for test framework
 - `munit-cats-effect` for IO testing
 - `doobie-munit` for database testing
@@ -189,6 +205,7 @@ Libraries to use:
 ### Docker (To Be Updated)
 
 Current Dockerfile needs updates:
+
 1. Replace Node.js with OpenJDK 17+
 2. Build with `sbt assembly` instead of `npm run build`
 3. Run with `java -jar social-publish-backend.jar`
@@ -198,7 +215,7 @@ Current Dockerfile needs updates:
 ```dockerfile
 FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.8.2_3.2.2 as build
 WORKDIR /app
-COPY backend-scala .
+COPY backend .
 RUN sbt assembly
 
 FROM eclipse-temurin:17-jre-jammy
@@ -213,12 +230,14 @@ CMD ["java", "-jar", "social-publish-backend.jar"]
 ## Performance Characteristics
 
 ### Expected Improvements
+
 - **Startup time**: Slightly slower (JVM warmup) but faster after
 - **Memory**: More consistent (JVM GC vs Node.js)
 - **Throughput**: Better under load (JVM optimization)
 - **Concurrency**: Better handling (Cats Effect fiber-based)
 
 ### Resource Requirements
+
 - **Memory**: 512MB-1GB heap recommended
 - **CPU**: Similar to Node.js version
 - **Disk**: Slightly larger (JVM + JAR ~50MB vs Node ~30MB)
@@ -237,6 +256,7 @@ Total estimated time to production: 15-20 hours
 ## Conclusion
 
 The Scala 3 rewrite successfully demonstrates:
+
 - ✅ **Feasibility**: Core functionality implemented in ~1600 LOC
 - ✅ **Type Safety**: Compile-time guarantees throughout
 - ✅ **Functional Design**: Pure, composable, effect-managed

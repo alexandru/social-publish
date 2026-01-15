@@ -132,7 +132,7 @@ npm run dev
 
 You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>. Configure the backend via your usual environment tooling (e.g., `direnv`).
 
-Ensure you have Java 21 installed to run the Scala backend locally (the repo includes a `backend-scala/sbt` wrapper).
+Ensure you have Java 21 installed to run the Scala backend locally (the repo includes a `backend/sbt` wrapper).
 
 To build and test the Docker image locally:
 

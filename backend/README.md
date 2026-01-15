@@ -20,7 +20,7 @@ The backend has been rewritten from Node.js/TypeScript to Scala 3 using function
 ## Project Structure
 
 ```
-backend-scala/
+backend/
 ├── build.sbt                       # SBT build configuration
 ├── project/
 │   ├── build.properties           # SBT version
@@ -54,17 +54,20 @@ backend-scala/
 ## Key Features Implemented
 
 ### Domain Models
+
 - **Enums for Target types** (Bluesky, Mastodon, Twitter, LinkedIn)
 - **Type-safe models** for Post, File, Document with proper Circe codecs
 - **Custom error ADT** with Result type for functional error handling
 
 ### Database Layer
+
 - **Doobie-based** database access with proper Resource management
 - **SQLite** database with automatic migrations
 - **Generic document storage** pattern for flexible data persistence
 - **Type-safe SQL** queries with compile-time checking
 
 ### API Clients
+
 - **Bluesky**: Full AT Protocol implementation with:
   - Session management
   - Blob/image upload
@@ -79,6 +82,7 @@ backend-scala/
 - **Twitter**: OAuth1 stub (requires completion)
 
 ### Services
+
 - **File Service**: Image upload, processing, and storage
 - **Authentication**: JWT and Basic Auth support
 - **CLI**: Comprehensive configuration using Decline with environment variable fallbacks
@@ -86,21 +90,25 @@ backend-scala/
 ## Building and Running
 
 ### Prerequisites
+
 - Java 17 or later
 - SBT 1.10.7
 
 ### Build
+
 ```bash
-cd backend-scala
+cd backend
 sbt compile
 ```
 
 ### Create Fat JAR
+
 ```bash
 sbt assembly
 ```
 
 ### Run
+
 ```bash
 sbt run \
   --db-path /var/lib/social-publish/sqlite3.db \
@@ -110,6 +118,7 @@ sbt run \
 ```
 
 Or use environment variables:
+
 ```bash
 export DB_PATH=/var/lib/social-publish/sqlite3.db
 export HTTP_PORT=3000
@@ -131,6 +140,7 @@ sbt run
 ## API Endpoints
 
 ### Public Endpoints
+
 - `GET /ping` - Health check
 - `POST /api/login` - Login with Basic Auth, returns JWT
 - `GET /rss` - RSS feed of all posts
@@ -139,6 +149,7 @@ sbt run
 - `GET /files/:uuid` - Serve uploaded file
 
 ### Authenticated Endpoints (Bearer token required)
+
 - `POST /api/bluesky/post` - Post to Bluesky
 - `POST /api/mastodon/post` - Post to Mastodon
 - `POST /api/twitter/post` - Post to Twitter
@@ -152,6 +163,7 @@ sbt run
 ## Status
 
 ### Completed
+
 - ✅ Project structure and build configuration
 - ✅ Core domain models with proper type safety
 - ✅ Database layer with Doobie and SQLite
@@ -163,6 +175,7 @@ sbt run
 - ✅ Main application wiring
 
 ### In Progress / Needs Completion
+
 - ⚠️ HTTP Routes compilation errors (type mismatches)
 - ⚠️ Twitter OAuth1 full implementation
 - ⚠️ File upload HTTP routes
@@ -172,6 +185,7 @@ sbt run
 ## Testing
 
 Tests can be run with:
+
 ```bash
 sbt test
 ```
@@ -189,6 +203,7 @@ sbt test
 ## Migration from TypeScript
 
 The rewrite maintains feature parity with the TypeScript version while improving:
+
 - **Type safety**: Compile-time guarantees vs runtime checks
 - **Concurrency**: Built-in effect system for safe concurrent operations
 - **Performance**: JVM performance and optimization
