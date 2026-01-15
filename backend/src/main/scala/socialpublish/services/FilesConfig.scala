@@ -1,7 +1,6 @@
 package socialpublish.services
 
 import com.monovore.decline.Opts
-import cats.syntax.all.*
 import java.nio.file.Path
 
 case class FilesConfig(uploadedFilesPath: Path)

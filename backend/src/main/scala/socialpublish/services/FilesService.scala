@@ -2,7 +2,6 @@ package socialpublish.services
 
 import cats.effect.*
 import cats.effect.std.Semaphore
-import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import socialpublish.db.FilesDatabase
