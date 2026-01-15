@@ -25,11 +25,12 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientCon
 
 class FilesModuleTest {
     @Test
-    fun `uploads images and resizes when needed`(
+    fun `uploads images and stores originals`(
         @TempDir tempDir: Path,
     ) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
+        val filesDb = com.alexn.socialpublish.db.FilesDatabase(jdbi)
 
         application {
             routing {
@@ -75,21 +76,32 @@ class FilesModuleTest {
 
         val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
         val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
-        val resized1 = imageDimensions(processed1.bytes)
-        val resized2 = imageDimensions(processed2.bytes)
+        val stored1 = imageDimensions(processed1.bytes)
+        val stored2 = imageDimensions(processed2.bytes)
 
-        assertTrue(resized1.width <= 1920)
-        assertTrue(resized1.height <= 1080)
-        assertTrue(resized2.width <= 1920)
-        assertTrue(resized2.height <= 1080)
+        assertEquals(original1.width, stored1.width)
+        assertEquals(original1.height, stored1.height)
+        assertEquals(original2.width, stored2.width)
+        assertEquals(original2.height, stored2.height)
 
-        assertTrue(resized1.width < original1.width || resized1.height < original1.height)
-        assertTrue(resized2.width < original2.width || resized2.height < original2.height)
+        assertEquals(original1.width, processed1.width)
+        assertEquals(original1.height, processed1.height)
+        assertEquals(original2.width, processed2.width)
+        assertEquals(original2.height, processed2.height)
 
-        assertEquals(resized1.width, processed1.width)
-        assertEquals(resized1.height, processed1.height)
-        assertEquals(resized2.width, processed2.width)
-        assertEquals(resized2.height, processed2.height)
+        val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid))
+        val resized =
+            requireNotNull(filesModule.readImageFile(upload1.uuid, maxWidth = 1920, maxHeight = 1080))
+        val resizedDimensions = imageDimensions(resized.bytes)
+
+        assertTrue(resizedDimensions.width <= 1920)
+        assertTrue(resizedDimensions.height <= 1080)
+        assertTrue(resizedDimensions.width < original1.width || resizedDimensions.height < original1.height)
+        assertEquals(resizedDimensions.width, resized.width)
+        assertEquals(resizedDimensions.height, resized.height)
+
+        val resizedFile = tempDir.resolve("uploads").resolve("resizing").resolve(uploadRow.hash).toFile()
+        assertTrue(resizedFile.exists())
 
         client.close()
     }

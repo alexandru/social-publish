@@ -153,7 +153,7 @@ class BlueskyApiModule(
     private suspend fun uploadBlob(uuid: String): ApiResult<BlueskyImageEmbed> {
         return try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, maxWidth = 1920, maxHeight = 1080)
                     ?: return ValidationError(
                         status = 404,
                         errorMessage = "Failed to read image file — uuid: $uuid",
