@@ -2,7 +2,6 @@ package com.alexn.socialpublish.modules
 
 import arrow.core.left
 import arrow.core.right
-import com.alexn.socialpublish.FilesConfig
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.UploadPayload
 import com.alexn.socialpublish.models.ApiResult
@@ -48,6 +47,11 @@ data class ProcessedUpload(
     val height: Int,
     val size: Long,
     val bytes: ByteArray,
+)
+
+data class FilesConfig(
+    val uploadedFilesPath: String,
+    val baseUrl: String,
 )
 
 class FilesModule private constructor(

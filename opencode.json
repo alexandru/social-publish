@@ -1,0 +1,10 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "intellij-idea": {
+            "type": "remote",
+            "url": "http://localhost:64342/sse",
+            "enabled": true
+        }
+    }
+}

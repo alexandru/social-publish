@@ -2,7 +2,6 @@ package com.alexn.socialpublish
 
 import arrow.continuations.SuspendApp
 import arrow.fx.coroutines.resourceScope
-import com.alexn.socialpublish.config.AppCliCommand
 import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.server.startServer
 import com.github.ajalt.clikt.core.main

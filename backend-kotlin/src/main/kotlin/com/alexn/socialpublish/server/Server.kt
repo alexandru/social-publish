@@ -1,7 +1,7 @@
 package com.alexn.socialpublish.server
 
 import arrow.core.Either
-import com.alexn.socialpublish.config.AppConfig
+import com.alexn.socialpublish.AppConfig
 import com.alexn.socialpublish.db.DocumentsDatabase
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase

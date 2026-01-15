@@ -1,9 +1,9 @@
 package com.alexn.socialpublish.testutils
 
-import com.alexn.socialpublish.FilesConfig
 import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.modules.FileUploadResponse
+import com.alexn.socialpublish.modules.FilesConfig
 import com.alexn.socialpublish.modules.FilesModule
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body

@@ -1,9 +1,9 @@
-package com.alexn.socialpublish.config
+package com.alexn.socialpublish
 
-import com.alexn.socialpublish.FilesConfig
 import com.alexn.socialpublish.integrations.bluesky.BlueskyConfig
 import com.alexn.socialpublish.integrations.mastodon.MastodonConfig
 import com.alexn.socialpublish.integrations.twitter.TwitterConfig
+import com.alexn.socialpublish.modules.FilesConfig
 import com.alexn.socialpublish.server.ServerAuthConfig
 import com.alexn.socialpublish.server.ServerConfig
 import com.github.ajalt.clikt.core.CliktCommand
