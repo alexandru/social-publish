@@ -25,7 +25,7 @@ val Authorize = FC<PropsWithChildren> { props ->
             linkHref = null
             onDisable = {
                 message = ""
-                navigateTo("/login?redirect=${'$'}currentPath")
+                navigateTo("/login?redirect=${'$'}{currentPath}")
             }
         }
     } else {

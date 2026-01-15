@@ -11,14 +11,23 @@ import com.alexn.socialpublish.frontend.models.SelectedImage
 import com.alexn.socialpublish.frontend.models.Target
 import com.alexn.socialpublish.frontend.utils.getAuthStatus
 import com.alexn.socialpublish.frontend.utils.navigateTo
+import com.alexn.socialpublish.frontend.utils.parseJsonObject
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
 import com.alexn.socialpublish.frontend.utils.toWindowTarget
 import js.promise.await
-import kotlin.js.JSON
-import kotlin.js.json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -46,6 +55,7 @@ import web.form.FormData
 import web.html.HTMLFieldSetElement
 import web.html.HTMLFormElement
 import web.html.HTMLInputElement
+import web.html.HTMLTextAreaElement
 import web.html.InputType
 import web.http.BodyInit
 import web.http.Headers
@@ -143,27 +153,26 @@ val PostForm = FC<PostFormProps> { props ->
                             props.onError("Error uploading image: HTTP ${'$'}{response.status} / ${'$'}text")
                             return@withDisabledForm
                         }
-                        val jsonResponse = response.jsonAsync().await()
-                        val uuid = jsonResponse.asDynamic().uuid as? String
+                        val bodyText = response.textAsync().await()
+                        val jsonResponse = parseJsonObject(bodyText)
+                        val uuid = jsonResponse?.get("uuid")?.jsonPrimitive?.contentOrNull
                         if (uuid != null) {
                             imageIds.add(uuid)
                         }
                     }
                 }
 
-                val payload = json()
-                payload.asDynamic().content = data.content
-                if (data.link != null) {
-                    payload.asDynamic().link = data.link
+                val payload = buildJsonObject {
+                    put("content", JsonPrimitive(data.content.orEmpty()))
+                    data.link?.let { put("link", JsonPrimitive(it)) }
+                    put("targets", JsonArray(data.targets.map { JsonPrimitive(it.apiValue) }))
+                    data.rss?.let { put("rss", JsonPrimitive(it)) }
+                    if (data.cleanupHtml) {
+                        put("cleanupHtml", JsonPrimitive("1"))
+                    }
+                    put("images", JsonArray(imageIds.map { JsonPrimitive(it) }))
                 }
-                payload.asDynamic().targets = data.targets.map { it.apiValue }.toTypedArray()
-                if (data.rss != null) {
-                    payload.asDynamic().rss = data.rss
-                }
-                if (data.cleanupHtml) {
-                    payload.asDynamic().cleanupHtml = "1"
-                }
-                payload.asDynamic().images = imageIds.toTypedArray()
+                val payloadText = Json.encodeToString(JsonObject.serializer(), payload)
 
                 try {
                     val response = fetch(
@@ -171,7 +180,7 @@ val PostForm = FC<PostFormProps> { props ->
                         RequestInit(
                             method = "POST".toRequestMethod(),
                             headers = Headers().apply { set("Content-Type", "application/json") },
-                            body = BodyInit(JSON.stringify(payload)),
+                            body = BodyInit(payloadText),
                         ),
                     )
                     if (response.status == 401.toShort() || response.status == 403.toShort()) {
@@ -183,7 +192,6 @@ val PostForm = FC<PostFormProps> { props ->
                         props.onError("Error submitting form: HTTP ${'$'}{response.status} / ${'$'}text")
                         return@withDisabledForm
                     }
-                    response.jsonAsync().await()
                     formRef.current?.reset()
                     data = PublishFormData()
                     images = emptyMap()
@@ -199,7 +207,11 @@ val PostForm = FC<PostFormProps> { props ->
 
     val handleInputChange = { fieldName: String ->
         { event: FormEvent<*> ->
-            val value = event.target.asDynamic().value as String
+            val value = when (val target = event.target) {
+                is HTMLInputElement -> target.value
+                is HTMLTextAreaElement -> target.value
+                else -> ""
+            }
             data = when (fieldName) {
                 "content" -> data.copy(content = value)
                 "link" -> data.copy(link = value)

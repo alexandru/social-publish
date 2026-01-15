@@ -40,4 +40,4 @@ kotlin-js-store/
 hs_err_pid*
 
 # Local development junk
-./var
+var/

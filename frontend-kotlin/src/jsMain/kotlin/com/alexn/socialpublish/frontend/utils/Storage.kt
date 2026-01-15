@@ -1,5 +1,6 @@
 package com.alexn.socialpublish.frontend.utils
 
+import kotlin.js.Date
 import kotlin.js.JSON
 import web.dom.document
 import web.storage.localStorage
@@ -24,9 +25,8 @@ fun cookies(): Map<String, String> {
 
 fun setCookie(name: String, value: String, expirationMillis: Int? = null) {
     val expires = if (expirationMillis != null) {
-        val date = js("new Date()")
-        date.asDynamic().setTime(date.asDynamic().getTime() + expirationMillis)
-        ";expires=${'$'}{date.asDynamic().toUTCString()}"
+        val date = Date(Date().getTime() + expirationMillis)
+        ";expires=${'$'}{date.toUTCString()}"
     } else {
         ""
     }
@@ -34,8 +34,8 @@ fun setCookie(name: String, value: String, expirationMillis: Int? = null) {
 }
 
 fun clearCookie(name: String) {
-    val date = js("new Date(0)")
-    document.cookie = "${'$'}name=;expires=${'$'}{date.asDynamic().toUTCString()};path=/"
+    val date = Date(0)
+    document.cookie = "${'$'}name=;expires=${'$'}{date.toUTCString()};path=/"
 }
 
 fun getJwtToken(): String? = cookies()["access_token"]

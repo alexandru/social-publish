@@ -5,10 +5,14 @@ package com.alexn.socialpublish.frontend.pages
 import com.alexn.socialpublish.frontend.components.Authorize
 import com.alexn.socialpublish.frontend.icons.logoTwitter
 import com.alexn.socialpublish.frontend.utils.navigateTo
+import com.alexn.socialpublish.frontend.utils.parseJsonObject
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.updateAuthStatus
 import js.promise.await
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.js.Date
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -47,10 +51,11 @@ val Account = FC<Props> {
                 return@launch
             }
             if (response.status == 200.toShort()) {
-                val json = response.jsonAsync().await()
-                val hasAuthorization = json.asDynamic().hasAuthorization as? Boolean ?: false
+                val bodyText = response.textAsync().await()
+                val bodyJson = parseJsonObject(bodyText)
+                val hasAuthorization = bodyJson?.get("hasAuthorization")?.jsonPrimitive?.booleanOrNull ?: false
                 if (hasAuthorization) {
-                    val createdAt = json.asDynamic().createdAt as? String
+                    val createdAt = bodyJson?.get("createdAt")?.jsonPrimitive?.contentOrNull
                     val atDateTime = if (createdAt != null) " at ${'$'}{Date(createdAt).toLocaleString()}" else ""
                     twitterStatus = "Connected${'$'}atDateTime"
                 } else {

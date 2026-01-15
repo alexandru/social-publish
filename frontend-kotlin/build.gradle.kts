@@ -17,6 +17,7 @@ kotlin {
             }
 
             runTask {
+                val resourcesDir = project.layout.buildDirectory.dir("processedResources/js/main").get().asFile
                 devServerProperty.set(
                     KotlinWebpackConfig.DevServer(
                         port = 3001,
@@ -34,7 +35,9 @@ kotlin {
                                 target = "http://localhost:3000",
                             ),
                         ),
-                    ),
+                    ).apply {
+                        static(resourcesDir.path, watch = true)
+                    },
                 )
             }
 
@@ -50,6 +53,7 @@ kotlin {
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-web:2026.1.5")
                 implementation("org.jetbrains.kotlinx:kotlinx-browser:0.5.0")
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
                 implementation(npm("bulma", "1.0.4"))
                 implementation(npm("ionicons", "8.0.13"))
             }

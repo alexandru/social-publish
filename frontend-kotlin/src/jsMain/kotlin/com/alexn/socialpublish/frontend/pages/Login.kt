@@ -8,12 +8,17 @@ import com.alexn.socialpublish.frontend.utils.HasAuth
 import com.alexn.socialpublish.frontend.utils.navigateTo
 import com.alexn.socialpublish.frontend.utils.setAuthStatus
 import com.alexn.socialpublish.frontend.utils.setJwtToken
+import com.alexn.socialpublish.frontend.utils.parseJsonObject
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
 import com.alexn.socialpublish.frontend.utils.useCurrentPath
 import js.promise.await
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.js.JSON
 import kotlin.js.json
 import kotlinx.coroutines.MainScope
@@ -89,23 +94,27 @@ val Login = FC<Props> {
                         body = BodyInit(JSON.stringify(payload)),
                     ),
                 )
-                val body = response.jsonAsync().await()
+                val bodyText = response.textAsync().await()
+                val bodyJson = parseJsonObject(bodyText)
                 if (response.status == 200.toShort()) {
-                    val token = body.asDynamic().token as? String
+                    val token = bodyJson?.get("token")?.jsonPrimitive?.contentOrNull
                     if (token == null) {
                         error = "No token received from the server!"
                     } else {
-                        val hasAuth = body.asDynamic().hasAuth
-                        val twitter = hasAuth?.twitter as? Boolean ?: false
+                        val hasAuth = bodyJson?.get("hasAuth")?.jsonObject
+                        val twitter = hasAuth?.get("twitter")?.jsonPrimitive?.booleanOrNull ?: false
                         setJwtToken(token)
                         setAuthStatus(HasAuth(twitter = twitter))
                         navigateTo(redirectTo)
                     }
-                } else if (body.asDynamic().error != null) {
-                    error = "${'$'}{body.asDynamic().error}!"
                 } else {
-                    console.warn("Error while logging in:", response.status, body)
-                    error = "HTTP ${'$'}{response.status} error while logging in! "
+                    val errorMessage = bodyJson?.get("error")?.jsonPrimitive?.contentOrNull
+                    if (errorMessage != null) {
+                        error = "${'$'}errorMessage!"
+                    } else {
+                        console.warn("Error while logging in:", response.status, bodyText)
+                        error = "HTTP ${'$'}{response.status} error while logging in! "
+                    }
                 }
             } catch (exception: dynamic) {
                 console.error("While logging in", exception)
