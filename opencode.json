@@ -1,0 +1,18 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "rewrite-backend-with-scala-3-metals": {
+            "type": "remote",
+            "url": "http://localhost:64299/sse",
+            "enabled": true
+        },
+        "chrome-devtools": {
+            "type": "local",
+            "command": [
+                "npx",
+                "-y",
+                "chrome-devtools-mcp@latest"
+            ]
+        }
+    }
+}
