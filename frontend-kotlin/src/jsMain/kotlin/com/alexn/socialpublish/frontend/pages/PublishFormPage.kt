@@ -2,15 +2,16 @@
 
 package com.alexn.socialpublish.frontend.pages
 
+import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.components.Authorize
 import com.alexn.socialpublish.frontend.components.ImageUpload
 import com.alexn.socialpublish.frontend.components.ModalMessage
+import com.alexn.socialpublish.frontend.utils.jso
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.models.PublishFormData
 import com.alexn.socialpublish.frontend.models.SelectedImage
 import com.alexn.socialpublish.frontend.models.Target
 import com.alexn.socialpublish.frontend.utils.getAuthStatus
-import com.alexn.socialpublish.frontend.utils.navigateTo
 import com.alexn.socialpublish.frontend.utils.parseJsonObject
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
@@ -18,18 +19,16 @@ import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
 import com.alexn.socialpublish.frontend.utils.toWindowTarget
 import js.promise.await
+import js.reflect.unsafeCast
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import react.FC
 import react.Props
@@ -45,7 +44,7 @@ import react.dom.html.ReactHTML.label
 import react.dom.html.ReactHTML.p
 import react.dom.html.ReactHTML.section
 import react.dom.html.ReactHTML.textarea
-import react.useEffect
+import tanstack.react.router.useNavigate
 import react.useMemo
 import react.useRef
 import react.useState
@@ -56,11 +55,9 @@ import web.html.HTMLFieldSetElement
 import web.html.HTMLFormElement
 import web.html.HTMLInputElement
 import web.html.HTMLTextAreaElement
-import web.html.InputType
 import web.http.BodyInit
 import web.http.Headers
 import web.http.RequestInit
-import web.http.RequestMethod
 import web.http.fetch
 
 external interface CharsLeftProps : Props {
@@ -73,7 +70,7 @@ val CharsLeft = FC<CharsLeftProps> { props ->
         .joinToString("\n\n")
     p {
         className = "help".toClassName()
-        +"Characters left: ${'$'}{280 - text.length}"
+        +"Characters left: ${280 - text.length}"
     }
 }
 
@@ -88,6 +85,7 @@ val PostForm = FC<PostFormProps> { props ->
     var images by useState<Map<Int, SelectedImage>>(emptyMap())
     val hasAuth = getAuthStatus()
     val scope = useMemo { MainScope() }
+    val navigate = useNavigate()
 
 
     val addImageComponent = {
@@ -145,12 +143,20 @@ val PostForm = FC<PostFormProps> { props ->
                             ),
                         )
                         if (response.status == 401.toShort() || response.status == 403.toShort()) {
-                            navigateTo("/login?error=${'$'}{response.status}&redirect=/form")
+                            navigate(
+                                jso {
+                                    to = "/login".unsafeCast<Nothing>()
+                                    search = jso<LoginSearch> {
+                                        error = "${response.status}"
+                                        redirect = "/form"
+                                    }.unsafeCast<Nothing>()
+                                }
+                            )
                             return@withDisabledForm
                         }
                         if (response.status != 200.toShort()) {
                             val text = response.textAsync().await()
-                            props.onError("Error uploading image: HTTP ${'$'}{response.status} / ${'$'}text")
+                            props.onError("Error uploading image: HTTP ${response.status} / $text")
                             return@withDisabledForm
                         }
                         val bodyText = response.textAsync().await()
@@ -184,12 +190,20 @@ val PostForm = FC<PostFormProps> { props ->
                         ),
                     )
                     if (response.status == 401.toShort() || response.status == 403.toShort()) {
-                        navigateTo("/login?error=${'$'}{response.status}&redirect=/form")
+                        navigate(
+                            jso {
+                                to = "/login".unsafeCast<Nothing>()
+                                search = jso<LoginSearch> {
+                                    error = "${response.status}"
+                                    redirect = "/form"
+                                }.unsafeCast<Nothing>()
+                            }
+                        )
                         return@withDisabledForm
                     }
                     if (response.status != 200.toShort()) {
                         val text = response.textAsync().await()
-                        props.onError("Error submitting form: HTTP ${'$'}{response.status} / ${'$'}text")
+                        props.onError("Error submitting form: HTTP ${response.status} / $text")
                         return@withDisabledForm
                     }
                     formRef.current?.reset()

@@ -2,10 +2,12 @@
 
 package com.alexn.socialpublish.frontend.pages
 
+import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.components.ModalMessage
+import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.loginRoute
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.utils.HasAuth
-import com.alexn.socialpublish.frontend.utils.navigateTo
 import com.alexn.socialpublish.frontend.utils.setAuthStatus
 import com.alexn.socialpublish.frontend.utils.setJwtToken
 import com.alexn.socialpublish.frontend.utils.parseJsonObject
@@ -13,8 +15,8 @@ import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
-import com.alexn.socialpublish.frontend.utils.useCurrentPath
 import js.promise.await
+import js.reflect.unsafeCast
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -22,7 +24,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.js.JSON
 import kotlin.js.json
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import react.FC
 import react.Props
@@ -33,34 +34,35 @@ import react.dom.html.ReactHTML.h1
 import react.dom.html.ReactHTML.input
 import react.dom.html.ReactHTML.label
 import react.dom.html.ReactHTML.section
+import tanstack.react.router.useNavigate
+import tanstack.react.router.useSearch
 import react.useEffect
 import react.useMemo
 import react.useState
 import web.console.console
 import web.html.HTMLFormElement
 import web.html.HTMLInputElement
-import web.html.InputType
 import web.http.BodyInit
 import web.http.Headers
 import web.http.RequestInit
-import web.http.RequestMethod
 import web.http.fetch
-import web.url.URLSearchParams
-import web.window.window
-
 
 val Login = FC<Props> {
     var username by useState("")
     var password by useState("")
     var error by useState<String?>(null)
 
-    val currentPath = useCurrentPath()
-    val query = URLSearchParams(window.location.search)
-    val redirectTo = query.get("redirect") ?: "/form"
+    val searchParams = useSearch<String>(
+        jso<dynamic> { from = "/login".unsafeCast<Nothing>() }
+    )
+    val navigate = useNavigate()
+    
+    val searchObj = searchParams.unsafeCast<LoginSearch>()
+    val redirectTo = searchObj.redirect ?: "/form"
     val scope = useMemo { MainScope() }
 
-    useEffect(dependencies = arrayOf(currentPath)) {
-        val errorCode = query.get("error")
+    useEffect(dependencies = arrayOf(searchObj.error)) {
+        val errorCode = searchObj.error
         if (errorCode != null) {
             error = when (errorCode) {
                 "401" -> "Unauthorized! Please log in..."
@@ -69,11 +71,16 @@ val Login = FC<Props> {
         }
     }
 
-
     val hideError = {
-        if (query.get("error") != null) {
-            query.delete("error")
-            navigateTo("/login?${'$'}{query.toString()}")
+        if (searchObj.error != null) {
+             navigate(
+                jso {
+                    to = "/login".unsafeCast<Nothing>()
+                    search = jso<LoginSearch> {
+                        this.redirect = redirectTo
+                    }.unsafeCast<Nothing>()
+                }
+            )
         }
         error = null
     }
@@ -105,15 +112,22 @@ val Login = FC<Props> {
                         val twitter = hasAuth?.get("twitter")?.jsonPrimitive?.booleanOrNull ?: false
                         setJwtToken(token)
                         setAuthStatus(HasAuth(twitter = twitter))
-                        navigateTo(redirectTo)
+                        val cleanRedirect = if (redirectTo.startsWith("http://localhost:3001")) {
+                            redirectTo.removePrefix("http://localhost:3001")
+                        } else {
+                            redirectTo
+                        }
+                        navigate(
+                            jso { to = cleanRedirect.unsafeCast<Nothing>() }
+                        )
                     }
                 } else {
                     val errorMessage = bodyJson?.get("error")?.jsonPrimitive?.contentOrNull
                     if (errorMessage != null) {
-                        error = "${'$'}errorMessage!"
+                        error = "$errorMessage!"
                     } else {
                         console.warn("Error while logging in:", response.status, bodyText)
-                        error = "HTTP ${'$'}{response.status} error while logging in! "
+                        error = "HTTP ${response.status} error while logging in! "
                     }
                 }
             } catch (exception: dynamic) {

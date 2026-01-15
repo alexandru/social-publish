@@ -1,5 +1,6 @@
 package com.alexn.socialpublish.frontend.components
 
+import com.alexn.socialpublish.frontend.utils.jso
 import com.alexn.socialpublish.frontend.icons.homeOutline
 import com.alexn.socialpublish.frontend.icons.logIn
 import com.alexn.socialpublish.frontend.icons.logOut
@@ -8,39 +9,30 @@ import com.alexn.socialpublish.frontend.icons.play
 import com.alexn.socialpublish.frontend.utils.clearJwtToken
 import com.alexn.socialpublish.frontend.utils.dataTarget
 import com.alexn.socialpublish.frontend.utils.hasJwtToken
-import com.alexn.socialpublish.frontend.utils.navigateTo
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toWindowTarget
-import com.alexn.socialpublish.frontend.utils.useCurrentPath
+import js.reflect.unsafeCast
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
+import web.cssom.ClassName
 import react.dom.html.ReactHTML.a
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.img
 import react.dom.html.ReactHTML.nav
 import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.strong
+import tanstack.react.router.Link
+import tanstack.react.router.useNavigate
 import react.useState
 
 val NavBar = FC<Props> {
     val (navbarIsActive, setNavbarIsActive) = useState(false)
-    val pathname = useCurrentPath().substringBefore("?")
-
-    fun classOfLink(mainClass: String, path: String): String =
-        if (pathname == path) "${'$'}mainClass is-active" else mainClass
-
+    
     val isLoggedIn = hasJwtToken()
     val burgerClass = if (navbarIsActive) "navbar-burger is-active" else "navbar-burger"
     val menuClass = if (navbarIsActive) "navbar-menu is-active" else "navbar-menu"
-
-    val onNavigate = { path: String ->
-        { event: MouseEvent<*, *> ->
-            event.preventDefault()
-            navigateTo(path)
-        }
-    }
 
     nav {
         className = "navbar is-primary".toClassName()
@@ -67,10 +59,12 @@ val NavBar = FC<Props> {
             className = menuClass.toClassName()
             div {
                 className = "navbar-start".toClassName()
-                a {
-                    className = classOfLink("navbar-item", "/").toClassName()
-                    href = "/"
-                    onClick = onNavigate("/")
+                Link {
+                    val classNameFn = { args: dynamic ->
+                        if (args.isActive == true) "navbar-item is-active" else "navbar-item"
+                    }
+                    className = classNameFn.unsafeCast<ClassName>()
+                    to = "/".unsafeCast<Nothing>()
                     span {
                         className = "icon".toClassName()
                         img { src = homeOutline; alt = "Home" }
@@ -78,10 +72,12 @@ val NavBar = FC<Props> {
                     strong { +"Home" }
                 }
                 if (isLoggedIn) {
-                    a {
-                        className = classOfLink("navbar-item", "/form").toClassName()
-                        href = "/form"
-                        onClick = onNavigate("/form")
+                    Link {
+                        val classNameFn = { args: dynamic ->
+                            if (args.isActive == true) "navbar-item is-active" else "navbar-item"
+                        }
+                        className = classNameFn.unsafeCast<ClassName>()
+                        to = "/form".unsafeCast<Nothing>()
                         span {
                             className = "icon".toClassName()
                             img { src = play; alt = "Publish" }
@@ -109,10 +105,12 @@ val NavBar = FC<Props> {
                     div {
                         className = "buttons".toClassName()
                         if (isLoggedIn) {
-                            a {
-                                className = classOfLink("button is-primary", "/account").toClassName()
-                                href = "/account"
-                                onClick = onNavigate("/account")
+                            Link {
+                                val classNameFn = { args: dynamic ->
+                                    if (args.isActive == true) "button is-primary is-active" else "button is-primary"
+                                }
+                                className = classNameFn.unsafeCast<ClassName>()
+                                to = "/account".unsafeCast<Nothing>()
                                 strong { +"Account" }
                             }
                         }
@@ -131,12 +129,11 @@ external interface LoginOrLogoutButtonProps : Props {
 }
 
 val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
-    val pathname = useCurrentPath().substringBefore("?")
-
+    val navigate = useNavigate()
     val onLogout = { event: MouseEvent<*, *> ->
         event.preventDefault()
         clearJwtToken()
-        navigateTo("/")
+        navigate(jso { to = "/".unsafeCast<Nothing>() })
     }
 
     if (props.isLoggedIn) {
@@ -151,14 +148,12 @@ val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
             }
         }
     } else {
-        val status = if (pathname == "/login") " is-active" else ""
-        a {
-            className = "button is-primary${'$'}status".toClassName()
-            href = "/login"
-            onClick = { event ->
-                event.preventDefault()
-                navigateTo("/login")
+        Link {
+            val classNameFn = { args: dynamic ->
+                if (args.isActive == true) "button is-primary is-active" else "button is-primary"
             }
+            className = classNameFn.unsafeCast<ClassName>()
+            to = "/login".unsafeCast<Nothing>()
             span {
                 className = "icon".toClassName()
                 img { src = logIn; alt = "Login" }

@@ -49,8 +49,10 @@ kotlin {
             dependencies {
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react:2026.1.5-19.2.3")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.1.5-19.2.3")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-tanstack-react-router:2026.1.5-1.147.1")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.1.5")
                 implementation("org.jetbrains.kotlin-wrappers:kotlin-web:2026.1.5")
+                implementation("org.jetbrains.kotlin-wrappers:kotlin-js:2026.1.5")
                 implementation("org.jetbrains.kotlinx:kotlinx-browser:0.5.0")
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
