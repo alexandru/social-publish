@@ -22,81 +22,100 @@ data class AppConfig(
 
 class AppCliCommand : CliktCommand(name = "social-publish") {
     // Server configuration
-    private val dbPath: String by option("--db-path", help = "Path to the SQLite database file", envvar = "DB_PATH")
-        .required()
+    private val dbPath: String by
+        option(
+            "--db-path",
+            help = "Path to the SQLite database file (env: DB_PATH)",
+            envvar = "DB_PATH",
+        ).required()
 
-    private val httpPort: Int by option("--http-port", help = "Port to listen on", envvar = "HTTP_PORT")
-        .int()
-        .default(3000)
+    private val httpPort: Int by
+        option(
+            "--http-port",
+            help = "Port to listen on (env: HTTP_PORT)",
+            envvar = "HTTP_PORT",
+        ).int().default(3000)
 
-    private val baseUrl: String by option("--base-url", help = "Public URL of this server", envvar = "BASE_URL")
-        .required()
+    private val baseUrl: String by
+        option(
+            "--base-url",
+            help = "Public URL of this server (env: BASE_URL)",
+            envvar = "BASE_URL",
+        ).required()
 
     // Server authentication configuration
-    private val serverAuthUsername: String by option(
-        "--server-auth-username",
-        help = "Username for server authentication",
-        envvar = "SERVER_AUTH_USERNAME",
-    )
-        .required()
+    private val serverAuthUsername: String by
+        option(
+            "--server-auth-username",
+            help = "Username for server authentication (env: SERVER_AUTH_USERNAME)",
+            envvar = "SERVER_AUTH_USERNAME",
+        ).required()
 
-    private val serverAuthPassword: String by option(
-        "--server-auth-password",
-        help = "Password for server authentication",
-        envvar = "SERVER_AUTH_PASSWORD",
-    )
-        .required()
+    private val serverAuthPassword: String by
+        option(
+            "--server-auth-password",
+            help = "Password for server authentication (env: SERVER_AUTH_PASSWORD)",
+            envvar = "SERVER_AUTH_PASSWORD",
+        ).required()
 
-    private val serverAuthJwtSecret: String by option(
-        "--server-auth-jwt-secret",
-        help = "JWT secret for server authentication",
-        envvar = "JWT_SECRET",
-    )
-        .required()
+    private val serverAuthJwtSecret: String by
+        option(
+            "--server-auth-jwt-secret",
+            help = "JWT secret for server authentication (env: JWT_SECRET)",
+            envvar = "JWT_SECRET",
+        ).required()
 
     // Files storage configuration
-    private val uploadedFilesPath: String by option(
-        "--uploaded-files-path",
-        help = "Directory where uploaded files are stored",
-        envvar = "UPLOADED_FILES_PATH",
-    )
-        .required()
+    private val uploadedFilesPath: String by
+        option(
+            "--uploaded-files-path",
+            help = "Directory where uploaded files are stored (env: UPLOADED_FILES_PATH)",
+            envvar = "UPLOADED_FILES_PATH",
+        ).required()
 
     // Bluesky integration (optional)
-    private val blueskyService: String by option("--bluesky-service", help = "URL of the Bluesky service", envvar = "BSKY_SERVICE")
-        .default("https://bsky.social")
+    private val blueskyService: String by
+        option(
+            "--bluesky-service",
+            help = "URL of the Bluesky service (env: BSKY_SERVICE)",
+            envvar = "BSKY_SERVICE",
+        ).default("https://bsky.social")
 
     private val blueskyUsername: String? by option(
         "--bluesky-username",
-        help = "Username for Bluesky authentication",
+        help = "Username for Bluesky authentication (env: BSKY_USERNAME)",
         envvar = "BSKY_USERNAME",
     )
 
     private val blueskyPassword: String? by option(
         "--bluesky-password",
-        help = "Password for Bluesky authentication",
+        help = "Password for Bluesky authentication (env: BSKY_PASSWORD)",
         envvar = "BSKY_PASSWORD",
     )
 
     // Mastodon integration (optional)
-    private val mastodonHost: String? by option("--mastodon-host", help = "Mastodon instance host URL", envvar = "MASTODON_HOST")
+    private val mastodonHost: String? by option(
+        "--mastodon-host",
+        help = "Mastodon instance host URL (env: MASTODON_HOST)",
+        envvar = "MASTODON_HOST",
+    )
 
     private val mastodonAccessToken: String? by option(
         "--mastodon-access-token",
-        help = "Mastodon API access token",
+        help = "Mastodon API access token (env: MASTODON_ACCESS_TOKEN)",
         envvar = "MASTODON_ACCESS_TOKEN",
     )
 
     // Twitter integration (optional)
     private val twitterOauth1ConsumerKey: String? by option(
         "--twitter-oauth1-consumer-key",
-        help = "Twitter OAuth1 consumer key",
+        help = "Twitter OAuth1 consumer key (env: TWITTER_OAUTH1_CONSUMER_KEY)",
         envvar = "TWITTER_OAUTH1_CONSUMER_KEY",
     )
 
     private val twitterOauth1ConsumerSecret: String? by option(
         "--twitter-oauth1-consumer-secret",
-        help = "Twitter OAuth1 consumer secret",
+        help = "Twitter OAuth1 consumer secret (env: TWITTER_OAUTH1_CONSUMER_SECRET)",
         envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
     )
 

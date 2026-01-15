@@ -10,20 +10,21 @@ import kotlinx.coroutines.awaitCancellation
 
 private val logger = KotlinLogging.logger {}
 
-fun main(args: Array<String>) =
+fun main(args: Array<String>) {
+    // Parse CLI arguments
+    val cliCommand = AppCliCommand()
+    cliCommand.main(args)
+    val config = cliCommand.config
+    // SuspendApp currently has issues with System.exit, hence logic above cannot
+    // be inside SuspendApp
     SuspendApp {
         resourceScope {
-            logger.info { "Starting Social Publish application..." }
-
-            val cliCommand = AppCliCommand()
-            cliCommand.main(args)
-            val config = cliCommand.config
-
+            logger.info { "Starting the Social Publish backend..." }
             try {
-                val resources = Database.resourceBundle(config.server.dbPath).bind()
+                val resources =
+                    Database.resourceBundle(config.server.dbPath).bind()
 
                 logger.info { "Database initialized successfully" }
-
                 install(
                     acquire = {
                         val engine =
@@ -37,7 +38,10 @@ fun main(args: Array<String>) =
                         engine
                     },
                     release = { engine, _ ->
-                        engine.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
+                        engine.stop(
+                            gracePeriodMillis = 1_000,
+                            timeoutMillis = 5_000,
+                        )
                     },
                 )
 
@@ -49,3 +53,4 @@ fun main(args: Array<String>) =
             }
         }
     }
+}

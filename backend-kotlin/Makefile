@@ -36,3 +36,13 @@ clean:
 # Build a fat JAR (includes runtime dependencies)
 fat-jar:
 	$(GRADLE) fatJar
+
+dependency-updates:
+	$(GRADLE) dependencyUpdates \
+		-Drevision=release \
+		-DoutputFormatter=html \
+		--refresh-dependencies && \
+		open build/dependencyUpdates/report.html
+
+update-gradle:
+	$(GRADLE) wrapper --gradle-version latest
