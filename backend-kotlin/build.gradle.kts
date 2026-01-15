@@ -123,4 +123,16 @@ tasks {
         from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
+
+    // Fat JAR task
+    val fatJar by registering(Jar::class) {
+        archiveClassifier.set("all")
+        manifest {
+            attributes("Main-Class" to "com.alexn.socialpublish.MainKt")
+        }
+        from(sourceSets.main.get().output)
+        dependsOn(configurations.runtimeClasspath)
+        from({ configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) } })
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 }
