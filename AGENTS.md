@@ -7,6 +7,7 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 ## Shared Standards
 
 ### Development Process
+
 - **TDD-first**: Write failing tests before implementation
 - **Safe refactoring**: Add missing tests before refactoring
 - **Encapsulation**: Components must be extractable to standalone projects/libraries
@@ -21,21 +22,23 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 
 ---
 
-## Project: `./backend-scala` (Scala 3)
+## Project: `./backend` (Scala 3)
 
-Exposes an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn).  Build in Scala 3, making use of functional programming and the Typelevel ecosystem of libraries.
+Exposes an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn). Build in Scala 3, making use of functional programming and the Typelevel ecosystem of libraries.
 
 ### Build & Test
 
 **Setup** (before each command):
+
 ```bash
 # Run sbt from the directory where `build.sbt` is:
-cd backend-scala/
+cd backend/
 # Keep sbt server in background:
 export SBT_NATIVE_CLIENT=true
 ```
 
 **Commands**:
+
 - Build: `sbt Test/compile`
 - Test: `sbt ";Test/compile;test"`
 - Format (required): `sbt scalafmtAll`
@@ -54,15 +57,10 @@ export SBT_NATIVE_CLIENT=true
 ### Package Structure
 
 Organize by component / let encapsulation drive the organization, e.g.:
+
 - `socialpublish.integrations.twitter`
 - `socialpublish.integrations.mastodon`
 - `socialpublish.http` (API server)
-
----
-
-## Project: `./backend` (TypeScript/Node.js)
-
-Guidelines TBD.
 
 ---
 

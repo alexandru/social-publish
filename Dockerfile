@@ -1,53 +1,49 @@
-# Use an official Node.js runtime as the base image
-FROM alpine:latest as build
+FROM node:20-alpine AS frontend-build
 
-# Set the working directory in the container to /app
-WORKDIR /app
-RUN mkdir -p /app/frontend && mkdir -p /app/backend
+WORKDIR /app/frontend
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
+COPY frontend/package*.json ./
+RUN npm install
 
-# Install required packages
-RUN apk add --no-cache nodejs npm
-
-# Install the application dependencies
-RUN npm install && npm run init
-
-# Copy the rest of the application code to the working directory
-COPY . .
-
-# Build the application
+COPY frontend/ .
 RUN npm run build
-RUN ./scripts/package.sh
 
-###
-FROM alpine:latest
+FROM eclipse-temurin:21-jdk-jammy AS backend-build
 
 WORKDIR /app
 
-RUN apk add --no-cache nodejs npm
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-RUN adduser -u 1001 -h /app -s /bin/sh -D appuser
-RUN chown -R appuser /app && chmod -R "g+rwX" /app
-RUN mkdir -p /var/lib/social-publish
-RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
+COPY backend/sbt ./sbt
+COPY backend/project ./project
+COPY backend/build.sbt ./build.sbt
+RUN chmod +x ./sbt
+RUN ./sbt -Dsbt.supershell=false update
 
-COPY --from=build --chown=appuser:root /app/dist/. /app/
-COPY ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY backend/ .
+RUN ./sbt -Dsbt.supershell=false assembly
 
-# Expose port 3000 for the application
-EXPOSE 3000
-USER appuser
+FROM eclipse-temurin:21-jdk-jammy
 
-ENV NODE_ENV=production
-ENV PORT=3000
+WORKDIR /app
+
+RUN useradd -u 1001 -d /app -s /bin/sh -m appuser
+RUN mkdir -p /var/lib/social-publish /app/public
+RUN chown -R appuser:appuser /app /var/lib/social-publish && chmod -R "g+rwX" /app /var/lib/social-publish
+
+ENV HTTP_PORT=3000
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
 ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC -XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=25.0 -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError"
 
-RUN mkdir -p "${UPLOADED_FILES_PATH}"
+RUN mkdir -p "${UPLOADED_FILES_PATH}" && chown -R appuser:appuser "${UPLOADED_FILES_PATH}"
 
-# Define the command to run the application
-ENTRYPOINT [ "./docker-entrypoint.sh", "node", "--enable-source-maps", "./server/main.js" ]
+COPY --from=backend-build --chown=appuser:appuser /app/target/scala-*/social-publish-backend.jar /app/social-publish-backend.jar
+COPY --from=frontend-build --chown=appuser:appuser /app/frontend/dist/. /app/public/
+COPY --chown=appuser:appuser ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
+USER appuser
+EXPOSE 3000
+
+ENTRYPOINT [ "./docker-entrypoint.sh", "java", "-jar", "/app/social-publish-backend.jar" ]
