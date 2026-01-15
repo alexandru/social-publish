@@ -54,21 +54,24 @@ BASE_URL="https://your-hostname.com"
 SERVER_AUTH_USERNAME="your-username"
 SERVER_AUTH_PASSWORD="your-password"
 
+# Used for authentication (https://jwt.io)
+JWT_SECRET="random string"
+
 # Bluesky credentials
-BSKY_HOST="https://bsky.social"
+BSKY_ENABLED="false"
+BSKY_SERVICE="https://bsky.social"
 BSKY_USERNAME="your-username"
 BSKY_PASSWORD="your-password"
 
 # Mastodon credentials
+MASTODON_ENABLED="false"
 MASTODON_HOST="https://mastodon.social"
 MASTODON_ACCESS_TOKEN="your-access-token"
 
-# YouTube Oauth1 key and secret (Consumer Keys in the Developer Portal)
+# Twitter OAuth1 key and secret (Consumer Keys in the Developer Portal)
+TWITTER_ENABLED="false"
 TWITTER_OAUTH1_CONSUMER_KEY="Api Key"
 TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
-
-# Used for authentication (https://jwt.io)
-JWT_SECRET="random string"
 ```
 
 ### Bluesky credentials
@@ -77,7 +80,8 @@ For Bluesky, you'll need an "app password".
 
 - Go here to create one: <https://bsky.app/settings/app-passwords>
 - Copy the password
-- Set the `BSKY_PASSWORD` environment variable to it
+- Set `BSKY_ENABLED=true`, then set the `BSKY_PASSWORD` environment variable to it
+- Set `BSKY_SERVICE` to the service URL (e.g., `https://bsky.social`)
 
 Keep it safe, as it grants access to everything.
 
@@ -90,7 +94,7 @@ For Mastodon, you'll need an "access token". Here's how to get one:
 - Select `write:statuses` and `write:media` for permissions, and unselect everything else
 - Click on the newly created application
 - Copy "_your access token_"
-- Set the `MASTODON_ACCESS_TOKEN` environment variable to it
+- Set `MASTODON_ENABLED=true`, then set the `MASTODON_ACCESS_TOKEN` environment variable to it
 
 ### Twitter setup
 
@@ -100,7 +104,7 @@ For Twitter, we're working with Oauth1.
 - Create a project and app
 - In the "_Keys and tokens_" section of the app, generate "_Consumer Keys_" and copy the generated "_App Key and Secret_"
 - In the app's settings, go to "_User authentication settings_" and add as the "_Callback URL_": `https://<your-domain.com>/api/twitter/callback` (replace `<your-domain.com>` with your domain, obviously)
-- Set the `TWITTER_OAUTH1_CONSUMER_KEY` and the `TWITTER_OAUTH1_CONSUMER_SECRET` environment variables
+- Set `TWITTER_ENABLED=true`, then set the `TWITTER_OAUTH1_CONSUMER_KEY` and the `TWITTER_OAUTH1_CONSUMER_SECRET` environment variables
 - Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect Twitter_"
 
 ## Usage
@@ -120,13 +124,15 @@ While this service is able to publish directly to Mastodon and Bluesky, for othe
 
 ## Developing
 
-To start the development server (with incremental compilation, powered by [Vite](https://vitejs.dev/)):
+To start the development server (Scala backend + [Vite](https://vitejs.dev/) frontend):
 
 ```sh
 npm run dev
 ```
 
-You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
+You can then navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>. The dev command uses local defaults for `BASE_URL`, `SERVER_AUTH_USERNAME`, `SERVER_AUTH_PASSWORD`, and `JWT_SECRET` unless you override them in your shell.
+
+Ensure you have Java 17 and `sbt` installed to run the Scala backend locally.
 
 To build and test the Docker image locally:
 

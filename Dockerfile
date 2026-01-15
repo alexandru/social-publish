@@ -1,53 +1,45 @@
-# Use an official Node.js runtime as the base image
-FROM alpine:latest as build
+FROM node:20-alpine AS frontend-build
 
-# Set the working directory in the container to /app
-WORKDIR /app
-RUN mkdir -p /app/frontend && mkdir -p /app/backend
+WORKDIR /app/frontend
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
+COPY frontend/package*.json ./
+RUN npm install
 
-# Install required packages
-RUN apk add --no-cache nodejs npm
-
-# Install the application dependencies
-RUN npm install && npm run init
-
-# Copy the rest of the application code to the working directory
-COPY . .
-
-# Build the application
+COPY frontend/ .
 RUN npm run build
-RUN ./scripts/package.sh
 
-###
-FROM alpine:latest
+FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.10_7_1.10.7_3.3.4 AS backend-build
 
 WORKDIR /app
 
-RUN apk add --no-cache nodejs npm
+COPY backend-scala/project ./project
+COPY backend-scala/build.sbt ./build.sbt
+RUN sbt -Dsbt.supershell=false update
+
+COPY backend-scala/ .
+RUN sbt -Dsbt.supershell=false assembly
+
+FROM eclipse-temurin:17-jre-jammy
+
+WORKDIR /app
 
 RUN adduser -u 1001 -h /app -s /bin/sh -D appuser
 RUN chown -R appuser /app && chmod -R "g+rwX" /app
-RUN mkdir -p /var/lib/social-publish
-RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
+RUN mkdir -p /var/lib/social-publish /app/public
+RUN chown -R appuser /var/lib/social-publish /app/public && chmod -R "g+rwX" /var/lib/social-publish /app/public
 
-COPY --from=build --chown=appuser:root /app/dist/. /app/
+COPY --from=backend-build --chown=appuser:root /app/target/scala-*/social-publish-backend.jar /app/social-publish-backend.jar
+COPY --from=frontend-build --chown=appuser:root /app/frontend/dist/. /app/public/
 COPY ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Expose port 3000 for the application
 EXPOSE 3000
 USER appuser
 
-ENV NODE_ENV=production
-ENV PORT=3000
+ENV HTTP_PORT=3000
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
 ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
 
 RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
-# Define the command to run the application
-ENTRYPOINT [ "./docker-entrypoint.sh", "node", "--enable-source-maps", "./server/main.js" ]
+ENTRYPOINT [ "./docker-entrypoint.sh", "java", "-jar", "/app/social-publish-backend.jar" ]

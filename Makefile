@@ -26,18 +26,21 @@ run-local: build-local
 		--name social-publish \
 		-e "BASE_URL=${BASE_URL}" \
 		-e "JWT_SECRET=${JWT_SECRET}" \
-		-e "BSKY_HOST=${BSKY_HOST}" \
+		-e "BSKY_ENABLED=${BSKY_ENABLED}" \
+		-e "BSKY_SERVICE=${BSKY_SERVICE}" \
 		-e "BSKY_USERNAME=${BSKY_USERNAME}" \
 		-e "BSKY_PASSWORD=${BSKY_PASSWORD}" \
 		-e "SERVER_AUTH_USERNAME=${SERVER_AUTH_USERNAME}" \
 		-e "SERVER_AUTH_PASSWORD=${SERVER_AUTH_PASSWORD}" \
+		-e "MASTODON_ENABLED=${MASTODON_ENABLED}" \
 		-e "MASTODON_HOST=${MASTODON_HOST}" \
 		-e "MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}" \
+		-e "TWITTER_ENABLED=${TWITTER_ENABLED}" \
 		-e "TWITTER_OAUTH1_CONSUMER_KEY=${TWITTER_OAUTH1_CONSUMER_KEY}" \
 		-e "TWITTER_OAUTH1_CONSUMER_SECRET=${TWITTER_OAUTH1_CONSUMER_SECRET}" \
 		${LATEST_TAG}
 
 update:
 	npx npm-check-updates -u && npm install && \
-	cd ./backend && npx npm-check-updates -u && npm install && cd .. && \
-	cd ./frontend && npx npm-check-updates -u && npm install && cd ..
+	cd ./frontend && npx npm-check-updates -u && npm install && cd .. && \
+	cd ./backend-scala && sbt update && cd ..

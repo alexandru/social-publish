@@ -1,10 +1,12 @@
 {
   "name": "social-publish",
   "scripts": {
-    "init": "npm --prefix ./backend/ install && npm --prefix ./frontend/ install",
-    "dev": "npm run init && concurrently \"npm --prefix ./backend/ run dev\" \"npm --prefix ./frontend/ run dev\"",
-    "build": "npm run init && npm run clean && npm --prefix ./backend/ run build && npm --prefix ./frontend/ run build",
-    "clean": "npm --prefix ./backend/ run clean && npm --prefix ./frontend/ run clean",
+    "init": "npm --prefix ./frontend/ install",
+    "dev": "npm run init && concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:backend": "cd ./backend-scala && BASE_URL=${BASE_URL:-http://localhost:3000} SERVER_AUTH_USERNAME=${SERVER_AUTH_USERNAME:-admin} SERVER_AUTH_PASSWORD=${SERVER_AUTH_PASSWORD:-admin} JWT_SECRET=${JWT_SECRET:-dev-secret} BSKY_ENABLED=${BSKY_ENABLED:-false} MASTODON_ENABLED=${MASTODON_ENABLED:-false} TWITTER_ENABLED=${TWITTER_ENABLED:-false} SBT_NATIVE_CLIENT=true sbt -Dsbt.supershell=false ~run",
+    "dev:frontend": "npm --prefix ./frontend/ run dev",
+    "build": "npm run init && npm run clean && cd ./backend-scala && SBT_NATIVE_CLIENT=true sbt -Dsbt.supershell=false assembly && cd .. && npm --prefix ./frontend/ run build",
+    "clean": "cd ./backend-scala && SBT_NATIVE_CLIENT=true sbt clean && cd .. && npm --prefix ./frontend/ run clean",
     "format": "prettier . --write",
     "lint": "eslint . -f unix"
   },
