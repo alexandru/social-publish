@@ -1,7 +1,6 @@
 package socialpublish.testutils
 
 import cats.effect.*
-import doobie.*
 import java.nio.file.{Files, Path}
 import socialpublish.db.*
 
@@ -17,15 +16,10 @@ object DatabaseFixtures {
     ))) { path =>
       IO.blocking(Files.deleteIfExists(path)).attempt.void
     }.flatMap { path =>
-      val dbPath = path.toAbsolutePath.toString
-      val xa = Transactor.fromDriverManager[IO](
-        driver = "org.sqlite.JDBC",
-        url = s"jdbc:sqlite:$dbPath",
-        user = "",
-        password = "",
-        logHandler = None
-      )
-      Resource.eval(DocumentsDatabase(xa).map(db => TestDocumentsDatabase(db, path)))
+      val dbCfg = DatabaseConfig(path)
+      DatabaseConfig.transactorResource(dbCfg).flatMap { xa =>
+        Resource.eval(DocumentsDatabase(xa).map(db => TestDocumentsDatabase(db, path)))
+      }
     }
 
   def tempPostsDbResource: Resource[IO, TestPostsDatabase] =

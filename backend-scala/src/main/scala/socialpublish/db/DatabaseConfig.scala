@@ -1,8 +1,11 @@
 package socialpublish.db
 
+import cats.effect.{IO, Resource}
 import com.monovore.decline.Opts
-import java.nio.file.Path
-import cats.syntax.all.*
+import doobie.hikari.HikariTransactor
+import doobie.util.transactor.Transactor
+import java.nio.file.{Files, Path}
+import scala.concurrent.ExecutionContext
 
 case class DatabaseConfig(path: Path)
 
@@ -20,19 +23,25 @@ object DatabaseConfig {
 
   val opts: Opts[DatabaseConfig] = dbPathOpt.map(DatabaseConfig.apply)
 
-  // Resource helper for creating a Transactor when needed. Use HikariCP for pooling.
-  import cats.effect.{Resource, IO}
-  import doobie.util.transactor.Transactor
-  import doobie.hikari.HikariTransactor
-  import scala.concurrent.ExecutionContext
+  private def ensureParentDirectoryExists(cfg: DatabaseConfig): IO[Unit] =
+    IO.blocking {
+      val absPath = cfg.path.toAbsolutePath
+      val parent = absPath.getParent
+      if parent != null then {
+        val _ = Files.createDirectories(parent)
+      }
+    }
 
   def transactorResource(cfg: DatabaseConfig): Resource[IO, Transactor[IO]] =
-    HikariTransactor.newHikariTransactor[IO](
-      "org.sqlite.JDBC",
-      s"jdbc:sqlite:${cfg.path.toAbsolutePath.toString}",
-      "",
-      "",
-      ExecutionContext.global
-    )
+    for {
+      _ <- Resource.eval(ensureParentDirectoryExists(cfg))
+      xa <- HikariTransactor.newHikariTransactor[IO](
+        "org.sqlite.JDBC",
+        s"jdbc:sqlite:${cfg.path.toAbsolutePath.toString}",
+        "",
+        "",
+        ExecutionContext.global
+      )
+    } yield xa
 
 }

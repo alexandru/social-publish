@@ -109,11 +109,11 @@ class RssServiceImpl(
     val linkValue = post.link.getOrElse(guidValue)
     val link = s"<link>${escapeXml(linkValue)}</link>"
     val guid = s"<guid>${escapeXml(guidValue)}</guid>"
-    
+
     val rfc1123 = java.time.ZonedDateTime.ofInstant(post.createdAt, java.time.ZoneOffset.UTC)
       .format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
     val pubDate = s"<pubDate>$rfc1123</pubDate>"
-    
+
     val description = s"<description>$content</description>"
     val categories = (post.tags ++ post.targets.map(_.toString))
       .map(tag => s"<category>${escapeXml(tag)}</category>")

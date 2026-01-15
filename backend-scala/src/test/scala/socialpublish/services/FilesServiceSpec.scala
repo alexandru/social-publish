@@ -36,6 +36,22 @@ class FilesServiceSpec extends CatsEffectSuite {
     }
   }
 
+  test("FilesService.resource creates configured directories") {
+    val baseTemp = Files.createTempDirectory("files-service-test")
+    val uploadsPath = baseTemp.resolve("uploads").resolve("nested")
+
+    assert(!Files.exists(uploadsPath))
+
+    mkResources(uploadsPath).use { case (_, _) =>
+      IO {
+        assert(Files.exists(uploadsPath))
+        assert(Files.isDirectory(uploadsPath))
+        assert(Files.exists(uploadsPath.resolve("processed")))
+        assert(Files.isDirectory(uploadsPath.resolve("processed")))
+      }
+    }
+  }
+
   test("save and retrieve file") {
     val tempDir = Files.createTempDirectory("files-service-test")
     val resources = mkResources(tempDir)

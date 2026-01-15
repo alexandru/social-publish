@@ -48,9 +48,7 @@ object FilesService {
       _ <- IO.blocking {
         val uploadPath = config.uploadedFilesPath
         val processedPath = uploadPath.resolve("processed")
-        if !Files.exists(processedPath) then {
-          val _ = Files.createDirectories(processedPath)
-        }
+        val _ = Files.createDirectories(processedPath)
       }
     } yield new FilesServiceImpl(config, db, logger, locks)
 
@@ -62,9 +60,7 @@ object FilesService {
         _ <- IO.blocking {
           val uploadPath = cfg.uploadedFilesPath
           val processedPath = uploadPath.resolve("processed")
-          if !Files.exists(processedPath) then {
-            val _ = Files.createDirectories(processedPath)
-          }
+          val _ = Files.createDirectories(processedPath)
         }
       } yield new FilesServiceImpl(
         cfg,
