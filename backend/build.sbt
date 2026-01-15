@@ -1,14 +1,15 @@
 val scala3Version = "3.3.4"
 
-val circeVersion = "0.14.10"
-val doobieVersion = "1.0.0-RC4"
-val catsEffectVersion = "3.5.7"
-val declineVersion = "2.4.1"
-val log4catsVersion = "2.7.0"
-val tapirVersion = "1.13.4"
+val circeVersion = "0.14.15"
+val doobieVersion = "1.0.0-RC11"
+val catsEffectVersion = "3.6.3"
+val declineVersion = "2.5.0"
+val log4catsVersion = "2.7.1"
+val tapirVersion = "1.13.5"
 val sttpVersion = "4.0.13"
-val apispecVersion = "0.11.9"
+val apispecVersion = "0.11.10"
 val http4sVersion = "0.23.27"
+val logbackClassicVersion = "1.5.16"
 
 lazy val root = project
   .in(file("."))
@@ -23,7 +24,7 @@ lazy val root = project
     libraryDependencies ++= Seq(
       // Cats Effect for IO
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
-      "org.typelevel" %% "cats-mtl" % "1.5.0",
+      "org.typelevel" %% "cats-mtl" % "1.6.0",
 
       // Tapir + Http4s server + OpenAPI
       "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
@@ -58,18 +59,18 @@ lazy val root = project
 
       // Logging
       "org.typelevel" %% "log4cats-slf4j" % log4catsVersion,
-      "ch.qos.logback" % "logback-classic" % "1.5.16",
+      "ch.qos.logback" % "logback-classic" % logbackClassicVersion,
 
       // Java libraries for utilities
-      "com.github.jwt-scala" %% "jwt-circe" % "10.0.1",
-      "org.xerial" % "sqlite-jdbc" % "3.48.0.0",
+      "com.github.jwt-scala" %% "jwt-circe" % "11.0.3",
+      "org.xerial" % "sqlite-jdbc" % "3.51.1.0",
       "com.drewnoakes" % "metadata-extractor" % "2.19.0",
-      "com.twelvemonkeys.imageio" % "imageio-core" % "3.12.0",
-      "com.twelvemonkeys.imageio" % "imageio-jpeg" % "3.12.0",
+      "com.twelvemonkeys.imageio" % "imageio-core" % "3.13.0",
+      "com.twelvemonkeys.imageio" % "imageio-jpeg" % "3.13.0",
 
       // Testing
       "org.scalameta" %% "munit" % "1.0.3" % Test,
-      "org.typelevel" %% "munit-cats-effect" % "2.0.0" % Test,
+      "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test,
       "org.tpolecat" %% "doobie-munit" % doobieVersion % Test
     ),
 
