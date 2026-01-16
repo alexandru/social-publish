@@ -1,6 +1,8 @@
 package socialpublish.integrations.twitter
 
 import cats.effect.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import io.circe.Codec
 import io.circe.parser.decode
@@ -9,7 +11,7 @@ import socialpublish.integrations.twitter.TwitterEndpoints.*
 import socialpublish.db.DocumentsDatabase
 import socialpublish.http.ServerConfig
 import socialpublish.models.*
-import socialpublish.services.FilesService
+import socialpublish.services.{FilesService, ProcessedFile}
 import socialpublish.utils.TextUtils
 import sttp.client4.Backend
 import sttp.model.{MediaType, Part, Uri}
@@ -26,9 +28,9 @@ import scala.util.Random
 
 // Twitter API implementation with OAuth 1.0a
 trait TwitterApi {
-  def createPost(request: NewPostRequest): Result[NewPostResponse]
-  def getAuthorizationUrl(accessToken: String): Result[String]
-  def handleCallback(oauthToken: String, oauthVerifier: String): Result[Unit]
+  def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse]
+  def getAuthorizationUrl(accessToken: String)(using Raise[IO, ApiError]): IO[String]
+  def handleCallback(oauthToken: String, oauthVerifier: String)(using Raise[IO, ApiError]): IO[Unit]
   def hasTwitterAuth: IO[Boolean]
   def getAuthStatus: IO[Option[Long]]
 }
@@ -52,14 +54,19 @@ object TwitterApi {
 }
 
 private class DisabledTwitterApi() extends TwitterApi {
-  override def createPost(request: NewPostRequest): Result[NewPostResponse] =
-    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+  override def createPost(request: NewPostRequest)
+    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+    ApiError.validationError("Twitter integration is disabled", "twitter")
+      .raise[IO, NewPostResponse]
 
-  override def getAuthorizationUrl(accessToken: String): Result[String] =
-    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+  override def getAuthorizationUrl(accessToken: String)(using Raise[IO, ApiError]): IO[String] =
+    ApiError.validationError("Twitter integration is disabled", "twitter")
+      .raise[IO, String]
 
-  override def handleCallback(oauthToken: String, oauthVerifier: String): Result[Unit] =
-    Result.error(ApiError.validationError("Twitter integration is disabled", "twitter"))
+  override def handleCallback(oauthToken: String, oauthVerifier: String)
+    (using Raise[IO, ApiError]): IO[Unit] =
+    ApiError.validationError("Twitter integration is disabled", "twitter")
+      .raise[IO, Unit]
 
   override def hasTwitterAuth: IO[Boolean] =
     IO.pure(false)
@@ -99,7 +106,8 @@ private class TwitterApiImpl(
   override def getAuthStatus: IO[Option[Long]] =
     docsDb.searchByKey("twitter-oauth-token").map(_.map(_.createdAt.getEpochSecond * 1000))
 
-  override def getAuthorizationUrl(jwtAccessToken: String): Result[String] = {
+  override def getAuthorizationUrl(jwtAccessToken: String)
+    (using Raise[IO, ApiError]): IO[String] = {
     val callbackUrl =
       s"${server.baseUrl}/api/twitter/callback?access_token=${URLEncoder.encode(jwtAccessToken, "UTF-8")}"
     val oauthParams = generateOAuthParams(
@@ -115,19 +123,22 @@ private class TwitterApiImpl(
     )
 
     for {
-      response <- Result.liftIO(sendRequest(request)).flatMap(Result.fromEither)
-      params <- Result.fromEither(parseQueryString(response).toRight(
+      response <- sendRequest(request)
+      params <- Raise[IO, ApiError].fromEither(parseQueryString(response).toRight(
         ApiError.requestError(500, "Missing oauth_token", "twitter", response)
       ))
-      token <- Result.fromOption(
-        params.get("oauth_token"),
-        ApiError.requestError(500, "No oauth_token in response", "twitter", response)
-      )
+      token <- params.get("oauth_token") match {
+        case Some(value) => IO.pure(value)
+        case None =>
+          ApiError.requestError(500, "No oauth_token in response", "twitter", response)
+            .raise[IO, String]
+      }
       authUrl = s"$authorizeURL?oauth_token=$token"
     } yield authUrl
   }
 
-  override def handleCallback(oauthToken: String, oauthVerifier: String): Result[Unit] = {
+  override def handleCallback(oauthToken: String, oauthVerifier: String)
+    (using Raise[IO, ApiError]): IO[Unit] = {
     val oauthParams = generateOAuthParams(
       "POST",
       accessTokenURL,
@@ -139,33 +150,33 @@ private class TwitterApiImpl(
       (authHeader, oauthToken, oauthVerifier)
     )
 
-    Result.liftIO(sendRequest(request)).flatMap(Result.fromEither).flatMap { body =>
+    sendRequest(request).flatMap { body =>
       val params = parseQueryString(body).getOrElse(Map.empty)
       val token = AuthorizedToken(
         key = params.getOrElse("oauth_token", ""),
         secret = params.getOrElse("oauth_token_secret", "")
       )
 
-      Result.liftIO(
-        docsDb.createOrUpdate(
-          kind = "twitter-oauth-token",
-          payload = token.asJson.noSpaces,
-          tags = List(DocumentTag("twitter-oauth-token", "key"))
-        ).void
-      )
+      docsDb.createOrUpdate(
+        kind = "twitter-oauth-token",
+        payload = token.asJson.noSpaces,
+        tags = List(DocumentTag("twitter-oauth-token", "key"))
+      ).void
     }
   }
 
-  override def createPost(postReq: NewPostRequest): Result[NewPostResponse] =
+  override def createPost(postReq: NewPostRequest)
+    (using Raise[IO, ApiError]): IO[NewPostResponse] =
     for {
-      token <- Result.liftIO(restoreOauthTokenFromDb).flatMap {
-        case Some(t) => Result.success(t)
-        case None => Result.error(ApiError.unauthorized("Missing Twitter OAuth token"))
+      tokenOpt <- restoreOauthTokenFromDb
+      token <- tokenOpt match {
+        case Some(t) => IO.pure(t)
+        case None => ApiError.unauthorized("Missing Twitter OAuth token").raise[IO, AuthorizedToken]
       }
 
       mediaIds <- postReq.images match {
         case Some(uuids) => uuids.traverse(uuid => uploadMedia(token, uuid))
-        case None => Result.success(List.empty[String])
+        case None => IO.pure(List.empty[String])
       }
 
       content =
@@ -194,13 +205,16 @@ private class TwitterApiImpl(
         authHeader -> tweetData
       )
 
-      response <- Result.liftIO(sendRequest(request)).flatMap(Result.fromEither)
+      response <- sendRequest(request)
     } yield NewPostResponse.Twitter(response.data.id)
 
-  private def uploadMedia(token: AuthorizedToken, uuid: UUID): Result[String] = {
+  private def uploadMedia(token: AuthorizedToken, uuid: UUID)
+    (using Raise[IO, ApiError]): IO[String] = {
     for {
-      fileOpt <- Result.liftIO(files.getFile(uuid))
-      file <- Result.fromOption(fileOpt, ApiError.notFound(s"File not found: $uuid"))
+      fileOpt <- files.getFile(uuid)
+      file <- fileOpt.fold(
+        ApiError.notFound(s"File not found: $uuid").raise[IO, ProcessedFile]
+      )(IO.pure)
 
       oauthParams = generateOAuthParams("POST", mediaUploadURL, Map.empty, Some(token))
       authHeader = buildAuthorizationHeader(oauthParams)
@@ -214,35 +228,33 @@ private class TwitterApiImpl(
         authHeader -> TwitterMediaUploadForm(mediaPart)
       )
 
-      response <- Result.liftIO(sendRequest(request)).flatMap(Result.fromEither)
+      response <- sendRequest(request)
 
       _ <- file.altText match {
         case Some(alt) =>
-          Result.liftIO {
-            val oauthParamsAlt = generateOAuthParams("POST", altTextURL, Map.empty, Some(token))
-            val authHeaderAlt = buildAuthorizationHeader(oauthParamsAlt)
-            val altTextRequest = AltTextRequest(
-              media_id = response.media_id_string,
-              alt_text = AltTextPayload(alt)
-            )
+          val oauthParamsAlt = generateOAuthParams("POST", altTextURL, Map.empty, Some(token))
+          val authHeaderAlt = buildAuthorizationHeader(oauthParamsAlt)
+          val altTextRequest = AltTextRequest(
+            media_id = response.media_id_string,
+            alt_text = AltTextPayload(alt)
+          )
 
-            val altRequest = interpreter.toRequest(TwitterEndpoints.createAltText, Some(apiBase))(
-              authHeaderAlt -> altTextRequest
-            )
+          val altRequest = interpreter.toRequest(TwitterEndpoints.createAltText, Some(apiBase))(
+            authHeaderAlt -> altTextRequest
+          )
 
-            sendRequest(altRequest).void
-          }
+          sendRequest(altRequest).void
         case None =>
-          Result.success(())
+          IO.unit
       }
     } yield response.media_id_string
   }
 
   private def sendRequest[I, O](
     request: sttp.client4.Request[DecodeResult[Either[String, O]]]
-  ): IO[Either[ApiError, O]] =
-    backend.send(request).map { response =>
-      decodeApiResponse(response.body, response.code.code)
+  )(using Raise[IO, ApiError]): IO[O] =
+    backend.send(request).flatMap { response =>
+      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
     }
 
   private def decodeApiResponse[A](

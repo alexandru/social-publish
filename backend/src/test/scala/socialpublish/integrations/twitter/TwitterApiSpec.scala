@@ -1,9 +1,10 @@
 package socialpublish.integrations.twitter
 
 import cats.effect.*
+import cats.mtl.Handle
 import io.circe.syntax.*
 import munit.CatsEffectSuite
-import socialpublish.models.{Content, DocumentTag, NewPostRequest}
+import socialpublish.models.{ApiError, Content, DocumentTag, NewPostRequest}
 import socialpublish.http.ServerConfig
 import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
 
@@ -41,7 +42,7 @@ class TwitterApiSpec extends CatsEffectSuite {
               docsDb.db
             )
 
-            api.getAuthorizationUrl("token-123").value.map { response =>
+            Handle[IO, ApiError].attempt(api.getAuthorizationUrl("token-123")).map { response =>
               assertEquals(
                 response,
                 Right(s"${server.baseUri}/oauth/authorize?oauth_token=request-token")
@@ -97,7 +98,7 @@ class TwitterApiSpec extends CatsEffectSuite {
 
               for {
                 _ <- docsDb.db.createOrUpdate("twitter-oauth-token", oauthPayload, tags)
-                response <- api.createPost(request).value
+                response <- Handle[IO, ApiError].attempt(api.createPost(request))
               } yield response
             }
           }

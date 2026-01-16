@@ -1,6 +1,8 @@
 package socialpublish.http
 
 import cats.effect.*
+import cats.mtl.Raise
+import cats.mtl.syntax.all.*
 import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
@@ -66,27 +68,27 @@ class AuthMiddleware(
   logger: Logger[IO]
 ) {
 
-  def login(credentials: LoginRequest): IO[Either[ApiError, LoginResponse]] =
+  def login(credentials: LoginRequest)(using Raise[IO, ApiError]): IO[LoginResponse] =
     if credentials.username == server.authUser && credentials.password == server.authPass then {
       for {
         hasTwitter <- twitter.hasTwitterAuth
         token <- generateToken(credentials.username)
         response = LoginResponse(token, AuthStatus(hasTwitter))
-      } yield response.asRight
+      } yield response
     } else {
       logger.warn("Invalid login credentials") *>
-        IO.pure(ApiError.unauthorized("Invalid credentials").asLeft)
+        ApiError.unauthorized("Invalid credentials").raise[IO, LoginResponse]
     }
 
-  def authenticate(inputs: AuthInputs): IO[Either[ApiError, AuthContext]] =
+  def authenticate(inputs: AuthInputs)(using Raise[IO, ApiError]): IO[AuthContext] =
     tokenFromInputs(inputs) match {
       case Some(token) =>
-        validateToken(token).map {
-          case Some(user) => AuthContext(user, token).asRight
-          case None => ApiError.unauthorized("Unauthorized").asLeft
+        validateToken(token).flatMap {
+          case Some(user) => IO.pure(AuthContext(user, token))
+          case None => ApiError.unauthorized("Unauthorized").raise[IO, AuthContext]
         }
       case None =>
-        IO.pure(ApiError.unauthorized("Unauthorized").asLeft)
+        ApiError.unauthorized("Unauthorized").raise[IO, AuthContext]
     }
 
   def protectedResponse(user: UserPayload): ProtectedResponse =

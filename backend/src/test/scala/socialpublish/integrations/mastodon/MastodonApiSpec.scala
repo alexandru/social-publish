@@ -1,8 +1,9 @@
 package socialpublish.integrations.mastodon
 
 import cats.effect.*
+import cats.mtl.Handle
 import munit.CatsEffectSuite
-import socialpublish.models.{Content, NewPostRequest}
+import socialpublish.models.{ApiError, Content, NewPostRequest}
 import socialpublish.testutils.{Http4sTestServer, ServiceFixtures}
 
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
@@ -35,7 +36,7 @@ class MastodonApiSpec extends CatsEffectSuite {
               cleanupHtml = None,
               images = None
             )
-            api.createPost(request).value
+            Handle[IO, ApiError].attempt(api.createPost(request))
           }
         }
       }

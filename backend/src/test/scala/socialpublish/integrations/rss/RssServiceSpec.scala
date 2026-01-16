@@ -38,12 +38,12 @@ class RssServiceSpec extends CatsEffectSuite {
     )
 
     for {
-      result <- service.createPost(request).value
+      result <- service.createPost(request)
       _ = result match {
-        case Right(response: NewPostResponse.Rss) =>
+        case response: NewPostResponse.Rss =>
           assert(response.uri.startsWith(s"${serverConfig.baseUrl}/rss/"))
-        case Right(_) => fail("Expected RSS response")
-        case Left(e) => fail(s"Expected success but got error: $e")
+        case _ =>
+          fail("Expected RSS response")
       }
       posts <- mockPostsDb.getAll
       _ = assertEquals(posts.length, 1)

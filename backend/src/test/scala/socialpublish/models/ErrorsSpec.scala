@@ -1,7 +1,9 @@
 package socialpublish.models
 
+import cats.effect.IO
+import cats.mtl.Handle
+import cats.mtl.syntax.all.*
 import munit.CatsEffectSuite
-import socialpublish.models.*
 
 class ErrorsSpec extends CatsEffectSuite {
 
@@ -26,19 +28,16 @@ class ErrorsSpec extends CatsEffectSuite {
     assertEquals(error.module, "auth")
   }
 
-  test("Result.success creates successful result") {
-    val result = Result.success("test value")
-    result.value.map { either =>
+  test("Handle.attempt returns successful results") {
+    Handle[IO, ApiError].attempt(IO.pure("test value")).map { either =>
       assertEquals(either, Right("test value"))
     }
   }
 
-  test("Result.error creates error result") {
+  test("ApiError.raise lifts errors into Handle.attempt") {
     val error = ApiError.validationError("test error")
-    val result = Result.error[String](error)
-    result.value.map { either =>
-      assert(either.isLeft)
-      assertEquals(either.left.toOption.get.message, "test error")
+    Handle[IO, ApiError].attempt(error.raise[IO, String]).map { either =>
+      assertEquals(either.left.map(_.message), Left("test error"))
     }
   }
 
