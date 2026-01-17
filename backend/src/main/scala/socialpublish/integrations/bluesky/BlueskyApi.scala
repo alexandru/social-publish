@@ -130,8 +130,9 @@ private class BlueskyApiImpl(
       aspectRatio = Some(AspectRatio(file.width, file.height))
     )
 
-  private def uploadBlobRef(bytes: Array[Byte], mimeType: String)
-    (using Raise[IO, ApiError]): IO[BlobRef] = {
+  private def uploadBlobRef(bytes: Array[Byte], mimeType: String)(using
+    Raise[IO, ApiError]
+  ): IO[BlobRef] = {
     val request = interpreter.toRequest(uploadBlob, Some(baseUri))(
       (
         bearerToken(session.accessJwt),
@@ -184,8 +185,9 @@ private class BlueskyApiImpl(
     )
   }
 
-  private def postToBluesky(record: PostRecord)
-    (using Raise[IO, ApiError]): IO[CreatePostResponse] = {
+  private def postToBluesky(record: PostRecord)(using
+    Raise[IO, ApiError]
+  ): IO[CreatePostResponse] = {
     val request = interpreter.toRequest(createRecord, Some(baseUri))(
       bearerToken(session.accessJwt) ->
         CreatePostRequest(
@@ -235,8 +237,7 @@ private class BlueskyApiImpl(
 }
 
 private class DisabledBlueskyApi() extends BlueskyApi {
-  override def createPost(request: NewPostRequest)
-    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
     ApiError.validationError("Bluesky integration is disabled", "bluesky")
       .raise[IO, NewPostResponse]
 }

@@ -54,8 +54,7 @@ object TwitterApi {
 }
 
 private class DisabledTwitterApi() extends TwitterApi {
-  override def createPost(request: NewPostRequest)
-    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
     ApiError.validationError("Twitter integration is disabled", "twitter")
       .raise[IO, NewPostResponse]
 
@@ -63,8 +62,9 @@ private class DisabledTwitterApi() extends TwitterApi {
     ApiError.validationError("Twitter integration is disabled", "twitter")
       .raise[IO, String]
 
-  override def handleCallback(oauthToken: String, oauthVerifier: String)
-    (using Raise[IO, ApiError]): IO[Unit] =
+  override def handleCallback(oauthToken: String, oauthVerifier: String)(using
+    Raise[IO, ApiError]
+  ): IO[Unit] =
     ApiError.validationError("Twitter integration is disabled", "twitter")
       .raise[IO, Unit]
 
@@ -106,8 +106,9 @@ private class TwitterApiImpl(
   override def getAuthStatus: IO[Option[Long]] =
     docsDb.searchByKey("twitter-oauth-token").map(_.map(_.createdAt.getEpochSecond * 1000))
 
-  override def getAuthorizationUrl(jwtAccessToken: String)
-    (using Raise[IO, ApiError]): IO[String] = {
+  override def getAuthorizationUrl(jwtAccessToken: String)(using
+    Raise[IO, ApiError]
+  ): IO[String] = {
     val callbackUrl =
       s"${server.baseUrl}/api/twitter/callback?access_token=${URLEncoder.encode(jwtAccessToken, "UTF-8")}"
     val oauthParams = generateOAuthParams(
@@ -137,8 +138,9 @@ private class TwitterApiImpl(
     } yield authUrl
   }
 
-  override def handleCallback(oauthToken: String, oauthVerifier: String)
-    (using Raise[IO, ApiError]): IO[Unit] = {
+  override def handleCallback(oauthToken: String, oauthVerifier: String)(using
+    Raise[IO, ApiError]
+  ): IO[Unit] = {
     val oauthParams = generateOAuthParams(
       "POST",
       accessTokenURL,
@@ -165,8 +167,7 @@ private class TwitterApiImpl(
     }
   }
 
-  override def createPost(postReq: NewPostRequest)
-    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+  override def createPost(postReq: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
     for {
       tokenOpt <- restoreOauthTokenFromDb
       token <- tokenOpt match {
@@ -208,8 +209,9 @@ private class TwitterApiImpl(
       response <- sendRequest(request)
     } yield NewPostResponse.Twitter(response.data.id)
 
-  private def uploadMedia(token: AuthorizedToken, uuid: UUID)
-    (using Raise[IO, ApiError]): IO[String] = {
+  private def uploadMedia(token: AuthorizedToken, uuid: UUID)(using
+    Raise[IO, ApiError]
+  ): IO[String] = {
     for {
       fileOpt <- files.getFile(uuid)
       file <- fileOpt.fold(

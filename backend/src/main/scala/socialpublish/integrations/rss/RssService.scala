@@ -35,7 +35,9 @@ class RssServiceImpl(
 
   import RssService.*
 
-  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] = {
+  override def createPost(request: NewPostRequest)(using
+    Raise[IO, ApiError]
+  ): IO[NewPostResponse] = {
     val contentStr =
       if request.cleanupHtml.getOrElse(false) then {
         TextUtils.convertHtml(request.content.value)

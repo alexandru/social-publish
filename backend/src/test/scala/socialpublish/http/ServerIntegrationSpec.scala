@@ -104,7 +104,11 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                       IO.raiseWhen(!tokenValid) {
                         new RuntimeException("Login token could not be decoded")
                       } *> Handle[IO, ApiError]
-                        .attempt(authMiddleware.authenticate(AuthInputs(Some(login.token), None, None)))
+                        .attempt(authMiddleware.authenticate(AuthInputs(
+                          Some(login.token),
+                          None,
+                          None
+                        )))
                         .flatMap {
                           case Left(error) =>
                             IO.raiseError(

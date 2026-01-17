@@ -3,7 +3,6 @@ package socialpublish.http
 import cats.effect.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
-import cats.syntax.all.*
 import io.circe.*
 import io.circe.syntax.*
 import org.typelevel.log4cats.Logger

@@ -105,8 +105,7 @@ private class MastodonApiImpl(
       }
     } yield response
 
-  private def pollMediaUntilReady(mediaId: String)
-    (using Raise[IO, ApiError]): IO[String] = {
+  private def pollMediaUntilReady(mediaId: String)(using Raise[IO, ApiError]): IO[String] = {
     def poll(attempt: Int = 0): IO[String] =
       if attempt > 30 then {
         // Max 30 attempts (6 seconds)
@@ -196,8 +195,7 @@ private class MastodonApiImpl(
 }
 
 private class DisabledMastodonApi() extends MastodonApi {
-  override def createPost(request: NewPostRequest)
-    (using Raise[IO, ApiError]): IO[NewPostResponse] =
+  override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
     ApiError.validationError("Mastodon integration is disabled", "mastodon")
       .raise[IO, NewPostResponse]
 }
