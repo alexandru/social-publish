@@ -21,13 +21,3 @@ fun navigateOptionsWithSearch(to: String, searchParams: Map<String, String>): Ta
 
 // Link helpers
 fun linkTo(path: String): RoutePath = RoutePath(path)
-
-external interface LinkActiveState {
-    val isActive: Boolean
-}
-
-@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
-fun linkClassName(fn: (Boolean) -> String): ClassName {
-    val wrapped: (LinkActiveState) -> String = { state -> fn(state.isActive) }
-    return wrapped.asDynamic() as ClassName
-}

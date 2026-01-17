@@ -209,12 +209,11 @@ val PostForm = FC<PostFormProps> { props ->
                     images = emptyMap()
 
                     props.onInfo("New post created successfully!", "RSS feed?", "/rss")
-                } catch (exception: Exception) {
+                } catch (exception: Throwable) {
+                    // In Kotlin/JS, JavaScript errors may not be Kotlin exceptions
+                    // Catch as Throwable (covers both Kotlin and JS errors)
                     props.onError("Unexpected exception while submitting form!")
                     console.error(exception)
-                } catch (throwable: Throwable) {
-                    props.onError("Unexpected error while submitting form!")
-                    console.error(throwable)
                 }
             }
         }

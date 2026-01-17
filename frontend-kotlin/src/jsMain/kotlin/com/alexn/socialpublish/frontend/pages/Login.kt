@@ -122,12 +122,11 @@ val Login = FC<Props> {
                         error = "HTTP ${response.status} error while logging in! "
                     }
                 }
-            } catch (exception: Exception) {
+            } catch (exception: Throwable) {
+                // In Kotlin/JS, JavaScript errors may not be Kotlin exceptions
+                // Catch as Throwable (covers both Kotlin and JS errors)
                 console.error("While logging in", exception)
                 error = "Exception while logging in, probably a bug, check the console!"
-            } catch (exception: Throwable) {
-                console.error("While logging in (non-Exception)", exception)
-                error = "Error while logging in, probably a bug, check the console!"
             }
         }
     }

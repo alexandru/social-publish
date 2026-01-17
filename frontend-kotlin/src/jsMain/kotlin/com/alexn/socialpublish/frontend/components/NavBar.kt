@@ -2,7 +2,6 @@ package com.alexn.socialpublish.frontend.components
 
 import com.alexn.socialpublish.frontend.utils.navigateOptions
 import com.alexn.socialpublish.frontend.utils.linkTo
-import com.alexn.socialpublish.frontend.utils.linkClassName
 import com.alexn.socialpublish.frontend.icons.homeOutline
 import com.alexn.socialpublish.frontend.icons.logIn
 import com.alexn.socialpublish.frontend.icons.logOut
@@ -25,10 +24,12 @@ import react.dom.html.ReactHTML.span
 import react.dom.html.ReactHTML.strong
 import tanstack.react.router.Link
 import tanstack.react.router.useNavigate
+import tanstack.react.router.useLocation
 import react.useState
 
 val NavBar = FC<Props> {
     val (navbarIsActive, setNavbarIsActive) = useState(false)
+    val location = useLocation()
     
     val isLoggedIn = hasJwtToken()
     val burgerClass = if (navbarIsActive) "navbar-burger is-active" else "navbar-burger"
@@ -61,9 +62,8 @@ val NavBar = FC<Props> {
                 className = "navbar-start".toClassName()
                 Link {
                     key = "nav-home"
-                    className = linkClassName { isActive ->
-                        if (isActive) "navbar-item is-active" else "navbar-item"
-                    }
+                    val isActive = location.pathname == "/"
+                    className = (if (isActive) "navbar-item is-active" else "navbar-item").toClassName()
                     to = linkTo("/")
                     span {
                         className = "icon".toClassName()
@@ -74,9 +74,8 @@ val NavBar = FC<Props> {
                 if (isLoggedIn) {
                     Link {
                         key = "nav-form"
-                        className = linkClassName { isActive ->
-                            if (isActive) "navbar-item is-active" else "navbar-item"
-                        }
+                        val isActive = location.pathname == "/form"
+                        className = (if (isActive) "navbar-item is-active" else "navbar-item").toClassName()
                         to = linkTo("/form")
                         span {
                             className = "icon".toClassName()
@@ -107,9 +106,8 @@ val NavBar = FC<Props> {
                         className = "buttons".toClassName()
                         if (isLoggedIn) {
                             Link {
-                                className = linkClassName { isActive ->
-                                    if (isActive) "button is-primary is-active" else "button is-primary"
-                                }
+                                val isActive = location.pathname == "/account"
+                                className = (if (isActive) "button is-primary is-active" else "button is-primary").toClassName()
                                 to = linkTo("/account")
                                 strong { +"Account" }
                             }
@@ -131,6 +129,7 @@ external interface LoginOrLogoutButtonProps : Props {
 
 val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
     val navigate = useNavigate()
+    val location = useLocation()
     val onLogout = { event: MouseEvent<*, *> ->
         event.preventDefault()
         clearJwtToken()
@@ -151,9 +150,8 @@ val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
     } else {
         Link {
             key = "cta-login"
-            className = linkClassName { isActive ->
-                if (isActive) "button is-primary is-active" else "button is-primary"
-            }
+            val isActive = location.pathname == "/login"
+            className = (if (isActive) "button is-primary is-active" else "button is-primary").toClassName()
             to = linkTo("/login")
             span {
                 className = "icon".toClassName()
