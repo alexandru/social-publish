@@ -60,6 +60,7 @@ val NavBar = FC<Props> {
             div {
                 className = "navbar-start".toClassName()
                 Link {
+                    key = "nav-home"
                     val classNameFn = { args: dynamic ->
                         if (args.isActive == true) "navbar-item is-active" else "navbar-item"
                     }
@@ -73,6 +74,7 @@ val NavBar = FC<Props> {
                 }
                 if (isLoggedIn) {
                     Link {
+                        key = "nav-form"
                         val classNameFn = { args: dynamic ->
                             if (args.isActive == true) "navbar-item is-active" else "navbar-item"
                         }
@@ -86,6 +88,7 @@ val NavBar = FC<Props> {
                     }
                 }
                 a {
+                    key = "nav-help"
                     className = "navbar-item".toClassName()
                     href = "https://github.com/alexandru/social-publish"
                     target = "_blank".toWindowTarget()
@@ -115,6 +118,7 @@ val NavBar = FC<Props> {
                             }
                         }
                         LoginOrLogoutButton {
+                            key = if (isLoggedIn) "btn-logout" else "btn-login"
                             this.isLoggedIn = isLoggedIn
                         }
                     }
@@ -149,6 +153,7 @@ val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
         }
     } else {
         Link {
+            key = "cta-login"
             val classNameFn = { args: dynamic ->
                 if (args.isActive == true) "button is-primary is-active" else "button is-primary"
             }

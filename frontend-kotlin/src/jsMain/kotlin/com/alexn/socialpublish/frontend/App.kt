@@ -5,86 +5,89 @@ import com.alexn.socialpublish.frontend.pages.*
 import com.alexn.socialpublish.frontend.utils.jso
 import react.FC
 import react.Props
-import react.dom.html.ReactHTML.div
+import react.dom.html.ReactHTML.main
+import react.useMemo
 import tanstack.react.router.Outlet
+import tanstack.react.router.Router
 import tanstack.react.router.RouterProvider
 import tanstack.react.router.createRootRoute
 import tanstack.react.router.createRoute
 import tanstack.react.router.createRouter
-import js.reflect.unsafeCast
+import tanstack.router.core.RoutePath
+
+private val ROOT_PATH: RoutePath = RoutePath("/")
+private val FORM_PATH: RoutePath = RoutePath("/form")
+private val LOGIN_PATH: RoutePath = RoutePath("/login")
+private val ACCOUNT_PATH: RoutePath = RoutePath("/account")
 
 val Root = FC<Props> {
     NavBar()
-    div {
+    main {
         Outlet()
     }
 }
 
-val rootRoute = createRootRoute(
-    jso<dynamic> {
-        component = Root
-    }
-)
-
-val indexRoute = createRoute(
-    jso<dynamic> {
-        getParentRoute = { rootRoute }
-        path = "/"
-        component = Home
-    }
-)
-
-val loginRoute = createRoute(
-    jso<dynamic> {
-        getParentRoute = { rootRoute }
-        path = "login"
-        component = Login
-        validateSearch = { search: dynamic -> search }
-    }
-)
-
-val accountRoute = createRoute(
-    jso<dynamic> {
-        getParentRoute = { rootRoute }
-        path = "account"
-        component = Account
-    }
-)
-
-val formRoute = createRoute(
-    jso<dynamic> {
-        getParentRoute = { rootRoute }
-        path = "form"
-        component = PublishFormPage
-    }
-)
-
-val notFoundRoute = createRoute(
-    jso<dynamic> {
-        getParentRoute = { rootRoute }
-        path = "*"
-        component = NotFound
-    }
-)
-
-val routeTree = rootRoute.addChildren(
-    arrayOf(
-        indexRoute,
-        loginRoute,
-        accountRoute,
-        formRoute,
-        notFoundRoute
+private fun createAppRouter(): Router {
+    val rootRoute = createRootRoute(
+        options = jso<dynamic> {
+            component = Root
+            notFoundComponent = NotFound
+        }
     )
-)
 
-val router = createRouter(
-    jso<dynamic> {
-        this.routeTree = routeTree
-    }
-)
+    val indexRoute = createRoute(
+        options = jso<dynamic> {
+            getParentRoute = { rootRoute }
+            path = ROOT_PATH
+            component = Home
+        }
+    )
+
+    val loginRoute = createRoute(
+        options = jso<dynamic> {
+            getParentRoute = { rootRoute }
+            path = LOGIN_PATH
+            component = Login
+            validateSearch = { search: dynamic -> search }
+        }
+    )
+
+    val accountRoute = createRoute(
+        options = jso<dynamic> {
+            getParentRoute = { rootRoute }
+            path = ACCOUNT_PATH
+            component = Account
+        }
+    )
+
+    val formRoute = createRoute(
+        options = jso<dynamic> {
+            getParentRoute = { rootRoute }
+            path = FORM_PATH
+            component = PublishFormPage
+        }
+    )
+
+    rootRoute.addChildren(
+        arrayOf(
+            indexRoute,
+            loginRoute,
+            accountRoute,
+            formRoute,
+        ),
+    )
+
+    return createRouter(
+        options = jso<dynamic> {
+            routeTree = rootRoute
+        }
+    )
+}
 
 val App = FC<Props> {
+    val appRouter = useMemo { createAppRouter() }
+
     RouterProvider {
-        this.router = router
+        router = appRouter
     }
 }

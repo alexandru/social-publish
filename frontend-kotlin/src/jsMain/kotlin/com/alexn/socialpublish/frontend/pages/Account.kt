@@ -1,3 +1,5 @@
+package com.alexn.socialpublish.frontend.pages
+
 import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.components.Authorize
 import com.alexn.socialpublish.frontend.utils.jso

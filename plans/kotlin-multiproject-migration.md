@@ -15,10 +15,12 @@
 - [x] Kotlin/JS frontend ported to Kotlin sources
 - [x] Makefile + Dockerfile.kotlin updated for Kotlin workflow
 - [x] `.gitignore` and README updated for Kotlin build
-- [x] Replace react-router with lightweight internal router
+- [x] Replace react-router with TanStack Router (kotlin-wrappers 2026.1.5)
 - [x] Build with latest kotlin-wrappers only (no legacy)
 - [x] Re-run `./gradlew build` after routing changes
-- [ ] Verify webpack dev server proxy + production bundle
+- [x] Add dev-server SPA fallback (`historyApiFallback`) for reloads
+- [ ] Verify webpack dev server proxy targets ( /api, /rss, /files )
+- [ ] Verify production bundle runtime in browser
 - [x] Add `.envrc` defaults for backend config
 
 ## Frontend Analysis (Current `frontend/`)

@@ -2,10 +2,8 @@
 
 package com.alexn.socialpublish.frontend.pages
 
-import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.components.ModalMessage
 import com.alexn.socialpublish.frontend.utils.jso
-import com.alexn.socialpublish.frontend.loginRoute
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.utils.HasAuth
 import com.alexn.socialpublish.frontend.utils.setAuthStatus
@@ -34,11 +32,11 @@ import react.dom.html.ReactHTML.h1
 import react.dom.html.ReactHTML.input
 import react.dom.html.ReactHTML.label
 import react.dom.html.ReactHTML.section
-import tanstack.react.router.useNavigate
-import tanstack.react.router.useSearch
 import react.useEffect
 import react.useMemo
 import react.useState
+import tanstack.react.router.useLocation
+import tanstack.react.router.useNavigate
 import web.console.console
 import web.html.HTMLFormElement
 import web.html.HTMLInputElement
@@ -46,23 +44,22 @@ import web.http.BodyInit
 import web.http.Headers
 import web.http.RequestInit
 import web.http.fetch
+import web.url.URLSearchParams
 
 val Login = FC<Props> {
     var username by useState("")
     var password by useState("")
     var error by useState<String?>(null)
 
-    val searchParams = useSearch<String>(
-        jso<dynamic> { from = "/login".unsafeCast<Nothing>() }
-    )
+    val location = useLocation()
     val navigate = useNavigate()
-    
-    val searchObj = searchParams.unsafeCast<LoginSearch>()
-    val redirectTo = searchObj.redirect ?: "/form"
+
+    val searchParams = URLSearchParams(location.searchStr)
+    val redirectTo = searchParams.get("redirect") ?: "/form"
+    val errorCode = searchParams.get("error")
     val scope = useMemo { MainScope() }
 
-    useEffect(dependencies = arrayOf(searchObj.error)) {
-        val errorCode = searchObj.error
+    useEffect(dependencies = arrayOf(errorCode)) {
         if (errorCode != null) {
             error = when (errorCode) {
                 "401" -> "Unauthorized! Please log in..."
@@ -72,18 +69,20 @@ val Login = FC<Props> {
     }
 
     val hideError = {
-        if (searchObj.error != null) {
-             navigate(
+        if (errorCode != null) {
+            val cleanParams = URLSearchParams()
+            cleanParams.set("redirect", redirectTo)
+            val query = cleanParams.toString()
+            val target = if (query.isNotBlank()) "/login?$query" else "/login"
+            navigate(
                 jso {
-                    to = "/login".unsafeCast<Nothing>()
-                    search = jso<LoginSearch> {
-                        this.redirect = redirectTo
-                    }.unsafeCast<Nothing>()
+                    to = target.unsafeCast<Nothing>()
                 }
             )
         }
         error = null
     }
+
 
     val handleSubmit: (FormEvent<HTMLFormElement>) -> Unit = { event ->
         event.preventDefault()
