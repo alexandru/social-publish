@@ -1,11 +1,9 @@
 package com.alexn.socialpublish.frontend.components
 
-import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.utils.getJwtToken
-import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.utils.navigateOptionsWithSearch
 import com.alexn.socialpublish.frontend.utils.toClassName
-import js.reflect.unsafeCast
 import react.FC
 import react.PropsWithChildren
 import react.dom.html.ReactHTML.div
@@ -30,12 +28,12 @@ val Authorize = FC<PropsWithChildren> { props ->
             onDisable = {
                 message = ""
                 navigate(
-                    jso {
-                        to = "/login".unsafeCast<Nothing>()
-                        search = jso<LoginSearch> {
-                            redirect = "${location.pathname}${location.searchStr}"
-                        }.unsafeCast<Nothing>()
-                    }
+                    navigateOptionsWithSearch(
+                        to = "/login",
+                        searchParams = mapOf(
+                            "redirect" to "${location.pathname}${location.searchStr}"
+                        )
+                    )
                 )
             }
         }

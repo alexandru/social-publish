@@ -1,11 +1,15 @@
 package com.alexn.socialpublish.frontend.utils
 
 import kotlin.js.Date
-import kotlin.js.JSON
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import web.dom.document
 import web.storage.localStorage
 
 
+@Serializable
 data class HasAuth(
     val twitter: Boolean = false,
 )
@@ -26,16 +30,16 @@ fun cookies(): Map<String, String> {
 fun setCookie(name: String, value: String, expirationMillis: Int? = null) {
     val expires = if (expirationMillis != null) {
         val date = Date(Date().getTime() + expirationMillis)
-        ";expires=${'$'}{date.toUTCString()}"
+        ";expires=${date.toUTCString()}"
     } else {
         ""
     }
-    document.cookie = "${'$'}name=${'$'}value${'$'}expires;path=/"
+    document.cookie = "$name=$value$expires;path=/"
 }
 
 fun clearCookie(name: String) {
     val date = Date(0)
-    document.cookie = "${'$'}name=;expires=${'$'}{date.toUTCString()};path=/"
+    document.cookie = "$name=;expires=${date.toUTCString()};path=/"
 }
 
 fun getJwtToken(): String? = cookies()["access_token"]
@@ -46,28 +50,22 @@ fun setJwtToken(token: String) = setCookie("access_token", token, 1000 * 60 * 60
 
 fun hasJwtToken(): Boolean = getJwtToken() != null
 
-fun <A> storeObjectInLocalStorage(key: String, value: A?) {
-    if (value == null) {
-        clearObjectFromLocalStorage(key)
+fun setAuthStatus(hasAuth: HasAuth?) {
+    if (hasAuth == null) {
+        localStorage.removeItem("hasAuth")
     } else {
-        localStorage.setItem(key, JSON.stringify(value))
+        val json = Json.encodeToString(hasAuth)
+        localStorage.setItem("hasAuth", json)
     }
 }
 
-inline fun <reified A> getObjectFromLocalStorage(key: String): A? {
-    val raw = localStorage.getItem(key) ?: return null
-    return JSON.parse<dynamic>(raw).unsafeCast<A>()
-}
-
-fun clearObjectFromLocalStorage(key: String) {
-    localStorage.removeItem(key)
-}
-
-fun setAuthStatus(hasAuth: HasAuth?) = storeObjectInLocalStorage("hasAuth", hasAuth)
-
 fun getAuthStatus(): HasAuth {
-    val stored = getObjectFromLocalStorage<HasAuth>("hasAuth")
-    return stored ?: HasAuth(twitter = false)
+    val raw = localStorage.getItem("hasAuth") ?: return HasAuth(twitter = false)
+    return try {
+        Json.decodeFromString<HasAuth>(raw)
+    } catch (e: Exception) {
+        HasAuth(twitter = false)
+    }
 }
 
 fun updateAuthStatus(transform: (HasAuth) -> HasAuth) {

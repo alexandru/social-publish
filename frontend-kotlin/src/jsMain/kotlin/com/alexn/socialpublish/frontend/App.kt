@@ -2,7 +2,9 @@ package com.alexn.socialpublish.frontend
 
 import com.alexn.socialpublish.frontend.components.NavBar
 import com.alexn.socialpublish.frontend.pages.*
-import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.utils.rootRouteOptions
+import com.alexn.socialpublish.frontend.utils.routeOptions
+import com.alexn.socialpublish.frontend.utils.routerOptions
 import react.FC
 import react.Props
 import react.dom.html.ReactHTML.main
@@ -29,43 +31,43 @@ val Root = FC<Props> {
 
 private fun createAppRouter(): Router {
     val rootRoute = createRootRoute(
-        options = jso<dynamic> {
-            component = Root
+        options = rootRouteOptions(
+            component = Root,
             notFoundComponent = NotFound
-        }
+        )
     )
 
     val indexRoute = createRoute(
-        options = jso<dynamic> {
-            getParentRoute = { rootRoute }
-            path = ROOT_PATH
+        options = routeOptions(
+            getParentRoute = { rootRoute },
+            path = ROOT_PATH,
             component = Home
-        }
+        )
     )
 
     val loginRoute = createRoute(
-        options = jso<dynamic> {
-            getParentRoute = { rootRoute }
-            path = LOGIN_PATH
-            component = Login
-            validateSearch = { search: dynamic -> search }
-        }
+        options = routeOptions(
+            getParentRoute = { rootRoute },
+            path = LOGIN_PATH,
+            component = Login,
+            validateSearch = { search -> search }
+        )
     )
 
     val accountRoute = createRoute(
-        options = jso<dynamic> {
-            getParentRoute = { rootRoute }
-            path = ACCOUNT_PATH
+        options = routeOptions(
+            getParentRoute = { rootRoute },
+            path = ACCOUNT_PATH,
             component = Account
-        }
+        )
     )
 
     val formRoute = createRoute(
-        options = jso<dynamic> {
-            getParentRoute = { rootRoute }
-            path = FORM_PATH
+        options = routeOptions(
+            getParentRoute = { rootRoute },
+            path = FORM_PATH,
             component = PublishFormPage
-        }
+        )
     )
 
     rootRoute.addChildren(
@@ -78,9 +80,7 @@ private fun createAppRouter(): Router {
     )
 
     return createRouter(
-        options = jso<dynamic> {
-            routeTree = rootRoute
-        }
+        options = routerOptions(routeTree = rootRoute)
     )
 }
 

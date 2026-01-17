@@ -1,6 +1,5 @@
 package com.alexn.socialpublish.frontend.utils
 
-import js.reflect.unsafeCast
 import web.cssom.ClassName
 import web.dom.ElementId
 import web.html.InputType
@@ -11,8 +10,11 @@ fun String.toClassName(): ClassName = ClassName(this)
 
 fun String.toElementId(): ElementId = ElementId(this)
 
-fun String.toWindowTarget(): WindowTarget = unsafeCast(this)
+@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
+fun String.toWindowTarget(): WindowTarget = this.asDynamic() as WindowTarget
 
-fun String.toInputType(): InputType = unsafeCast(this)
+@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")  
+fun String.toInputType(): InputType = this.asDynamic() as InputType
 
-fun String.toRequestMethod(): RequestMethod = unsafeCast(this)
+@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
+fun String.toRequestMethod(): RequestMethod = this.asDynamic() as RequestMethod

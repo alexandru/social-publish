@@ -1,6 +1,8 @@
 package com.alexn.socialpublish.frontend.components
 
-import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.utils.navigateOptions
+import com.alexn.socialpublish.frontend.utils.linkTo
+import com.alexn.socialpublish.frontend.utils.linkClassName
 import com.alexn.socialpublish.frontend.icons.homeOutline
 import com.alexn.socialpublish.frontend.icons.logIn
 import com.alexn.socialpublish.frontend.icons.logOut
@@ -12,11 +14,9 @@ import com.alexn.socialpublish.frontend.utils.hasJwtToken
 import com.alexn.socialpublish.frontend.utils.toClassName
 import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toWindowTarget
-import js.reflect.unsafeCast
 import react.FC
 import react.Props
 import react.dom.events.MouseEvent
-import web.cssom.ClassName
 import react.dom.html.ReactHTML.a
 import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.img
@@ -61,11 +61,10 @@ val NavBar = FC<Props> {
                 className = "navbar-start".toClassName()
                 Link {
                     key = "nav-home"
-                    val classNameFn = { args: dynamic ->
-                        if (args.isActive == true) "navbar-item is-active" else "navbar-item"
+                    className = linkClassName { isActive ->
+                        if (isActive) "navbar-item is-active" else "navbar-item"
                     }
-                    className = classNameFn.unsafeCast<ClassName>()
-                    to = "/".unsafeCast<Nothing>()
+                    to = linkTo("/")
                     span {
                         className = "icon".toClassName()
                         img { src = homeOutline; alt = "Home" }
@@ -75,11 +74,10 @@ val NavBar = FC<Props> {
                 if (isLoggedIn) {
                     Link {
                         key = "nav-form"
-                        val classNameFn = { args: dynamic ->
-                            if (args.isActive == true) "navbar-item is-active" else "navbar-item"
+                        className = linkClassName { isActive ->
+                            if (isActive) "navbar-item is-active" else "navbar-item"
                         }
-                        className = classNameFn.unsafeCast<ClassName>()
-                        to = "/form".unsafeCast<Nothing>()
+                        to = linkTo("/form")
                         span {
                             className = "icon".toClassName()
                             img { src = play; alt = "Publish" }
@@ -109,11 +107,10 @@ val NavBar = FC<Props> {
                         className = "buttons".toClassName()
                         if (isLoggedIn) {
                             Link {
-                                val classNameFn = { args: dynamic ->
-                                    if (args.isActive == true) "button is-primary is-active" else "button is-primary"
+                                className = linkClassName { isActive ->
+                                    if (isActive) "button is-primary is-active" else "button is-primary"
                                 }
-                                className = classNameFn.unsafeCast<ClassName>()
-                                to = "/account".unsafeCast<Nothing>()
+                                to = linkTo("/account")
                                 strong { +"Account" }
                             }
                         }
@@ -137,7 +134,7 @@ val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
     val onLogout = { event: MouseEvent<*, *> ->
         event.preventDefault()
         clearJwtToken()
-        navigate(jso { to = "/".unsafeCast<Nothing>() })
+        navigate(navigateOptions("/"))
     }
 
     if (props.isLoggedIn) {
@@ -154,11 +151,10 @@ val LoginOrLogoutButton = FC<LoginOrLogoutButtonProps> { props ->
     } else {
         Link {
             key = "cta-login"
-            val classNameFn = { args: dynamic ->
-                if (args.isActive == true) "button is-primary is-active" else "button is-primary"
+            className = linkClassName { isActive ->
+                if (isActive) "button is-primary is-active" else "button is-primary"
             }
-            className = classNameFn.unsafeCast<ClassName>()
-            to = "/login".unsafeCast<Nothing>()
+            to = linkTo("/login")
             span {
                 className = "icon".toClassName()
                 img { src = logIn; alt = "Login" }

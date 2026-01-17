@@ -7,7 +7,7 @@ import react.dom.client.createRoot
 import web.dom.document
 
 @JsName("require")
-external fun jsRequire(name: String): dynamic
+external fun jsRequire(name: String): Any?
 
 fun main() {
     jsRequire("./style.css")

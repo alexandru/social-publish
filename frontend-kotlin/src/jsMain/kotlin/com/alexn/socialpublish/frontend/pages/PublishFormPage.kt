@@ -2,11 +2,10 @@
 
 package com.alexn.socialpublish.frontend.pages
 
-import com.alexn.socialpublish.frontend.LoginSearch
 import com.alexn.socialpublish.frontend.components.Authorize
 import com.alexn.socialpublish.frontend.components.ImageUpload
 import com.alexn.socialpublish.frontend.components.ModalMessage
-import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.utils.navigateOptionsWithSearch
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.models.PublishFormData
 import com.alexn.socialpublish.frontend.models.SelectedImage
@@ -19,7 +18,6 @@ import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
 import com.alexn.socialpublish.frontend.utils.toWindowTarget
 import js.promise.await
-import js.reflect.unsafeCast
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -144,13 +142,13 @@ val PostForm = FC<PostFormProps> { props ->
                         )
                         if (response.status == 401.toShort() || response.status == 403.toShort()) {
                             navigate(
-                                jso {
-                                    to = "/login".unsafeCast<Nothing>()
-                                    search = jso<LoginSearch> {
-                                        error = "${response.status}"
-                                        redirect = "/form"
-                                    }.unsafeCast<Nothing>()
-                                }
+                                navigateOptionsWithSearch(
+                                    to = "/login",
+                                    searchParams = mapOf(
+                                        "error" to "${response.status}",
+                                        "redirect" to "/form"
+                                    )
+                                )
                             )
                             return@withDisabledForm
                         }
@@ -191,13 +189,13 @@ val PostForm = FC<PostFormProps> { props ->
                     )
                     if (response.status == 401.toShort() || response.status == 403.toShort()) {
                         navigate(
-                            jso {
-                                to = "/login".unsafeCast<Nothing>()
-                                search = jso<LoginSearch> {
-                                    error = "${response.status}"
-                                    redirect = "/form"
-                                }.unsafeCast<Nothing>()
-                            }
+                            navigateOptionsWithSearch(
+                                to = "/login",
+                                searchParams = mapOf(
+                                    "error" to "${response.status}",
+                                    "redirect" to "/form"
+                                )
+                            )
                         )
                         return@withDisabledForm
                     }
@@ -211,9 +209,12 @@ val PostForm = FC<PostFormProps> { props ->
                     images = emptyMap()
 
                     props.onInfo("New post created successfully!", "RSS feed?", "/rss")
-                } catch (exception: dynamic) {
+                } catch (exception: Exception) {
                     props.onError("Unexpected exception while submitting form!")
                     console.error(exception)
+                } catch (throwable: Throwable) {
+                    props.onError("Unexpected error while submitting form!")
+                    console.error(throwable)
                 }
             }
         }

@@ -3,7 +3,7 @@
 package com.alexn.socialpublish.frontend.pages
 
 import com.alexn.socialpublish.frontend.components.ModalMessage
-import com.alexn.socialpublish.frontend.utils.jso
+import com.alexn.socialpublish.frontend.utils.navigateOptions
 import com.alexn.socialpublish.frontend.models.MessageType
 import com.alexn.socialpublish.frontend.utils.HasAuth
 import com.alexn.socialpublish.frontend.utils.setAuthStatus
@@ -14,7 +14,6 @@ import com.alexn.socialpublish.frontend.utils.toElementId
 import com.alexn.socialpublish.frontend.utils.toInputType
 import com.alexn.socialpublish.frontend.utils.toRequestMethod
 import js.promise.await
-import js.reflect.unsafeCast
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -74,11 +73,7 @@ val Login = FC<Props> {
             cleanParams.set("redirect", redirectTo)
             val query = cleanParams.toString()
             val target = if (query.isNotBlank()) "/login?$query" else "/login"
-            navigate(
-                jso {
-                    to = target.unsafeCast<Nothing>()
-                }
-            )
+            navigate(navigateOptions(target))
         }
         error = null
     }
@@ -116,9 +111,7 @@ val Login = FC<Props> {
                         } else {
                             redirectTo
                         }
-                        navigate(
-                            jso { to = cleanRedirect.unsafeCast<Nothing>() }
-                        )
+                        navigate(navigateOptions(cleanRedirect))
                     }
                 } else {
                     val errorMessage = bodyJson?.get("error")?.jsonPrimitive?.contentOrNull
@@ -129,9 +122,12 @@ val Login = FC<Props> {
                         error = "HTTP ${response.status} error while logging in! "
                     }
                 }
-            } catch (exception: dynamic) {
+            } catch (exception: Exception) {
                 console.error("While logging in", exception)
                 error = "Exception while logging in, probably a bug, check the console!"
+            } catch (exception: Throwable) {
+                console.error("While logging in (non-Exception)", exception)
+                error = "Error while logging in, probably a bug, check the console!"
             }
         }
     }
