@@ -13,14 +13,13 @@ import com.alexn.socialpublish.models.CompositeErrorResponse
 import com.alexn.socialpublish.models.NewPostRequest
 import com.alexn.socialpublish.models.NewPostResponse
 import com.alexn.socialpublish.models.ValidationError
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -131,9 +130,14 @@ class FormModule(
                     // only attempt to read form parameters if content type is form data.
                     val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
                     val contentType = contentTypeHeader?.let { ContentType.parse(it) }
-                    val params = if (contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
-                        contentType?.match(ContentType.MultiPart.FormData) == true
-                    ) call.receiveParameters() else null
+                    val params =
+                        if (contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
+                            contentType?.match(ContentType.MultiPart.FormData) == true
+                        ) {
+                            call.receiveParameters()
+                        } else {
+                            null
+                        }
                     val targets = mutableListOf<String>()
                     params?.getAll("targets[]")?.let { targets.addAll(it) }
 

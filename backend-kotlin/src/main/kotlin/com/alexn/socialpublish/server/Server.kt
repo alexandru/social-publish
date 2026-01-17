@@ -33,6 +33,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import java.io.File
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 
@@ -229,19 +230,27 @@ suspend fun startServer(
             }
 
             // Manual static file serving with absolute paths and fallback
-            get("/{path...}") {
-                val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
-                val baseDir = java.io.File(config.server.staticContentPath).canonicalFile
-                val file = if (path.isBlank()) java.io.File(baseDir, "index.html") else java.io.File(baseDir, path)
+            if (config.server.staticContentPaths.isNotEmpty()) {
+                get("/{path...}") {
+                    val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
+                    val triedPaths = mutableListOf<String>()
+                    for (baseDir in config.server.staticContentPaths) {
+                        val canonicalBaseDir = baseDir.canonicalFile
 
-                logger.info { "Request: /$path -> File: ${file.absolutePath} (Exists: ${file.exists()})" }
+                        val file =
+                            if (path.isBlank() || path.matches(Regex("^(login|form|account).*")))
+                                File(canonicalBaseDir, "index.html")
+                            else
+                                File(canonicalBaseDir, path)
 
-                if (file.exists() && file.isFile && file.canonicalPath.startsWith(baseDir.path)) {
-                    call.respondFile(file)
-                } else if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
-                    val index = java.io.File(baseDir, "index.html")
-                    call.respondFile(index)
-                } else {
+                        if (file.exists() && file.isFile && file.canonicalPath.startsWith(canonicalBaseDir.path)) {
+                            call.respondFile(file)
+                            return@get
+                        }
+                        triedPaths.add(file.canonicalPath)
+                    }
+
+                    logger.warn { "Static file not found. Tried paths:\n${triedPaths.joinToString(",\n")}" }
                     call.respond(HttpStatusCode.NotFound)
                 }
             }

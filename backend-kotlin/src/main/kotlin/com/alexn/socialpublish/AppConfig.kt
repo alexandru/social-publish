@@ -8,9 +8,12 @@ import com.alexn.socialpublish.server.ServerAuthConfig
 import com.alexn.socialpublish.server.ServerConfig
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
+import java.io.File
 
 data class AppConfig(
     val server: ServerConfig,
@@ -43,12 +46,17 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             envvar = "BASE_URL",
         ).required()
 
-    private val staticContentPath: String by
+    private val staticContentPaths: List<File> by
         option(
             "--static-content-path",
             help = "Path to serve static content from (default: public)",
             envvar = "STATIC_CONTENT_PATH",
-        ).default("public")
+        ).file(
+            mustExist = true,
+            canBeDir = true,
+            canBeFile = false,
+            mustBeReadable = true
+        ).multiple()
 
     // Server authentication configuration
     private val serverAuthUsername: String by
@@ -142,7 +150,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 dbPath = dbPath,
                 httpPort = httpPort,
                 baseUrl = baseUrl,
-                staticContentPath = staticContentPath,
+                staticContentPaths = staticContentPaths,
                 auth = serverAuthConfig,
             )
 
