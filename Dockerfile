@@ -81,7 +81,6 @@ COPY --from=build-backend --chown=appuser:root /app/backend-kotlin/build/libs/ba
 COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/processedResources/js/main/ /opt/app/public/
 COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js /opt/app/public/app.js
 COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js.map /opt/app/public/app.js.map
-COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js.LICENSE.txt /opt/app/public/app.js.LICENSE.txt
 
 # Copy java-exec wrapper script
 COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
