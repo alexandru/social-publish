@@ -1,53 +1,103 @@
-# Use an official Node.js runtime as the base image
-FROM alpine:latest as build
-
-# Set the working directory in the container to /app
+############################
+# Base stage (Dependency Resolution)
+############################
+FROM gradle:8.11-jdk21 AS base
 WORKDIR /app
-RUN mkdir -p /app/frontend && mkdir -p /app/backend
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
+# Copy Gradle wrapper and configuration files
+COPY gradle ./gradle
+COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
+COPY backend-kotlin/build.gradle.kts ./backend-kotlin/
+COPY frontend-kotlin/build.gradle.kts ./frontend-kotlin/
 
-# Install required packages
-RUN apk add --no-cache nodejs npm
+# Resolve dependencies for both modules to leverage layer caching
+RUN gradle dependencies --no-daemon
 
-# Install the application dependencies
-RUN npm install && npm run init
+############################
+# Backend Build stage
+############################
+FROM base AS build-backend
+# Copy backend source
+COPY backend-kotlin/src ./backend-kotlin/src
+# Build backend JAR
+RUN gradle :backend-kotlin:jar --no-daemon -x test
 
-# Copy the rest of the application code to the working directory
-COPY . .
+############################
+# Frontend Build stage
+############################
+FROM base AS build-frontend
+# Copy frontend source
+COPY frontend-kotlin/src ./frontend-kotlin/src
+# Build frontend webpack bundle
+RUN gradle :frontend-kotlin:jsBrowserProductionWebpack --no-daemon -x test
 
-# Build the application
-RUN npm run build
-RUN ./scripts/package.sh
+############################
+# JRE build stage
+############################
+FROM eclipse-temurin:21-alpine AS jre-build
 
-###
+# Create a custom minimal Java runtime with only required modules
+RUN apk add --no-cache binutils
+RUN $JAVA_HOME/bin/jlink \
+        --add-modules java.base \
+        --add-modules java.xml \
+        --add-modules java.naming \
+        --add-modules java.management \
+        --add-modules java.sql \
+        --add-modules java.desktop \
+        --strip-debug \
+        --no-man-pages \
+        --no-header-files \
+        --compress=2 \
+        --output /javaruntime
+
+############################
+# Runtime stage
+############################
 FROM alpine:latest
 
-WORKDIR /app
+ENV JAVA_HOME=/opt/java
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+COPY --from=jre-build /javaruntime $JAVA_HOME
 
-RUN apk add --no-cache nodejs npm
+WORKDIR /opt/app
 
-RUN adduser -u 1001 -h /app -s /bin/sh -D appuser
-RUN chown -R appuser /app && chmod -R "g+rwX" /app
+# Create application user
+RUN adduser -u 1001 -h /opt/app -s /bin/sh -D appuser
+RUN chown -R appuser /opt/app && chmod -R "g+rwX" /opt/app
+
+# Create data directory
 RUN mkdir -p /var/lib/social-publish
 RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
 
-COPY --from=build --chown=appuser:root /app/dist/. /app/
-COPY ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+# Install minimal runtime dependencies
+RUN apk add --no-cache curl
 
-# Expose port 3000 for the application
+# Copy application JAR from backend stage
+COPY --from=build-backend --chown=appuser:root /app/backend-kotlin/build/libs/backend-kotlin-1.0.0.jar /opt/app/app.jar
+
+# Copy frontend assets from frontend stage
+COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/processedResources/js/main/ /opt/app/public/
+COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js /opt/app/public/app.js
+COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js.map /opt/app/public/app.js.map
+COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js.LICENSE.txt /opt/app/public/app.js.LICENSE.txt
+
+# Copy java-exec wrapper script
+COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
+RUN chmod +x /opt/app/java-exec
+
+# Expose port 3000
 EXPOSE 3000
 USER appuser
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# Environment variables
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
-ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
+ENV HTTP_PORT=3000
+ENV STATIC_CONTENT_PATH=/opt/app/public
 
 RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
-# Define the command to run the application
-ENTRYPOINT [ "./docker-entrypoint.sh", "node", "--enable-source-maps", "./server/main.js" ]
+# Run the application with optimized GC settings
+CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar"]

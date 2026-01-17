@@ -8,7 +8,7 @@ init-docker:
 	docker buildx use mybuilder
 
 build-production: init-docker
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile  -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 push-production-latest:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-production
@@ -37,19 +37,41 @@ run-local: build-local
 		-e "TWITTER_OAUTH1_CONSUMER_SECRET=${TWITTER_OAUTH1_CONSUMER_SECRET}" \
 		${LATEST_TAG}
 
-dev-kotlin:
+# Development targets
+dev:
 	./gradlew :backend-kotlin:run & ./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
 
-dev-kotlin-backend:
+dev-backend:
 	./gradlew :backend-kotlin:run
 
-dev-kotlin-frontend:
+dev-frontend:
 	./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
 
-build-kotlin:
+# Build targets
+build:
 	./gradlew build
 
+clean:
+	./gradlew clean
+
+# Dependency updates
 update:
-	npx npm-check-updates -u && npm install && \
-	cd ./backend && npx npm-check-updates -u && npm install && cd .. && \
-	cd ./frontend && npx npm-check-updates -u && npm install && cd ..
+	./gradlew dependencyUpdates
+
+# Legacy Node.js targets (kept for backwards compatibility with ./frontend and ./backend)
+dev-legacy:
+	npm run dev
+
+build-legacy:
+	npm run build
+
+# Testing
+test:
+	./gradlew test
+
+# Code quality
+lint:
+	./gradlew ktlintCheck
+
+format:
+	./gradlew ktlintFormat

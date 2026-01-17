@@ -18,6 +18,9 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -124,23 +127,29 @@ class FormModule(
                 call.receive<NewPostRequest>()
             }.getOrNull()
                 ?: run {
-                    val params = call.receiveParameters()
+                    // If JSON receive failed, try form parameters. To avoid RequestAlreadyConsumedException,
+                    // only attempt to read form parameters if content type is form data.
+                    val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
+                    val contentType = contentTypeHeader?.let { ContentType.parse(it) }
+                    val params = if (contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
+                        contentType?.match(ContentType.MultiPart.FormData) == true
+                    ) call.receiveParameters() else null
                     val targets = mutableListOf<String>()
-                    params.getAll("targets[]")?.let { targets.addAll(it) }
+                    params?.getAll("targets[]")?.let { targets.addAll(it) }
 
-                    if (params["mastodon"] == "1") targets.add("mastodon")
-                    if (params["bluesky"] == "1") targets.add("bluesky")
-                    if (params["twitter"] == "1") targets.add("twitter")
-                    if (params["linkedin"] == "1") targets.add("linkedin")
-                    if (params["rss"] == "1") targets.add("rss")
+                    if (params?.get("mastodon") == "1") targets.add("mastodon")
+                    if (params?.get("bluesky") == "1") targets.add("bluesky")
+                    if (params?.get("twitter") == "1") targets.add("twitter")
+                    if (params?.get("linkedin") == "1") targets.add("linkedin")
+                    if (params?.get("rss") == "1") targets.add("rss")
 
                     NewPostRequest(
-                        content = params["content"] ?: "",
+                        content = params?.get("content") ?: "",
                         targets = targets.ifEmpty { null },
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images[]"),
+                        link = params?.get("link"),
+                        language = params?.get("language"),
+                        cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
+                        images = params?.getAll("images[]"),
                     )
                 }
 

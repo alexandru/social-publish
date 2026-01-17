@@ -43,6 +43,13 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             envvar = "BASE_URL",
         ).required()
 
+    private val staticContentPath: String by
+        option(
+            "--static-content-path",
+            help = "Path to serve static content from (default: public)",
+            envvar = "STATIC_CONTENT_PATH",
+        ).default("public")
+
     // Server authentication configuration
     private val serverAuthUsername: String by
         option(
@@ -135,6 +142,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 dbPath = dbPath,
                 httpPort = httpPort,
                 baseUrl = baseUrl,
+                staticContentPath = staticContentPath,
                 auth = serverAuthConfig,
             )
 

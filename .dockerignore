@@ -1,0 +1,57 @@
+# Git
+.git
+.github
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Build outputs
+build
+.gradle
+.kotlin
+backend-kotlin/.gradle
+frontend-kotlin/.gradle
+
+# Node modules (legacy)
+node_modules
+backend/node_modules
+frontend/node_modules
+kotlin-js-store/yarn.lock
+
+# Legacy builds
+backend/build
+frontend/dist
+dist
+
+# Environment and config
+.env
+.envrc
+*.log
+
+# Documentation
+docs
+plans
+*.md
+!README.md
+
+# Test files
+*.test.*
+__tests__
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Package manager
+package-lock.json
+yarn.lock
+
+# OpenCode
+.opencode
+opencode.json

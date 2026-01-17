@@ -4,6 +4,7 @@ data class ServerConfig(
     val dbPath: String,
     val httpPort: Int,
     val baseUrl: String,
+    val staticContentPath: String,
     val auth: ServerAuthConfig,
 )
 

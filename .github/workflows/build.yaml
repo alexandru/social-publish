@@ -13,10 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          node-version: 'latest'
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Build
-        run: npm run build
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle
+        run: ./gradlew build --no-daemon
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+

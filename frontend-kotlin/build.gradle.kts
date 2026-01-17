@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     kotlin("multiplatform")
+    kotlin("plugin.serialization")
 }
 
 kotlin {

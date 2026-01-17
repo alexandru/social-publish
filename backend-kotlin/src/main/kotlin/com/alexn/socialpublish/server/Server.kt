@@ -21,7 +21,6 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.http.content.staticFiles
 import io.ktor.server.netty.Netty
 import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.calllogging.CallLogging
@@ -229,14 +228,19 @@ suspend fun startServer(
                 filesModule.getFile(call)
             }
 
-            // Static file serving for frontend
-            staticFiles("/", java.io.File("public"))
-
-            // Frontend routing - serve index.html for SPA routes
+            // Manual static file serving with absolute paths and fallback
             get("/{path...}") {
                 val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
-                if (path.matches(Regex("^(login|form|account).*"))) {
-                    call.respondFile(java.io.File("public/index.html"))
+                val baseDir = java.io.File(config.server.staticContentPath).canonicalFile
+                val file = if (path.isBlank()) java.io.File(baseDir, "index.html") else java.io.File(baseDir, path)
+
+                logger.info { "Request: /$path -> File: ${file.absolutePath} (Exists: ${file.exists()})" }
+
+                if (file.exists() && file.isFile && file.canonicalPath.startsWith(baseDir.path)) {
+                    call.respondFile(file)
+                } else if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
+                    val index = java.io.File(baseDir, "index.html")
+                    call.respondFile(index)
                 } else {
                     call.respond(HttpStatusCode.NotFound)
                 }

@@ -1,5 +1,7 @@
 {
   "name": "social-publish",
+  "description": "LEGACY: This package.json is maintained only for backwards compatibility with the Node.js-based frontend/backend. The primary build system now uses Gradle and Kotlin.",
+  "private": true,
   "scripts": {
     "init": "npm --prefix ./backend/ install && npm --prefix ./frontend/ install",
     "dev": "npm run init && concurrently \"npm --prefix ./backend/ run dev\" \"npm --prefix ./frontend/ run dev\"",

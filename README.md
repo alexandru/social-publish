@@ -120,16 +120,22 @@ While this service is able to publish directly to Mastodon and Bluesky, for othe
 
 ## Developing
 
-Legacy Node/Vite development (existing frontend/backend):
+To run the development environment with live reload:
 
 ```sh
-npm run dev
+make dev
 ```
 
-Kotlin backend + Kotlin/JS frontend development:
+This starts both the backend server (port 3000) and frontend dev server (port 3001) with hot reload enabled.
+
+To run backend and frontend separately:
 
 ```sh
-make dev-kotlin
+# Backend only
+make dev-backend
+
+# Frontend only
+make dev-frontend
 ```
 
 You can navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
@@ -140,7 +146,28 @@ To build and test the Docker image locally:
 make run-local
 ```
 
+To run tests:
+
+```sh
+make test
+```
+
+To check code formatting:
+
+```sh
+make lint
+make format
+```
+
 See the [Makefile](./Makefile) for more commands.
+
+### Legacy Node.js development
+
+The legacy Node/Vite-based frontend and backend are still available in `./frontend/` and `./backend/` directories but are no longer the primary development path:
+
+```sh
+make dev-legacy
+```
 
 ## License
 
