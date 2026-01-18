@@ -1,6 +1,8 @@
 package com.alexn.socialpublish.server
 
+import arrow.continuations.ktor.server
 import arrow.core.Either
+import arrow.fx.coroutines.resource
 import com.alexn.socialpublish.AppConfig
 import com.alexn.socialpublish.db.DocumentsDatabase
 import com.alexn.socialpublish.db.FilesDatabase
@@ -19,10 +21,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
-import io.ktor.server.engine.EmbeddedServer
-import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -39,24 +38,31 @@ import org.slf4j.event.Level
 
 private val logger = KotlinLogging.logger {}
 
-suspend fun startServer(
+fun startServer(
     config: AppConfig,
     documentsDb: DocumentsDatabase,
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
-): EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> {
+) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
-    val blueskyClient = config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
-    val mastodonClient = config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
-    val twitterClient = config.twitter?.let { TwitterApiModule.defaultHttpClient() }
+    val blueskyClient =
+        config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
+    val mastodonClient =
+        config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
+    val twitterClient =
+        config.twitter?.let { TwitterApiModule.defaultHttpClient() }
 
     // Conditionally instantiate integration modules based on config
-    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule, blueskyClient!!) }
-    val mastodonModule = config.mastodon?.let { MastodonApiModule(it, filesModule, mastodonClient!!) }
+    val blueskyModule = config.bluesky?.let {
+        BlueskyApiModule(it, filesModule, blueskyClient!!)
+    }
+    val mastodonModule = config.mastodon?.let {
+        MastodonApiModule(it, filesModule, mastodonClient!!)
+    }
     val twitterModule =
         config.twitter?.let {
             TwitterApiModule(
@@ -74,9 +80,10 @@ suspend fun startServer(
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
         )
 
-    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
+    val formModule =
+        FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    return embeddedServer(Netty, port = config.server.httpPort) {
+    server(Netty, port = config.server.httpPort) {
         install(CORS) {
             anyHost()
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
@@ -146,7 +153,10 @@ suspend fun startServer(
                         is Either.Right -> call.respond(result.value)
                         is Either.Left -> {
                             val error = result.value
-                            call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                            call.respond(
+                                HttpStatusCode.fromValue(error.status),
+                                mapOf("error" to error.errorMessage)
+                            )
                         }
                     }
                 }
@@ -156,7 +166,10 @@ suspend fun startServer(
                     if (blueskyModule != null) {
                         blueskyModule.createPostRoute(call)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Bluesky integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Bluesky integration not configured")
+                        )
                     }
                 }
 
@@ -164,7 +177,10 @@ suspend fun startServer(
                     if (mastodonModule != null) {
                         mastodonModule.createPostRoute(call)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Mastodon integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Mastodon integration not configured")
+                        )
                     }
                 }
 
@@ -172,7 +188,10 @@ suspend fun startServer(
                     if (twitterModule != null) {
                         twitterModule.createPostRoute(call)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Twitter integration not configured")
+                        )
                     }
                 }
 
@@ -182,12 +201,18 @@ suspend fun startServer(
                         val token =
                             extractJwtToken(call)
                                 ?: run {
-                                    call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                                    call.respond(
+                                        HttpStatusCode.Unauthorized,
+                                        mapOf("error" to "Unauthorized")
+                                    )
                                     return@get
                                 }
                         twitterModule.authorizeRoute(call, token)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Twitter integration not configured")
+                        )
                     }
                 }
 
@@ -195,7 +220,10 @@ suspend fun startServer(
                     if (twitterModule != null) {
                         twitterModule.callbackRoute(call)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Twitter integration not configured")
+                        )
                     }
                 }
 
@@ -203,7 +231,10 @@ suspend fun startServer(
                     if (twitterModule != null) {
                         twitterModule.statusRoute(call)
                     } else {
-                        call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "Twitter integration not configured"))
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            mapOf("error" to "Twitter integration not configured")
+                        )
                     }
                 }
 
@@ -232,7 +263,9 @@ suspend fun startServer(
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
                 get("/{path...}") {
-                    val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
+                    val path =
+                        call.parameters.getAll("path")?.joinToString("/")
+                            ?: ""
                     val triedPaths = mutableListOf<String>()
                     for (baseDir in config.server.staticContentPaths) {
                         val canonicalBaseDir = baseDir.canonicalFile
@@ -243,14 +276,23 @@ suspend fun startServer(
                             else
                                 File(canonicalBaseDir, path)
 
-                        if (file.exists() && file.isFile && file.canonicalPath.startsWith(canonicalBaseDir.path)) {
+                        if (file.exists() && file.isFile && file.canonicalPath.startsWith(
+                                canonicalBaseDir.path
+                            )
+                        ) {
                             call.respondFile(file)
                             return@get
                         }
                         triedPaths.add(file.canonicalPath)
                     }
 
-                    logger.warn { "Static file not found. Tried paths:\n${triedPaths.joinToString(",\n")}" }
+                    logger.warn {
+                        "Static file not found. Tried paths:\n${
+                            triedPaths.joinToString(
+                                ",\n"
+                            )
+                        }"
+                    }
                     call.respond(HttpStatusCode.NotFound)
                 }
             }

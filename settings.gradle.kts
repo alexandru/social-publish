@@ -29,6 +29,7 @@ dependencyResolutionManagement {
             library("arrow-core", "io.arrow-kt", "arrow-core").versionRef("arrow")
             library("arrow-fx-coroutines", "io.arrow-kt", "arrow-fx-coroutines").versionRef("arrow")
             library("arrow-suspendapp", "io.arrow-kt", "suspendapp-jvm").versionRef("arrow")
+            library("arrow-suspendapp-ktor", "io.arrow-kt", "suspendapp-ktor-jvm").versionRef("arrow")
 
             // Ktor server libraries
             library("ktor-server-core", "io.ktor", "ktor-server-core").versionRef("ktor")
@@ -85,7 +86,16 @@ dependencyResolutionManagement {
             library("kotlinx-coroutines-test", "org.jetbrains.kotlinx", "kotlinx-coroutines-test").versionRef("kotlinx-coroutines")
 
             // Bundles for grouped dependencies
-            bundle("arrow", listOf("arrow-core", "arrow-fx-coroutines", "arrow-suspendapp"))
+            bundle(
+                "arrow",
+                listOf(
+                    "arrow-core",
+                    "arrow-fx-coroutines",
+                    "arrow-suspendapp",
+                    "arrow-suspendapp-ktor",
+                )
+            )
+
             bundle(
                 "ktor-server",
                 listOf(

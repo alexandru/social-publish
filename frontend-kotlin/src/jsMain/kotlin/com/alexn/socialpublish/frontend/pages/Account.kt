@@ -62,7 +62,7 @@ val Account = FC<Props> {
                 val bodyJson = parseJsonObject(bodyText)
                 val hasAuthorization = bodyJson?.get("hasAuthorization")?.jsonPrimitive?.booleanOrNull ?: false
                 if (hasAuthorization) {
-                    val createdAt = bodyJson?.get("createdAt")?.jsonPrimitive?.contentOrNull
+                    val createdAt = bodyJson["createdAt"]?.jsonPrimitive?.contentOrNull
                     val atDateTime = if (createdAt != null) " at ${Date(createdAt).toLocaleString()}" else ""
                     twitterStatus = "Connected$atDateTime"
                 } else {

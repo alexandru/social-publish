@@ -29,8 +29,9 @@ RUN gradle :backend-kotlin:jar --no-daemon -x test
 FROM base AS build-frontend
 # Copy frontend source
 COPY frontend-kotlin/src ./frontend-kotlin/src
-# Build frontend webpack bundle
-RUN gradle :frontend-kotlin:jsBrowserProductionWebpack --no-daemon -x test
+COPY frontend-kotlin/webpack.config.d ./frontend-kotlin/webpack.config.d
+# Build frontend distribution
+RUN gradle :frontend-kotlin:assemble --no-daemon -x test
 
 ############################
 # JRE build stage
@@ -78,9 +79,7 @@ RUN apk add --no-cache curl
 COPY --from=build-backend --chown=appuser:root /app/backend-kotlin/build/libs/backend-kotlin-1.0.0.jar /opt/app/app.jar
 
 # Copy frontend assets from frontend stage
-COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/processedResources/js/main/ /opt/app/public/
-COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js /opt/app/public/app.js
-COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/kotlin-webpack/js/productionExecutable/app.js.map /opt/app/public/app.js.map
+COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/dist/js/productionExecutable/ /opt/app/public/
 
 # Copy java-exec wrapper script
 COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec

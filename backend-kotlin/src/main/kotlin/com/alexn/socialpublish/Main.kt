@@ -1,11 +1,14 @@
 package com.alexn.socialpublish
 
 import arrow.continuations.SuspendApp
+import arrow.continuations.ktor.server
+import arrow.core.raise.context.bind
 import arrow.fx.coroutines.resourceScope
 import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.server.startServer
 import com.github.ajalt.clikt.core.main
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.server.netty.Netty
 import kotlinx.coroutines.awaitCancellation
 
 private val logger = KotlinLogging.logger {}
@@ -31,25 +34,12 @@ fun main(args: Array<String>) {
                     Database.resourceBundle(config.server.dbPath).bind()
 
                 logger.info { "Database initialized successfully" }
-                install(
-                    acquire = {
-                        val engine =
-                            startServer(
-                                config,
-                                resources.documentsDb,
-                                resources.postsDb,
-                                resources.filesDb,
-                            )
-                        engine.start(wait = false)
-                        engine
-                    },
-                    release = { engine, _ ->
-                        engine.stop(
-                            gracePeriodMillis = 1_000,
-                            timeoutMillis = 5_000,
-                        )
-                    },
-                )
+                startServer(
+                    config,
+                    resources.documentsDb,
+                    resources.postsDb,
+                    resources.filesDb,
+                ).bind()
 
                 logger.info { "Server running on port ${config.server.httpPort}" }
                 awaitCancellation()
