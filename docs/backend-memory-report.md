@@ -31,8 +31,8 @@ cd backend
 
 **What is consuming the extra ~100 MB?**
 
-* Heap is small (17 MB) — the excess comes mostly from **class metadata + code cache (~70 MB)** and **JVM/platform overhead** (thread stacks, NMT, shared class data).
-* **Shenandoah** reserves large regions (4 GB heap reservation + ~259 MB GC structures) even though little is committed; this inflates virtual size and pushes the RSS upward compared to a tuned small-heap configuration.
+* Heap is small (committed ~32 MB, reserved 256 MB) — the excess comes mostly from **class metadata + code cache (~70 MB)** and **JVM/platform overhead** (thread stacks, NMT, shared class data).
+* **Shenandoah** now reserves 256 MB (bounded by launcher flags); RSS is influenced more by metaspace, code cache, and thread stacks than heap usage.
 * Default **Hikari/HTTP client threads** (~28 total) contribute ~20–30 MB of stack reservation.
 
 ## Recommendations to trim ~80–120 MB
@@ -41,7 +41,7 @@ cd backend
    Launcher already uses `-Xms32m -Xmx256m`. To claw back more RSS, also add e.g. `-Xss512k` (or 256k if safe) to trim ~10–15 MB of stack reservation for ~30 threads.
 
 2. **Keep Shenandoah (for uncommitting) but cap it**  
-   Shenandoah is kept to aggressively return unused pages; the key is capping the heap (`-Xmx`). Current heap is 256m reserved / ~13m used; further reduction would need lower `-Xmx` and load validation.
+   Shenandoah is kept to aggressively return unused pages; the key is capping the heap (`-Xmx`). Current heap is 256m reserved / ~13–32m used depending on warmup; further reduction would need lower `-Xmx` and load validation.
 
 3. **Clamp thread pools**  
    Hikari pool already reduced to 4/1. If acceptable, drop to 2/1 for SQLite-only deployments. Consider bounding the HTTP client/compute pools (cats-effect) if workload allows.
