@@ -1,4 +1,6 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+import org.gradle.api.JavaVersion
+import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     kotlin("jvm")
@@ -79,6 +81,18 @@ ktlint {
 
 kotlin {
     // Use the default JVM from the environment/container instead of requiring a specific toolchain
+}
+
+java {
+    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid inconsistent JVM target errors
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType<JavaCompile> {
+    sourceCompatibility = "21"
+    targetCompatibility = "21"
+    options.release.set(21)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {

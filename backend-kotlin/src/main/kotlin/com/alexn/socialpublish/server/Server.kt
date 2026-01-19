@@ -33,9 +33,9 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import java.io.File
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
+import java.io.File
 
 private val logger = KotlinLogging.logger {}
 
@@ -59,12 +59,14 @@ fun startServer(
         config.twitter?.let { TwitterApiModule.defaultHttpClient() }
 
     // Conditionally instantiate integration modules based on config
-    val blueskyModule = config.bluesky?.let {
-        BlueskyApiModule(it, filesModule, blueskyClient!!)
-    }
-    val mastodonModule = config.mastodon?.let {
-        MastodonApiModule(it, filesModule, mastodonClient!!)
-    }
+    val blueskyModule =
+        config.bluesky?.let {
+            BlueskyApiModule(it, filesModule, blueskyClient!!)
+        }
+    val mastodonModule =
+        config.mastodon?.let {
+            MastodonApiModule(it, filesModule, mastodonClient!!)
+        }
     val twitterModule =
         config.twitter?.let {
             TwitterApiModule(
@@ -157,7 +159,7 @@ fun startServer(
                             val error = result.value
                             call.respond(
                                 HttpStatusCode.fromValue(error.status),
-                                mapOf("error" to error.errorMessage)
+                                mapOf("error" to error.errorMessage),
                             )
                         }
                     }
@@ -170,7 +172,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Bluesky integration not configured")
+                            mapOf("error" to "Bluesky integration not configured"),
                         )
                     }
                 }
@@ -181,7 +183,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Mastodon integration not configured")
+                            mapOf("error" to "Mastodon integration not configured"),
                         )
                     }
                 }
@@ -192,7 +194,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Twitter integration not configured")
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -205,7 +207,7 @@ fun startServer(
                                 ?: run {
                                     call.respond(
                                         HttpStatusCode.Unauthorized,
-                                        mapOf("error" to "Unauthorized")
+                                        mapOf("error" to "Unauthorized"),
                                     )
                                     return@get
                                 }
@@ -213,7 +215,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Twitter integration not configured")
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -224,7 +226,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Twitter integration not configured")
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -235,7 +237,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            mapOf("error" to "Twitter integration not configured")
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -273,13 +275,15 @@ fun startServer(
                         val canonicalBaseDir = baseDir.canonicalFile
 
                         val file =
-                            if (path.isBlank() || path.matches(Regex("^(login|form|account).*")))
+                            if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
                                 File(canonicalBaseDir, "index.html")
-                            else
+                            } else {
                                 File(canonicalBaseDir, path)
+                            }
 
-                        if (file.exists() && file.isFile && file.canonicalPath.startsWith(
-                                canonicalBaseDir.path
+                        if (file.exists() && file.isFile &&
+                            file.canonicalPath.startsWith(
+                                canonicalBaseDir.path,
                             )
                         ) {
                             call.respondFile(file)
@@ -291,7 +295,7 @@ fun startServer(
                     logger.warn {
                         "Static file not found. Tried paths:\n${
                             triedPaths.joinToString(
-                                ",\n"
+                                ",\n",
                             )
                         }"
                     }
