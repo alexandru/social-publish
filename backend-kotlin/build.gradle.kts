@@ -78,13 +78,15 @@ ktlint {
 }
 
 kotlin {
-    jvmToolchain(21)
+    // Use the default JVM from the environment/container instead of requiring a specific toolchain
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         allWarningsAsErrors.set(true)
         freeCompilerArgs.set(listOf("-Xjsr305=strict"))
+        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM available in the environment.
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 
