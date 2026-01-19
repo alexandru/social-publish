@@ -8,7 +8,7 @@ init-docker:
 	docker buildx use mybuilder
 
 build-production: init-docker
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile.jvm -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 push-production-latest:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-production
@@ -17,7 +17,10 @@ push-production-release:
 	DOCKER_EXTRA_ARGS="-t '${VERSION_TAG}' --push" $(MAKE) build-production
 
 build-local:
-	docker build -f ./Dockerfile -t "${VERSION_TAG}" -t "${LATEST_TAG}" .
+	docker build -f ./Dockerfile.jvm -t "${VERSION_TAG}" -t "${LATEST_TAG}" .
+
+build-native:
+	docker build -f ./Dockerfile.native -t "${VERSION_TAG}-native" -t "${LATEST_TAG}-native" .
 
 run-local: build-local
 	docker rm -f social-publish || true

@@ -1,38 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration debug="false">
-  <!-- Default log level. Override at JVM runtime with -DLOG_LEVEL=DEBUG or by setting
-       a system property from your Docker entrypoint. -->
-  <property name="LOG_LEVEL" value="INFO"/>
-
-  <!-- Disable Logback's own initialization/status messages by using the no-op status listener -->
-  <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
-
-  <!-- Console appender with UTF-8 and a clean, standard one-line pattern suitable for Docker logs -->
-  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-      <charset>UTF-8</charset>
-      <!-- Standard readable pattern: ISO8601 timestamp, level, thread, logger (short), message, and exception -->
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n%ex</pattern>
-    </encoder>
-  </appender>
-
-  <!-- Wrap console in an async appender for better throughput in container environments -->
-  <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="CONSOLE" />
-    <!-- queue size and discarding threshold tuned for typical small services -->
-    <queueSize>512</queueSize>
-    <discardingThreshold>25</discardingThreshold>
-    <neverBlock>false</neverBlock>
-  </appender>
-
-  <!-- Package-specific overrides (reduce noise from libraries) -->
-  <logger name="org.eclipse.jetty" level="WARN" />
-  <logger name="org.apache.http" level="WARN" />
-  <logger name="org.mongodb.driver" level="WARN" />
-
-  <!-- Root logger uses the async console; it will pick up the LOG_LEVEL system property if provided -->
-  <root level="${LOG_LEVEL}">
-    <appender-ref ref="ASYNC_CONSOLE" />
-  </root>
-
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
 </configuration>

@@ -33,7 +33,7 @@ dependencyResolutionManagement {
 
             // Ktor server libraries
             library("ktor-server-core", "io.ktor", "ktor-server-core").versionRef("ktor")
-            library("ktor-server-netty", "io.ktor", "ktor-server-netty").versionRef("ktor")
+            library("ktor-server-cio", "io.ktor", "ktor-server-cio").versionRef("ktor")
             library("ktor-server-content-negotiation", "io.ktor", "ktor-server-content-negotiation").versionRef("ktor")
             library("ktor-serialization-kotlinx-json", "io.ktor", "ktor-serialization-kotlinx-json").versionRef("ktor")
             library("ktor-server-auth", "io.ktor", "ktor-server-auth").versionRef("ktor")
@@ -100,7 +100,7 @@ dependencyResolutionManagement {
                 "ktor-server",
                 listOf(
                     "ktor-server-core",
-                    "ktor-server-netty",
+                    "ktor-server-cio",
                     "ktor-server-content-negotiation",
                     "ktor-serialization-kotlinx-json",
                     "ktor-server-auth",

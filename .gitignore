@@ -33,6 +33,7 @@ kotlin-js-store/
 !kotlin-js-store/yarn.lock
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 !backend-kotlin/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear

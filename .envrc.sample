@@ -1,0 +1,34 @@
+# Environment for local development of backend-kotlin
+# Only required values are set to reasonable local defaults.
+# Commented variables are optional integrations — uncomment and fill when needed.
+
+# Database
+export DB_PATH="/tmp/social-publish.kt/socialpublish.db"
+
+# Server
+export HTTP_PORT=3000
+export BASE_URL="http://localhost:3000"
+# If you want to serve static files from a directory, set this (can be provided multiple times):
+# export STATIC_CONTENT_PATH=
+
+# Server auth (required)
+export SERVER_AUTH_USERNAME="admin"
+export SERVER_AUTH_PASSWORD="adminpass"
+export JWT_SECRET="dev-jwt-secret-change-me"
+
+# Files storage (required)
+export UPLOADED_FILES_PATH="/tmp/social-publish.kt/uploads"
+
+# Bluesky (optional; service has a sensible default)
+export BSKY_SERVICE="https://bsky.social"
+# export BSKY_USERNAME=""
+# export BSKY_PASSWORD=""
+
+# Mastodon (optional)
+# export MASTODON_HOST=""
+# export MASTODON_ACCESS_TOKEN=""
+
+# Twitter (optional)
+# export TWITTER_OAUTH1_CONSUMER_KEY=""
+# export TWITTER_OAUTH1_CONSUMER_SECRET=""
+

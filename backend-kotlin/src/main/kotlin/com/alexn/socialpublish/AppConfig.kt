@@ -55,7 +55,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             mustExist = true,
             canBeDir = true,
             canBeFile = false,
-            mustBeReadable = true
+            mustBeReadable = true,
         ).multiple()
 
     // Server authentication configuration
