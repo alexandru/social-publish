@@ -22,7 +22,7 @@ cd backend
 * NMT (`jcmd <pid> VM.native_memory summary`):
   * **Committed total:** ~131 MB (reserved 5.7 GB largely from default heap reservation).
   * **Java heap:** 17 MB committed, **4 GB reserved** (default max heap).
-  * **Metaspace:** 54 MB committed (class metadata for tapir/http4s/doobie/swagger UI, etc.).
+* **Metaspace:** 54 MB committed (class metadata for tapir/http4s/doobie, etc.; now reduced after removing Swagger/OpenAPI).
   * **Code cache:** 12 MB committed.
   * **Symbols/strings:** 13 MB committed.
   * **Threads:** 28 threads, stacks reserve ~27 MB (2.2 MB committed).
@@ -38,14 +38,14 @@ cd backend
 ## Recommendations to trim ~80–120 MB
 
 1. **Cap heap explicitly for the service profile**  
-   Run the fat JAR with smaller bounds instead of relying on MaxRAM default (which reserved 4 GB): e.g.
+   Run the fat JAR with smaller bounds instead of relying on MaxRAM default (which reserved 4 GB). Current launcher uses:
    ```
-   -Xms32m -Xmx256m -XX:InitialRAMPercentage=5 -XX:MaxRAMPercentage=25
+   -Xms32m -Xmx256m
    ```
    This prevents over-reservation and typically drops RSS by 60–80 MB on small workloads.
 
-2. **Prefer G1 for this footprint (or tune Shenandoah)**  
-   For small heaps, G1 adds less control-plane overhead than Shenandoah. If Shenandoah is retained, set a smaller region size and cap the heap (`-Xmx`) to avoid the 4 GB reservation.
+2. **Keep Shenandoah (for uncommitting) but cap it**  
+   Shenandoah is kept to aggressively return unused pages; the key is capping the heap (`-Xmx`) so its reserved space stays small.
 
 3. **Trim thread stacks**  
    Add `-Xss512k` (or lower if safe) and reduce pool sizes:
@@ -54,7 +54,7 @@ cd backend
    Expect ~10–15 MB saved.
 
 4. **Reduce classpath-heavy features in prod**  
-   The Swagger bundle and OpenAPI generation add to metaspace. If not needed in production, gate them behind a flag or build profile to avoid loading those classes/resources, saving ~10–15 MB.
+   Swagger/OpenAPI endpoints and their dependencies were removed to shrink metaspace by ~10–15 MB.
 
 5. **Disable NMT outside diagnostics**  
    NMT adds ~5 MB committed and some CPU; keep it off in normal runs.
