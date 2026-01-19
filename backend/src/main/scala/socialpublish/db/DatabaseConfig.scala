@@ -35,7 +35,7 @@ object DatabaseConfig {
   def transactorResource(cfg: DatabaseConfig): Resource[IO, Transactor[IO]] =
     for {
       _ <- Resource.eval(ensureParentDirectoryExists(cfg))
-      hikariCfg <- Resource.eval(IO.blocking {
+      hikariCfg <- Resource.eval(IO {
         val cfgH = new HikariConfig()
         cfgH.setDriverClassName("org.sqlite.JDBC")
         cfgH.setJdbcUrl(s"jdbc:sqlite:${cfg.path.toAbsolutePath.toString}")
