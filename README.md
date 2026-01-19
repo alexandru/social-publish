@@ -140,6 +140,8 @@ To build and test the Docker image locally:
 make run-local
 ```
 
+The JVM image is built from [`Dockerfile.jvm`](./Dockerfile.jvm) by default. A GraalVM Native Image alternative is available via [`Dockerfile.native`](./Dockerfile.native); use `make build-local-native` (or `DOCKERFILE=./Dockerfile.native make build-production`) to build it.
+
 See the [Makefile](./Makefile) for more commands.
 
 ## License

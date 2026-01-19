@@ -1,0 +1,49 @@
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ .
+RUN npm run build
+
+FROM ghcr.io/graalvm/native-image-community:21-ol9 AS backend-build
+
+WORKDIR /app
+
+COPY backend/sbt ./sbt
+COPY backend/project ./project
+COPY backend/build.sbt ./build.sbt
+RUN chmod +x ./sbt
+RUN ./sbt -Dsbt.supershell=false update
+
+COPY backend/ .
+RUN ./sbt -Dsbt.supershell=false nativeImage
+
+FROM debian:12-slim
+
+RUN groupadd -g 1001 appuser && \
+    useradd -u 1001 -g appuser -d /app -s /bin/bash appuser && \
+    apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV HTTP_PORT=3000
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+ENV LD_LIBRARY_PATH=/app/native-image
+
+RUN mkdir -p /var/lib/social-publish "${UPLOADED_FILES_PATH}" /app/public && \
+    chown -R appuser:appuser /app /var/lib/social-publish
+
+COPY --from=backend-build --chown=appuser:appuser /app/target/native-image /app/native-image
+COPY --from=frontend-build --chown=appuser:appuser /app/frontend/dist/. /app/public/
+COPY --chown=appuser:appuser ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/native-image/social-publish-backend /app/docker-entrypoint.sh
+
+USER appuser
+EXPOSE 3000
+
+ENTRYPOINT [ "./docker-entrypoint.sh", "/app/native-image/social-publish-backend" ]

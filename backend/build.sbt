@@ -1,3 +1,5 @@
+import sbtnativeimage.NativeImagePlugin.autoImport._
+
 val scala3Version = "3.7.4"
 val circeVersion = "0.14.15"
 val doobieVersion = "1.0.0-RC11"
@@ -12,10 +14,12 @@ val logbackClassicVersion = "1.5.16"
 
 lazy val root = project
   .in(file("."))
+  .enablePlugins(NativeImagePlugin)
   .settings(
     name := "social-publish-backend",
     version := "1.0.0",
     scalaVersion := scala3Version,
+    Compile / mainClass := Some("socialpublish.Main"),
     scalacOptions ++= Seq(
       "-no-indent",
       "-rewrite"
@@ -70,8 +74,17 @@ lazy val root = project
       // Testing
       "org.scalameta" %% "munit" % "1.0.3" % Test,
       "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test,
-      "org.tpolecat" %% "doobie-munit" % doobieVersion % Test
+      "org.tpolecat" %% "doobie-munit" % doobieVersion % Test,
+      "org.graalvm.buildtools" % "graalvm-reachability-metadata" % "0.10.6" % Runtime
     ),
+    nativeImageVersion := "21.0.2",
+    nativeImageJvm := "graalvm-java21",
+    nativeImageOptions ++= Seq(
+      "--enable-https",
+      "--no-fallback",
+      "--report-unsupported-elements-at-runtime"
+    ),
+    Global / excludeLintKeys ++= Set(nativeImageVersion, nativeImageJvm),
 
     // Assembly settings for building a fat JAR
     assembly / assemblyMergeStrategy := {

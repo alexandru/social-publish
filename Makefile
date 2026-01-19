@@ -2,13 +2,14 @@ NAME          := ghcr.io/alexandru/social-publish
 VERSION       := $$(./scripts/new-version.sh)
 VERSION_TAG   := ${NAME}:${VERSION}
 LATEST_TAG    := ${NAME}:latest
+DOCKERFILE    ?= ./Dockerfile.jvm
 
 init-docker:
 	docker buildx inspect mybuilder || docker buildx create --name mybuilder
 	docker buildx use mybuilder
 
 build-production: init-docker
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile  -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f ${DOCKERFILE} -t "${LATEST_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 push-production-latest:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-production
@@ -17,7 +18,13 @@ push-production-release:
 	DOCKER_EXTRA_ARGS="-t '${VERSION_TAG}' --push" $(MAKE) build-production
 
 build-local:
-	docker build -f ./Dockerfile -t "${VERSION_TAG}" -t "${LATEST_TAG}" .
+	docker build -f ${DOCKERFILE} -t "${VERSION_TAG}" -t "${LATEST_TAG}" .
+
+build-production-native:
+	DOCKERFILE=./Dockerfile.native $(MAKE) build-production
+
+build-local-native:
+	DOCKERFILE=./Dockerfile.native $(MAKE) build-local
 
 run-local: build-local
 	docker rm -f social-publish || true
