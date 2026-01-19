@@ -16,17 +16,17 @@ cd backend
   --bluesky-enabled false --mastodon-enabled false --twitter-enabled false
 ```
 
-**Observed process footprint (idle server):**
+**Observed process footprint (idle server, current branch):**
 
-* `ps`: **RSS ~202 MB**, VSZ ~7.8 GB.
+* `ps`: **RSS ~202 MB**, VSZ ~3.9 GB (Shenandoah, `-Xms32m -Xmx256m`).
 * NMT (`jcmd <pid> VM.native_memory summary`):
-  * **Committed total:** ~131 MB (reserved 5.7 GB largely from default heap reservation).
-  * **Java heap:** 17 MB committed, **4 GB reserved** (default max heap).
-* **Metaspace:** 54 MB committed (class metadata for tapir/http4s/doobie, etc.; now reduced after removing Swagger/OpenAPI).
+  * **Committed total:** ~140 MB (reserved ~1.7 GB mostly metaspace/class-space reservations).
+  * **Java heap:** 32 MB committed, **256 MB reserved** (bounded by launcher flags).
+  * **Metaspace:** 50–56 MB committed (class metadata for tapir/http4s/doobie, etc.; Swagger removed).
   * **Code cache:** 12 MB committed.
-  * **Symbols/strings:** 13 MB committed.
-  * **Threads:** 28 threads, stacks reserve ~27 MB (2.2 MB committed).
-  * **GC (Shenandoah) control structures:** 259 MB reserved, 4 MB committed.
+  * **Symbols/strings:** ~12–13 MB committed.
+  * **Threads:** ~31 threads, stacks reserve ~30 MB (~2.6 MB committed).
+  * **GC (Shenandoah) control structures:** ~19 MB reserved, ~3.9 MB committed.
   * **NMT overhead itself:** ~5 MB committed.
 
 **What is consuming the extra ~100 MB?**
@@ -37,26 +37,19 @@ cd backend
 
 ## Recommendations to trim ~80–120 MB
 
-1. **Cap heap explicitly for the service profile**  
-   Run the fat JAR with smaller bounds instead of relying on MaxRAM default (which reserved 4 GB). Current launcher uses:
-   ```
-   -Xms32m -Xmx256m
-   ```
-   This prevents over-reservation and typically drops RSS by 60–80 MB on small workloads.
+1. **Keep heap cap low and shrink stacks**  
+   Launcher already uses `-Xms32m -Xmx256m`. To claw back more RSS, also add e.g. `-Xss512k` (or 256k if safe) to trim ~10–15 MB of stack reservation for ~30 threads.
 
 2. **Keep Shenandoah (for uncommitting) but cap it**  
-   Shenandoah is kept to aggressively return unused pages; the key is capping the heap (`-Xmx`) so its reserved space stays small.
+   Shenandoah is kept to aggressively return unused pages; the key is capping the heap (`-Xmx`). Current heap is 256m reserved / ~13m used; further reduction would need lower `-Xmx` and load validation.
 
-3. **Trim thread stacks**  
-   Add `-Xss512k` (or lower if safe) and reduce pool sizes:
-   * Hikari: set `maximumPoolSize` to 2–4 for SQLite (default is 10).
-   * HTTP client: reuse a bounded executor if practical.
-   Expect ~10–15 MB saved.
+3. **Clamp thread pools**  
+   Hikari pool already reduced to 4/1. If acceptable, drop to 2/1 for SQLite-only deployments. Consider bounding the HTTP client/compute pools (cats-effect) if workload allows.
 
 4. **Reduce classpath-heavy features in prod**  
-   Swagger/OpenAPI endpoints and their dependencies were removed to shrink metaspace by ~10–15 MB.
+   Swagger/OpenAPI removed. Further savings would require trimming remaining libraries or shading out unused tapir modules; impact likely modest compared to heap/stacks.
 
 5. **Disable NMT outside diagnostics**  
    NMT adds ~5 MB committed and some CPU; keep it off in normal runs.
 
-Applying (1) + (3) alone should bring the idle RSS closer to ~90–120 MB for this service.
+Applying (1) + (3) (stack cut + possibly smaller pools) is the next lever to move RSS below ~180 MB; deeper cuts would require lowering `-Xmx` further or dropping additional libraries.
