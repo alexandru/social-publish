@@ -23,7 +23,6 @@ import socialpublish.services.FilesService
 import java.nio.file.{Files as JavaFiles, Path, Paths}
 
 class Routes(
-  @annotation.nowarn("msg=unused") server: ServerConfig,
   auth: AuthMiddleware,
   bluesky: BlueskyApi,
   mastodon: MastodonApi,
