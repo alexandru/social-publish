@@ -4,7 +4,7 @@ import cats.effect.{IO, Resource}
 import com.comcast.ip4s.{Host, Port}
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.server.Server
-import sttp.tapir.server.http4s.Http4sServerInterpreter
+
 import scala.concurrent.duration.*
 
 object HttpServer {
@@ -13,7 +13,7 @@ object HttpServer {
     config: ServerConfig,
     routes: Routes
   ): Resource[IO, Server] = {
-    val httpApp = Http4sServerInterpreter[IO]().toRoutes(routes.endpoints).orNotFound
+    val httpApp = routes.httpRoutes.orNotFound
 
     val host = Host.fromString("0.0.0.0").getOrElse(
       throw new IllegalArgumentException("Invalid host")

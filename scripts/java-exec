@@ -1,14 +1,23 @@
 #!/bin/sh
 
-# Optimized Java launcher with Shenandoah GC for low memory footprint
+# Optimized Java launcher for low memory footprint with Java 25
+#
+# Memory optimization options:
+# - UseCompactObjectHeaders: Reduces object header size from 12 to 8 bytes (saves ~10-20% heap)
 # - Shenandoah GC provides concurrent GC with low pause times
 # - ShenandoahUncommitDelay: Uncommit unused memory after 1s
 # - ShenandoahGuaranteedGCInterval: Force GC every 10s to release memory
+# - UseStringDeduplication: Share string data between identical strings
+# - CompactStrings: Use compact representation for Latin-1 strings (enabled by default)
+# - TieredStopAtLevel=1: Faster startup with reduced memory for JIT compilation
 
 exec java \
-  -XX:+UseShenandoahGC \
   -XX:+UnlockExperimentalVMOptions \
+  -XX:+UseCompactObjectHeaders \
+  -XX:+UseShenandoahGC \
   -XX:ShenandoahUncommitDelay=1000 \
   -XX:ShenandoahGuaranteedGCInterval=10000 \
+  -XX:+UseStringDeduplication \
+  -XX:TieredStopAtLevel=1 \
   -XX:+ExitOnOutOfMemoryError \
   "$@"

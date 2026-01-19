@@ -2,10 +2,10 @@ package socialpublish.testutils
 
 import cats.effect.{IO, Resource}
 import com.comcast.ip4s.{Host, Port}
+import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
 import sttp.model.Uri
-import sttp.tapir.server.ServerEndpoint
-import sttp.tapir.server.http4s.Http4sServerInterpreter
+
 import scala.concurrent.duration.*
 
 final case class Http4sTestServer(baseUri: Uri)
@@ -13,9 +13,9 @@ final case class Http4sTestServer(baseUri: Uri)
 object Http4sTestServer {
 
   def resource(
-    endpoints: List[ServerEndpoint[Any, IO]]
+    routes: HttpRoutes[IO]
   ): Resource[IO, Http4sTestServer] = {
-    val httpApp = Http4sServerInterpreter[IO]().toRoutes(endpoints).orNotFound
+    val httpApp = routes.orNotFound
 
     val host = Host.fromString("127.0.0.1").get
     val port = Port.fromInt(0).get

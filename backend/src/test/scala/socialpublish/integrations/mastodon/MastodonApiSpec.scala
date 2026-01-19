@@ -3,27 +3,32 @@ package socialpublish.integrations.mastodon
 import cats.effect.*
 import cats.mtl.Handle
 import munit.CatsEffectSuite
+import org.http4s.*
+import org.http4s.circe.*
+import org.http4s.circe.CirceEntityCodec.*
+import org.http4s.dsl.io.*
+import socialpublish.integrations.mastodon.MastodonModels.*
 import socialpublish.models.{ApiError, Content, NewPostRequest}
 import socialpublish.testutils.{Http4sTestServer, ServiceFixtures}
-
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 
 class MastodonApiSpec extends CatsEffectSuite {
 
   test("createPost sends status to Mastodon") {
     for {
-      statusRef <- Ref.of[IO, Option[MastodonEndpoints.StatusCreateRequest]](None)
-      endpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
-        MastodonEndpoints.createStatus.serverLogicSuccess { case (_, request) =>
-          statusRef.set(Some(request)) *>
-            IO.pure(MastodonEndpoints.StatusResponse(
-              "id-1",
-              "https://mastodon/post/1",
-              "https://mastodon/post/1"
-            ))
-        }
-      )
-      response <- Http4sTestServer.resource(endpoints).use { server =>
+      statusRef <- Ref.of[IO, Option[StatusCreateRequest]](None)
+      routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
+        case req @ POST -> Root / "api" / "v1" / "statuses" =>
+          req.as[StatusCreateRequest].flatMap { request =>
+            statusRef.set(Some(request)) *>
+              Ok(StatusResponse(
+                "id-1",
+                "https://mastodon/post/1",
+                "https://mastodon/post/1"
+              ))
+          }
+      }
+      response <- Http4sTestServer.resource(routes).use { server =>
         ServiceFixtures.filesServiceResource.use { filesService =>
           HttpClientCatsBackend.resource[IO]().use { backend =>
             val config = MastodonConfig.Enabled(server.baseUri.toString(), "token")

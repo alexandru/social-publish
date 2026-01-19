@@ -4,9 +4,7 @@ val doobieVersion = "1.0.0-RC11"
 val catsEffectVersion = "3.6.3"
 val declineVersion = "2.5.0"
 val log4catsVersion = "2.7.1"
-val tapirVersion = "1.13.5"
 val sttpVersion = "4.0.13"
-val apispecVersion = "0.11.10"
 val http4sVersion = "0.23.27"
 val logbackClassicVersion = "1.5.16"
 
@@ -25,23 +23,14 @@ lazy val root = project
       "org.typelevel" %% "cats-effect" % catsEffectVersion,
       "org.typelevel" %% "cats-mtl" % "1.6.0",
 
-      // Tapir + Http4s server + OpenAPI
-      "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-sttp-client4" % tapirVersion,
-
       // Http4s Server
       "org.http4s" %% "http4s-ember-server" % http4sVersion,
       "org.http4s" %% "http4s-dsl" % http4sVersion,
+      "org.http4s" %% "http4s-circe" % http4sVersion,
 
       // sttp client (cats-effect backend)
       "com.softwaremill.sttp.client4" %% "cats" % sttpVersion,
-
-      // OpenAPI JSON support
-      "com.softwaremill.sttp.apispec" %% "openapi-circe" % apispecVersion,
+      "com.softwaremill.sttp.client4" %% "circe" % sttpVersion,
 
       // Circe for JSON
       "io.circe" %% "circe-core" % circeVersion,
@@ -75,10 +64,6 @@ lazy val root = project
 
     // Assembly settings for building a fat JAR
     assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", "maven", "org.webjars", "swagger-ui", "pom.properties") =>
-        MergeStrategy.singleOrError
-      case PathList("META-INF", "resources", "webjars", "swagger-ui", xs @ _*) =>
-        MergeStrategy.singleOrError
       case PathList("META-INF", "versions", xs @ _*) => MergeStrategy.first
       case PathList("META-INF", "maven", xs @ _*) => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first

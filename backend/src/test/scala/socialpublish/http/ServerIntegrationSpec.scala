@@ -6,13 +6,17 @@ import cats.syntax.all.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import munit.CatsEffectSuite
+import org.http4s.*
+import org.http4s.circe.*
+import org.http4s.circe.CirceEntityCodec.*
+import org.http4s.dsl.io.*
 import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtCirce
 import scala.annotation.nowarn
 import socialpublish.db.PostsDatabaseImpl
 import socialpublish.integrations.Integrations
-import socialpublish.integrations.bluesky.{BlueskyConfig, BlueskyEndpoints}
-import socialpublish.integrations.mastodon.{MastodonConfig, MastodonEndpoints}
+import socialpublish.integrations.bluesky.{BlueskyConfig, BlueskyModels}
+import socialpublish.integrations.mastodon.{MastodonConfig, MastodonModels}
 import socialpublish.integrations.twitter.TwitterConfig
 import socialpublish.models.{ApiError, Content, NewPostRequest, NewPostResponse, Post, Target}
 import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
@@ -27,28 +31,25 @@ class ServerIntegrationSpec extends CatsEffectSuite {
     scala.concurrent.duration.Duration(300, "s")
 
   test("main server posts to mocked integrations") {
-    val blueskyEndpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
-      BlueskyEndpoints.createSession.serverLogicSuccess { _ =>
-        IO.pure(BlueskyEndpoints.LoginResponse("access", "refresh", "handle", "did:example"))
-      },
-      BlueskyEndpoints.createRecord.serverLogicSuccess { case (_, request) =>
-        IO.pure(BlueskyEndpoints.CreatePostResponse("at://example/post", "cid-123"))
-      }
-    )
+    val blueskyRoutes: HttpRoutes[IO] = HttpRoutes.of[IO] {
+      case req @ POST -> Root / "xrpc" / "com.atproto.server.createSession" =>
+        Ok(BlueskyModels.LoginResponse("access", "refresh", "handle", "did:example"))
+      case req @ POST -> Root / "xrpc" / "com.atproto.repo.createRecord" =>
+        Ok(BlueskyModels.CreatePostResponse("at://example/post", "cid-123"))
+    }
 
-    val mastodonEndpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
-      MastodonEndpoints.createStatus.serverLogicSuccess { case (_, request) =>
-        IO.pure(MastodonEndpoints.StatusResponse(
+    val mastodonRoutes: HttpRoutes[IO] = HttpRoutes.of[IO] {
+      case req @ POST -> Root / "api" / "v1" / "statuses" =>
+        Ok(MastodonModels.StatusResponse(
           "id-1",
           "https://mastodon/post/1",
           "https://mastodon/post/1"
         ))
-      }
-    )
+    }
 
     (
-      Http4sTestServer.resource(blueskyEndpoints),
-      Http4sTestServer.resource(mastodonEndpoints)
+      Http4sTestServer.resource(blueskyRoutes),
+      Http4sTestServer.resource(mastodonRoutes)
     ).tupled.use {
       case (blueskyServer, mastodonServer) =>
         ServiceFixtures.filesServiceResource.use { filesService =>
@@ -382,8 +383,11 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                     .auth
                     .bearer(login.token)
                     .multipartBody(
-                      multipart("file", imageBytes).contentType("image/png").fileName("upload.png"),
-                      multipart("altText", "Accessibility description")
+                      sttp.client4.multipart(
+                        "file",
+                        imageBytes
+                      ).contentType("image/png").fileName("upload.png"),
+                      sttp.client4.multipart("altText", "Accessibility description")
                     )
                     .response(asStringAlways)
                     .send(clientBackend)

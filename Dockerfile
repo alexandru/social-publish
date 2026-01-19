@@ -8,7 +8,7 @@ RUN npm install
 COPY frontend/ .
 RUN npm run build
 
-FROM eclipse-temurin:21-jdk-jammy AS backend-build
+FROM eclipse-temurin:25-jdk-jammy AS backend-build
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN ./sbt -Dsbt.supershell=false update
 COPY backend/ .
 RUN ./sbt -Dsbt.supershell=false assembly
 
-FROM eclipse-temurin:21-alpine AS jre-build
+FROM eclipse-temurin:25-alpine AS jre-build
 
 # Create a custom Java runtime with minimal modules for reduced memory footprint
 RUN apk add binutils --no-cache

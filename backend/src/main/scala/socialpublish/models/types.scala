@@ -4,7 +4,6 @@ import java.time.Instant
 import java.util.UUID
 import io.circe.{Codec, Decoder, DecodingFailure, Encoder}
 import io.circe.generic.semiauto.*
-import sttp.tapir.{Schema, Validator}
 
 // Target social networks
 /** Supported social network targets for publishing. Used in NewPostRequest to specify destination
@@ -26,11 +25,6 @@ object Target {
         case other => Left(s"Unknown target: $other")
       },
       Encoder.encodeString.contramap(_.toString.toLowerCase)
-    )
-
-  given Schema[Target] =
-    Schema.string.validate(
-      Validator.enumeration(Target.values.toList, target => Some(target.toString.toLowerCase))
     )
 
 }
@@ -62,11 +56,6 @@ object Content {
 
   given Encoder[Content] =
     Encoder.encodeString.contramap(_.value)
-
-  given Schema[Content] =
-    Schema.string.validate(
-      Validator.minLength(1).and(Validator.maxLength(1000))
-    )
 }
 
 // Post domain model
@@ -107,9 +96,6 @@ object Post {
   given Codec[Post] =
     deriveCodec
 
-  given Schema[Post] =
-    Schema.derived
-
 }
 
 // Request to create a new post
@@ -142,9 +128,6 @@ object NewPostRequest {
 
   given Codec[NewPostRequest] =
     deriveCodec
-
-  given Schema[NewPostRequest] =
-    Schema.derived
 
 }
 
@@ -227,27 +210,6 @@ object NewPostResponse {
       }
     }
 
-  // Define schemas for concrete types so they can be referenced by the discriminator
-  given Schema[Bluesky] =
-    Schema.derived
-  given Schema[Mastodon] =
-    Schema.derived
-  given Schema[Twitter] =
-    Schema.derived
-  given Schema[Rss] =
-    Schema.derived
-
-  given Schema[NewPostResponse] =
-    Schema.oneOfUsingField[NewPostResponse, String](
-      _.module,
-      _.toString
-    )(
-      "bluesky" -> Schema.derived[Bluesky],
-      "mastodon" -> Schema.derived[Mastodon],
-      "twitter" -> Schema.derived[Twitter],
-      "rss" -> Schema.derived[Rss]
-    )
-
 }
 
 // File/Image metadata
@@ -289,9 +251,6 @@ object FileMetadata {
 
   given Codec[FileMetadata] =
     deriveCodec
-
-  given Schema[FileMetadata] =
-    Schema.derived
 
 }
 

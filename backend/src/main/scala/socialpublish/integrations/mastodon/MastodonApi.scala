@@ -4,14 +4,14 @@ import cats.effect.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
-import socialpublish.integrations.mastodon.MastodonEndpoints.*
+import io.circe.syntax.*
+import socialpublish.integrations.mastodon.MastodonModels.*
 import socialpublish.models.*
 import socialpublish.services.{FilesService, ProcessedFile}
 import socialpublish.utils.TextUtils
-import sttp.client4.Backend
-import sttp.model.{MediaType, Part, Uri}
-import sttp.tapir.DecodeResult
-import sttp.tapir.client.sttp4.SttpClientInterpreter
+import sttp.client4.*
+import sttp.client4.circe.*
+import sttp.model.{MediaType, Uri}
 
 import java.util.UUID
 import scala.concurrent.duration.*
@@ -43,7 +43,6 @@ private class MastodonApiImpl(
   files: FilesService
 ) extends MastodonApi {
 
-  private val interpreter = SttpClientInterpreter()
   private val baseUri = Uri.unsafeParse(config.host)
 
   override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
@@ -73,34 +72,56 @@ private class MastodonApiImpl(
       file <- fileOpt.fold(
         ApiError.notFound(s"File not found: $uuid").raise[IO, ProcessedFile]
       )(IO.pure)
-      filePart =
-        Part("file", file.bytes)
-          .fileName(file.originalName)
-          .contentType(MediaType.unsafeParse(file.mimeType))
 
-      descriptionPart =
-        file.altText.map(altText => Part("description", altText))
+      filePart = multipart("file", file.bytes)
+        .fileName(file.originalName)
+        .contentType(MediaType.unsafeParse(file.mimeType))
 
-      request = interpreter.toRequest(MastodonEndpoints.uploadMedia, Some(baseUri))(
-        bearerToken(config.accessToken) -> MediaUploadForm(filePart, descriptionPart)
-      )
+      parts = file.altText match {
+        case Some(altText) => Seq(filePart, multipart("description", altText))
+        case None => Seq(filePart)
+      }
+
+      request = basicRequest
+        .post(baseUri.addPath("api", "v2", "media"))
+        .header("Authorization", bearerToken(config.accessToken))
+        .multipartBody(parts)
+        .response(asJson[MediaUploadResponse])
 
       response <- backend.send(request).flatMap { response =>
         response.code.code match {
           case 200 =>
             // Immediate success
-            Raise[IO, ApiError]
-              .fromEither(decodeApiResponse(response.body, response.code.code))
-              .map(_.id)
+            response.body match {
+              case Right(value) => IO.pure(value.id)
+              case Left(error) =>
+                ApiError.requestError(
+                  response.code.code,
+                  s"Mastodon upload failed: ${error.getMessage}",
+                  "mastodon"
+                )
+                  .raise[IO, String]
+            }
           case 202 =>
             // Async processing - need to poll
-            Raise[IO, ApiError]
-              .fromEither(decodeApiResponse(response.body, response.code.code))
-              .flatMap(initial => pollMediaUntilReady(initial.id))
+            response.body match {
+              case Right(initial) => pollMediaUntilReady(initial.id)
+              case Left(error) =>
+                ApiError.requestError(
+                  response.code.code,
+                  s"Mastodon upload failed: ${error.getMessage}",
+                  "mastodon"
+                )
+                  .raise[IO, String]
+            }
           case _ =>
-            Raise[IO, ApiError]
-              .fromEither(decodeApiResponse(response.body, response.code.code))
-              .map(_.id)
+            val errorMsg = response.body.left.map(_.getMessage).merge.toString
+            ApiError.requestError(
+              response.code.code,
+              s"Mastodon upload failed: $errorMsg",
+              "mastodon"
+            )
+              .raise[IO, String]
         }
       }
     } yield response
@@ -115,15 +136,24 @@ private class MastodonApiImpl(
           "mastodon"
         ).raise[IO, String]
       } else {
-        val request = interpreter.toRequest(MastodonEndpoints.getMedia, Some(baseUri))(
-          bearerToken(config.accessToken) -> mediaId
-        )
+        val request = basicRequest
+          .get(baseUri.addPath("api", "v1", "media", mediaId))
+          .header("Authorization", bearerToken(config.accessToken))
+          .response(asJson[MediaUploadResponse])
 
         backend.send(request).flatMap { response =>
           response.code.code match {
             case 200 =>
-              Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
-                .map(_.id)
+              response.body match {
+                case Right(value) => IO.pure(value.id)
+                case Left(error) =>
+                  ApiError.requestError(
+                    response.code.code,
+                    s"Mastodon media check failed: ${error.getMessage}",
+                    "mastodon"
+                  )
+                    .raise[IO, String]
+              }
             case 202 =>
               // Still processing, wait and retry
               IO.sleep(200.millis) *> poll(attempt + 1)
@@ -151,43 +181,22 @@ private class MastodonApiImpl(
       language = language
     )
 
-    val request = interpreter.toRequest(MastodonEndpoints.createStatus, Some(baseUri))(
-      bearerToken(config.accessToken) -> payload
-    )
+    val request = basicRequest
+      .post(baseUri.addPath("api", "v1", "statuses"))
+      .header("Authorization", bearerToken(config.accessToken))
+      .body(payload.asJson.noSpaces)
+      .contentType("application/json")
+      .response(asJson[StatusResponse])
 
     backend.send(request).flatMap { response =>
-      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
+      response.body match {
+        case Right(value) => IO.pure(value)
+        case Left(error) =>
+          ApiError.requestError(response.code.code, s"Mastodon status failed: $error", "mastodon")
+            .raise[IO, StatusResponse]
+      }
     }
   }
-
-  private def decodeApiResponse[A](
-    decoded: DecodeResult[Either[String, A]],
-    status: Int
-  ): Either[ApiError, A] =
-    decoded match {
-      case DecodeResult.Value(Right(value)) =>
-        Right(value)
-      case DecodeResult.Value(Left(errorBody)) =>
-        Left(ApiError.requestError(status, "Mastodon request failed", "mastodon", errorBody))
-      case DecodeResult.Error(original, error) =>
-        Left(ApiError.caughtException(s"Mastodon decode failure: $original", "mastodon", error))
-      case DecodeResult.Missing =>
-        Left(ApiError.requestError(status, "Mastodon response missing body", "mastodon"))
-      case DecodeResult.Mismatch(_, _) =>
-        Left(ApiError.requestError(status, "Mastodon response mismatch", "mastodon"))
-      case DecodeResult.InvalidValue(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Mastodon invalid response: ${errors.toList.mkString(", ")}",
-          "mastodon"
-        ))
-      case DecodeResult.Multiple(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Mastodon multiple responses: ${errors.toList.mkString(", ")}",
-          "mastodon"
-        ))
-    }
 
   private def bearerToken(token: String): String =
     s"Bearer $token"

@@ -11,42 +11,16 @@ import pdi.jwt.JwtCirce
 import pdi.jwt.JwtClaim
 import socialpublish.integrations.twitter.TwitterApi
 import socialpublish.models.ApiError
-import sttp.tapir.Schema
 
 case class UserPayload(username: String) derives Codec.AsObject
 
-object UserPayload {
-  given Schema[UserPayload] =
-    Schema.derived
-}
-
 case class LoginRequest(username: String, password: String) derives Codec.AsObject
-
-object LoginRequest {
-  given Schema[LoginRequest] =
-    Schema.derived
-}
 
 case class LoginResponse(token: String, hasAuth: AuthStatus) derives Codec.AsObject
 
-object LoginResponse {
-  given Schema[LoginResponse] =
-    Schema.derived
-}
-
 case class AuthStatus(twitter: Boolean) derives Codec.AsObject
 
-object AuthStatus {
-  given Schema[AuthStatus] =
-    Schema.derived
-}
-
 case class ProtectedResponse(username: String) derives Codec.AsObject
-
-object ProtectedResponse {
-  given Schema[ProtectedResponse] =
-    Schema.derived
-}
 
 case class AuthInputs(
   authHeader: Option[String],
@@ -55,11 +29,6 @@ case class AuthInputs(
 )
 
 case class AuthContext(user: UserPayload, token: String)
-
-object AuthContext {
-  given Schema[AuthContext] =
-    Schema.derived
-}
 
 class AuthMiddleware(
   server: ServerConfig,

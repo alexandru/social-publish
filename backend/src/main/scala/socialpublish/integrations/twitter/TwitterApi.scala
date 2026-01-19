@@ -7,16 +7,15 @@ import cats.syntax.all.*
 import io.circe.Codec
 import io.circe.parser.decode
 import io.circe.syntax.*
-import socialpublish.integrations.twitter.TwitterEndpoints.*
+import socialpublish.integrations.twitter.TwitterModels.*
 import socialpublish.db.DocumentsDatabase
 import socialpublish.http.ServerConfig
 import socialpublish.models.*
 import socialpublish.services.{FilesService, ProcessedFile}
 import socialpublish.utils.TextUtils
-import sttp.client4.Backend
-import sttp.model.{MediaType, Part, Uri}
-import sttp.tapir.DecodeResult
-import sttp.tapir.client.sttp4.SttpClientInterpreter
+import sttp.client4.*
+import sttp.client4.circe.*
+import sttp.model.{MediaType, Uri}
 
 import java.util.Base64
 import java.net.URLEncoder
@@ -98,7 +97,6 @@ private class TwitterApiImpl(
   private val apiBase = Uri.unsafeParse(config.apiBaseUrl)
   private val uploadBase = Uri.unsafeParse(config.uploadBaseUrl)
   private val authBase = Uri.unsafeParse(config.authBaseUrl)
-  private val interpreter = SttpClientInterpreter()
 
   override def hasTwitterAuth: IO[Boolean] =
     restoreOauthTokenFromDb.map(_.isDefined)
@@ -119,19 +117,29 @@ private class TwitterApiImpl(
     )
     val authHeader = buildAuthorizationHeader(oauthParams)
 
-    val request = interpreter.toRequest(TwitterEndpoints.requestToken, Some(authBase))(
-      (authHeader, callbackUrl, "write")
-    )
+    val request = basicRequest
+      .post(authBase.addPath("oauth", "request_token"))
+      .header("Authorization", authHeader)
+      .body(s"oauth_callback=${URLEncoder.encode(callbackUrl, "UTF-8")}&x_auth_access_type=write")
+      .contentType("application/x-www-form-urlencoded")
+      .response(asStringAlways)
 
     for {
-      response <- sendRequest(request)
-      params <- Raise[IO, ApiError].fromEither(parseQueryString(response).toRight(
-        ApiError.requestError(500, "Missing oauth_token", "twitter", response)
+      response <- backend.send(request)
+      _ <- if response.code.isSuccess then IO.unit
+      else ApiError.requestError(
+        response.code.code,
+        s"Twitter request token failed: ${response.body}",
+        "twitter"
+      )
+        .raise[IO, Unit]
+      params <- Raise[IO, ApiError].fromEither(parseQueryString(response.body).toRight(
+        ApiError.requestError(500, "Missing oauth_token", "twitter", response.body)
       ))
       token <- params.get("oauth_token") match {
         case Some(value) => IO.pure(value)
         case None =>
-          ApiError.requestError(500, "No oauth_token in response", "twitter", response)
+          ApiError.requestError(500, "No oauth_token in response", "twitter", response.body)
             .raise[IO, String]
       }
       authUrl = s"$authorizeURL?oauth_token=$token"
@@ -148,22 +156,37 @@ private class TwitterApiImpl(
       None
     )
     val authHeader = buildAuthorizationHeader(oauthParams)
-    val request = interpreter.toRequest(TwitterEndpoints.accessToken, Some(authBase))(
-      (authHeader, oauthToken, oauthVerifier)
-    )
 
-    sendRequest(request).flatMap { body =>
-      val params = parseQueryString(body).getOrElse(Map.empty)
-      val token = AuthorizedToken(
-        key = params.getOrElse("oauth_token", ""),
-        secret = params.getOrElse("oauth_token_secret", "")
+    val request = basicRequest
+      .post(authBase.addPath("oauth", "access_token"))
+      .header("Authorization", authHeader)
+      .body(
+        s"oauth_token=${URLEncoder.encode(oauthToken, "UTF-8")}&oauth_verifier=${URLEncoder.encode(oauthVerifier, "UTF-8")}"
       )
+      .contentType("application/x-www-form-urlencoded")
+      .response(asStringAlways)
 
-      docsDb.createOrUpdate(
-        kind = "twitter-oauth-token",
-        payload = token.asJson.noSpaces,
-        tags = List(DocumentTag("twitter-oauth-token", "key"))
-      ).void
+    backend.send(request).flatMap { response =>
+      if !response.code.isSuccess then {
+        ApiError.requestError(
+          response.code.code,
+          s"Twitter access token failed: ${response.body}",
+          "twitter"
+        )
+          .raise[IO, Unit]
+      } else {
+        val params = parseQueryString(response.body).getOrElse(Map.empty)
+        val token = AuthorizedToken(
+          key = params.getOrElse("oauth_token", ""),
+          secret = params.getOrElse("oauth_token_secret", "")
+        )
+
+        docsDb.createOrUpdate(
+          kind = "twitter-oauth-token",
+          payload = token.asJson.noSpaces,
+          tags = List(DocumentTag("twitter-oauth-token", "key"))
+        ).void
+      }
     }
   }
 
@@ -202,11 +225,21 @@ private class TwitterApiImpl(
       oauthParams = generateOAuthParams("POST", createTweetURL, Map.empty, Some(token))
       authHeader = buildAuthorizationHeader(oauthParams)
 
-      request = interpreter.toRequest(TwitterEndpoints.createTweet, Some(apiBase))(
-        authHeader -> tweetData
-      )
+      request = basicRequest
+        .post(apiBase.addPath("2", "tweets"))
+        .header("Authorization", authHeader)
+        .body(tweetData.asJson.noSpaces)
+        .contentType("application/json")
+        .response(asJson[TweetResponse])
 
-      response <- sendRequest(request)
+      response <- backend.send(request).flatMap { response =>
+        response.body match {
+          case Right(value) => IO.pure(value)
+          case Left(error) =>
+            ApiError.requestError(response.code.code, s"Twitter tweet failed: $error", "twitter")
+              .raise[IO, TweetResponse]
+        }
+      }
     } yield NewPostResponse.Twitter(response.data.id)
 
   private def uploadMedia(token: AuthorizedToken, uuid: UUID)(using
@@ -221,72 +254,51 @@ private class TwitterApiImpl(
       oauthParams = generateOAuthParams("POST", mediaUploadURL, Map.empty, Some(token))
       authHeader = buildAuthorizationHeader(oauthParams)
 
-      mediaPart =
-        Part("media", file.bytes)
-          .fileName(file.originalName)
-          .contentType(MediaType.unsafeParse(file.mimeType))
+      mediaPart = multipart("media", file.bytes)
+        .fileName(file.originalName)
+        .contentType(MediaType.unsafeParse(file.mimeType))
 
-      request = interpreter.toRequest(TwitterEndpoints.uploadMedia, Some(uploadBase))(
-        authHeader -> TwitterMediaUploadForm(mediaPart)
-      )
+      request = basicRequest
+        .post(uploadBase.addPath("1.1", "media", "upload.json"))
+        .header("Authorization", authHeader)
+        .multipartBody(mediaPart)
+        .response(asJson[TwitterMediaUploadResponse])
 
-      response <- sendRequest(request)
+      response <- backend.send(request).flatMap { response =>
+        response.body match {
+          case Right(value) => IO.pure(value)
+          case Left(error) =>
+            ApiError.requestError(
+              response.code.code,
+              s"Twitter media upload failed: ${error.getMessage}",
+              "twitter"
+            )
+              .raise[IO, TwitterMediaUploadResponse]
+        }
+      }
 
       _ <- file.altText match {
         case Some(alt) =>
           val oauthParamsAlt = generateOAuthParams("POST", altTextURL, Map.empty, Some(token))
           val authHeaderAlt = buildAuthorizationHeader(oauthParamsAlt)
-          val altTextRequest = AltTextRequest(
+          val altTextPayload = AltTextRequest(
             media_id = response.media_id_string,
             alt_text = AltTextPayload(alt)
           )
 
-          val altRequest = interpreter.toRequest(TwitterEndpoints.createAltText, Some(apiBase))(
-            authHeaderAlt -> altTextRequest
-          )
+          val altRequest = basicRequest
+            .post(apiBase.addPath("1.1", "media", "metadata", "create.json"))
+            .header("Authorization", authHeaderAlt)
+            .body(altTextPayload.asJson.noSpaces)
+            .contentType("application/json")
+            .response(asStringAlways)
 
-          sendRequest(altRequest).void
+          backend.send(altRequest).void
         case None =>
           IO.unit
       }
     } yield response.media_id_string
   }
-
-  private def sendRequest[I, O](
-    request: sttp.client4.Request[DecodeResult[Either[String, O]]]
-  )(using Raise[IO, ApiError]): IO[O] =
-    backend.send(request).flatMap { response =>
-      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
-    }
-
-  private def decodeApiResponse[A](
-    decoded: DecodeResult[Either[String, A]],
-    status: Int
-  ): Either[ApiError, A] =
-    decoded match {
-      case DecodeResult.Value(Right(value)) =>
-        Right(value)
-      case DecodeResult.Value(Left(errorBody)) =>
-        Left(ApiError.requestError(status, "Twitter request failed", "twitter", errorBody))
-      case DecodeResult.Error(original, error) =>
-        Left(ApiError.caughtException(s"Twitter decode failure: $original", "twitter", error))
-      case DecodeResult.Missing =>
-        Left(ApiError.requestError(status, "Twitter response missing body", "twitter"))
-      case DecodeResult.Mismatch(_, _) =>
-        Left(ApiError.requestError(status, "Twitter response mismatch", "twitter"))
-      case DecodeResult.InvalidValue(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Twitter invalid response: ${errors.toList.mkString(", ")}",
-          "twitter"
-        ))
-      case DecodeResult.Multiple(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Twitter multiple responses: ${errors.toList.mkString(", ")}",
-          "twitter"
-        ))
-    }
 
   private def restoreOauthTokenFromDb: IO[Option[AuthorizedToken]] =
     docsDb.searchByKey("twitter-oauth-token").flatMap {

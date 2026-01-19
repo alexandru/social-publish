@@ -4,14 +4,14 @@ import cats.effect.*
 import cats.mtl.Raise
 import cats.mtl.syntax.all.*
 import cats.syntax.all.*
-import socialpublish.integrations.bluesky.BlueskyEndpoints.*
+import io.circe.syntax.*
+import socialpublish.integrations.bluesky.BlueskyModels.*
 import socialpublish.models.*
 import socialpublish.services.{FilesService, ProcessedFile}
 import socialpublish.utils.TextUtils
-import sttp.client4.Backend
+import sttp.client4.*
+import sttp.client4.circe.*
 import sttp.model.Uri
-import sttp.tapir.DecodeResult
-import sttp.tapir.client.sttp4.SttpClientInterpreter
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -52,35 +52,20 @@ object BlueskyApi {
     backend: Backend[IO]
   ): IO[LoginResponse] = {
     val baseUri = Uri.unsafeParse(service)
-    val interpreter = SttpClientInterpreter()
-    val request =
-      interpreter.toRequest(createSession, Some(baseUri))(LoginRequest(username, password))
+    val request = basicRequest
+      .post(baseUri.addPath("xrpc", "com.atproto.server.createSession"))
+      .body(LoginRequest(username, password).asJson.noSpaces)
+      .contentType("application/json")
+      .response(asJson[LoginResponse])
+
     backend.send(request).flatMap { response =>
-      IO.fromEither(decodeResponse(response.body, response.code.code, "bluesky"))
+      response.body match {
+        case Right(value) => IO.pure(value)
+        case Left(error) =>
+          IO.raiseError(new RuntimeException(s"Bluesky login failed: $error"))
+      }
     }
   }
-
-  private def decodeResponse[A](
-    decoded: DecodeResult[Either[String, A]],
-    status: Int,
-    module: String
-  ): Either[Throwable, A] =
-    decoded match {
-      case DecodeResult.Value(Right(value)) =>
-        Right(value)
-      case DecodeResult.Value(Left(errorBody)) =>
-        Left(new RuntimeException(s"$module request failed with status $status: $errorBody"))
-      case DecodeResult.Error(original, error) =>
-        Left(new RuntimeException(s"$module decode failure: $original", error))
-      case DecodeResult.Missing =>
-        Left(new RuntimeException(s"$module response missing body"))
-      case DecodeResult.Mismatch(_, _) =>
-        Left(new RuntimeException(s"$module response mismatch"))
-      case DecodeResult.InvalidValue(errors) =>
-        Left(new RuntimeException(s"$module invalid response: ${errors.toList.mkString(", ")}"))
-      case DecodeResult.Multiple(errors) =>
-        Left(new RuntimeException(s"$module multiple responses: ${errors.toList.mkString(", ")}"))
-    }
 
 }
 
@@ -91,7 +76,6 @@ private class BlueskyApiImpl(
   session: LoginResponse
 ) extends BlueskyApi {
 
-  private val interpreter = SttpClientInterpreter()
   private val baseUri = Uri.unsafeParse(config.service)
 
   override def createPost(request: NewPostRequest)(using Raise[IO, ApiError]): IO[NewPostResponse] =
@@ -133,17 +117,26 @@ private class BlueskyApiImpl(
   private def uploadBlobRef(bytes: Array[Byte], mimeType: String)(using
     Raise[IO, ApiError]
   ): IO[BlobRef] = {
-    val request = interpreter.toRequest(uploadBlob, Some(baseUri))(
-      (
-        bearerToken(session.accessJwt),
-        mimeType,
-        bytes
-      )
-    )
+    val request = basicRequest
+      .post(baseUri.addPath("xrpc", "com.atproto.repo.uploadBlob"))
+      .header("Authorization", bearerToken(session.accessJwt))
+      .contentType(mimeType)
+      .body(bytes)
+      .response(asJson[UploadBlobResponse])
 
     backend.send(request).flatMap { response =>
-      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
-    }.map(_.blob)
+      response.body match {
+        case Right(value) => IO.pure(value.blob)
+        case Left(error) =>
+          ApiError
+            .requestError(
+              response.code.code,
+              s"Bluesky upload failed: ${error.getMessage}",
+              "bluesky"
+            )
+            .raise[IO, BlobRef]
+      }
+    }
   }
 
   private def detectFacets(text: String): IO[List[Facet]] =
@@ -188,48 +181,29 @@ private class BlueskyApiImpl(
   private def postToBluesky(record: PostRecord)(using
     Raise[IO, ApiError]
   ): IO[CreatePostResponse] = {
-    val request = interpreter.toRequest(createRecord, Some(baseUri))(
-      bearerToken(session.accessJwt) ->
-        CreatePostRequest(
-          repo = session.did,
-          collection = "app.bsky.feed.post",
-          record = record
-        )
+    val payload = CreatePostRequest(
+      repo = session.did,
+      collection = "app.bsky.feed.post",
+      record = record
     )
 
+    val request = basicRequest
+      .post(baseUri.addPath("xrpc", "com.atproto.repo.createRecord"))
+      .header("Authorization", bearerToken(session.accessJwt))
+      .body(payload.asJson.noSpaces)
+      .contentType("application/json")
+      .response(asJson[CreatePostResponse])
+
     backend.send(request).flatMap { response =>
-      Raise[IO, ApiError].fromEither(decodeApiResponse(response.body, response.code.code))
+      response.body match {
+        case Right(value) => IO.pure(value)
+        case Left(error) =>
+          ApiError
+            .requestError(response.code.code, s"Bluesky post failed: $error", "bluesky")
+            .raise[IO, CreatePostResponse]
+      }
     }
   }
-
-  private def decodeApiResponse[A](
-    decoded: DecodeResult[Either[String, A]],
-    status: Int
-  ): Either[ApiError, A] =
-    decoded match {
-      case DecodeResult.Value(Right(value)) =>
-        Right(value)
-      case DecodeResult.Value(Left(errorBody)) =>
-        Left(ApiError.requestError(status, "Bluesky request failed", "bluesky", errorBody))
-      case DecodeResult.Error(original, error) =>
-        Left(ApiError.caughtException(s"Bluesky decode failure: $original", "bluesky", error))
-      case DecodeResult.Missing =>
-        Left(ApiError.requestError(status, "Bluesky response missing body", "bluesky"))
-      case DecodeResult.Mismatch(_, _) =>
-        Left(ApiError.requestError(status, "Bluesky response mismatch", "bluesky"))
-      case DecodeResult.InvalidValue(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Bluesky invalid response: ${errors.toList.mkString(", ")}",
-          "bluesky"
-        ))
-      case DecodeResult.Multiple(errors) =>
-        Left(ApiError.requestError(
-          status,
-          s"Bluesky multiple responses: ${errors.toList.mkString(", ")}",
-          "bluesky"
-        ))
-    }
 
   private def bearerToken(token: String): String =
     s"Bearer $token"
