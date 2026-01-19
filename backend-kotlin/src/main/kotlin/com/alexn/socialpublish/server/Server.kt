@@ -21,7 +21,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
-import io.ktor.server.netty.Netty
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -43,6 +44,7 @@ fun startServer(
     documentsDb: DocumentsDatabase,
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
+    engine: ApplicationEngineFactory<*, *> = CIO,
 ) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
@@ -83,7 +85,7 @@ fun startServer(
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    server(Netty, port = config.server.httpPort) {
+    server(engine, port = config.server.httpPort) {
         install(CORS) {
             anyHost()
             allowHeader(io.ktor.http.HttpHeaders.ContentType)

@@ -1,0 +1,37 @@
+# To build the native image container:
+#   docker build -f ./Dockerfile.native -t social-publish-native .
+#
+# To run:
+#   docker run -p 3000:3000 social-publish-native
+
+FROM ghcr.io/graalvm/native-image-community:25 AS build
+WORKDIR /app/source
+
+COPY --chown=root:root . .
+
+# Build frontend assets and native executable
+RUN ./gradlew :frontend-kotlin:assemble :backend-kotlin:nativeCompile --no-daemon
+
+FROM debian:stable-slim
+
+RUN mkdir -p /opt/app/public /var/lib/social-publish/uploads /opt/app/config
+RUN useradd --uid 1001 --home-dir /opt/app --shell /bin/sh appuser
+WORKDIR /opt/app
+
+RUN chown -R appuser /opt/app /var/lib/social-publish && chmod -R "g+rwX" /opt/app /var/lib/social-publish
+
+RUN apt-get update && apt-get -y upgrade && apt-get install -y curl jq && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=build --chown=appuser:root /app/source/backend-kotlin/build/native/nativeCompile/social-publish /opt/app/social-publish
+COPY --from=build --chown=appuser:root /app/source/frontend-kotlin/build/dist/js/productionExecutable/ /opt/app/public/
+
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
+ENV HTTP_PORT=3000
+ENV STATIC_CONTENT_PATH=/opt/app/public
+
+EXPOSE 3000
+USER appuser
+
+CMD ["/opt/app/social-publish"]

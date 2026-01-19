@@ -8,7 +8,7 @@ import com.alexn.socialpublish.db.Database
 import com.alexn.socialpublish.server.startServer
 import com.github.ajalt.clikt.core.main
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.server.netty.Netty
+import io.ktor.server.cio.CIO
 import kotlinx.coroutines.awaitCancellation
 
 private val logger = KotlinLogging.logger {}
@@ -39,6 +39,7 @@ fun main(args: Array<String>) {
                     resources.documentsDb,
                     resources.postsDb,
                     resources.filesDb,
+                    engine = CIO,
                 ).bind()
 
                 logger.info { "Server running on port ${config.server.httpPort}" }
