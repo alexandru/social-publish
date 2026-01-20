@@ -33,12 +33,17 @@ The dev server will be available at http://localhost:5174/
 ### Building for production
 
 ```bash
-# Compile Scala.js to optimized JS
-../sbt "frontendScala/fullLinkJS"
+# First compile Scala.js to optimized JS
+cd /path/to/social-publish
+./sbt "frontendScala/fullLinkJS"
 
-# Build with Vite
+# Then build with Vite
+cd frontend-scala
+export PATH="$(cd .. && pwd):$PATH"
 npm run build
 ```
+
+The production build will be in `frontend-scala/dist/`.
 
 ## Technology Stack
 
@@ -52,19 +57,21 @@ npm run build
 
 ```
 frontend-scala/
-├── src/main/scala/socialpublish/frontend/
-│   ├── Main.scala              # Entry point
-│   ├── components/
-│   │   └── NavBar.scala        # Navigation bar component
-│   └── pages/
-│       └── Home.scala          # Home page component
+├── src/
+│   ├── main/scala/socialpublish/frontend/
+│   │   ├── Main.scala              # Entry point
+│   │   ├── components/
+│   │   │   └── NavBar.scala        # Navigation bar component
+│   │   └── pages/
+│   │       └── Home.scala          # Home page component
+│   └── style.css                   # CSS imports (Bulma)
 ├── public/
-│   ├── assets/                 # Static assets (logos, etc.)
-│   ├── style.css               # CSS imports (Bulma)
-│   └── manifest.json           # PWA manifest
-├── index.html                  # HTML entry point
-├── vite.config.js              # Vite configuration
-└── package.json                # npm dependencies
+│   ├── assets/                     # Static assets (logos, etc.)
+│   └── manifest.json               # PWA manifest
+├── index.html                      # HTML entry point
+├── vite.config.js                  # Vite configuration
+├── package.json                    # npm dependencies
+└── README.md                       # This file
 ```
 
 ## Notes

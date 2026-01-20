@@ -1,0 +1,19 @@
+# Dependencies
+node_modules
+package-lock.json
+
+# Build outputs
+dist
+target
+
+# IDE
+.vscode
+.idea
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
