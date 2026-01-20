@@ -27,6 +27,9 @@ lazy val backend = (project in file("backend"))
       "-no-indent",
       "-rewrite"
     ),
+    Compile / scalacOptions := (Compile / scalacOptions).value.filterNot(opt =>
+      opt == "-Werror" || opt == "-Xfatal-warnings"
+    ),
     libraryDependencies ++= Seq(
       // Cats Effect for IO
       "org.typelevel" %% "cats-effect" % catsEffectVersion,

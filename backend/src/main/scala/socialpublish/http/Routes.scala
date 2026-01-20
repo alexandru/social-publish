@@ -15,7 +15,7 @@ import sttp.tapir.*
 import sttp.tapir.DecodeResult
 import sttp.tapir.json.circe.*
 import sttp.tapir.server.ServerEndpoint
-import views.html.{account, home, login, notFound, publishForm}
+import html.{account, home, login, notFound, publishForm}
 
 import java.nio.file.{Files as JavaFiles, Path, Paths}
 import java.util.UUID
@@ -32,7 +32,6 @@ class Routes(
 
   private type ErrorOut = (StatusCode, ErrorResponse)
   private type PageErrorOut = (StatusCode, String)
-  private val htmxRedirectHeader = "HX-Redirect"
   private val pageErrorOutput: EndpointOutput[PageErrorOut] = statusCode.and(htmlBodyUtf8)
 
   private val errorOutput: EndpointOutput[ErrorOut] = statusCode.and(jsonBody[ErrorResponse])
