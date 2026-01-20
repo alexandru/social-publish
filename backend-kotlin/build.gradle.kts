@@ -1,6 +1,4 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
-import org.gradle.api.JavaVersion
-import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     kotlin("jvm")
@@ -80,27 +78,22 @@ ktlint {
 }
 
 kotlin {
-    // Use the default JVM from the environment/container instead of requiring a specific toolchain
-}
-
-java {
-    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid inconsistent JVM target errors
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
-tasks.withType<JavaCompile> {
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
-    options.release.set(21)
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    jvmToolchain(21)
     compilerOptions {
+        // Treat warnings as errors for strict code quality
         allWarningsAsErrors.set(true)
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
-        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM available in the environment.
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+
+        // Enable progressive mode for modern Kotlin features and deprecations
+        progressiveMode.set(true)
+
+        freeCompilerArgs.addAll(
+            // Strict null-safety for Java types (JSR-305 annotations)
+            "-Xjsr305=strict",
+            // Check that return values are used (experimental)
+            "-Xreturn-value-checker=check",
+            // Emit JVM type annotations in bytecode
+            "-Xemit-jvm-type-annotations",
+        )
     }
 }
 
