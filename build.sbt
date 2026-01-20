@@ -110,6 +110,7 @@ lazy val backendNative = (project in file(".backend-native"))
   .settings(
     nativeImageVersion := "21.0.2",
     nativeImageJvm := "graalvm-java21",
+    nativeImageOutput := baseDirectory.value / "target" / "native-image" / "social-publish-backend",
     nativeImageOptions ++= Seq(
       "--enable-https",
       "--no-fallback",
