@@ -7,6 +7,7 @@ import org.eclipse.jgit.api.Git
 import org.apache.ivy.plugins.repository.Resource
 import sbt.std.TaskStreams
 import sbt.util.Logger
+import scala.jdk.CollectionConverters.*
 
 final class NativeImageGenerateMetadataFiles(
   targetDirectory: File
@@ -143,6 +144,11 @@ final class NativeImageGenerateMetadataFiles(
 
   private def readAndDecodeResource[T: Decoder](name: String): T = {
     val res = getClass().getClassLoader().getResourceAsStream(name)
+    if (res == null) {
+      throw new RuntimeException(
+        s"Resource not found: $name. Available resources: ${getClass().getClassLoader().getResources("").asScala.mkString(", ")}"
+      )
+    }
     val jsonTxt = scala.io.Source.fromInputStream(res).mkString
     decode[T](jsonTxt).valueOr(throw _)
   }

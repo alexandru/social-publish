@@ -20,13 +20,14 @@ push-production-release:
 build-local:
 	docker build -f ${DOCKERFILE} -t "${VERSION_TAG}" -t "${LATEST_TAG}" .
 
-build-production-native:
-	DOCKERFILE=./Dockerfile.native $(MAKE) build-production
-
 build-local-native:
 	DOCKERFILE=./Dockerfile.native $(MAKE) build-local
 
-run-local: build-local
+build-production-native:
+	DOCKERFILE=./Dockerfile.native $(MAKE) build-production
+
+# Shared recipe for running local docker containers
+define run_local_docker
 	docker rm -f social-publish || true
 	docker run -it -p 3000:3000 \
 		--rm \
@@ -46,6 +47,13 @@ run-local: build-local
 		-e "TWITTER_OAUTH1_CONSUMER_KEY=${TWITTER_OAUTH1_CONSUMER_KEY}" \
 		-e "TWITTER_OAUTH1_CONSUMER_SECRET=${TWITTER_OAUTH1_CONSUMER_SECRET}" \
 		${LATEST_TAG}
+endef
+
+run-local: build-local
+	$(call run_local_docker)
+
+run-local-native: build-local-native
+	$(call run_local_docker)
 
 update:
 	npx npm-check-updates -u && npm install && \
