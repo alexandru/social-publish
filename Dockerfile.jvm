@@ -75,4 +75,4 @@ ENV PATH=/opt/java/openjdk/bin:$PATH
 USER appuser
 EXPOSE 3000
 
-ENTRYPOINT [ "./docker-entrypoint.sh", "java-exec", "-jar", "/app/social-publish-backend.jar" ]
+ENTRYPOINT [ "./docker-entrypoint.sh", "java-exec", "-jar", "/app/social-publish-backend.jar", "start-server" ]

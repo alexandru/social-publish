@@ -28,15 +28,6 @@ Exposes an HTTP API that allows the client to publish posts on social media plat
 
 ### Build & Test
 
-**Setup** (before each command):
-
-```bash
-# Run sbt from the directory where `build.sbt` is:
-cd backend/
-# Keep sbt server in background:
-export SBT_NATIVE_CLIENT=true
-```
-
 **Commands**:
 
 - Build: `sbt Test/compile`

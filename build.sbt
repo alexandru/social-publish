@@ -68,6 +68,9 @@ lazy val backend = (project in file("backend"))
       "com.twelvemonkeys.imageio" % "imageio-core" % "3.13.0",
       "com.twelvemonkeys.imageio" % "imageio-jpeg" % "3.13.0",
 
+      // BCrypt for password hashing/verification
+      "org.mindrot" % "jbcrypt" % "0.4",
+
       // Testing
       "org.scalameta" %% "munit" % "1.0.3" % Test,
       "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test,

@@ -55,4 +55,4 @@ RUN chmod +x /app/native-image/social-publish-backend /app/docker-entrypoint.sh
 USER appuser
 EXPOSE 3000
 
-ENTRYPOINT [ "./docker-entrypoint.sh", "/app/native-image/social-publish-backend" ]
+ENTRYPOINT [ "./docker-entrypoint.sh", "/app/native-image/social-publish-backend", "start-server" ]

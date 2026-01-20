@@ -13,7 +13,7 @@ export BASE_URL="http://localhost:3000"
 
 # Server auth (required)
 export SERVER_AUTH_USERNAME="admin"
-export SERVER_AUTH_PASSWORD="adminpass"
+export SERVER_AUTH_PASSWORD='$2a$10$71pgn.LG.fb6vhXK90dIeeIJt8pwDSoC/WQEF0NgVcVfdBY3PfXq.' # change-me
 export JWT_SECRET="dev-jwt-secret-change-me"
 
 # Files storage (required)

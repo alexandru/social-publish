@@ -39,9 +39,12 @@ object ServerConfig {
   private val serverAuthPasswordOpt =
     Opts.option[String](
       "server-auth-password",
-      help = "Your password for this server",
+      help = "Your password for this server (bcrypt hash) - the CLI/env must contain a bcrypt hash",
       metavar = "password"
-    ).orElse(Opts.env[String]("SERVER_AUTH_PASSWORD", help = "Your password for this server"))
+    ).orElse(Opts.env[String](
+      "SERVER_AUTH_PASSWORD",
+      help = "Your password for this server (bcrypt hash) - the CLI/env must contain a bcrypt hash"
+    ))
 
   private val serverAuthJwtSecretOpt =
     Opts.option[String](

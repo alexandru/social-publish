@@ -14,14 +14,19 @@ import java.nio.file.Paths
 
 class RssServiceSpec extends CatsEffectSuite {
 
-  private val serverConfig =
-    ServerConfig(
-      port = 8080,
-      baseUrl = "http://localhost:8080",
-      authUser = "admin",
-      authPass = "admin",
-      jwtSecret = "secret"
-    )
+  private val serverConfig = {
+    {
+      import org.mindrot.jbcrypt.BCrypt
+      val hashed = BCrypt.hashpw("admin", BCrypt.gensalt())
+      ServerConfig(
+        port = 8080,
+        baseUrl = "http://localhost:8080",
+        authUser = "admin",
+        authPass = hashed,
+        jwtSecret = "secret"
+      )
+    }
+  }
 
   test("createPost creates a new post in the database") {
     val mockPostsDb = new MockPostsDatabase()

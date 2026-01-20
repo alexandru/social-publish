@@ -17,6 +17,7 @@ import socialpublish.integrations.twitter.TwitterConfig
 import socialpublish.models.{ApiError, Content, NewPostRequest, NewPostResponse, Post, Target}
 import socialpublish.testutils.{DatabaseFixtures, Http4sTestServer, ServiceFixtures}
 import sttp.client4.*
+import org.mindrot.jbcrypt.BCrypt
 import sttp.client4.httpclient.cats.HttpClientCatsBackend
 import sttp.model.StatusCode
 
@@ -25,6 +26,12 @@ class ServerIntegrationSpec extends CatsEffectSuite {
   @nowarn
   override def munitTimeout: scala.concurrent.duration.Duration =
     scala.concurrent.duration.Duration(300, "s")
+
+  // bcrypt-hashed default password used in tests
+  private val defaultHashed: String = {
+
+    BCrypt.hashpw("secret", BCrypt.gensalt())
+  }
 
   test("main server posts to mocked integrations") {
     val blueskyEndpoints: List[sttp.tapir.server.ServerEndpoint[Any, IO]] = List(
@@ -60,7 +67,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                   port = port,
                   baseUrl = s"http://127.0.0.1:$port",
                   authUser = "admin",
-                  authPass = "secret",
+                  authPass = defaultHashed,
                   jwtSecret = "jwt-secret"
                 )
                 response <- Integrations.resource(
@@ -175,7 +182,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
               port = port,
               baseUrl = s"http://127.0.0.1:$port",
               authUser = "admin",
-              authPass = "secret",
+              authPass = defaultHashed,
               jwtSecret = "jwt-secret"
             )
             responseCode <- Integrations.resource(
@@ -237,7 +244,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
               port = port,
               baseUrl = s"http://127.0.0.1:$port",
               authUser = "admin",
-              authPass = "secret",
+              authPass = defaultHashed,
               jwtSecret = "jwt-secret"
             )
             imageBytes = {
@@ -330,7 +337,7 @@ class ServerIntegrationSpec extends CatsEffectSuite {
               port = port,
               baseUrl = s"http://127.0.0.1:$port",
               authUser = "admin",
-              authPass = "secret",
+              authPass = defaultHashed,
               jwtSecret = "jwt-secret"
             )
             result <- Integrations.resource(

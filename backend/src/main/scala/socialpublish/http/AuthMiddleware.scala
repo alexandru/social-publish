@@ -9,6 +9,7 @@ import org.typelevel.log4cats.Logger
 import pdi.jwt.JwtAlgorithm
 import pdi.jwt.JwtCirce
 import pdi.jwt.JwtClaim
+import scala.util.control.NonFatal
 import socialpublish.integrations.twitter.TwitterApi
 import socialpublish.models.ApiError
 import sttp.tapir.Schema
@@ -67,8 +68,17 @@ class AuthMiddleware(
   logger: Logger[IO]
 ) {
 
-  def login(credentials: LoginRequest)(using Raise[IO, ApiError]): IO[LoginResponse] =
-    if credentials.username == server.authUser && credentials.password == server.authPass then {
+  def login(credentials: LoginRequest)(using Raise[IO, ApiError]): IO[LoginResponse] = {
+    import org.mindrot.jbcrypt.BCrypt
+
+    val passwordMatches =
+      try
+        BCrypt.checkpw(credentials.password, server.authPass)
+      catch {
+        case NonFatal(_) => false
+      }
+
+    if credentials.username == server.authUser && passwordMatches then {
       for {
         hasTwitter <- twitter.hasTwitterAuth
         token <- generateToken(credentials.username)
@@ -78,6 +88,7 @@ class AuthMiddleware(
       logger.warn("Invalid login credentials") *>
         ApiError.unauthorized("Invalid credentials").raise[IO, LoginResponse]
     }
+  }
 
   def authenticate(inputs: AuthInputs)(using Raise[IO, ApiError]): IO[AuthContext] =
     tokenFromInputs(inputs) match {
