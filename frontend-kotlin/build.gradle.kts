@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    id("com.ncorti.ktfmt.gradle") version "0.21.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.7"
 }
 
 kotlin {
@@ -62,4 +64,40 @@ kotlin {
             }
         }
     }
+
+    sourceSets.all {
+        languageSettings {
+            progressiveMode = true
+        }
+    }
+}
+
+ktfmt {
+    googleStyle()
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    autoCorrect = false
+    ignoreFailures = false
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "21"
+    reports {
+        html.required.set(false)
+        xml.required.set(false)
+        txt.required.set(true)
+        sarif.required.set(false)
+    }
+}
+
+tasks.withType<com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask>().configureEach {
+    enabled = true
+}
+
+tasks.named("check") {
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+    dependsOn(tasks.withType<com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask>())
 }

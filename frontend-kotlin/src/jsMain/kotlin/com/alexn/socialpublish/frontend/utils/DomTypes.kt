@@ -13,7 +13,7 @@ fun String.toElementId(): ElementId = ElementId(this)
 @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
 fun String.toWindowTarget(): WindowTarget = this.asDynamic() as WindowTarget
 
-@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")  
+@Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
 fun String.toInputType(): InputType = this.asDynamic() as InputType
 
 @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")

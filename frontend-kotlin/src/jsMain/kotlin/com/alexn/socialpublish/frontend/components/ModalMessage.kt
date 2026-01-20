@@ -14,76 +14,76 @@ import react.dom.html.ReactHTML.div
 import react.dom.html.ReactHTML.p
 
 external interface ModalMessageProps : Props {
-    var type: MessageType
-    var message: String
-    var isEnabled: Boolean
-    var onDisable: () -> Unit
-    var linkText: String?
-    var linkHref: String?
+  var type: MessageType
+  var message: String
+  var isEnabled: Boolean
+  var onDisable: () -> Unit
+  var linkText: String?
+  var linkHref: String?
 }
 
-val ModalMessage = FC<ModalMessageProps> { props ->
-    val handleClick = {
-        props.onDisable()
-    }
+val ModalMessage =
+  FC<ModalMessageProps> { props ->
+    val handleClick = { props.onDisable() }
 
     val handleKeyDown: (KeyboardEvent<*>) -> Unit = { event ->
-        if (event.key == "Escape") {
-            props.onDisable()
-        }
+      if (event.key == "Escape") {
+        props.onDisable()
+      }
     }
 
-    val (title, clsType) = when (props.type) {
+    val (title, clsType) =
+      when (props.type) {
         MessageType.INFO -> "Info" to "is-info"
         MessageType.WARNING -> "Warning" to "is-warning"
         MessageType.ERROR -> "Error" to "is-danger"
-    }
+      }
 
     val modalClass = if (props.isEnabled) "modal is-active" else "modal"
 
     div {
-        id = "message-modal".toElementId()
-        className = modalClass.toClassName()
+      id = "message-modal".toElementId()
+      className = modalClass.toClassName()
 
-        div {
-            className = "modal-background".toClassName()
-            onClick = { handleClick() }
-            onKeyDown = { event -> handleKeyDown(event) }
-        }
+      div {
+        className = "modal-background".toClassName()
+        onClick = { handleClick() }
+        onKeyDown = { event -> handleKeyDown(event) }
+      }
 
-        div {
-            className = "modal-content".toClassName()
-            article {
-                className = "message is-medium ${'$'}clsType".toClassName()
-                div {
-                    className = "message-header".toClassName()
-                    p { +title }
-                    button {
-                        className = "delete".toClassName()
-                        ariaLabel = "delete"
-                        onClick = { handleClick() }
-                    }
-                }
-                div {
-                    className = "message-body".toClassName()
-                    p { +props.message }
-                    if (props.linkText != null && props.linkHref != null) {
-                        p {
-                            a {
-                                href = props.linkHref
-                                target = "_blank".toWindowTarget()
-                                +props.linkText!!
-                            }
-                        }
-                    }
-                }
+      div {
+        className = "modal-content".toClassName()
+        article {
+          className = "message is-medium ${'$'}clsType".toClassName()
+          div {
+            className = "message-header".toClassName()
+            p { +title }
+            button {
+              className = "delete".toClassName()
+              ariaLabel = "delete"
+              onClick = { handleClick() }
             }
+          }
+          div {
+            className = "message-body".toClassName()
+            p { +props.message }
+            if (props.linkText != null && props.linkHref != null) {
+              p {
+                a {
+                  href = props.linkHref
+                  target = "_blank".toWindowTarget()
+                  +props.linkText!!
+                }
+              }
+            }
+          }
         }
+      }
 
-        button {
-            className = "modal-close is-large".toClassName()
-            ariaLabel = "close"
-            onClick = { handleClick() }
-        }
+      button {
+        className = "modal-close is-large".toClassName()
+        ariaLabel = "close"
+        onClick = { handleClick() }
+      }
     }
-}
+  }

@@ -17,99 +17,83 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import kotlinx.serialization.json.Json
-import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Test
 
 class AuthModuleTest {
-    private val config =
-        ServerAuthConfig(
-            username = "testuser",
-            password = "testpass",
-            jwtSecret = "test-secret",
-        )
+  private val config =
+    ServerAuthConfig(username = "testuser", password = "testpass", jwtSecret = "test-secret")
 
-    @Test
-    fun `should generate valid JWT token`() {
-        val authModule = AuthModule(config)
-        val token = authModule.generateToken("testuser")
+  @Test
+  fun `should generate valid JWT token`() {
+    val authModule = AuthModule(config)
+    val token = authModule.generateToken("testuser")
 
-        assertNotNull(token)
-        assertTrue(token.isNotEmpty())
-    }
+    assertNotNull(token)
+    assertTrue(token.isNotEmpty())
+  }
 
-    @Test
-    fun `should verify valid JWT token`() {
-        val authModule = AuthModule(config)
-        val token = authModule.generateToken("testuser")
-        val username = authModule.verifyToken(token)
+  @Test
+  fun `should verify valid JWT token`() {
+    val authModule = AuthModule(config)
+    val token = authModule.generateToken("testuser")
+    val username = authModule.verifyToken(token)
 
-        assertEquals("testuser", username)
-    }
+    assertEquals("testuser", username)
+  }
 
-    @Test
-    fun `should reject invalid JWT token`() {
-        val authModule = AuthModule(config)
-        val username = authModule.verifyToken("invalid-token")
+  @Test
+  fun `should reject invalid JWT token`() {
+    val authModule = AuthModule(config)
+    val username = authModule.verifyToken("invalid-token")
 
-        assertEquals(null, username)
-    }
+    assertEquals(null, username)
+  }
 
-    @Test
-    fun `login should return twitter auth status`() {
-        testApplication {
-            val authModule = AuthModule(config, twitterAuthProvider = { true })
+  @Test
+  fun `login should return twitter auth status`() {
+    testApplication {
+      val authModule = AuthModule(config, twitterAuthProvider = { true })
 
-            application {
-                install(ContentNegotiation) {
-                    json()
-                }
-                routing {
-                    post("/api/login") {
-                        authModule.login(call)
-                    }
-                }
-            }
+      application {
+        install(ContentNegotiation) { json() }
+        routing { post("/api/login") { authModule.login(call) } }
+      }
 
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"testpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-
-            val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.hasAuth.twitter)
+      val response =
+        client.post("/api/login") {
+          header(HttpHeaders.ContentType, ContentType.Application.Json)
+          setBody("""{"username":"testuser","password":"testpass"}""")
         }
+
+      assertEquals(HttpStatusCode.OK, response.status)
+
+      val json = Json { ignoreUnknownKeys = true }
+      val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+      assertTrue(body.hasAuth.twitter)
     }
+  }
 
-    @Test
-    fun `should accept access token query param`() {
-        testApplication {
-            val authModule = AuthModule(config)
+  @Test
+  fun `should accept access token query param`() {
+    testApplication {
+      val authModule = AuthModule(config)
 
-            application {
-                install(ContentNegotiation) {
-                    json()
-                }
-                configureAuth(config)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") {
-                            authModule.protectedRoute(call)
-                        }
-                    }
-                }
-            }
-
-            val token = authModule.generateToken("testuser")
-            val response = client.get("/api/protected?access_token=$token")
-
-            assertEquals(HttpStatusCode.OK, response.status)
+      application {
+        install(ContentNegotiation) { json() }
+        configureAuth(config)
+        routing {
+          authenticate("auth-jwt") { get("/api/protected") { authModule.protectedRoute(call) } }
         }
+      }
+
+      val token = authModule.generateToken("testuser")
+      val response = client.get("/api/protected?access_token=$token")
+
+      assertEquals(HttpStatusCode.OK, response.status)
     }
+  }
 }

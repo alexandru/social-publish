@@ -5,39 +5,35 @@ import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.models.NewPostRequest
 import com.alexn.socialpublish.models.NewRssPostResponse
+import java.nio.file.Path
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class RssModuleTest {
-    private lateinit var baseUrl: String
-    private lateinit var jdbi: Jdbi
-    private lateinit var postsDb: PostsDatabase
-    private lateinit var filesDb: FilesDatabase
-    private lateinit var rssModule: RssModule
+  private lateinit var baseUrl: String
+  private lateinit var jdbi: Jdbi
+  private lateinit var postsDb: PostsDatabase
+  private lateinit var filesDb: FilesDatabase
+  private lateinit var rssModule: RssModule
 
-    @BeforeEach
-    fun setup(
-        @TempDir tempDir: Path,
-    ) {
-        baseUrl = "http://localhost:3000"
-        val dbPath = tempDir.resolve("test.db").toString()
+  @BeforeEach
+  fun setup(@TempDir tempDir: Path) {
+    baseUrl = "http://localhost:3000"
+    val dbPath = tempDir.resolve("test.db").toString()
 
-        jdbi =
-            Jdbi.create("jdbc:sqlite:$dbPath")
-                .installPlugin(KotlinPlugin())
+    jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 
-        // Run migrations
-        jdbi.useHandle<Exception> { handle ->
-            handle.execute(
-                """
+    // Run migrations
+    jdbi.useHandle<Exception> { handle ->
+      handle.execute(
+        """
                 CREATE TABLE documents (
                     uuid VARCHAR(36) NOT NULL PRIMARY KEY,
                     search_key VARCHAR(255) UNIQUE NOT NULL,
@@ -45,122 +41,102 @@ class RssModuleTest {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
-                """.trimIndent(),
-            )
-            handle.execute(
                 """
+          .trimIndent()
+      )
+      handle.execute(
+        """
                 CREATE TABLE document_tags (
                    document_uuid VARCHAR(36) NOT NULL,
                    name VARCHAR(255) NOT NULL,
                    kind VARCHAR(255) NOT NULL,
                    PRIMARY KEY (document_uuid, name, kind)
                 )
-                """.trimIndent(),
-            )
-        }
-
-        val documentsDb = com.alexn.socialpublish.db.DocumentsDatabase(jdbi)
-        postsDb = PostsDatabase(documentsDb)
-        filesDb = FilesDatabase(jdbi)
-        rssModule = RssModule(baseUrl, postsDb, filesDb)
+                """
+          .trimIndent()
+      )
     }
 
-    @Test
-    fun `should create RSS post successfully`() =
-        runTest {
-            val request =
-                NewPostRequest(
-                    content = "Test RSS post",
-                    link = "https://example.com",
-                    language = "en",
-                )
+    val documentsDb = com.alexn.socialpublish.db.DocumentsDatabase(jdbi)
+    postsDb = PostsDatabase(documentsDb)
+    filesDb = FilesDatabase(jdbi)
+    rssModule = RssModule(baseUrl, postsDb, filesDb)
+  }
 
-            val result = rssModule.createPost(request)
+  @Test
+  fun `should create RSS post successfully`() = runTest {
+    val request =
+      NewPostRequest(content = "Test RSS post", link = "https://example.com", language = "en")
 
-            assertTrue(result.isRight())
-            when (result) {
-                is Either.Right -> {
-                    val response = result.value as NewRssPostResponse
-                    assertNotNull(response.uri)
-                    assertTrue(response.uri.contains("/rss/"))
-                }
-                is Either.Left -> {
-                    // Should not happen
-                    assertTrue(false, "Expected success but got error")
-                }
-            }
-        }
+    val result = rssModule.createPost(request)
 
-    @Test
-    fun `should reject empty content`() =
-        runTest {
-            val request =
-                NewPostRequest(
-                    content = "",
-                    link = null,
-                    language = null,
-                )
+    assertTrue(result.isRight())
+    when (result) {
+      is Either.Right -> {
+        val response = result.value as NewRssPostResponse
+        assertNotNull(response.uri)
+        assertTrue(response.uri.contains("/rss/"))
+      }
+      is Either.Left -> {
+        // Should not happen
+        assertTrue(false, "Expected success but got error")
+      }
+    }
+  }
 
-            val result = rssModule.createPost(request)
+  @Test
+  fun `should reject empty content`() = runTest {
+    val request = NewPostRequest(content = "", link = null, language = null)
 
-            assertTrue(result.isLeft())
-        }
+    val result = rssModule.createPost(request)
 
-    @Test
-    fun `should extract hashtags from content`() =
-        runTest {
-            val request =
-                NewPostRequest(
-                    content = "Test post with #hashtag and #another",
-                    link = null,
-                    language = null,
-                )
+    assertTrue(result.isLeft())
+  }
 
-            val result = rssModule.createPost(request)
+  @Test
+  fun `should extract hashtags from content`() = runTest {
+    val request =
+      NewPostRequest(content = "Test post with #hashtag and #another", link = null, language = null)
 
-            assertTrue(result.isRight())
+    val result = rssModule.createPost(request)
 
-            // Verify hashtags were extracted
-            val posts = postsDb.getAll()
-            assertEquals(1, posts.size)
-            assertNotNull(posts[0].tags)
-            assertTrue(posts[0].tags!!.contains("hashtag"))
-            assertTrue(posts[0].tags!!.contains("another"))
-        }
+    assertTrue(result.isRight())
 
-    @Test
-    fun `should generate RSS feed`() =
-        runTest {
-            // Create a test post
-            val request =
-                NewPostRequest(
-                    content = "Test content for RSS",
-                    link = "https://example.com",
-                )
+    // Verify hashtags were extracted
+    val posts = postsDb.getAll()
+    assertEquals(1, posts.size)
+    assertNotNull(posts[0].tags)
+    assertTrue(posts[0].tags!!.contains("hashtag"))
+    assertTrue(posts[0].tags!!.contains("another"))
+  }
 
-            rssModule.createPost(request)
+  @Test
+  fun `should generate RSS feed`() = runTest {
+    // Create a test post
+    val request = NewPostRequest(content = "Test content for RSS", link = "https://example.com")
 
-            // Generate RSS feed
-            val rss = rssModule.generateRss()
+    rssModule.createPost(request)
 
-            assertNotNull(rss)
-            assertTrue(rss.contains("<?xml"))
-            assertTrue(rss.contains("<rss"))
-            assertTrue(rss.contains("Test content for RSS"))
-        }
+    // Generate RSS feed
+    val rss = rssModule.generateRss()
 
-    @Test
-    fun `should filter RSS feed by links`() =
-        runTest {
-            // Create posts with and without links
-            rssModule.createPost(NewPostRequest(content = "With link", link = "https://example.com"))
-            rssModule.createPost(NewPostRequest(content = "Without link", link = null))
+    assertNotNull(rss)
+    assertTrue(rss.contains("<?xml"))
+    assertTrue(rss.contains("<rss"))
+    assertTrue(rss.contains("Test content for RSS"))
+  }
 
-            val rssWithLinks = rssModule.generateRss(filterByLinks = "include")
-            val rssWithoutLinks = rssModule.generateRss(filterByLinks = "exclude")
-            assertTrue(rssWithLinks.contains("With link"))
-            assertTrue(!rssWithLinks.contains("Without link"))
-            assertTrue(!rssWithoutLinks.contains("With link"))
-            assertTrue(rssWithoutLinks.contains("Without link"))
-        }
+  @Test
+  fun `should filter RSS feed by links`() = runTest {
+    // Create posts with and without links
+    rssModule.createPost(NewPostRequest(content = "With link", link = "https://example.com"))
+    rssModule.createPost(NewPostRequest(content = "Without link", link = null))
+
+    val rssWithLinks = rssModule.generateRss(filterByLinks = "include")
+    val rssWithoutLinks = rssModule.generateRss(filterByLinks = "exclude")
+    assertTrue(rssWithLinks.contains("With link"))
+    assertTrue(!rssWithLinks.contains("Without link"))
+    assertTrue(!rssWithoutLinks.contains("With link"))
+    assertTrue(rssWithoutLinks.contains("Without link"))
+  }
 }

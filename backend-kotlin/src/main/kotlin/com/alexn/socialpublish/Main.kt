@@ -14,40 +14,38 @@ import kotlinx.coroutines.awaitCancellation
 private val logger = KotlinLogging.logger {}
 
 fun main(args: Array<String>) {
-    // Parse CLI arguments
-    val cliCommand = AppCliCommand()
-    cliCommand.main(args)
-    val config = cliCommand.config
-    // SuspendApp currently has issues with System.exit, hence logic above cannot
-    // be inside SuspendApp
-    SuspendApp {
-        resourceScope {
-            logger.info { "Starting the Social Publish backend..." }
-            logger.info {
-                "Using database path: ${config.server.dbPath}"
-            }
-            logger.info {
-                "Serving static content from: ${config.server.staticContentPaths.joinToString(", ")}"
-            }
-            try {
-                val resources =
-                    Database.resourceBundle(config.server.dbPath).bind()
+  // Parse CLI arguments
+  val cliCommand = AppCliCommand()
+  cliCommand.main(args)
+  val config = cliCommand.config
+  // SuspendApp currently has issues with System.exit, hence logic above cannot
+  // be inside SuspendApp
+  SuspendApp {
+    resourceScope {
+      logger.info { "Starting the Social Publish backend..." }
+      logger.info { "Using database path: ${config.server.dbPath}" }
+      logger.info {
+        "Serving static content from: ${config.server.staticContentPaths.joinToString(", ")}"
+      }
+      try {
+        val resources = Database.resourceBundle(config.server.dbPath).bind()
 
-                logger.info { "Database initialized successfully" }
-                startServer(
-                    config,
-                    resources.documentsDb,
-                    resources.postsDb,
-                    resources.filesDb,
-                    engine = CIO,
-                ).bind()
+        logger.info { "Database initialized successfully" }
+        startServer(
+            config,
+            resources.documentsDb,
+            resources.postsDb,
+            resources.filesDb,
+            engine = CIO,
+          )
+          .bind()
 
-                logger.info { "Server running on port ${config.server.httpPort}" }
-                awaitCancellation()
-            } catch (e: Exception) {
-                logger.error(e) { "Application failed to start" }
-                throw e
-            }
-        }
+        logger.info { "Server running on port ${config.server.httpPort}" }
+        awaitCancellation()
+      } catch (e: Exception) {
+        logger.error(e) { "Application failed to start" }
+        throw e
+      }
     }
+  }
 }

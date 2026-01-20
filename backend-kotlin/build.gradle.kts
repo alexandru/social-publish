@@ -4,9 +4,10 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     application
-    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
     id("com.github.ben-manes.versions") version "0.53.0"
     id("org.graalvm.buildtools.native") version "0.10.2"
+    id("com.ncorti.ktfmt.gradle") version "0.21.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.7"
 }
 
 group = "com.alexn.socialpublish"
@@ -15,6 +16,7 @@ version = "1.0.0"
 repositories {
     mavenCentral()
 }
+
 
 dependencies {
     // Kotlin stdlib
@@ -63,38 +65,46 @@ tasks.test {
     useJUnitPlatform()
 }
 
-ktlint {
-    version.set("1.2.1")
-    android.set(false)
-    ignoreFailures.set(false)
-    reporters {
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
-    }
-    filter {
-        exclude("**/build/**")
-        exclude("**/resources/**")
-    }
-}
-
 kotlin {
     jvmToolchain(21)
     compilerOptions {
-        // Treat warnings as errors for strict code quality
-        allWarningsAsErrors.set(true)
-
-        // Enable progressive mode for modern Kotlin features and deprecations
         progressiveMode.set(true)
-
+        allWarningsAsErrors.set(true)
         freeCompilerArgs.addAll(
-            // Strict null-safety for Java types (JSR-305 annotations)
             "-Xjsr305=strict",
-            // Check that return values are used (experimental)
-            "-Xreturn-value-checker=check",
-            // Emit JVM type annotations in bytecode
             "-Xemit-jvm-type-annotations",
         )
     }
+}
+
+ktfmt {
+    googleStyle()
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    autoCorrect = false
+    ignoreFailures = false
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "21"
+    reports {
+        html.required.set(false)
+        xml.required.set(false)
+        txt.required.set(true)
+        sarif.required.set(false)
+    }
+}
+
+tasks.withType<com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask>().configureEach {
+    enabled = true
+}
+
+tasks.named("check") {
+    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+    dependsOn(tasks.withType<com.ncorti.ktfmt.gradle.tasks.KtfmtCheckTask>())
 }
 
 application {

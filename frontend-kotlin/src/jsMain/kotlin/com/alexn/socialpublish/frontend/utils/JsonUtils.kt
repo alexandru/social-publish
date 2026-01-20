@@ -5,5 +5,5 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 fun parseJsonObject(text: String): JsonObject? {
-    return runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()
+  return runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()
 }

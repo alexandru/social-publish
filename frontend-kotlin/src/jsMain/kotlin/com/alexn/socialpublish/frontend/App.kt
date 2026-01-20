@@ -22,72 +22,52 @@ private val FORM_PATH: RoutePath = RoutePath("/form")
 private val LOGIN_PATH: RoutePath = RoutePath("/login")
 private val ACCOUNT_PATH: RoutePath = RoutePath("/account")
 
-val Root = FC<Props> {
+val Root =
+  FC<Props> {
     NavBar()
-    main {
-        Outlet()
-    }
-}
+    main { Outlet() }
+  }
 
 private fun createAppRouter(): Router {
-    val rootRoute = createRootRoute(
-        options = rootRouteOptions(
-            component = Root,
-            notFoundComponent = NotFound
+  val rootRoute =
+    createRootRoute(options = rootRouteOptions(component = Root, notFoundComponent = NotFound))
+
+  val indexRoute =
+    createRoute(
+      options = routeOptions(getParentRoute = { rootRoute }, path = ROOT_PATH, component = Home)
+    )
+
+  val loginRoute =
+    createRoute(
+      options =
+        routeOptions(
+          getParentRoute = { rootRoute },
+          path = LOGIN_PATH,
+          component = Login,
+          validateSearch = { search -> search },
         )
     )
 
-    val indexRoute = createRoute(
-        options = routeOptions(
-            getParentRoute = { rootRoute },
-            path = ROOT_PATH,
-            component = Home
-        )
+  val accountRoute =
+    createRoute(
+      options =
+        routeOptions(getParentRoute = { rootRoute }, path = ACCOUNT_PATH, component = Account)
     )
 
-    val loginRoute = createRoute(
-        options = routeOptions(
-            getParentRoute = { rootRoute },
-            path = LOGIN_PATH,
-            component = Login,
-            validateSearch = { search -> search }
-        )
+  val formRoute =
+    createRoute(
+      options =
+        routeOptions(getParentRoute = { rootRoute }, path = FORM_PATH, component = PublishFormPage)
     )
 
-    val accountRoute = createRoute(
-        options = routeOptions(
-            getParentRoute = { rootRoute },
-            path = ACCOUNT_PATH,
-            component = Account
-        )
-    )
+  rootRoute.addChildren(arrayOf(indexRoute, loginRoute, accountRoute, formRoute))
 
-    val formRoute = createRoute(
-        options = routeOptions(
-            getParentRoute = { rootRoute },
-            path = FORM_PATH,
-            component = PublishFormPage
-        )
-    )
-
-    rootRoute.addChildren(
-        arrayOf(
-            indexRoute,
-            loginRoute,
-            accountRoute,
-            formRoute,
-        ),
-    )
-
-    return createRouter(
-        options = routerOptions(routeTree = rootRoute)
-    )
+  return createRouter(options = routerOptions(routeTree = rootRoute))
 }
 
-val App = FC<Props> {
+val App =
+  FC<Props> {
     val appRouter = useMemo { createAppRouter() }
 
-    RouterProvider {
-        router = appRouter
-    }
-}
+    RouterProvider { router = appRouter }
+  }
