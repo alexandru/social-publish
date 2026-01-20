@@ -1,0 +1,58 @@
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ .
+RUN npm run build
+
+FROM debian:12-slim AS certs
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+FROM ghcr.io/graalvm/native-image-community:21 AS backend-build
+
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+ENV COURSIER_SSL_VERIFY=false COURSIER_NO_SSL_VERIFY=1
+WORKDIR /app
+
+COPY sbt ./sbt
+COPY project ./project
+COPY build.sbt ./build.sbt
+RUN chmod +x ./sbt
+RUN mkdir -p /root/.cache/sbt/boot/sbt-launch/1.12.0 && \
+    curl -fLk --retry 3 --retry-delay 2 \
+      -o /root/.cache/sbt/boot/sbt-launch/1.12.0/sbt-launch-1.12.0.jar \
+      https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/1.12.0/sbt-launch-1.12.0.jar
+RUN ./sbt -Dsbt.supershell=false update
+
+COPY backend/ ./backend
+RUN ./sbt -Dsbt.supershell=false backendNative/nativeImage
+
+FROM debian:12-slim
+
+RUN groupadd -g 1001 appuser && \
+    useradd -u 1001 -g appuser -d /app -s /bin/bash appuser && \
+    apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV HTTP_PORT=3000
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH="/var/lib/social-publish/uploads"
+ENV LD_LIBRARY_PATH=/app/native-image
+
+RUN mkdir -p /var/lib/social-publish "${UPLOADED_FILES_PATH}" /app/public && \
+    chown -R appuser:appuser /app /var/lib/social-publish
+
+COPY --from=backend-build --chown=appuser:appuser /app/.backend-native/target/native-image /app/native-image
+COPY --from=frontend-build --chown=appuser:appuser /app/frontend/dist/. /app/public/
+COPY --chown=appuser:appuser ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/native-image/social-publish-backend /app/docker-entrypoint.sh
+
+USER appuser
+EXPOSE 3000
+
+ENTRYPOINT [ "./docker-entrypoint.sh", "/app/native-image/social-publish-backend" ]

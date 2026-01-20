@@ -14,14 +14,14 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-COPY backend/sbt ./sbt
-COPY backend/project ./project
-COPY backend/build.sbt ./build.sbt
+COPY sbt ./sbt
+COPY project ./project
+COPY build.sbt ./build.sbt
 RUN chmod +x ./sbt
-RUN ./sbt -Dsbt.supershell=false update
+RUN ./sbt -Dsbt.supershell=false backend/update
 
-COPY backend/ .
-RUN ./sbt -Dsbt.supershell=false assembly
+COPY backend/ ./backend
+RUN ./sbt -Dsbt.supershell=false backend/assembly
 
 FROM eclipse-temurin:21-alpine AS jre-build
 
@@ -64,7 +64,7 @@ COPY --from=jre-build /javaruntime /opt/java/openjdk
 COPY --chown=appuser:appuser ./scripts/java-exec /usr/local/bin/java-exec
 RUN chmod +x /usr/local/bin/java-exec
 
-COPY --from=backend-build --chown=appuser:appuser /app/target/scala-*/social-publish-backend.jar /app/social-publish-backend.jar
+COPY --from=backend-build --chown=appuser:appuser /app/backend/target/scala-*/social-publish-backend.jar /app/social-publish-backend.jar
 COPY --from=frontend-build --chown=appuser:appuser /app/frontend/dist/. /app/public/
 COPY --chown=appuser:appuser ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh

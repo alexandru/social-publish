@@ -1,3 +1,5 @@
+import sbtnativeimage.NativeImagePlugin.autoImport._
+
 val scala3Version = "3.7.4"
 val circeVersion = "0.14.15"
 val doobieVersion = "1.0.0-RC11"
@@ -9,12 +11,17 @@ val sttpVersion = "4.0.13"
 val http4sVersion = "0.23.27"
 val logbackClassicVersion = "1.5.16"
 
-lazy val root = project
-  .in(file("."))
+lazy val backendSharedSettings = Seq(
+  version := "1.0.0",
+  scalaVersion := scala3Version,
+  Compile / mainClass := Some("socialpublish.Main")
+)
+
+// Backend project definition, located in the backend/ folder
+lazy val backend = (project in file("backend"))
+  .settings(backendSharedSettings)
   .settings(
     name := "social-publish-backend",
-    version := "1.0.0",
-    scalaVersion := scala3Version,
     scalacOptions ++= Seq(
       "-no-indent",
       "-rewrite"
@@ -64,7 +71,8 @@ lazy val root = project
       // Testing
       "org.scalameta" %% "munit" % "1.0.3" % Test,
       "org.typelevel" %% "munit-cats-effect" % "2.1.0" % Test,
-      "org.tpolecat" %% "doobie-munit" % doobieVersion % Test
+      "org.tpolecat" %% "doobie-munit" % doobieVersion % Test,
+      "org.graalvm.buildtools" % "graalvm-reachability-metadata" % "0.10.6" % Runtime
     ),
 
     // Assembly settings for building a fat JAR
@@ -92,6 +100,49 @@ lazy val root = project
     },
     assembly / mainClass := Some("socialpublish.Main"),
     assembly / assemblyJarName := "social-publish-backend.jar"
+  )
+
+lazy val backendNative = (project in file(".backend-native"))
+  .dependsOn(backend)
+  .aggregate(backend)
+  .enablePlugins(NativeImagePlugin)
+  .settings(backendSharedSettings)
+  .settings(
+    nativeImageVersion := "21.0.2",
+    nativeImageJvm := "graalvm-java21",
+    nativeImageOptions ++= Seq(
+      "--enable-https",
+      "--no-fallback",
+      "--report-unsupported-elements-at-runtime"
+    ),
+    Global / excludeLintKeys ++= Set(nativeImageVersion, nativeImageJvm),
+    // GraalVM Reachability Metadata
+    Compile / resourceGenerators += Def.task {
+      import NativeImageGenerateMetadataFiles._
+      implicit val logger: sbt.util.Logger = sbt.Keys.streams.value.log
+      generateResourceFiles(
+        // Path needed for cloning the metadata repository
+        (Compile / target).value,
+        // Path where the metadata files will be generated
+        (Compile / resourceManaged).value / "META-INF" / "native-image",
+        // List all tranzitive dependencies (can also add our own files)
+        update.value
+          .allModules
+          .map(m => Artefact(s"${m.organization}:${m.name}:${m.revision}"))
+          .toList ++ List(
+          ProjectResourceConfigFile("my-resource-config.json")
+        )
+      )
+    }.taskValue
+  )
+
+// optional root aggregator: makes running `sbt` useful at the repository root
+lazy val root = (project in file("."))
+  .aggregate(backend)
+  .aggregate(backendNative)
+  .settings(
+    name := "social-publish",
+    ThisBuild / scalaVersion := scala3Version
   )
 
 Global / onChangedBuildSource := ReloadOnSourceChanges

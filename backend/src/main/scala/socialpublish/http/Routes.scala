@@ -173,8 +173,7 @@ class Routes(
 
   private val publicRoot = Paths.get("public").toAbsolutePath.normalize
   private val spaPaths = Set("login", "form", "account")
-  private val reservedStaticPrefixes =
-    Set("api", "rss", "files", "ping")
+  private val reservedStaticPrefixes = Set("api", "rss", "files", "ping")
 
   private val staticPathInput: EndpointInput[List[String]] =
     paths.mapDecode { segments =>
