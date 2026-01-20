@@ -34,11 +34,10 @@ fun LoginPage() {
                 when (response) {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
-                        Storage.setAuthStatus(response.data.hasAuth.twitter)
                         window.location.href = "/"
                     }
                     is ApiResponse.Error -> {
-                        error = "${response.message}!"
+                        error = response.message
                     }
                     is ApiResponse.Exception -> {
                         error = "Exception while logging in: ${response.message}"

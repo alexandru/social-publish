@@ -13,13 +13,11 @@ object ApiClient {
         isLenient = true
     }
 
-    fun createHeaders(includeAuth: Boolean = true): dynamic {
+    fun createHeaders(): dynamic {
         val headers = js("{}")
         headers["Content-Type"] = "application/json"
-        if (includeAuth) {
-            Storage.getJwtToken()?.let {
-                headers["Authorization"] = "Bearer $it"
-            }
+        Storage.getJwtToken()?.let {
+            headers["Authorization"] = "Bearer $it"
         }
         return headers
     }
