@@ -50,6 +50,12 @@ dev-backend:
 dev-frontend:
 	./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
 
+dev-compose:
+	./gradlew :backend-kotlin:run & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
+
+dev-frontend-compose:
+	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
+
 # Build targets
 build:
 	./gradlew build
