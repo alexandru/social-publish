@@ -24,7 +24,7 @@ object ApiClient {
         return headers
     }
 
-    suspend inline fun <reified T> post(url: String, body: Any? = null): ApiResponse<T> {
+    suspend inline fun <reified T, reified B> post(url: String, body: B? = null): ApiResponse<T> {
         return try {
             val requestInit = RequestInit(
                 method = "POST",

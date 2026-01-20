@@ -26,7 +26,7 @@ fun LoginPage() {
         scope.launch {
             isLoading = true
             try {
-                val response = ApiClient.post<LoginResponse>(
+                val response = ApiClient.post<LoginResponse, LoginRequest>(
                     "/api/login",
                     LoginRequest(username, password)
                 )
