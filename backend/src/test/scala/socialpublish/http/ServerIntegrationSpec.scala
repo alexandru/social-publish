@@ -74,7 +74,6 @@ class ServerIntegrationSpec extends CatsEffectSuite {
                   val authMiddleware =
                     new AuthMiddleware(serverConfig, integrations.twitter, logger)
                   val routes = new Routes(
-                    serverConfig,
                     authMiddleware,
                     integrations.bluesky,
                     integrations.mastodon,
@@ -189,7 +188,6 @@ class ServerIntegrationSpec extends CatsEffectSuite {
             ).use { integrations =>
               val authMiddleware = new AuthMiddleware(serverConfig, integrations.twitter, logger)
               val routes = new Routes(
-                serverConfig,
                 authMiddleware,
                 integrations.bluesky,
                 integrations.mastodon,
@@ -283,7 +281,6 @@ class ServerIntegrationSpec extends CatsEffectSuite {
             ).use { integrations =>
               val authMiddleware = new AuthMiddleware(serverConfig, integrations.twitter, logger)
               val routes = new Routes(
-                serverConfig,
                 authMiddleware,
                 integrations.bluesky,
                 integrations.mastodon,
@@ -346,7 +343,6 @@ class ServerIntegrationSpec extends CatsEffectSuite {
             ).use { integrations =>
               val authMiddleware = new AuthMiddleware(serverConfig, integrations.twitter, logger)
               val routes = new Routes(
-                serverConfig,
                 authMiddleware,
                 integrations.bluesky,
                 integrations.mastodon,

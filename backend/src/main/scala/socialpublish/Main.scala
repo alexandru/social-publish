@@ -49,7 +49,6 @@ object Main extends CommandIOApp(
         authMiddleware <-
           Resource.eval(IO.delay(new AuthMiddleware(config.server, integrations.twitter, logger)))
         routes <- Resource.eval(IO.delay(new Routes(
-          config.server,
           authMiddleware,
           integrations.bluesky,
           integrations.mastodon,

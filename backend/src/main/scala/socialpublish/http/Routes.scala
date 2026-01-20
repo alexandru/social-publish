@@ -3,8 +3,6 @@ package socialpublish.http
 import cats.effect.*
 import cats.mtl.Handle
 import cats.syntax.all.*
-import io.circe.Printer
-import io.circe.syntax.*
 import org.typelevel.log4cats.Logger
 import socialpublish.integrations.bluesky.BlueskyApi
 import socialpublish.integrations.mastodon.MastodonApi
@@ -12,21 +10,16 @@ import socialpublish.integrations.twitter.TwitterApi
 import socialpublish.integrations.rss.RssService
 import socialpublish.models.*
 import socialpublish.services.FilesService
-import sttp.apispec.openapi.Server
-import sttp.apispec.openapi.circe.*
 import sttp.model.{Header, MediaType, StatusCode}
 import sttp.tapir.*
 import sttp.tapir.DecodeResult
-import sttp.tapir.docs.openapi.OpenAPIDocsInterpreter
 import sttp.tapir.json.circe.*
 import sttp.tapir.server.ServerEndpoint
-import sttp.tapir.swagger.bundle.SwaggerInterpreter
 
 import java.nio.file.{Files as JavaFiles, Path, Paths}
 import java.util.UUID
 
 class Routes(
-  server: ServerConfig,
   auth: AuthMiddleware,
   bluesky: BlueskyApi,
   mastodon: MastodonApi,
@@ -55,28 +48,8 @@ class Routes(
   private def apiEndpoints: List[ServerEndpoint[Any, IO]] =
     publicEndpoints ++ protectedEndpoints :+ staticFilesEndpoint
 
-  private def swaggerEndpoints: List[ServerEndpoint[Any, IO]] =
-    SwaggerInterpreter()
-      .fromServerEndpoints[IO](apiEndpoints, "Social Publish API", "1.0.0")
-
-  private def openApiJson: String = {
-    val docs = OpenAPIDocsInterpreter()
-      .toOpenAPI(apiEndpoints.map(_.endpoint), "Social Publish API", "1.0.0")
-      .servers(List(Server(server.baseUrl)))
-    Printer.spaces2.print(docs.asJson)
-  }
-
-  private def openApiEndpoint: ServerEndpoint[Any, IO] =
-    endpoint.get
-      .in("openapi")
-      .out(header[String]("Content-Type"))
-      .out(stringBody)
-      .serverLogicSuccess(_ =>
-        IO.pure(("application/json", openApiJson))
-      )
-
   def endpoints: List[ServerEndpoint[Any, IO]] =
-    apiEndpoints ++ swaggerEndpoints :+ openApiEndpoint
+    apiEndpoints
 
   private def publicEndpoints: List[ServerEndpoint[Any, IO]] =
     List(
@@ -201,7 +174,7 @@ class Routes(
   private val publicRoot = Paths.get("public").toAbsolutePath.normalize
   private val spaPaths = Set("login", "form", "account")
   private val reservedStaticPrefixes =
-    Set("api", "rss", "files", "openapi", "docs", "swagger", "ping")
+    Set("api", "rss", "files", "ping")
 
   private val staticPathInput: EndpointInput[List[String]] =
     paths.mapDecode { segments =>
