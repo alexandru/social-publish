@@ -17,18 +17,18 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENV COURSIER_SSL_VERIFY=false COURSIER_NO_SSL_VERIFY=1
 WORKDIR /app
 
-COPY backend/sbt ./sbt
-COPY backend/project ./project
-COPY backend/build.sbt ./build.sbt
+COPY sbt ./sbt
+COPY project ./project
+COPY build.sbt ./build.sbt
 RUN chmod +x ./sbt
 RUN mkdir -p /root/.cache/sbt/boot/sbt-launch/1.12.0 && \
     curl -fLk --retry 3 --retry-delay 2 \
       -o /root/.cache/sbt/boot/sbt-launch/1.12.0/sbt-launch-1.12.0.jar \
       https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/1.12.0/sbt-launch-1.12.0.jar
-RUN ./sbt -Dsbt.supershell=false update
+RUN ./sbt -Dsbt.supershell=false backend/update
 
-COPY backend/ .
-RUN ./sbt -Dsbt.supershell=false nativeImage
+COPY backend/ ./backend
+RUN ./sbt -Dsbt.supershell=false backend/nativeImage
 
 FROM debian:12-slim
 
@@ -47,7 +47,7 @@ ENV LD_LIBRARY_PATH=/app/native-image
 RUN mkdir -p /var/lib/social-publish "${UPLOADED_FILES_PATH}" /app/public && \
     chown -R appuser:appuser /app /var/lib/social-publish
 
-COPY --from=backend-build --chown=appuser:appuser /app/target/native-image /app/native-image
+COPY --from=backend-build --chown=appuser:appuser /app/backend/target/native-image /app/native-image
 COPY --from=frontend-build --chown=appuser:appuser /app/frontend/dist/. /app/public/
 COPY --chown=appuser:appuser ./scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/native-image/social-publish-backend /app/docker-entrypoint.sh

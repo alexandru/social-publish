@@ -11,8 +11,8 @@ val sttpVersion = "4.0.13"
 val http4sVersion = "0.23.27"
 val logbackClassicVersion = "1.5.16"
 
-lazy val root = project
-  .in(file("."))
+// Backend project definition, located in the backend/ folder
+lazy val backend = (project in file("backend"))
   .enablePlugins(NativeImagePlugin)
   .settings(
     name := "social-publish-backend",
@@ -121,6 +121,14 @@ lazy val root = project
           .toList
       )
     }.taskValue
+  )
+
+// optional root aggregator: makes running `sbt` useful at the repository root
+lazy val root = (project in file("."))
+  .aggregate(backend)
+  .settings(
+    name := "social-publish",
+    ThisBuild / scalaVersion := scala3Version
   )
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
