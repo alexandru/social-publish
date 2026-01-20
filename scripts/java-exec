@@ -6,6 +6,8 @@
 # - ShenandoahGuaranteedGCInterval: Force GC every 10s to release memory
 
 exec java \
+  -Xms32m \
+  -Xmx256m \
   -XX:+UseShenandoahGC \
   -XX:+UnlockExperimentalVMOptions \
   -XX:ShenandoahUncommitDelay=1000 \

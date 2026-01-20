@@ -2,10 +2,10 @@ package socialpublish.db
 
 import cats.effect.{IO, Resource}
 import com.monovore.decline.Opts
+import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
 import doobie.util.transactor.Transactor
 import java.nio.file.{Files, Path}
-import scala.concurrent.ExecutionContext
 
 case class DatabaseConfig(path: Path)
 
@@ -35,13 +35,16 @@ object DatabaseConfig {
   def transactorResource(cfg: DatabaseConfig): Resource[IO, Transactor[IO]] =
     for {
       _ <- Resource.eval(ensureParentDirectoryExists(cfg))
-      xa <- HikariTransactor.newHikariTransactor[IO](
-        "org.sqlite.JDBC",
-        s"jdbc:sqlite:${cfg.path.toAbsolutePath.toString}",
-        "",
-        "",
-        ExecutionContext.global
-      )
+      hikariCfg <- Resource.eval(IO {
+        val cfgH = new HikariConfig()
+        cfgH.setDriverClassName("org.sqlite.JDBC")
+        cfgH.setJdbcUrl(s"jdbc:sqlite:${cfg.path.toAbsolutePath.toString}")
+        cfgH.setMaximumPoolSize(4)
+        cfgH.setMinimumIdle(1)
+        cfgH.setPoolName("social-publish-sqlite")
+        cfgH
+      })
+      xa <- HikariTransactor.fromHikariConfig[IO](hikariCfg)
     } yield xa
 
 }

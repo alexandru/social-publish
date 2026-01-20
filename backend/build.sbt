@@ -8,7 +8,6 @@ val declineVersion = "2.5.0"
 val log4catsVersion = "2.7.1"
 val tapirVersion = "1.13.5"
 val sttpVersion = "4.0.13"
-val apispecVersion = "0.11.10"
 val http4sVersion = "0.23.27"
 val logbackClassicVersion = "1.5.16"
 
@@ -33,8 +32,6 @@ lazy val root = project
       "com.softwaremill.sttp.tapir" %% "tapir-core" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-http4s-server" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % tapirVersion,
-      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs" % tapirVersion,
       "com.softwaremill.sttp.tapir" %% "tapir-sttp-client4" % tapirVersion,
 
       // Http4s Server
@@ -43,9 +40,6 @@ lazy val root = project
 
       // sttp client (cats-effect backend)
       "com.softwaremill.sttp.client4" %% "cats" % sttpVersion,
-
-      // OpenAPI JSON support
-      "com.softwaremill.sttp.apispec" %% "openapi-circe" % apispecVersion,
 
       // Circe for JSON
       "io.circe" %% "circe-core" % circeVersion,
