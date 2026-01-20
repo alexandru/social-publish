@@ -19,6 +19,7 @@ lazy val backendSharedSettings = Seq(
 
 // Backend project definition, located in the backend/ folder
 lazy val backend = (project in file("backend"))
+  .enablePlugins(SbtTwirl)
   .settings(backendSharedSettings)
   .settings(
     name := "social-publish-backend",
@@ -74,6 +75,13 @@ lazy val backend = (project in file("backend"))
       "org.tpolecat" %% "doobie-munit" % doobieVersion % Test,
       "org.graalvm.buildtools" % "graalvm-reachability-metadata" % "0.10.6" % Runtime
     ),
+    Compile / sourceDirectories += baseDirectory.value / "src" / "main" / "twirl",
+    Compile / resourceGenerators += Def.task {
+      val publicDir = baseDirectory.value / "public"
+      val managed = (Compile / resourceManaged).value / "public"
+      if (publicDir.exists()) IO.copyDirectory(publicDir, managed, overwrite = true, preserveLastModified = true)
+      Seq.empty[File]
+    }.taskValue,
 
     // Assembly settings for building a fat JAR
     assembly / assemblyMergeStrategy := {

@@ -1,0 +1,32 @@
+@(error: Option[String], redirect: String)
+@main("Login") {
+  @error.map { msg =>
+    <article class="message is-danger">
+      <div class="message-body">
+        @msg
+      </div>
+    </article>
+  }
+  <h1 class="title">Login</h1>
+  <form class="box" method="post" action="/api/login" hx-post="/api/login" hx-target="#login-response" hx-swap="none">
+    <input type="hidden" name="redirect" value="@redirect"/>
+    <div class="field">
+      <label class="label">Username</label>
+      <div class="control">
+        <input class="input" type="text" name="username" required>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Password</label>
+      <div class="control">
+        <input class="input" type="password" name="password" required>
+      </div>
+    </div>
+    <div class="field is-grouped">
+      <div class="control">
+        <button class="button is-primary" type="submit">Submit</button>
+      </div>
+    </div>
+  </form>
+  <div id="login-response" hx-trigger="htmx:afterOnLoad" hx-get="/login?redirect=@redirect"></div>
+}

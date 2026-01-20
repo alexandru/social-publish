@@ -1,0 +1,38 @@
+@(title: String)(content: => play.twirl.api.Html)
+@import java.time.Instant
+@import java.time.ZoneId
+@import java.time.format.DateTimeFormatter
+@defining(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault())) { fmt =>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@title</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/ionicons@7.2.1/dist/ionicons.min.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+  <section class="section">
+    <div class="container">
+      <nav class="navbar" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+          <a class="navbar-item" href="/">
+            <strong>Social Publish</strong>
+          </a>
+        </div>
+        <div class="navbar-menu">
+          <div class="navbar-start">
+            <a class="navbar-item" href="/form">Publish</a>
+            <a class="navbar-item" href="/account">Account</a>
+            <a class="navbar-item" href="/rss" target="_blank">RSS</a>
+          </div>
+        </div>
+      </nav>
+      @content
+    </div>
+  </section>
+</body>
+</html>
+}

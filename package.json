@@ -5,7 +5,7 @@
     "dev": "npm run init && concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:backend": "cd ./backend && ./sbt -Dsbt.supershell=false ~run",
     "dev:frontend": "npm --prefix ./frontend/ run dev",
-    "build": "npm run init && npm run clean && cd ./backend && ./sbt -Dsbt.supershell=false assembly && cd .. && npm --prefix ./frontend/ run build",
+    "build": "npm run init && npm run clean && npm --prefix ./frontend/ run build && cd ./backend && ./sbt -Dsbt.supershell=false assembly",
     "clean": "cd ./backend && ./sbt clean && cd .. && npm --prefix ./frontend/ run clean",
     "format": "prettier . --write",
     "lint": "eslint . -f unix"

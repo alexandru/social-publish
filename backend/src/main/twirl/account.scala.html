@@ -1,0 +1,22 @@
+@(hasTwitter: Boolean, createdAt: Long)
+@main("Account") {
+  <div class="block">
+    <h1 class="title">Account Settings</h1>
+  </div>
+  <div class="box">
+    <h2 class="subtitle">Social Accounts</h2>
+    <button class="button is-link" onclick="window.location.href='/api/twitter/authorize'">
+      <span class="icon">
+        <ion-icon name="logo-twitter"></ion-icon>
+      </span>
+      <strong>Connect X (Twitter)</strong>
+    </button>
+    <p class="help">
+      @if(hasTwitter) {
+        Connected @if(createdAt > 0) { at @java.time.Instant.ofEpochMilli(createdAt).toString }
+      } else {
+        Not connected
+      }
+    </p>
+  </div>
+}

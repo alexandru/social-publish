@@ -1,0 +1,215 @@
+@(hasTwitter: Boolean)
+@main("Publish") {
+  <div class="block">
+    <h1 class="title">Social Publish</h1>
+    <p class="subtitle">Spam all your social media accounts at once!</p>
+  </div>
+  <form class="box" id="post-form" hx-post="/api/multiple/post" hx-target="#post-form" hx-swap="outerHTML">
+    <fieldset id="post-form-fieldset">
+      <div class="field">
+        <label class="label">Content</label>
+        <div class="control">
+          <textarea id="content" name="content" rows="4" cols="50" class="textarea" required></textarea>
+        </div>
+        <p class="help" id="chars-left">Characters left: 280</p>
+      </div>
+      <div class="field">
+        <label class="label">Highlighted link (optional)</label>
+        <div class="control">
+          <input type="url" class="input" placeholder="https://example.com/..." id="link" name="link">
+        </div>
+      </div>
+      <div id="images-container"></div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="mastodon" name="targets" value="mastodon"> Mastodon
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="bluesky" name="targets" value="bluesky"> Bluesky
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          @if(hasTwitter) {
+            <input type="checkbox" id="twitter" name="targets" value="twitter">
+          } else {
+            <input type="checkbox" id="twitter" name="targets" value="twitter" disabled>
+          }
+          Twitter
+        </label>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="linkedin" name="targets" value="linkedin"> LinkedIn
+        </label>
+        <p class="help">
+          <a href="/rss/target/linkedin" target="_blank">Via RSS feed</a>
+          (needs <a href="https://ifttt.com" target="_blank" rel="noreferrer">ifttt.com</a> setup)
+        </p>
+      </div>
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" id="cleanupHtml" name="cleanupHtml" value="1"> cleanup HTML
+        </label>
+      </div>
+      <div class="buttons">
+        <button class="button" type="reset" id="post-form-reset-button">Reset</button>
+        <button class="button" type="button" id="add-image">Add image</button>
+        <button class="button is-primary" type="submit">Submit</button>
+      </div>
+    </fieldset>
+  </form>
+  <div id="post-form-messages"></div>
+  <script>
+    (function() {
+      const charsLeftEl = document.getElementById('chars-left');
+      const content = document.getElementById('content');
+      const link = document.getElementById('link');
+      const imagesContainer = document.getElementById('images-container');
+      const addImageButton = document.getElementById('add-image');
+      const messages = document.getElementById('post-form-messages');
+      let imageCount = 0;
+      const maxImages = 4;
+
+      function updateChars() {
+        const text = [content.value || '', link.value || ''].filter(x => x.length > 0).join('\\n\\n');
+        const left = 280 - text.length;
+        charsLeftEl.textContent = 'Characters left: ' + left;
+      }
+
+      function showMessage(type, text) {
+        messages.innerHTML = '<article class="message is-' + type + '"><div class="message-body">' + text + '</div></article>';
+      }
+
+      function addImageInput() {
+        if (imageCount >= maxImages) return;
+        imageCount += 1;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'box';
+        wrapper.dataset.imageId = String(imageCount);
+        wrapper.innerHTML = `
+          <div class="field">
+            <label class="label">Image ${imageCount}</label>
+            <div class="control">
+              <input class="input" type="file" name="image-${imageCount}" accept="image/png,image/jpeg">
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">Alt text</label>
+            <div class="control">
+              <input class="input" type="text" name="alt-${imageCount}">
+            </div>
+          </div>
+          <button class="button is-danger is-light" type="button" data-remove="${imageCount}">Remove</button>
+        `;
+        imagesContainer.appendChild(wrapper);
+      }
+
+      addImageButton.addEventListener('click', addImageInput);
+      imagesContainer.addEventListener('click', function(e) {
+        const btn = e.target.closest('button[data-remove]');
+        if (!btn) return;
+        const id = btn.dataset.remove;
+        const box = imagesContainer.querySelector('[data-image-id="' + id + '"]');
+        if (box) box.remove();
+        imageCount -= 1;
+      });
+
+      content.addEventListener('input', updateChars);
+      link.addEventListener('input', updateChars);
+      updateChars();
+
+      document.getElementById('post-form').addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        const form = ev.target;
+        const data = new FormData(form);
+        const targets = Array.from(form.querySelectorAll('input[name="targets"]:checked')).map(x => x.value);
+        if (targets.length === 0) {
+          showMessage('danger', 'At least one publication target is required!');
+          return;
+        }
+        data.set('targets', JSON.stringify(targets));
+        const cleanup = form.querySelector('#cleanupHtml').checked ? '1' : '';
+        data.set('cleanupHtml', cleanup);
+        const images = [];
+        Array.from(imagesContainer.children).forEach(box => {
+          const fileInput = box.querySelector('input[type="file"]');
+          const altInput = box.querySelector('input[type="text"]');
+          if (fileInput && fileInput.files.length > 0) {
+            const idx = images.length;
+            images.push({ file: fileInput.files[0], alt: altInput.value });
+          }
+        });
+
+        const fieldset = document.getElementById('post-form-fieldset');
+        fieldset.setAttribute('disabled', 'true');
+        uploadImages(images).then(function(ids) {
+          return submitPost(data, targets, ids, cleanup !== '');
+        }).then(function() {
+          form.reset();
+          imagesContainer.innerHTML = '';
+          imageCount = 0;
+          updateChars();
+          showMessage('info', 'New post created successfully! <a href="/rss" target="_blank">View RSS feed?</a>');
+        }).catch(function(err) {
+          if (err.redirect) {
+            window.location.href = err.redirect;
+            return;
+          }
+          showMessage('danger', err.message || 'Unexpected error');
+        }).finally(function() {
+          fieldset.removeAttribute('disabled');
+        });
+      });
+
+      function uploadImages(images) {
+        const ids = [];
+        return images.reduce(function(prev, img) {
+          return prev.then(function() {
+            const fd = new FormData();
+            fd.append('file', img.file);
+            if (img.alt) fd.append('altText', img.alt);
+            return fetch('/api/files/upload', { method: 'POST', body: fd }).then(function(res) {
+              if (res.status === 401 || res.status === 403) {
+                throw { redirect: '/login?error=' + res.status + '&redirect=/form' };
+              }
+              if (!res.ok) {
+                return res.text().then(function(text) {
+                  throw new Error('Error uploading image: HTTP ' + res.status + ' / ' + text);
+                });
+              }
+              return res.json().then(function(json) {
+                ids.push(json.uuid);
+              });
+            });
+          });
+        }, Promise.resolve()).then(function() { return ids; });
+      }
+
+      function submitPost(data, targets, imageIds, cleanup) {
+        const payload = {
+          content: data.get('content'),
+          link: data.get('link') || null,
+          targets: targets,
+          cleanupHtml: cleanup ? true : null,
+          images: imageIds
+        };
+        return fetch('/api/multiple/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(function(res) {
+          if (res.status === 401 || res.status === 403) {
+            throw { redirect: '/login?error=' + res.status + '&redirect=/form' };
+          }
+          if (!res.ok) {
+            return res.text().then(function(text) { throw new Error('Error submitting form: HTTP ' + res.status + ' / ' + text); });
+          }
+          return res.json();
+        });
+      }
+    })();
+  </script>
+}

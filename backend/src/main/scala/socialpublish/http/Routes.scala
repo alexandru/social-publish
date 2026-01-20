@@ -15,6 +15,7 @@ import sttp.tapir.*
 import sttp.tapir.DecodeResult
 import sttp.tapir.json.circe.*
 import sttp.tapir.server.ServerEndpoint
+import views.html.{account, home, login, notFound, publishForm}
 
 import java.nio.file.{Files as JavaFiles, Path, Paths}
 import java.util.UUID
@@ -30,6 +31,9 @@ class Routes(
 ) {
 
   private type ErrorOut = (StatusCode, ErrorResponse)
+  private type PageErrorOut = (StatusCode, String)
+  private val htmxRedirectHeader = "HX-Redirect"
+  private val pageErrorOutput: EndpointOutput[PageErrorOut] = statusCode.and(htmlBodyUtf8)
 
   private val errorOutput: EndpointOutput[ErrorOut] = statusCode.and(jsonBody[ErrorResponse])
   private val apiErrorHandle = Handle[IO, ApiError]
@@ -48,8 +52,11 @@ class Routes(
   private def apiEndpoints: List[ServerEndpoint[Any, IO]] =
     publicEndpoints ++ protectedEndpoints :+ staticFilesEndpoint
 
+  private def pageEndpoints: List[ServerEndpoint[Any, IO]] =
+    List(homePageEndpoint, loginPageEndpoint, formPageEndpoint, accountPageEndpoint, notFoundEndpoint)
+
   def endpoints: List[ServerEndpoint[Any, IO]] =
-    apiEndpoints
+    apiEndpoints ++ pageEndpoints
 
   private def publicEndpoints: List[ServerEndpoint[Any, IO]] =
     List(
@@ -172,8 +179,7 @@ class Routes(
       }
 
   private val publicRoot = Paths.get("public").toAbsolutePath.normalize
-  private val spaPaths = Set("login", "form", "account")
-  private val reservedStaticPrefixes = Set("api", "rss", "files", "ping")
+  private val reservedStaticPrefixes = Set("api", "rss", "files", "ping", "login", "form", "account")
 
   private val staticPathInput: EndpointInput[List[String]] =
     paths.mapDecode { segments =>
@@ -181,7 +187,10 @@ class Routes(
         case Some(head) if reservedStaticPrefixes.contains(head) =>
           DecodeResult.Missing
         case _ =>
-          DecodeResult.Value(segments)
+          segments.lastOption match {
+            case Some(last) if last.contains(".") => DecodeResult.Value(segments)
+            case _ => DecodeResult.Missing
+          }
       }
     }(identity)
 
@@ -194,6 +203,63 @@ class Routes(
       .serverLogic { segments =>
         serveStaticFile(segments)
       }
+
+  private val homePageEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("")
+      .out(htmlBodyUtf8)
+      .serverLogicSuccess(_ => render(home()))
+
+  private val loginPageEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("login")
+      .in(query[Option[String]]("error"))
+      .in(query[Option[String]]("redirect"))
+      .out(htmlBodyUtf8)
+      .serverLogicSuccess { case (error, redirect) =>
+        render(login(error, redirect.getOrElse("/form")))
+      }
+
+  private val formPageEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("form")
+      .in(authInput)
+      .out(htmlBodyUtf8)
+      .errorOut(pageErrorOutput)
+      .serverLogic { inputs =>
+        handleResult(auth.authenticate(inputs)).flatMap {
+          case Right(_) =>
+            twitter.getAuthStatus.map { status =>
+              Right(publishForm(status.isDefined).body)
+            }
+          case Left(_) =>
+            IO.pure(Left((StatusCode.Found, redirectHtml("/login?redirect=/form"))))
+        }
+      }
+
+  private val accountPageEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in("account")
+      .in(authInput)
+      .out(htmlBodyUtf8)
+      .errorOut(pageErrorOutput)
+      .serverLogic { inputs =>
+        handleResult(auth.authenticate(inputs)).flatMap {
+          case Right(_) =>
+            twitter.getAuthStatus.map { status =>
+              Right(account(status.isDefined, status.getOrElse(0L)).body)
+            }
+          case Left(_) =>
+            IO.pure(Left((StatusCode.Found, redirectHtml("/login?redirect=/account"))))
+        }
+      }
+
+  private val notFoundEndpoint: ServerEndpoint[Any, IO] =
+    endpoint.get
+      .in(paths)
+      .out(statusCode(StatusCode.NotFound))
+      .out(htmlBodyUtf8)
+      .serverLogicSuccess(_ => render(notFound()))
 
   private val protectedEndpoint: ServerEndpoint[Any, IO] =
     secureEndpoint.get
@@ -390,7 +456,6 @@ class Routes(
       val normalizedSegments = segments.filter(_.nonEmpty)
       val target = normalizedSegments.headOption match {
         case None => publicRoot.resolve("index.html")
-        case Some(head) if spaPaths.contains(head) => publicRoot.resolve("index.html")
         case _ => publicRoot.resolve(normalizedSegments.mkString("/"))
       }
       val normalized = target.normalize
@@ -407,5 +472,11 @@ class Routes(
 
   private def toErrorOutput(error: ApiError): ErrorOut =
     (StatusCode(error.status), ErrorResponse(error.message))
+
+  private def render(template: play.twirl.api.HtmlFormat.Appendable): IO[String] =
+    IO.pure(template.body)
+
+  private def redirectHtml(url: String): String =
+    s"""<html><head><meta http-equiv="refresh" content="0; url='$url'"/><script>window.location.href='$url'</script></head><body>Redirecting to <a href="$url">$url</a></body></html>"""
 
 }
