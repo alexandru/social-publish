@@ -1,6 +1,5 @@
 import sbtnativeimage.NativeImagePlugin.autoImport._
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
-import org.scalablytyped.converter.plugin.ScalablyTypedConverterPlugin.autoImport._
 
 val scala3Version = "3.7.4"
 val circeVersion = "0.14.15"
@@ -145,7 +144,6 @@ lazy val backendNative = (project in file(".backend-native"))
 // Frontend ScalaJS project definition, located in the frontend-scala/ folder
 lazy val frontendScala = (project in file("frontend-scala"))
   .enablePlugins(ScalaJSPlugin)
-  .enablePlugins(ScalablyTypedConverterPlugin)
   .settings(
     name := "social-publish-frontend-scala",
     scalaVersion := scala3Version,
@@ -153,33 +151,19 @@ lazy val frontendScala = (project in file("frontend-scala"))
       "-no-indent",
       "-rewrite"
     ),
+    scalacOptions --= Seq("-Werror", "-Xfatal-warnings"),
     
     // ScalaJS settings
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { 
       _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(
-          ModuleSplitStyle.SmallModulesFor(List("socialpublish.frontend"))
-        )
     },
-    
-    // ScalablyTyped settings
-    stFlavour := Flavour.ScalajsReact,
-    useYarn := true,
-    Compile / npmDependencies ++= Seq(
-      "react" -> "19.2.3",
-      "react-dom" -> "19.2.3",
-      "react-router-dom" -> "7.11.0",
-      "@types/react" -> "19.2.7",
-      "@types/react-dom" -> "19.2.3",
-      "@types/react-router-dom" -> "5.3.3"
-    ),
     
     // Library dependencies
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.8.0",
-      "com.github.japgolly.scalajs-react" %%% "core" % "3.0.0",
-      "com.github.japgolly.scalajs-react" %%% "extra" % "3.0.0"
+      "com.github.japgolly.scalajs-react" %%% "core" % "3.0.0-beta7",
+      "com.github.japgolly.scalajs-react" %%% "extra" % "3.0.0-beta7"
     )
   )
 

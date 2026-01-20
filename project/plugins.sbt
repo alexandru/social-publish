@@ -4,9 +4,7 @@ addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
 addSbtPlugin("org.scalameta" % "sbt-native-image" % "0.3.4")
 
 // ScalaJS plugins
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.18.2")
-addSbtPlugin("org.scala-js" % "sbt-jsdependencies" % "1.0.2")
-addSbtPlugin("org.scalablytyped.converter" % "sbt-converter" % "1.0.0-beta49")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.19.0")
 
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % "0.14.15",
