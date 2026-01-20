@@ -1,0 +1,440 @@
+Comprehensive Security & Code Quality Audit Report
+Social-Publish Backend (Scala 3)
+---
+Executive Summary
+I've conducted a thorough analysis of the ./backend/ Scala 3 codebase, examining security vulnerabilities, unimplemented features, and code quality issues. The analysis cross-referenced the backend implementation against frontend API expectations.
+Overall Assessment: The backend has a solid functional foundation with good use of established libraries, but it lacks several critical security controls required for production deployment. All tests pass (38/38), and core functionality is implemented, but LinkedIn integration is missing and several security gaps need immediate attention.
+Security Score: 6.5/10
+---
+🔴 CRITICAL SECURITY VULNERABILITIES
+1. No Rate Limiting ⚠️ URGENT
+Severity: CRITICAL  
+Location: All endpoints in Routes.scala
+Issue: Zero rate limiting implementation anywhere in the codebase.
+Exploitation Vectors:
+- Brute force attacks on /api/login endpoint
+- DoS via file upload spam
+- API abuse on all protected endpoints
+- Credential stuffing attacks
+Impact: Application is defenseless against automated attacks.
+Recommendation:
+// Add rate limiting middleware per IP + per user
+- Login endpoint: 5 attempts per 15 minutes
+- File upload: 10 uploads per hour per user
+- API endpoints: 100 requests per minute per user
+- Implement exponential backoff for failed logins
+---
+2. No CSRF Protection
+Severity: CRITICAL  
+Location: Routes.scala, all POST endpoints
+Issue: All state-changing operations accept requests without CSRF validation:
+- /api/login
+- /api/files/upload
+- /api/bluesky/post, /api/mastodon/post, /api/twitter/post
+- /api/multiple/post
+Exploitation: Attacker can craft malicious pages that POST to these endpoints using victim's cookies.
+Recommendation:
+1. Implement CSRF token generation and validation
+2. Use SameSite=Strict cookie attribute
+3. Add double-submit cookie pattern or synchronizer token
+---
+3. Missing Critical Security Headers
+Severity: HIGH  
+Location: HttpServer.scala, Routes.scala
+Issue: No security headers set in HTTP responses. Vulnerable to:
+- Clickjacking (no X-Frame-Options)
+- MIME sniffing (no X-Content-Type-Options)
+- XSS (no Content-Security-Policy)
+- No HSTS header for HTTPS enforcement
+Recommendation:
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Content-Security-Policy: default-src 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
+---
+4. Potential Path Traversal in Static File Serving
+Severity: HIGH  
+Location: Routes.scala:388-398
+Code:
+private def resolveStaticPath(segments: List[String]): IO[Option[Path]] =
+  IO.blocking {
+    val normalizedSegments = segments.filter(_.nonEmpty)
+    val target = normalizedSegments.headOption match {
+      case None => publicRoot.resolve("index.html")
+      case Some(head) if spaPaths.contains(head) => publicRoot.resolve("index.html")
+      case _ => publicRoot.resolve(normalizedSegments.mkString("/"))  // ⚠️ VULNERABLE
+    }
+    val normalized = target.normalize
+    if normalized.startsWith(publicRoot) then Some(normalized) else None
+  }
+Issue: While path normalization exists, the implementation constructs the path BEFORE normalizing, making it vulnerable to:
+- Symbolic link exploitation
+- URL-encoded sequences
+- Sequences like ["foo", "..", "..", "etc", "passwd"]
+Recommendation:
+// Validate each segment individually
+val validSegments = normalizedSegments.forall { seg =>
+  !seg.contains("..") && !seg.contains(".") && 
+  !seg.contains(File.separator) && seg.matches("^[a-zA-Z0-9_.-]+$")
+}
+---
+5. JWT Security Weaknesses
+Severity: HIGH  
+Location: ServerConfig.scala:49-54, AuthMiddleware.scala:111-137
+Issues:
+1. No JWT secret strength validation (could be weak)
+2. Uses HS256 (symmetric) without rotation mechanism
+3. Token valid for 7 days (168 hours) with no refresh mechanism
+4. No token revocation capability
+5. No logout endpoint
+Code:
+expiration = Some(now.plusSeconds(168 * 3600).getEpochSecond)  // 7 days!
+Recommendation:
+- Validate minimum secret length (256 bits)
+- Reduce JWT expiration to 1 hour
+- Implement refresh token mechanism
+- Add token blacklist for revocation
+- Consider RS256 instead of HS256
+---
+6. Race Condition in File Locking
+Severity: MEDIUM-HIGH  
+Location: FilesService.scala:221-234
+Code:
+private def withLock[A](key: String)(f: IO[A]): IO[A] =
+  locks.get.flatMap { current =>
+    current.get(key) match {
+      case Some(existing) => existing.permit.use(_ => f)
+      case None =>
+        Semaphore[IO](1).flatMap { newSem =>
+          locks.update(_ + (key -> newSem)) *>  // ⚠️ Race condition here
+            newSem.permit.use(_ => f)
+        }
+    }
+  }
+Issue: Between checking if semaphore exists and creating it, another thread could create it, leading to multiple semaphores for the same key.
+Fix:
+private def withLock[A](key: String)(f: IO[A]): IO[A] =
+  Semaphore[IO](1).flatMap { newSem =>
+    locks.modify { current =>
+      current.get(key) match {
+        case Some(existing) => (current, existing)
+        case None => (current + (key -> newSem), newSem)
+      }
+    }.flatMap(_.permit.use(_ => f))
+  }
+---
+7. Weak Random Number Generation for OAuth
+Severity: MEDIUM  
+Location: TwitterApi.scala:306
+Code:
+val nonce = Random.alphanumeric.take(32).mkString
+Issue: Uses scala.util.Random which is NOT cryptographically secure. OAuth nonces must be unpredictable.
+Fix:
+import java.security.SecureRandom
+val nonce = {
+  val bytes = new Array[Byte](32)
+  new SecureRandom().nextBytes(bytes)
+  bytes.map("%02x".format(_)).mkString
+}
+---
+🟠 HIGH SEVERITY ISSUES
+8. Information Disclosure in Error Messages
+Location: Multiple files
+Examples:
+a) TwitterApi.scala:269-289:
+case DecodeResult.Error(original, error) =>
+  Left(ApiError.caughtException(s"Twitter decode failure: $original", "twitter", error))
+Raw error details including potentially sensitive API responses exposed.
+b) Routes.scala:358-359:
+logger.error(err)("Failed to upload file") *>
+  IO.pure(Left((StatusCode.BadRequest, ErrorResponse(err.getMessage))))
+Full exception messages exposed to client.
+Recommendation:
+- Log full errors server-side only
+- Return generic error messages to clients
+- Use error codes instead of detailed messages
+---
+9. Passwords Stored in Memory (Bluesky)
+Location: BlueskyConfig.scala:7, BlueskyApi.scala:38,88
+Code:
+case Enabled(service: String, username: String, password: String)
+Issue: Bluesky password stored as plain String in memory throughout application lifetime. Could be exposed via heap dumps or memory inspection.
+Recommendation:
+- Use char arrays that can be zeroed
+- Implement credential rotation
+- Consider using session tokens instead
+---
+10. SSRF Vulnerability Potential
+Location: Multiple integration config files
+Issues:
+a) MastodonConfig.scala:28 - User-controlled host without validation
+b) BlueskyConfig.scala:21 - User-controlled URL without validation
+Recommendation:
+- Validate URLs against whitelist of allowed domains
+- Prevent localhost/internal IP addresses
+- Use URL parsing to validate scheme (https only)
+---
+11. Missing File Size Limits
+Location: Routes.scala:347-369
+Issue: No maximum file size validation for uploads. Could lead to DoS via large file uploads.
+Recommendation:
+val maxFileSize = 10 * 1024 * 1024 // 10MB
+if (bytes.length > maxFileSize) {
+  IO.pure(Left((StatusCode.BadRequest, ErrorResponse("File too large"))))
+}
+---
+12. No Input Length Validation
+Location: types.scala, various
+Issues:
+- Link URLs: No length limit
+- Alt text: No length limit (could be megabytes)
+- Tags: No limit on number or length
+- Language codes: No ISO validation
+Recommendation:
+- Max alt text: 1000 characters
+- Max link URL: 2048 characters
+- Max tags: 10 per post
+- Max tag length: 50 characters
+- Validate language codes against ISO 639-1
+---
+🟡 MEDIUM SEVERITY ISSUES
+13. Cookie Security Issues
+Location: Routes.scala:400-406
+Issue: Cookie parsing accepts access_token but there's no evidence of:
+- HttpOnly flag
+- Secure flag
+- SameSite attribute
+- Path restriction
+Current: Frontend sets cookie via JavaScript (vulnerable to XSS)
+Recommendation:
+Set-Cookie: access_token=...; HttpOnly; Secure; SameSite=Strict; Path=/api
+Backend should set the cookie, not frontend JavaScript.
+---
+14. No Audit Logging
+Location: Entire codebase
+Issue: No security event logging:
+- Failed login attempts not tracked
+- No logging of authorization failures
+- No audit trail for sensitive operations
+Recommendation:
+- Log all authentication events
+- Log all authorization failures
+- Include IP addresses, timestamps, user agents
+- Implement structured logging for SIEM integration
+---
+15. No Session Management
+Location: Authentication system
+Issues:
+- No session invalidation mechanism
+- No concurrent session limiting
+- No logout endpoint to invalidate tokens
+Recommendation:
+- Add /api/logout endpoint
+- Implement token blacklist/revocation
+- Add refresh token mechanism
+- Limit concurrent sessions per user
+---
+✅ POSITIVE SECURITY FINDINGS
+1. ✅ SQL Injection Prevention: Excellent use of Doobie parameterized queries throughout
+2. ✅ Password Hashing: BCrypt used for password storage (AuthMiddleware.scala:76)
+3. ✅ MIME Type Validation: Magic byte checking prevents file type spoofing (FilesService.scala:273-292)
+4. ✅ Path Normalization: Attempt to prevent path traversal (though needs improvement)
+5. ✅ XML Escaping: Proper escaping in RSS feed generation
+6. ✅ HTTPS for External APIs: Default configurations use HTTPS endpoints
+7. ✅ No Hardcoded Secrets: All secrets from environment variables
+8. ✅ OAuth 1.0a Implementation: Proper HMAC-SHA1 signing for Twitter
+9. ✅ File Deduplication: Content-based addressing prevents storage abuse
+10. ✅ Content Length Validation: 1-1000 character limit enforced
+---
+🚫 UNIMPLEMENTED FEATURES
+1. LinkedIn Integration - NOT IMPLEMENTED
+Severity: HIGH (Feature Gap)  
+Location: Routes.scala:322, types.scala:14
+Evidence:
+// Routes.scala:322
+case Target.LinkedIn => None  // ⚠️ Returns None - not implemented!
+Frontend Expectation: Frontend lists LinkedIn as a target option in the publish form.
+Current Behavior: 
+- LinkedIn is defined as a valid Target enum value
+- Frontend can select LinkedIn
+- Backend silently ignores LinkedIn in multiplePostEndpoint
+- No LinkedIn API implementation exists (no linkedin/ directory)
+Impact: Users can select LinkedIn but posts won't be published there. This is a silent failure.
+Recommendation:
+1. Short-term: Frontend should hide LinkedIn option OR backend should return error
+2. Long-term: Implement LinkedIn OAuth2 + Publishing API integration
+---
+2. Frontend/Backend API Contract Discrepancies
+✅ Implemented Correctly:
+- POST /api/login - ✅ Implemented
+- GET /api/twitter/authorize - ✅ Implemented
+- GET /api/twitter/status - ✅ Implemented
+- POST /api/files/upload - ✅ Implemented
+- POST /api/multiple/post - ✅ Implemented
+- GET /rss - ✅ Implemented
+- GET /rss/target/{platform} - ✅ Implemented
+⚠️ Minor Discrepancies:
+a) Twitter Status Response Format
+- Frontend expects: createdAt?: string (ISO datetime, optional)
+- Backend returns: createdAt: Long (epoch milliseconds, always present)
+Location: ApiModels.scala:24-27
+case class TwitterAuthStatusResponse(
+  hasAuthorization: Boolean,
+  createdAt: Long  // ⚠️ Should be Option[String]
+)
+Impact: Frontend likely works because JavaScript handles epoch timestamps, but this violates the documented contract.
+---
+🐛 BUGS & CODE QUALITY ISSUES
+1. HTML Cleanup Implementation is Naive
+Location: TextUtils.scala:6-16
+Code:
+def convertHtml(html: String): String =
+  html
+    .replaceAll("<[^>]*>", "") // ⚠️ Naive regex
+    .replaceAll("&nbsp;", " ")
+    .replaceAll("&lt;", "<")
+    // ... more replacements
+Issues:
+- Regex <[^>]*> can be broken by <div attr=">" >content</div>
+- Only handles 6 HTML entities, missing hundreds (e.g., &mdash;, &#8217;)
+- No handling of CDATA sections
+- No handling of comments <!-- -->
+Recommendation: Use a proper HTML parser library like JSoup or html5ever.
+---
+2. Potential SQL Injection (Low Risk)
+Location: DocumentsDatabase.scala:98-99
+Code:
+val order = if orderBy.toLowerCase.contains("desc") then fr"DESC" else fr"ASC"
+(sql"SELECT ... ORDER BY created_at " ++ order)
+Analysis: Currently safe because it only checks for "desc" and defaults to "ASC", but could be more robust with explicit whitelisting.
+Recommendation:
+val order = orderBy.toLowerCase match {
+  case s if s == "desc" => fr"DESC"
+  case _ => fr"ASC"
+}
+---
+3. Inconsistent Error Handling
+Location: Multiple files
+Issue: Different integration modules handle errors differently:
+- Bluesky: Comprehensive error handling with typed ApiError
+- Twitter: Similar but different error messages
+- Mastodon: Different pattern
+Recommendation: Standardize error handling across all integrations.
+---
+4. No Validation of Content-Type Header in Upload
+Location: Routes.scala:351-352
+Code:
+part.contentType match {
+  case Some(contentType) if allowedTypes.contains(contentType.toString.toLowerCase) =>
+Issue: Relies on client-provided Content-Type header (though mitigated by magic byte check).
+Current Mitigation: ✅ Magic byte detection in FilesService.scala:273-292 overrides client-provided type.
+---
+5. Test Coverage Gaps
+Location: Test suite
+Analysis (from sbt test output):
+- ✅ 38 tests pass
+- ✅ Core functionality tested
+- ❌ No security-specific tests (CSRF, rate limiting, etc.)
+- ❌ No negative path testing for authentication
+- ❌ No file upload size limit tests
+- ❌ No LinkedIn integration tests (because not implemented)
+Recommendation: Add security-focused test cases.
+---
+📊 CODE QUALITY ASSESSMENT
+Architecture: 8/10
+- ✅ Good separation of concerns
+- ✅ Clean package structure by feature
+- ✅ Proper use of Effect types (IO)
+- ✅ Resource management with cats-effect Resource
+- ⚠️ Some coupling between HTTP layer and integrations
+Code Style: 9/10
+- ✅ Follows Scala 3 idioms
+- ✅ Proper use of braceful syntax (no braceless)
+- ✅ Good type safety (opaque types, enums)
+- ✅ Meaningful names
+- ✅ Adheres to AGENTS.md guidelines
+Error Handling: 7/10
+- ✅ Uses cats-mtl Raise for typed errors
+- ✅ Proper Either/IO error handling
+- ⚠️ Information disclosure in error messages
+- ⚠️ Inconsistent error handling patterns
+Testing: 7/10
+- ✅ All tests pass (38/38)
+- ✅ Integration tests exist
+- ⚠️ Missing security tests
+- ⚠️ Missing negative path tests
+---
+🎯 PRIORITIZED REMEDIATION PLAN
+IMMEDIATE (Deploy Blockers - Must Fix Before Production):
+1. ⚠️ Add rate limiting (especially /api/login)
+2. ⚠️ Implement CSRF protection
+3. ⚠️ Add security headers middleware
+4. ⚠️ Fix race condition in file locking
+5. ⚠️ Use SecureRandom for OAuth nonces
+6. ⚠️ Add file size limits for uploads
+7. ⚠️ Remove/hide LinkedIn integration or implement it
+SHORT TERM (1-2 Weeks):
+8. Improve static file path traversal protection
+9. Implement audit logging
+10. Add session management/logout endpoint
+11. Sanitize error messages (no stack traces to clients)
+12. Add input length validation for all fields
+13. Set HttpOnly/Secure/SameSite on cookies
+14. Reduce JWT expiration time + add refresh tokens
+MEDIUM TERM (1 Month):
+15. Implement comprehensive rate limiting (all endpoints)
+16. Add SSRF protection for configurable URLs
+17. Fix HTML cleanup to use proper parser
+18. Implement LinkedIn integration OR remove from frontend
+19. Add security monitoring/alerting
+20. Standardize error handling across integrations
+LONG TERM (2-3 Months):
+21. Consider RS256 JWT instead of HS256
+22. Implement secrets rotation mechanism
+23. Add CAPTCHA for login after failed attempts
+24. Professional security penetration testing
+25. Implement Content Security Policy v3
+26. Add virus scanning for uploads
+---
+📈 TESTING STATUS
+Build Status: ✅ PASS  
+Test Results: ✅ 38/38 tests passing  
+✅ main server posts to mocked integrations
+✅ auth accepts access_token query param
+✅ rss endpoints support filters and JSON items
+✅ upload file endpoint handles multipart upload
+Test Coverage: Functional coverage is good, security coverage is missing.
+---
+🎓 COMPLIANCE WITH AGENTS.MD
+Adherence Score: 9/10
+✅ TDD-first: Tests exist for core features  
+✅ Encapsulation: Components are well-isolated  
+✅ Organization: By feature/component, not by type  
+✅ FP patterns: Excellent use of IO, Either, cats-effect  
+✅ Meaningful names: Code is readable  
+✅ Type safety: Good use of opaque types, case classes  
+✅ No sleeping threads in tests: Proper async testing  
+✅ Braces required: All code uses braceful syntax  
+✅ IO for side effects: No unsafeRunSync  
+⚠️ Missing tests before refactoring: Some areas need more test coverage
+---
+💡 RECOMMENDATIONS SUMMARY
+For Immediate Production Readiness:
+1. Add rate limiting middleware
+2. Implement CSRF protection
+3. Add security headers
+4. Fix all CRITICAL and HIGH severity issues
+5. Remove LinkedIn from frontend OR implement it
+6. Add comprehensive error logging
+For Long-term Security Posture:
+7. Regular security audits
+8. Penetration testing
+9. Dependency vulnerability scanning
+10. Security training for development team
+---
+🏁 CONCLUSION
+The Social-Publish backend is functionally sound with a clean architecture and good use of FP principles. However, it is NOT PRODUCTION-READY in its current state due to missing critical security controls (rate limiting, CSRF, security headers) and an unimplemented LinkedIn integration that could confuse users.
+Estimated Effort to Production-Ready: 2-3 developer weeks to address all CRITICAL and HIGH severity issues.
+The codebase demonstrates strong engineering fundamentals but needs a security-first mindset applied to the web layer. With the recommended fixes, this could be a robust, secure social media publishing platform.
