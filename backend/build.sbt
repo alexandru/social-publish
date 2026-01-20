@@ -110,7 +110,23 @@ lazy val root = project
         oldStrategy(x)
     },
     assembly / mainClass := Some("socialpublish.Main"),
-    assembly / assemblyJarName := "social-publish-backend.jar"
+    assembly / assemblyJarName := "social-publish-backend.jar",
+    // GraalVM Reachability Metadata
+    Compile / resourceGenerators += Def.task {
+      import NativeImageGenerateMetadataFiles._
+      implicit val logger: sbt.util.Logger = sbt.Keys.streams.value.log
+      generateResourceFiles(
+        // Path needed for cloning the metadata repository
+        (Compile / target).value,
+        // Path where the metadata files will be generated
+        (Compile / resourceManaged).value / "META-INF" / "native-image",
+        // List all tranzitive dependencies (can also add our own files)
+        update.value
+          .allModules
+          .map(m => Artefact(s"${m.organization}:${m.name}:${m.revision}"))
+          .toList
+      )
+    }.taskValue
   )
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
