@@ -1,48 +1,57 @@
 package socialpublish.frontend.components
 
-import japgolly.scalajs.react._
-import japgolly.scalajs.react.vdom.html_<^._
+import org.scalajs.dom
+import typings.react.mod.{createElement => h}
+import scala.scalajs.js
 
 object NavBar {
-  val component = ScalaFnComponent[Unit] { _ =>
-    <.nav(
-      ^.cls := "navbar is-primary",
-      ^.role := "navigation",
-      ^.aria.label := "main navigation",
-      <.div(
-        ^.cls := "navbar-brand",
-        <.a(
-          ^.role := "button",
-          ^.cls := "navbar-burger",
-          ^.aria.label := "menu",
-          ^.aria.expanded := false,
-          <.span(^.aria.hidden := true),
-          <.span(^.aria.hidden := true),
-          <.span(^.aria.hidden := true)
+  val component = h(
+    "nav",
+    js.Dynamic.literal(
+      className = "navbar is-primary",
+      role = "navigation"
+    ).asInstanceOf[js.Object],
+    h(
+      "div",
+      js.Dynamic.literal(className = "navbar-brand").asInstanceOf[js.Object],
+      h(
+        "a",
+        js.Dynamic.literal(
+          role = "button",
+          className = "navbar-burger"
+        ).asInstanceOf[js.Object],
+        h("span", null),
+        h("span", null),
+        h("span", null)
+      )
+    ),
+    h(
+      "div",
+      js.Dynamic.literal(className = "navbar-menu").asInstanceOf[js.Object],
+      h(
+        "div",
+        js.Dynamic.literal(className = "navbar-start").asInstanceOf[js.Object],
+        h(
+          "a",
+          js.Dynamic.literal(
+            className = "navbar-item",
+            href = "/"
+          ).asInstanceOf[js.Object],
+          h("span", js.Dynamic.literal(className = "icon").asInstanceOf[js.Object]),
+          h("strong", null, "Home")
+        ),
+        h(
+          "a",
+          js.Dynamic.literal(
+            className = "navbar-item",
+            href = "https://github.com/alexandru/social-publish",
+            target = "_blank"
+          ).asInstanceOf[js.Object],
+          h("span", js.Dynamic.literal(className = "icon").asInstanceOf[js.Object]),
+          h("strong", null, "GitHub")
         )
       ),
-      <.div(
-        ^.cls := "navbar-menu",
-        <.div(
-          ^.cls := "navbar-start",
-          <.a(
-            ^.cls := "navbar-item",
-            ^.href := "/",
-            <.span(^.cls := "icon"),
-            <.strong("Home")
-          ),
-          <.a(
-            ^.cls := "navbar-item",
-            ^.href := "https://github.com/alexandru/social-publish",
-            ^.target := "_blank",
-            <.span(^.cls := "icon"),
-            <.strong("GitHub")
-          )
-        ),
-        <.div(
-          ^.cls := "navbar-end"
-        )
-      )
+      h("div", js.Dynamic.literal(className = "navbar-end").asInstanceOf[js.Object])
     )
-  }
+  )
 }

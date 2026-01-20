@@ -1,5 +1,7 @@
 import sbtnativeimage.NativeImagePlugin.autoImport._
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
+import scalajsbundler.sbtplugin.ScalaJSBundlerPlugin.autoImport._
+import org.scalablytyped.converter.plugin.ScalablyTypedPluginBase.autoImport._
 
 val scala3Version = "3.7.4"
 val circeVersion = "0.14.15"
@@ -143,27 +145,35 @@ lazy val backendNative = (project in file(".backend-native"))
 
 // Frontend ScalaJS project definition, located in the frontend-scala/ folder
 lazy val frontendScala = (project in file("frontend-scala"))
-  .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin, ScalablyTypedConverterPlugin)
   .settings(
     name := "social-publish-frontend-scala",
-    scalaVersion := scala3Version,
+    scalaVersion := "2.13.16",
     scalacOptions ++= Seq(
-      "-no-indent",
-      "-rewrite"
+      "-deprecation",
+      "-feature"
     ),
-    scalacOptions --= Seq("-Werror", "-Xfatal-warnings"),
     
     // ScalaJS settings
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { 
-      _.withModuleKind(ModuleKind.ESModule)
+      _.withModuleKind(ModuleKind.CommonJSModule)
     },
+    
+    // ScalablyTyped settings
+    Compile / npmDependencies ++= Seq(
+      "react" -> "18.3.1",
+      "react-dom" -> "18.3.1",
+      "@types/react" -> "18.3.11",
+      "@types/react-dom" -> "18.3.1"
+    ),
+    
+    // Use Yarn for npm dependencies
+    useYarn := true,
     
     // Library dependencies
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.0",
-      "com.github.japgolly.scalajs-react" %%% "core" % "3.0.0-beta7",
-      "com.github.japgolly.scalajs-react" %%% "extra" % "3.0.0-beta7"
+      "org.scala-js" %%% "scalajs-dom" % "2.8.0"
     )
   )
 
