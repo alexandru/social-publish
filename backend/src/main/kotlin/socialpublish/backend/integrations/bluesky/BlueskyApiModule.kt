@@ -31,6 +31,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
@@ -226,6 +227,55 @@ class BlueskyApiModule(
         }
     }
 
+    /** Upload image from URL as blob to Bluesky for link previews */
+    private suspend fun uploadBlobFromUrl(imageUrl: String): BlueskyBlobRef? {
+        return try {
+            // Fetch the image
+            val response = httpClient.get(imageUrl)
+
+            if (response.status.value != 200) {
+                logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
+                return null
+            }
+
+            val imageBytes = response.body<ByteArray>()
+            val contentType = response.contentType()?.toString() ?: "image/jpeg"
+
+            // Upload to Bluesky
+            when (val authResult = ensureAuthenticated()) {
+                is Either.Left -> return null
+                is Either.Right -> {}
+            }
+
+            val uploadResponse =
+                httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
+                    header("Authorization", "Bearer $accessToken")
+                    contentType(ContentType.parse(contentType))
+                    setBody(imageBytes)
+                }
+
+            if (uploadResponse.status.value == 200) {
+                val blobData = uploadResponse.body<JsonObject>()
+                val blob = blobData["blob"] as? JsonObject ?: return null
+
+                BlueskyBlobRef(
+                    `$type` = "blob",
+                    ref = blob["ref"] as JsonObject,
+                    mimeType = contentType,
+                    size = imageBytes.size,
+                )
+            } else {
+                logger.warn {
+                    "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
+                }
+                null
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
+            null
+        }
+    }
+
     @Serializable data class DidResolutionResponse(val did: String)
 
     // ... (existing code)
@@ -371,6 +421,23 @@ class BlueskyApiModule(
                 }
             }
 
+            // Fetch link preview if link is present and no images
+            // Note: Bluesky only supports one embed type at a time, and images take priority
+            val linkPreview =
+                if (request.link != null && imageEmbeds.isEmpty()) {
+                    LinkPreviewParser.fetchPreview(request.link, httpClient)
+                } else {
+                    null
+                }
+
+            // Upload link preview image if present
+            val linkPreviewBlobRef =
+                if (linkPreview?.image != null) {
+                    uploadBlobFromUrl(linkPreview.image)
+                } else {
+                    null
+                }
+
             // Prepare text
             val text =
                 if (request.cleanupHtml == true) {
@@ -422,6 +489,25 @@ class BlueskyApiModule(
                                         }
                                     }
                                 )
+                            }
+                        }
+                    }
+                } else if (linkPreview != null) {
+                    // Add external link embed with preview
+                    putJsonObject("embed") {
+                        put("\$type", "app.bsky.embed.external")
+                        putJsonObject("external") {
+                            put("uri", linkPreview.url)
+                            put("title", linkPreview.title)
+                            put("description", linkPreview.description ?: "")
+                            // Add image blob if available
+                            if (linkPreviewBlobRef != null) {
+                                putJsonObject("thumb") {
+                                    put("\$type", linkPreviewBlobRef.`$type`)
+                                    put("ref", linkPreviewBlobRef.ref)
+                                    put("mimeType", linkPreviewBlobRef.mimeType)
+                                    put("size", linkPreviewBlobRef.size)
+                                }
                             }
                         }
                     }

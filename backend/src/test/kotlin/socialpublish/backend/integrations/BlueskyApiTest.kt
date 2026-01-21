@@ -5,12 +5,15 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientCon
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveStream
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
+import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -208,6 +211,122 @@ class BlueskyApiTest {
                 uploadedImages[1].height,
                 ratios[1]?.get("height")?.jsonPrimitive?.content?.toInt(),
             )
+
+            blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `creates post with link preview`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var createRecordBody: JsonObject? = null
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        createRecordBody = Json.parseToJsonElement(body).jsonObject
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    // Mock the link preview fetching
+                    get("/test-page.html") {
+                        call.respondText(
+                            """
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta property="og:title" content="Test Article">
+                                <meta property="og:description" content="Test description">
+                                <meta property="og:url" content="http://localhost/test-page.html">
+                                <meta property="og:image" content="http://localhost/test-image.jpg">
+                            </head>
+                            <body></body>
+                            </html>
+                            """
+                                .trimIndent(),
+                            io.ktor.http.ContentType.Text.Html,
+                        )
+                    }
+                    get("/test-image.jpg") {
+                        // Return a simple 1x1 pixel image
+                        val bytes =
+                            byteArrayOf(
+                                0xFF.toByte(),
+                                0xD8.toByte(),
+                                0xFF.toByte(),
+                                0xE0.toByte(),
+                                0x00,
+                                0x10,
+                                0x4A,
+                                0x46,
+                                0x49,
+                                0x46,
+                            )
+                        call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
+                    }
+                    post("/xrpc/com.atproto.repo.uploadBlob") {
+                        call.respondText(
+                            "{" + "\"blob\":{\"ref\":{\"link\":\"bafytest\"}}}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val blueskyModule =
+                BlueskyApiModule(
+                    BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule,
+                    blueskyClient,
+                )
+
+            val req =
+                NewPostRequest(
+                    content = "Check out this article",
+                    link = "http://localhost/test-page.html",
+                )
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+
+            val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
+            val embed = record["embed"]?.jsonObject
+
+            assertNotNull(embed)
+            assertEquals("app.bsky.embed.external", embed["\$type"]?.jsonPrimitive?.content)
+
+            val external = embed["external"]?.jsonObject
+            assertNotNull(external)
+            assertEquals("http://localhost/test-page.html", external["uri"]?.jsonPrimitive?.content)
+            assertEquals("Test Article", external["title"]?.jsonPrimitive?.content)
+            assertEquals("Test description", external["description"]?.jsonPrimitive?.content)
+
+            // Check that the thumbnail blob was included
+            val thumb = external["thumb"]?.jsonObject
+            assertNotNull(thumb)
 
             blueskyClient.close()
         }
