@@ -19,7 +19,3 @@ data class AuthStatus(
     val twitter: Boolean = false,
 )
 
-@Serializable
-data class UserResponse(
-    val username: String,
-)

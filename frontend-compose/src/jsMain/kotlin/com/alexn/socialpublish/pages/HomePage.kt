@@ -1,7 +1,6 @@
 package com.alexn.socialpublish.pages
 
-import androidx.compose.runtime.*
-import org.jetbrains.compose.web.css.*
+import androidx.compose.runtime.Composable
 import org.jetbrains.compose.web.dom.*
 
 @Composable

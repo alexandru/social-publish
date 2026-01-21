@@ -3,7 +3,6 @@ package com.alexn.socialpublish.utils
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import org.w3c.fetch.RequestInit
 import org.w3c.fetch.Response
 import org.w3c.files.File
@@ -46,7 +45,7 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
             }
@@ -73,7 +72,7 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
             }

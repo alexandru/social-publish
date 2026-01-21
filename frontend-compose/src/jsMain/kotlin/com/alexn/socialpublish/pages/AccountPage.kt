@@ -32,7 +32,7 @@ fun AccountPage() {
                             val atDateTime = if (data.createdAt != null) {
                                 try {
                                     " at ${kotlin.js.Date(data.createdAt).toLocaleString()}"
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     ""
                                 }
                             } else {

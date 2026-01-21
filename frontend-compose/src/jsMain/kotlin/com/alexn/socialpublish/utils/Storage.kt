@@ -3,8 +3,6 @@ package com.alexn.socialpublish.utils
 import com.alexn.socialpublish.models.AuthStatus
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
@@ -70,6 +68,7 @@ object Storage {
             try {
                 Json.decodeFromString<AuthStatus>(stored)
             } catch (e: Exception) {
+                console.error("Error decoding AuthStatus from localStorage:", e)
                 AuthStatus()
             }
         } else {
