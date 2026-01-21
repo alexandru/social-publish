@@ -18,6 +18,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -31,6 +32,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
@@ -44,56 +46,32 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class BlueskySessionResponse(
-    val accessJwt: String,
-    val refreshJwt: String,
-    val handle: String,
-    val did: String,
-)
-
-@Serializable
-data class BlueskyBlobRef(
-    val `$type`: String = "blob",
-    val ref: JsonObject,
-    val mimeType: String,
-    val size: Int,
-)
-
-@Serializable
-data class BlueskyImageEmbed(
-    val alt: String,
-    val image: BlueskyBlobRef,
-    val aspectRatio: BlueskyAspectRatio? = null,
-)
-
-@Serializable data class BlueskyAspectRatio(val width: Int, val height: Int)
-
-@Serializable data class BlueskyPostResponse(val uri: String, val cid: String)
-
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
     private val config: BlueskyConfig,
     private val filesModule: FilesModule,
-    private val httpClient: HttpClient = defaultHttpClient(),
+    private val httpClient: HttpClient,
+    private val linkPreviewParser: LinkPreviewParser,
 ) {
     companion object {
-        fun defaultHttpClient(): HttpClient =
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
+        fun defaultHttpClient(): Resource<HttpClient> = resource {
+            install({
+                HttpClient(CIO) {
+                    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
                 }
+            }) { client, _ ->
+                client.close()
             }
+        }
 
         fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
-                val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
-                BlueskyApiModule(config, filesModule, client)
+                BlueskyApiModule(
+                    config = config,
+                    filesModule = filesModule,
+                    linkPreviewParser = LinkPreviewParser().bind(),
+                    httpClient = defaultHttpClient().bind(),
+                )
             }
     }
 
@@ -226,6 +204,55 @@ class BlueskyApiModule(
         }
     }
 
+    /** Upload image from URL as blob to Bluesky for link previews */
+    private suspend fun uploadBlobFromUrl(imageUrl: String): BlueskyBlobRef? {
+        return try {
+            // Fetch the image
+            val response = httpClient.get(imageUrl)
+
+            if (response.status.value != 200) {
+                logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
+                return null
+            }
+
+            val imageBytes = response.body<ByteArray>()
+            val contentType = response.contentType()?.toString() ?: "image/jpeg"
+
+            // Upload to Bluesky
+            when (ensureAuthenticated()) {
+                is Either.Left -> return null
+                is Either.Right -> {}
+            }
+
+            val uploadResponse =
+                httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
+                    header("Authorization", "Bearer $accessToken")
+                    contentType(ContentType.parse(contentType))
+                    setBody(imageBytes)
+                }
+
+            if (uploadResponse.status.isSuccess()) {
+                val blobData = uploadResponse.body<JsonObject>()
+                val blob = blobData["blob"] as? JsonObject ?: return null
+
+                BlueskyBlobRef(
+                    `$type` = "blob",
+                    ref = blob["ref"] as JsonObject,
+                    mimeType = contentType,
+                    size = imageBytes.size,
+                )
+            } else {
+                logger.warn {
+                    "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
+                }
+                null
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
+            null
+        }
+    }
+
     @Serializable data class DidResolutionResponse(val did: String)
 
     // ... (existing code)
@@ -261,8 +288,6 @@ class BlueskyApiModule(
      */
     private suspend fun detectFacets(text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
-        // TODO: find why this is needed
-        val bytes = text.toByteArray(Charsets.UTF_8)
 
         // 1. Detect URLs
         // Regex handles http/https and ensures valid surrounding characters
@@ -371,6 +396,23 @@ class BlueskyApiModule(
                 }
             }
 
+            // Fetch link preview if link is present and no images
+            // Note: Bluesky only supports one embed type at a time, and images take priority
+            val linkPreview =
+                if (request.link != null && imageEmbeds.isEmpty()) {
+                    linkPreviewParser.fetchPreview(request.link)
+                } else {
+                    null
+                }
+
+            // Upload link preview image if present
+            val linkPreviewBlobRef =
+                if (linkPreview?.image != null) {
+                    uploadBlobFromUrl(linkPreview.image)
+                } else {
+                    null
+                }
+
             // Prepare text
             val text =
                 if (request.cleanupHtml == true) {
@@ -422,6 +464,25 @@ class BlueskyApiModule(
                                         }
                                     }
                                 )
+                            }
+                        }
+                    }
+                } else if (linkPreview != null) {
+                    // Add external link embed with preview
+                    putJsonObject("embed") {
+                        put("\$type", "app.bsky.embed.external")
+                        putJsonObject("external") {
+                            put("uri", linkPreview.url)
+                            put("title", linkPreview.title)
+                            put("description", linkPreview.description ?: "")
+                            // Add image blob if available
+                            if (linkPreviewBlobRef != null) {
+                                putJsonObject("thumb") {
+                                    put("\$type", linkPreviewBlobRef.`$type`)
+                                    put("ref", linkPreviewBlobRef.ref)
+                                    put("mimeType", linkPreviewBlobRef.mimeType)
+                                    put("size", linkPreviewBlobRef.size)
+                                }
                             }
                         }
                     }

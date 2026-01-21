@@ -79,20 +79,26 @@ class TwitterApiModule(
     private val baseUrl: String,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
-    private val httpClient: HttpClient = defaultHttpClient(),
+    private val httpClient: HttpClient,
 ) {
     companion object {
-        fun defaultHttpClient(): HttpClient =
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
+        fun defaultHttpClient(): Resource<HttpClient> = resource {
+            install(
+                {
+                    HttpClient(CIO) {
+                        install(ContentNegotiation) {
+                            json(
+                                Json {
+                                    ignoreUnknownKeys = true
+                                    isLenient = true
+                                }
+                            )
                         }
-                    )
-                }
-            }
+                    }
+                },
+                { client, _ -> client.close() },
+            )
+        }
 
         fun resource(
             config: TwitterConfig,
@@ -100,8 +106,7 @@ class TwitterApiModule(
             documentsDb: DocumentsDatabase,
             filesModule: FilesModule,
         ): Resource<TwitterApiModule> = resource {
-            val client = install({ defaultHttpClient() }, { client, _ -> client.close() })
-            TwitterApiModule(config, baseUrl, documentsDb, filesModule, client)
+            TwitterApiModule(config, baseUrl, documentsDb, filesModule, defaultHttpClient().bind())
         }
     }
 
