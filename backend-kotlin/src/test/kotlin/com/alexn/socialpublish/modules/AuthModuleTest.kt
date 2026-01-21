@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 
 class AuthModuleTest {
     private val config =
-        ServerAuthConfig(username = "testuser", password = "testpass", jwtSecret = "test-secret")
+        ServerAuthConfig(username = "testuser", passwordHash = "testpass", jwtSecret = "test-secret")
 
     @Test
     fun `should generate valid JWT token`() {
@@ -51,6 +51,84 @@ class AuthModuleTest {
         val username = authModule.verifyToken("invalid-token")
 
         assertEquals(null, username)
+    }
+
+    @Test
+    fun `login should work with plain text password`() {
+        testApplication {
+            val authModule = AuthModule(config)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"testpass"}""")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `login should work with BCrypt hashed password`() {
+        // Generate a fresh BCrypt hash for this test
+        val bcryptHash = AuthModule.hashPassword("testpass", rounds = 10)
+        val testConfig =
+            ServerAuthConfig(
+                username = "testuser",
+                passwordHash = bcryptHash,
+                jwtSecret = "test-secret",
+            )
+
+        testApplication {
+            val authModule = AuthModule(testConfig)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"testpass"}""")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `login should reject wrong password with BCrypt`() {
+        // Generate a fresh BCrypt hash for this test
+        val bcryptHash = AuthModule.hashPassword("testpass", rounds = 10)
+        val testConfig =
+            ServerAuthConfig(
+                username = "testuser",
+                passwordHash = bcryptHash,
+                jwtSecret = "test-secret",
+            )
+
+        testApplication {
+            val authModule = AuthModule(testConfig)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"wrongpass"}""")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
     }
 
     @Test
@@ -94,6 +172,35 @@ class AuthModuleTest {
 
             val token = authModule.generateToken("testuser")
             val response = client.get("/api/protected?access_token=$token")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `hashPassword should generate valid BCrypt hash`() {
+        val password = "mySecurePassword123"
+        val hash = AuthModule.hashPassword(password)
+
+        // Verify it's a valid BCrypt hash format
+        assertTrue(hash.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+")))
+
+        // Verify the hash can be used to authenticate
+        val testConfig = ServerAuthConfig(username = "user", passwordHash = hash, jwtSecret = "secret")
+
+        testApplication {
+            val authModule = AuthModule(testConfig)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"user","password":"mySecurePassword123"}""")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
         }

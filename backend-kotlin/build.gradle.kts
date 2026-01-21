@@ -49,6 +49,12 @@ dependencies {
     // OAuth for Twitter
     implementation(libs.scribejava.core)
 
+    // HTML parsing
+    implementation(libs.jsoup)
+
+    // BCrypt for password hashing
+    implementation(libs.jbcrypt)
+
     // Testing
     testImplementation(libs.kotlin.test)
     testImplementation(libs.ktor.server.test.host)

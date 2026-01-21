@@ -98,4 +98,4 @@ ENV STATIC_CONTENT_PATH=/opt/app/public
 RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
 # Run the application with optimized GC settings
-CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar"]
+CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar", "start-server"]

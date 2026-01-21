@@ -28,7 +28,6 @@ subprojects {
             allWarningsAsErrors.set(true)
             progressiveMode.set(true)
             freeCompilerArgs.addAll(
-                "-Xextended-compiler-checks",
                 "-Xreturn-value-checker=full",
                 "-Xcontext-parameters",
             )

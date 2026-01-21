@@ -49,6 +49,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.jsoup.Jsoup
 
 private val logger = KotlinLogging.logger {}
 
@@ -103,8 +104,6 @@ class TwitterApiModule(
         return builder.build(TwitterApi(config))
     }
 
-    private var requestToken: OAuth1RequestToken? = null
-
     /** Get OAuth callback URL */
     private fun getCallbackUrl(jwtToken: String): String {
         return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
@@ -137,7 +136,6 @@ class TwitterApiModule(
             val callbackUrl = getCallbackUrl(jwtToken)
             val service = createOAuthService(callbackUrl)
             val token = withContext(Dispatchers.IO) { service.requestToken }
-            requestToken = token
             val authUrl = service.getAuthorizationUrl(token)
             authUrl.right()
         } catch (e: Exception) {
@@ -154,7 +152,9 @@ class TwitterApiModule(
     /** Save OAuth token after callback */
     suspend fun saveOauthToken(token: String, verifier: String): ApiResult<Unit> {
         return try {
-            val reqToken = requestToken ?: OAuth1RequestToken(token, "")
+            // Twitter's access token endpoint doesn't require the request token secret
+            // in the OAuth signature, only the oauth_token and oauth_verifier parameters
+            val reqToken = OAuth1RequestToken(token, "")
             val service = createOAuthService()
             val accessToken =
                 withContext(Dispatchers.IO) { service.getAccessToken(reqToken, verifier) }
@@ -446,12 +446,11 @@ class TwitterApiModule(
     }
 
     private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
+        // Use Jsoup to properly parse and clean HTML
+        // This removes all HTML tags while preserving text content
+        val text = Jsoup.parse(html).text()
+
+        // Normalize whitespace
+        return text.replace(Regex("\\s+"), " ").trim()
     }
 }

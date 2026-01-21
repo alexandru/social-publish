@@ -19,6 +19,8 @@ dependencyResolutionManagement {
             version("kotlin-logging", "7.0.14")
             version("rome", "2.1.0")
             version("scribejava", "8.3.3")
+            version("jsoup", "1.18.3")
+            version("jbcrypt", "0.4")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
 
@@ -77,6 +79,12 @@ dependencyResolutionManagement {
 
             // OAuth
             library("scribejava-core", "com.github.scribejava", "scribejava-core").versionRef("scribejava")
+
+            // HTML parsing
+            library("jsoup", "org.jsoup", "jsoup").versionRef("jsoup")
+
+            // BCrypt for password hashing
+            library("jbcrypt", "org.mindrot", "jbcrypt").versionRef("jbcrypt")
 
             // Testing libraries
             library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").versionRef("kotlin")

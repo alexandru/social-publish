@@ -188,4 +188,96 @@ class TwitterApiTest {
             twitterClient.close()
         }
     }
+
+    @Test
+    fun `cleans up HTML properly`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var tweetText: String? = null
+
+            application {
+                routing {
+                    post("/2/tweets") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        val payload = Json.parseToJsonElement(body).jsonObject
+                        tweetText = payload["text"]?.jsonPrimitive?.content
+                        call.respondText(
+                            "{" + "\"data\":{\"id\":\"tweet123\",\"text\":\"ok\"}}",
+                            io.ktor.http.ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/oauth/request_token") {
+                        call.respondText(
+                            "oauth_token=req123&oauth_token_secret=secret123&oauth_callback_confirmed=true"
+                        )
+                    }
+                    post("/oauth/access_token") {
+                        call.respondText("oauth_token=tok&oauth_token_secret=sec")
+                    }
+                }
+            }
+
+            val twitterClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val twitterConfig =
+                TwitterConfig(
+                    oauth1ConsumerKey = "k",
+                    oauth1ConsumerSecret = "s",
+                    apiBase = "http://localhost",
+                    uploadBase = "http://localhost",
+                    oauthRequestTokenUrl = "http://localhost/oauth/request_token",
+                    oauthAccessTokenUrl = "http://localhost/oauth/access_token",
+                    oauthAuthorizeUrl = "http://localhost/oauth/authorize",
+                )
+
+            val documentsDb = com.alexn.socialpublish.db.DocumentsDatabase(jdbi)
+            val twitterModule =
+                TwitterApiModule(
+                    twitterConfig,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    twitterClient,
+                )
+
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "twitter-oauth-token",
+                    payload =
+                        Json.encodeToString(
+                            com.alexn.socialpublish.integrations.twitter.TwitterOAuthToken
+                                .serializer(),
+                            com.alexn.socialpublish.integrations.twitter.TwitterOAuthToken(
+                                key = "tok",
+                                secret = "sec",
+                            ),
+                        ),
+                    searchKey = "twitter-oauth-token",
+                    tags = emptyList(),
+                )
+
+            val req =
+                NewPostRequest(
+                    content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
+                    cleanupHtml = true,
+                )
+            val result = twitterModule.createPost(req)
+            assertTrue(result.isRight())
+
+            // Jsoup properly decodes HTML entities and removes tags
+            assertEquals("Hello world! Testing & fun", tweetText)
+
+            twitterClient.close()
+        }
+    }
 }

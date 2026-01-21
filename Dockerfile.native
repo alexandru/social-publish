@@ -63,5 +63,5 @@ ENV STATIC_CONTENT_PATH=/opt/app/public
 EXPOSE 3000
 USER appuser
 
-CMD ["/opt/app/social-publish"]
+CMD ["/opt/app/social-publish", "start-server"]
 

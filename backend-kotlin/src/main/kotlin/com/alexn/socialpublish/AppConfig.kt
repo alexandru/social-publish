@@ -67,7 +67,8 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
     private val serverAuthPassword: String by
         option(
                 "--server-auth-password",
-                help = "Password for server authentication (env: SERVER_AUTH_PASSWORD)",
+                help =
+                    "Password for server authentication - supports BCrypt hashes (env: SERVER_AUTH_PASSWORD)",
                 envvar = "SERVER_AUTH_PASSWORD",
             )
             .required()
@@ -149,7 +150,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
         val serverAuthConfig =
             ServerAuthConfig(
                 username = serverAuthUsername,
-                password = serverAuthPassword,
+                passwordHash = serverAuthPassword,
                 jwtSecret = serverAuthJwtSecret,
             )
 

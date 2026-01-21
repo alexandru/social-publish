@@ -26,10 +26,10 @@ RUN_ENV_VARS := \
 
 # Development targets
 dev:
-	./gradlew :backend-kotlin:run & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
+	./gradlew :backend-kotlin:run --args="start-server" & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
 
 dev-backend:
-	./gradlew :backend-kotlin:run
+	./gradlew :backend-kotlin:run --args="start-server"
 
 dev-frontend:
 	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous

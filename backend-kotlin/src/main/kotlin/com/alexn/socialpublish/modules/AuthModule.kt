@@ -19,6 +19,7 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import java.util.Date
 import kotlinx.serialization.Serializable
+import org.mindrot.jbcrypt.BCrypt
 
 private val logger = KotlinLogging.logger {}
 
@@ -83,7 +84,13 @@ class AuthModule(
             return
         }
 
-        if (request.username == config.username && request.password == config.password) {
+        // Check username and verify password with BCrypt
+        if (
+            request.username == config.username && verifyPassword(
+                request.password,
+                config.passwordHash
+            )
+        ) {
             val token = generateToken(request.username)
             val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
             call.respond(
@@ -92,6 +99,31 @@ class AuthModule(
         } else {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
         }
+    }
+
+    /**
+     * Verify a password against a BCrypt hash.
+     *
+     * The stored password can be either:
+     * 1. A BCrypt hash (starts with $2a$, $2b$, or $2y$)
+     * 2. Plain text (for backward compatibility or development)
+     *
+     * In production, always use BCrypt hashed passwords.
+     */
+    private fun verifyPassword(providedPassword: String, storedPassword: String): Boolean =
+        try {
+            BCrypt.checkpw(providedPassword, storedPassword)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to verify BCrypt password" }
+            false
+        }
+
+    /**
+     * Check if a string is a BCrypt hash. BCrypt hashes start with $2a$, $2b$, or $2y$ followed by
+     * cost factor.
+     */
+    private fun isBCryptHash(password: String): Boolean {
+        return password.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+"))
     }
 
     /** Protected route handler */
@@ -103,6 +135,22 @@ class AuthModule(
             call.respond(UserResponse(username = username))
         } else {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+        }
+    }
+
+    companion object {
+        /**
+         * Generate a BCrypt hash for a password. Use this to create hashed passwords for
+         * SERVER_AUTH_PASSWORD.
+         *
+         * Example usage:
+         * ```
+         * val hash = AuthModule.hashPassword("mypassword")
+         * println("Use this as SERVER_AUTH_PASSWORD: $hash")
+         * ```
+         */
+        fun hashPassword(password: String, rounds: Int = 12): String {
+            return BCrypt.hashpw(password, BCrypt.gensalt(rounds))
         }
     }
 }
