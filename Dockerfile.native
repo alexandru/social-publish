@@ -37,8 +37,8 @@ WORKDIR /app/source
 # Copy frontend sources (only what's needed) so this layer is invalidated only when frontend changes
 COPY --chown=root:root frontend/src ./frontend/src
 COPY --chown=root:root frontend/webpack.config.d ./frontend/webpack.config.d
-# Run a production webpack build to ensure `build/dist/index.html` is generated
-RUN ./gradlew :frontend:jsBrowserProductionWebpack --no-daemon
+# Build frontend distribution (same as JVM dockerfile)
+RUN ./gradlew :frontend:assemble --no-daemon -x test
 
 # ---------------------------------------------------------------------------
 # Final image
