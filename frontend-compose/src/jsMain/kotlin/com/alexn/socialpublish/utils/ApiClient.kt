@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import org.w3c.fetch.RequestInit
 import org.w3c.fetch.Response
+import org.w3c.files.File
 
 object ApiClient {
     val json = Json {
@@ -13,9 +14,11 @@ object ApiClient {
         isLenient = true
     }
 
-    fun createHeaders(): dynamic {
+    fun createHeaders(includeContentType: Boolean = true): dynamic {
         val headers = js("{}")
-        headers["Content-Type"] = "application/json"
+        if (includeContentType) {
+            headers["Content-Type"] = "application/json"
+        }
         Storage.getJwtToken()?.let {
             headers["Authorization"] = "Bearer $it"
         }
@@ -69,6 +72,45 @@ object ApiClient {
                 } catch (e: Exception) {
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
+            }
+        } catch (e: Exception) {
+            ApiResponse.Exception(e.message ?: "Unknown error")
+        }
+    }
+    
+    suspend inline fun <reified T> uploadFile(
+        url: String, 
+        file: File, 
+        altText: String? = null
+    ): ApiResponse<T> {
+        return try {
+            val formData = org.w3c.xhr.FormData()
+            formData.append("file", file)
+            if (altText != null) {
+                formData.append("altText", altText)
+            }
+            
+            // Don't include Content-Type header for multipart/form-data
+            // Browser will set it automatically with boundary
+            val headers = js("{}")
+            Storage.getJwtToken()?.let {
+                headers["Authorization"] = "Bearer $it"
+            }
+            
+            val requestInit = RequestInit(
+                method = "POST",
+                headers = headers,
+                body = formData
+            )
+
+            val response: Response = window.fetch(url, requestInit).await()
+            val text = response.text().await()
+
+            if (response.ok) {
+                val data = json.decodeFromString<T>(text)
+                ApiResponse.Success(data)
+            } else {
+                ApiResponse.Error("HTTP ${response.status}: $text", response.status.toInt())
             }
         } catch (e: Exception) {
             ApiResponse.Exception(e.message ?: "Unknown error")

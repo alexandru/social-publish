@@ -34,7 +34,15 @@ fun LoginPage() {
                 when (response) {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
-                        window.location.href = "/"
+                        Storage.setAuthStatus(
+                            com.alexn.socialpublish.utils.HasAuth(
+                                twitter = response.data.hasAuth.twitter
+                            )
+                        )
+                        // Check for redirect query param
+                        val urlParams = window.location.search
+                        val redirect = urlParams.split("redirect=").getOrNull(1)?.split("&")?.firstOrNull()
+                        window.location.href = redirect ?: "/"
                     }
                     is ApiResponse.Error -> {
                         error = response.message

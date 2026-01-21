@@ -1,0 +1,22 @@
+package com.alexn.socialpublish.models
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class FileUploadResponse(
+    val uuid: String
+)
+
+@Serializable
+data class PublishRequest(
+    val content: String,
+    val link: String? = null,
+    val targets: List<String>,
+    val images: List<String> = emptyList(),
+    val cleanupHtml: Boolean = false
+)
+
+@Serializable
+data class PublishResponse(
+    val message: String
+)

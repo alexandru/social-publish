@@ -2,8 +2,7 @@ package com.alexn.socialpublish
 
 import androidx.compose.runtime.*
 import com.alexn.socialpublish.components.NavBar
-import com.alexn.socialpublish.pages.HomePage
-import com.alexn.socialpublish.pages.LoginPage
+import com.alexn.socialpublish.pages.*
 import com.alexn.socialpublish.utils.Storage
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -42,23 +41,17 @@ fun App() {
     Div {
         NavBar(currentPath = currentPath) {
             Storage.clearJwtToken()
+            Storage.setAuthStatus(null)
             window.location.href = "/"
         }
 
-        when (currentPath) {
-            "/" -> HomePage()
-            "/login" -> LoginPage()
-            else -> {
-                Section(attrs = { classes("section") }) {
-                    Div(attrs = { classes("container") }) {
-                        H1(attrs = { classes("title") }) {
-                            Text("404 - Page Not Found")
-                        }
-                        P {
-                            Text("The page you're looking for doesn't exist.")
-                        }
-                    }
-                }
+        Main {
+            when (currentPath) {
+                "/" -> HomePage()
+                "/login" -> LoginPage()
+                "/form" -> PublishFormPage()
+                "/account" -> AccountPage()
+                else -> NotFoundPage()
             }
         }
     }
