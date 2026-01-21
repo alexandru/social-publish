@@ -54,7 +54,7 @@ RUN apt-get update && apt-get -y upgrade && apt-get install -y curl jq && \
 
 COPY --from=backend-build --chown=appuser:root /app/source/backend/build/native/nativeCompile/social-publish /opt/app/social-publish
 # Copy the full frontend dist (HTML, assets, JS) into public
-COPY --from=frontend-build --chown=appuser:root /app/source/frontend/build/dist/ /opt/app/public/
+COPY --from=frontend-build --chown=appuser:root /app/source/frontend/build/dist/js/productionExecutable/ /opt/app/public/
 
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db
 ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads

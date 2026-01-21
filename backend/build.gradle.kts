@@ -119,6 +119,7 @@ graalvmNative {
                 "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls"
             )
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
+            buildArgs.add("--initialize-at-run-time=io.ktor.server.cio.backend.HttpServerKt")
 
             buildArgs.add("--no-fallback")
             buildArgs.add("-H:+UnlockExperimentalVMOptions")
