@@ -23,7 +23,7 @@ subprojects {
         kotlinLangStyle()
     }
 
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
         compilerOptions {
             allWarningsAsErrors.set(true)
             progressiveMode.set(true)

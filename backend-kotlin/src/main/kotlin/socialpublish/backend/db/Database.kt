@@ -5,8 +5,6 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
-import socialpublish.backend.models.ApiError
-import socialpublish.backend.models.CaughtException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +12,8 @@ import kotlinx.coroutines.runInterruptible
 import org.jdbi.v3.core.Handle
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
+import socialpublish.backend.models.ApiError
+import socialpublish.backend.models.CaughtException
 
 private val logger = KotlinLogging.logger {}
 

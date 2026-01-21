@@ -1,6 +1,5 @@
 package socialpublish.frontend.utils
 
-import socialpublish.frontend.models.AuthStatus
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -12,6 +11,7 @@ import kotlin.test.assertTrue
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
+import socialpublish.frontend.models.AuthStatus
 
 class StorageTest {
 

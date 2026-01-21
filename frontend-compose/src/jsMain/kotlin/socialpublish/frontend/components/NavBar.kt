@@ -1,9 +1,9 @@
 package socialpublish.frontend.components
 
 import androidx.compose.runtime.*
-import socialpublish.frontend.utils.Storage
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
+import socialpublish.frontend.utils.Storage
 
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {

@@ -3,6 +3,14 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.PostPayload
+import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CaughtException
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.NewRssPostResponse
 import com.rometools.rome.feed.synd.SyndCategoryImpl
 import com.rometools.rome.feed.synd.SyndContentImpl
 import com.rometools.rome.feed.synd.SyndEntryImpl
@@ -19,15 +27,6 @@ import io.ktor.server.response.respondText
 import java.util.Date
 import org.jdom2.Element
 import org.jdom2.Namespace
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.db.PostPayload
-import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
 
 private val logger = KotlinLogging.logger {}
 
@@ -201,7 +200,7 @@ class RssModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }
@@ -222,13 +221,13 @@ class RssModule(
         val uuid =
             call.parameters["uuid"]
                 ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing UUID"))
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
                     return
                 }
 
         val post = postsDb.searchByUuid(uuid)
         if (post == null) {
-            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
+            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Post not found"))
             return
         }
 

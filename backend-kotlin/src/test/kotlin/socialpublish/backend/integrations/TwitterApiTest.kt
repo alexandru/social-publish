@@ -1,22 +1,17 @@
 package socialpublish.backend.integrations
 
 import arrow.core.Either
-import socialpublish.backend.integrations.twitter.TwitterApiModule
-import socialpublish.backend.integrations.twitter.TwitterConfig
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.testutils.ImageDimensions
-import socialpublish.backend.testutils.createFilesModule
-import socialpublish.backend.testutils.createTestDatabase
-import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
-import socialpublish.backend.testutils.receiveMultipart
-import socialpublish.backend.testutils.uploadTestImage
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -28,9 +23,20 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.integrations.twitter.TwitterApiModule
+import socialpublish.backend.integrations.twitter.TwitterConfig
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.testutils.ImageDimensions
+import socialpublish.backend.testutils.createFilesModule
+import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.imageDimensions
+import socialpublish.backend.testutils.loadTestResourceBytes
+import socialpublish.backend.testutils.receiveMultipart
+import socialpublish.backend.testutils.uploadTestImage
 
 class TwitterApiTest {
     @Test
@@ -280,4 +286,154 @@ class TwitterApiTest {
             twitterClient.close()
         }
     }
+
+    @Test
+    fun `status route returns serializable response with authorization`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+
+                val twitterClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val twitterConfig =
+                    TwitterConfig(
+                        oauth1ConsumerKey = "k",
+                        oauth1ConsumerSecret = "s",
+                        apiBase = "http://localhost",
+                        uploadBase = "http://localhost",
+                        oauthRequestTokenUrl = "http://localhost/oauth/request_token",
+                        oauthAccessTokenUrl = "http://localhost/oauth/access_token",
+                        oauthAuthorizeUrl = "http://localhost/oauth/authorize",
+                    )
+
+                val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
+                val twitterModule =
+                    TwitterApiModule(
+                        twitterConfig,
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        twitterClient,
+                    )
+
+                // Create a Twitter OAuth token in the database
+                val _ =
+                    documentsDb.createOrUpdate(
+                        kind = "twitter-oauth-token",
+                        payload =
+                            Json.encodeToString(
+                                socialpublish.backend.integrations.twitter.TwitterOAuthToken
+                                    .serializer(),
+                                socialpublish.backend.integrations.twitter.TwitterOAuthToken(
+                                    key = "tok",
+                                    secret = "sec",
+                                ),
+                            ),
+                        searchKey = "twitter-oauth-token",
+                        tags = emptyList(),
+                    )
+
+                application {
+                    install(ContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                }
+
+                // Make request and verify it doesn't throw serialization error
+                val response = client.get("/api/twitter/status")
+
+                assertEquals(HttpStatusCode.OK, response.status)
+
+                val body = response.bodyAsText()
+                val json = Json.parseToJsonElement(body).jsonObject
+
+                // Verify response structure
+                assertTrue(json["hasAuthorization"]?.jsonPrimitive?.content == "true")
+                assertTrue(json["createdAt"]?.jsonPrimitive?.long != null)
+
+                twitterClient.close()
+            }
+        }
+
+    @Test
+    fun `status route returns serializable response without authorization`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+
+                val twitterClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val twitterConfig =
+                    TwitterConfig(
+                        oauth1ConsumerKey = "k",
+                        oauth1ConsumerSecret = "s",
+                        apiBase = "http://localhost",
+                        uploadBase = "http://localhost",
+                        oauthRequestTokenUrl = "http://localhost/oauth/request_token",
+                        oauthAccessTokenUrl = "http://localhost/oauth/access_token",
+                        oauthAuthorizeUrl = "http://localhost/oauth/authorize",
+                    )
+
+                val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
+                val twitterModule =
+                    TwitterApiModule(
+                        twitterConfig,
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        twitterClient,
+                    )
+
+                application {
+                    install(ContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                }
+
+                // Make request without any token in database
+                val response = client.get("/api/twitter/status")
+
+                assertEquals(HttpStatusCode.OK, response.status)
+
+                val body = response.bodyAsText()
+                val json = Json.parseToJsonElement(body).jsonObject
+
+                // Verify response structure
+                assertTrue(json["hasAuthorization"]?.jsonPrimitive?.content == "false")
+                // createdAt should be null when no authorization exists
+                assertTrue(json["createdAt"] == null || json["createdAt"]?.toString() == "null")
+
+                twitterClient.close()
+            }
+        }
 }

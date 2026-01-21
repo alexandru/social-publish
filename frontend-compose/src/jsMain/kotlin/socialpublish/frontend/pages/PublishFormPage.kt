@@ -1,6 +1,10 @@
 package socialpublish.frontend.pages
 
 import androidx.compose.runtime.*
+import kotlinx.browser.window
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.*
 import socialpublish.frontend.models.FileUploadResponse
 import socialpublish.frontend.models.ModulePostResponse
@@ -8,12 +12,6 @@ import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
-import kotlinx.browser.document
-import kotlinx.browser.window
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.dom.*
-import org.w3c.dom.HTMLFieldSetElement
 
 @Composable
 fun PublishFormPage() {
@@ -108,8 +106,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
 
             // Disable fieldset
             isSubmitting = true
-            val fieldset = document.getElementById("post-form-fieldset") as? HTMLFieldSetElement
-            fieldset?.setAttribute("disabled", "true")
 
             try {
                 // Upload images first
@@ -192,7 +188,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 onError("Unexpected exception while submitting form!")
             } finally {
                 isSubmitting = false
-                fieldset?.removeAttribute("disabled")
             }
         }
     }
@@ -206,7 +201,14 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             }
         }
     ) {
-        Fieldset(attrs = { id("post-form-fieldset") }) {
+        Fieldset(
+            attrs = {
+                id("post-form-fieldset")
+                if (isSubmitting) {
+                    attr("disabled", "")
+                }
+            }
+        ) {
             Div(attrs = { classes("field") }) {
                 Label(attrs = { classes("label") }) { Text("Content") }
                 Div(attrs = { classes("control") }) {
@@ -220,8 +222,8 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             attr("required", "")
                             value(content)
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLTextAreaElement
-                                content = target?.value ?: ""
+                                val target = event.target
+                                content = target.value
                             }
                         }
                     )
@@ -269,9 +271,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             attr("name", "mastodon")
                             checked(targets.contains("mastodon"))
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
+                                val target = event.target
                                 targets =
-                                    if (target?.checked == true) {
+                                    if (target.checked) {
                                         targets + "mastodon"
                                     } else {
                                         targets - "mastodon"
@@ -292,9 +294,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             attr("name", "bluesky")
                             checked(targets.contains("bluesky"))
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
+                                val target = event.target
                                 targets =
-                                    if (target?.checked == true) {
+                                    if (target.checked) {
                                         targets + "bluesky"
                                     } else {
                                         targets - "bluesky"
@@ -318,9 +320,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             }
                             checked(targets.contains("twitter"))
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
+                                val target = event.target
                                 targets =
-                                    if (target?.checked == true) {
+                                    if (target.checked) {
                                         targets + "twitter"
                                     } else {
                                         targets - "twitter"
@@ -341,9 +343,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             attr("name", "linkedin")
                             checked(targets.contains("linkedin"))
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
+                                val target = event.target
                                 targets =
-                                    if (target?.checked == true) {
+                                    if (target.checked) {
                                         targets + "linkedin"
                                     } else {
                                         targets - "linkedin"
@@ -380,8 +382,8 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             attr("name", "cleanupHtml")
                             checked(cleanupHtml)
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
-                                cleanupHtml = target?.checked ?: false
+                                val target = event.target
+                                cleanupHtml = target.checked
                             }
                         },
                     )

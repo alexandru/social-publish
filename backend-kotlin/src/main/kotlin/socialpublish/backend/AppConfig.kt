@@ -1,11 +1,5 @@
 package socialpublish.backend
 
-import socialpublish.backend.integrations.bluesky.BlueskyConfig
-import socialpublish.backend.integrations.mastodon.MastodonConfig
-import socialpublish.backend.integrations.twitter.TwitterConfig
-import socialpublish.backend.modules.FilesConfig
-import socialpublish.backend.server.ServerAuthConfig
-import socialpublish.backend.server.ServerConfig
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -14,6 +8,12 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
+import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.mastodon.MastodonConfig
+import socialpublish.backend.integrations.twitter.TwitterConfig
+import socialpublish.backend.modules.FilesConfig
+import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.ServerConfig
 
 data class AppConfig(
     val server: ServerConfig,

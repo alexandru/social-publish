@@ -26,7 +26,10 @@ RUN_ENV_VARS := \
 
 # Development targets
 dev:
-	./gradlew :backend-kotlin:run --args="start-server" & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
+	@trap 'kill 0' INT; \
+	./gradlew :backend-kotlin:run --args="start-server" --continuous & \
+	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous & \
+	wait
 
 dev-backend:
 	./gradlew :backend-kotlin:run --args="start-server"

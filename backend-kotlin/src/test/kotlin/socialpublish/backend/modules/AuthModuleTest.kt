@@ -1,6 +1,5 @@
 package socialpublish.backend.modules
 
-import socialpublish.backend.server.ServerAuthConfig
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -22,6 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import socialpublish.backend.server.ServerAuthConfig
 
 class AuthModuleTest {
     // Use a BCrypt hash for "testpass" for all tests

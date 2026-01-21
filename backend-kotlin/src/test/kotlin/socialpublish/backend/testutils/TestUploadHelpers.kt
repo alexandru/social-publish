@@ -1,10 +1,5 @@
 package socialpublish.backend.testutils
 
-import socialpublish.backend.db.Database
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.modules.FileUploadResponse
-import socialpublish.backend.modules.FilesConfig
-import socialpublish.backend.modules.FilesModule
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -22,6 +17,11 @@ import javax.imageio.ImageIO
 import kotlinx.io.readByteArray
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
+import socialpublish.backend.db.Database
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.modules.FileUploadResponse
+import socialpublish.backend.modules.FilesConfig
+import socialpublish.backend.modules.FilesModule
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
 

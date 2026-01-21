@@ -1,11 +1,11 @@
 package socialpublish.frontend.utils
 
-import socialpublish.frontend.models.AuthStatus
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
+import socialpublish.frontend.models.AuthStatus
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"

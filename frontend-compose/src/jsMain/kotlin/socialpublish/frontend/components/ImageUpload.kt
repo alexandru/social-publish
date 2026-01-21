@@ -1,8 +1,7 @@
 package socialpublish.frontend.components
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import org.w3c.files.File
 import org.w3c.files.get
@@ -29,8 +28,8 @@ fun ImageUpload(
                             attr("name", "file_$id")
                             attr("accept", "image/*")
                             onInput { event ->
-                                val target = event.target as? org.w3c.dom.HTMLInputElement
-                                val file = target?.files?.get(0)
+                                val target = event.target
+                                val file = target.files?.get(0)
                                 if (file != null) {
                                     onSelect(state.copy(file = file))
                                 }
@@ -63,8 +62,8 @@ fun ImageUpload(
                         attr("cols", "50")
                         value(state.altText ?: "")
                         onInput { event ->
-                            val target = event.target as? org.w3c.dom.HTMLTextAreaElement
-                            onSelect(state.copy(altText = target?.value))
+                            val target = event.target
+                            onSelect(state.copy(altText = target.value))
                         }
                     }
                 )

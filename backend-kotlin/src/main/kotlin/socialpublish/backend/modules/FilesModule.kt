@@ -2,11 +2,6 @@ package socialpublish.backend.modules
 
 import arrow.core.left
 import arrow.core.right
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.db.UploadPayload
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ValidationError
 import com.sksamuel.scrimage.ImmutableImage
 import com.sksamuel.scrimage.nio.JpegWriter
 import com.sksamuel.scrimage.nio.PngWriter
@@ -30,6 +25,12 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.UploadPayload
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CaughtException
+import socialpublish.backend.models.ErrorResponse
+import socialpublish.backend.models.ValidationError
 
 private val logger = KotlinLogging.logger {}
 
@@ -166,19 +167,19 @@ private constructor(
         val uuid =
             call.parameters["uuid"]
                 ?: run {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing UUID"))
                     return
                 }
 
         val upload = db.getFileByUuid(uuid)
         if (upload == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "File not found"))
+            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "File not found"))
             return
         }
 
         val filePath = File(processedPath, upload.hash)
         if (!filePath.exists()) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "File content not found"))
+            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "File content not found"))
             return
         }
 

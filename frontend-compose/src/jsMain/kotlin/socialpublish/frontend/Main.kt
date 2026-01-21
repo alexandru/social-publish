@@ -1,15 +1,15 @@
 package socialpublish.frontend
 
 import androidx.compose.runtime.*
-import socialpublish.frontend.components.NavBar
-import socialpublish.frontend.pages.*
-import socialpublish.frontend.utils.Storage
 import kotlinx.browser.document
 import kotlinx.browser.window
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import org.jetbrains.compose.web.renderComposable
 import org.w3c.dom.HTMLLinkElement
+import socialpublish.frontend.components.NavBar
+import socialpublish.frontend.pages.*
+import socialpublish.frontend.utils.Storage
 
 fun main() {
     // Load Bulma CSS

@@ -3,6 +3,16 @@ package socialpublish.backend.integrations.twitter
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CaughtException
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.NewTwitterPostResponse
+import socialpublish.backend.models.RequestError
+import socialpublish.backend.models.ResponseBody
+import socialpublish.backend.models.ValidationError
+import socialpublish.backend.modules.FilesModule
 import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.builder.api.DefaultApi10a
 import com.github.scribejava.core.model.OAuth1AccessToken
@@ -40,17 +50,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
-import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
-import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,7 +66,10 @@ private val logger = KotlinLogging.logger {}
 @Serializable data class TwitterMedia(val media_ids: List<String>)
 
 @Serializable
-data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
+data class TwitterStatusResponse(
+    val hasAuthorization: Boolean,
+    val createdAt: Long? = null,
+)
 
 /** Twitter API module with OAuth 1.0a implementation */
 class TwitterApiModule(
@@ -372,7 +374,7 @@ class TwitterApiModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }
@@ -384,7 +386,7 @@ class TwitterApiModule(
         val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid request"))
             return
         }
 
@@ -404,7 +406,7 @@ class TwitterApiModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }
@@ -443,7 +445,7 @@ class TwitterApiModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }

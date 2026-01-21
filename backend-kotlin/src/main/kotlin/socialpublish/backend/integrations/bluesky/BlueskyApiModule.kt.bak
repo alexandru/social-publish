@@ -3,6 +3,15 @@ package socialpublish.backend.integrations.bluesky
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CaughtException
+import socialpublish.backend.models.NewBlueSkyPostResponse
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.RequestError
+import socialpublish.backend.models.ResponseBody
+import socialpublish.backend.models.ValidationError
+import socialpublish.backend.modules.FilesModule
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -29,16 +38,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
-import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
@@ -480,7 +479,7 @@ class BlueskyApiModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }

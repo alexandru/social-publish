@@ -3,6 +3,15 @@ package socialpublish.backend.integrations.mastodon
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CaughtException
+import socialpublish.backend.models.NewMastodonPostResponse
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.RequestError
+import socialpublish.backend.models.ResponseBody
+import socialpublish.backend.models.ValidationError
+import socialpublish.backend.modules.FilesModule
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -26,16 +35,6 @@ import io.ktor.server.response.respond
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
-import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
@@ -273,7 +272,7 @@ class MastodonApiModule(
                 val error = result.value
                 call.respond(
                     HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                    mapOf("error" to error.errorMessage),
                 )
             }
         }

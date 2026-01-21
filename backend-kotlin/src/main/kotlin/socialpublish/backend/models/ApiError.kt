@@ -51,5 +51,12 @@ data class CompositeError(
     val responses: List<CompositeErrorResponse> = emptyList(),
 ) : ApiError()
 
+/** Simple error response for HTTP endpoints */
+@Serializable data class ErrorResponse(val error: String)
+
+/** Composite error response with details */
+@Serializable
+data class CompositeErrorWithDetails(val error: String, val responses: List<CompositeErrorResponse>)
+
 /** Type alias for common Result type pattern */
 typealias ApiResult<T> = Either<ApiError, T>

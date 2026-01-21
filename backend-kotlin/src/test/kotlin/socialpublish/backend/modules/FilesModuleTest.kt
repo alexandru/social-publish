@@ -1,10 +1,5 @@
 package socialpublish.backend.modules
 
-import socialpublish.backend.testutils.createFilesModule
-import socialpublish.backend.testutils.createTestDatabase
-import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
-import socialpublish.backend.testutils.uploadTestImage
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.statement.bodyAsText
@@ -22,6 +17,11 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.testutils.createFilesModule
+import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.imageDimensions
+import socialpublish.backend.testutils.loadTestResourceBytes
+import socialpublish.backend.testutils.uploadTestImage
 
 class FilesModuleTest {
     @Test

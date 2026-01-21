@@ -1,18 +1,18 @@
 package socialpublish.frontend.pages
 
 import androidx.compose.runtime.*
-import socialpublish.frontend.components.Authorize
-import socialpublish.frontend.utils.ApiClient
-import socialpublish.frontend.utils.ApiResponse
-import socialpublish.frontend.utils.Storage
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
+import socialpublish.frontend.components.Authorize
+import socialpublish.frontend.utils.ApiClient
+import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.Storage
 
 @Serializable
-data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: String? = null)
+data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
 
 @Composable
 fun AccountPage() {
@@ -28,12 +28,7 @@ fun AccountPage() {
                         if (data.hasAuthorization) {
                             val atDateTime =
                                 if (data.createdAt != null) {
-                                    try {
-                                        " at ${kotlin.js.Date(data.createdAt).toLocaleString()}"
-                                    } catch (e: Exception) {
-                                        console.warn("Failed to parse date in AccountPage:", e)
-                                        ""
-                                    }
+                                    " at ${kotlin.js.Date(data.createdAt).toLocaleString()}"
                                 } else {
                                     ""
                                 }

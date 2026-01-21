@@ -1,10 +1,6 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewRssPostResponse
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -15,6 +11,10 @@ import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewRssPostResponse
 
 class RssModuleTest {
     private lateinit var baseUrl: String

@@ -6,6 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import socialpublish.frontend.pages.TwitterStatusResponse
 
 class SerializationTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -213,5 +214,51 @@ class SerializationTest {
 
         assertNotNull(decoded.hasAuth)
         assertTrue(decoded.hasAuth.twitter)
+    }
+
+    @Test
+    fun testTwitterStatusResponseDeserializationWithAuthorization() {
+        // Backend returns createdAt as Long (epoch milliseconds)
+        val jsonString = """{"hasAuthorization":true,"createdAt":1737478801545}"""
+        val decoded = json.decodeFromString<TwitterStatusResponse>(jsonString)
+
+        assertTrue(decoded.hasAuthorization)
+        assertNotNull(decoded.createdAt)
+        assertEquals(1737478801545L, decoded.createdAt)
+
+        // Verify the date can be constructed from the Long
+        val date = kotlin.js.Date(decoded.createdAt)
+        val dateString = date.toLocaleString()
+        // Should not be "Invalid Date"
+        assertTrue(!dateString.contains("Invalid"))
+    }
+
+    @Test
+    fun testTwitterStatusResponseDeserializationWithoutAuthorization() {
+        val jsonString = """{"hasAuthorization":false,"createdAt":null}"""
+        val decoded = json.decodeFromString<TwitterStatusResponse>(jsonString)
+
+        assertEquals(false, decoded.hasAuthorization)
+        assertEquals(null, decoded.createdAt)
+    }
+
+    @Test
+    fun testTwitterStatusResponseDeserializationWithoutCreatedAt() {
+        val jsonString = """{"hasAuthorization":false}"""
+        val decoded = json.decodeFromString<TwitterStatusResponse>(jsonString)
+
+        assertEquals(false, decoded.hasAuthorization)
+        assertEquals(null, decoded.createdAt)
+    }
+
+    @Test
+    fun testTwitterStatusResponseSerializationRoundTrip() {
+        val original = TwitterStatusResponse(hasAuthorization = true, createdAt = 1737478801545L)
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<TwitterStatusResponse>(encoded)
+
+        assertEquals(original, decoded)
+        assertTrue(decoded.hasAuthorization)
+        assertEquals(1737478801545L, decoded.createdAt)
     }
 }

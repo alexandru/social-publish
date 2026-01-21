@@ -1,16 +1,16 @@
 package socialpublish.frontend.pages
 
 import androidx.compose.runtime.*
+import kotlinx.browser.window
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
 import socialpublish.frontend.models.LoginRequest
 import socialpublish.frontend.models.LoginResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
-import kotlinx.browser.window
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.dom.*
 
 // External declaration for URLSearchParams
 external class URLSearchParams(init: String = definedExternally) {

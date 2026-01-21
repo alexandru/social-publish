@@ -1,7 +1,6 @@
 package socialpublish.backend.modules
 
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
-import socialpublish.backend.server.ServerAuthConfig
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -20,6 +19,8 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import java.util.Date
 import kotlinx.serialization.Serializable
+import socialpublish.backend.models.ErrorResponse
+import socialpublish.backend.server.ServerAuthConfig
 
 private val logger = KotlinLogging.logger {}
 
@@ -80,7 +81,7 @@ class AuthModule(
     suspend fun login(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid credentials"))
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid credentials"))
             return
         }
 
@@ -125,7 +126,7 @@ class AuthModule(
         if (username != null) {
             call.respond(UserResponse(username = username))
         } else {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
         }
     }
 
@@ -185,7 +186,7 @@ fun Application.configureAuth(config: ServerAuthConfig) {
                 }
             }
             challenge { _, _ ->
-                call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             }
         }
     }

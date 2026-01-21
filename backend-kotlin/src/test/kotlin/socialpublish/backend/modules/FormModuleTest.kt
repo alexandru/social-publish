@@ -1,11 +1,6 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
-import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.CompositeError
-import socialpublish.backend.models.NewPostRequest
 import java.nio.file.Path
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -14,6 +9,11 @@ import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.models.CompositeError
+import socialpublish.backend.models.NewPostRequest
 
 class FormModuleTest {
     private lateinit var postsDb: PostsDatabase

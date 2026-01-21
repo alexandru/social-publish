@@ -2,15 +2,6 @@ package socialpublish.backend
 
 import arrow.continuations.SuspendApp
 import arrow.fx.coroutines.resourceScope
-import socialpublish.backend.db.Database
-import socialpublish.backend.integrations.bluesky.BlueskyConfig
-import socialpublish.backend.integrations.mastodon.MastodonConfig
-import socialpublish.backend.integrations.twitter.TwitterConfig
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.modules.FilesConfig
-import socialpublish.backend.server.ServerAuthConfig
-import socialpublish.backend.server.ServerConfig
-import socialpublish.backend.server.startServer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoOpCliktCommand
 import com.github.ajalt.clikt.core.ProgramResult
@@ -28,6 +19,15 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
+import socialpublish.backend.db.Database
+import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.mastodon.MastodonConfig
+import socialpublish.backend.integrations.twitter.TwitterConfig
+import socialpublish.backend.modules.AuthModule
+import socialpublish.backend.modules.FilesConfig
+import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.ServerConfig
+import socialpublish.backend.server.startServer
 
 private val logger = KotlinLogging.logger {}
 
@@ -86,7 +86,8 @@ class StartServerCommand : CliktCommand(name = "start-server") {
     private val serverAuthPassword: String by
         option(
                 "--server-auth-password",
-                help = "Password for server authentication, BCrypt hash (env: SERVER_AUTH_PASSWORD)",
+                help =
+                    "Password for server authentication, BCrypt hash (env: SERVER_AUTH_PASSWORD)",
                 envvar = "SERVER_AUTH_PASSWORD",
             )
             .required()

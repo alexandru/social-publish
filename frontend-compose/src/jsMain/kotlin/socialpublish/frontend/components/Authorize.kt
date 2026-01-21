@@ -1,10 +1,10 @@
 package socialpublish.frontend.components
 
 import androidx.compose.runtime.*
-import socialpublish.frontend.utils.Storage
 import kotlinx.browser.window
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
+import socialpublish.frontend.utils.Storage
 
 @Composable
 fun Authorize(content: @Composable () -> Unit) {

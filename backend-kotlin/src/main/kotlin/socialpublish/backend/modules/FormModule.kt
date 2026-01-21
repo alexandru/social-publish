@@ -3,16 +3,6 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import socialpublish.backend.integrations.bluesky.BlueskyApiModule
-import socialpublish.backend.integrations.mastodon.MastodonApiModule
-import socialpublish.backend.integrations.twitter.TwitterApiModule
-import socialpublish.backend.models.ApiError
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CompositeError
-import socialpublish.backend.models.CompositeErrorResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.ValidationError
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -22,6 +12,18 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import socialpublish.backend.integrations.bluesky.BlueskyApiModule
+import socialpublish.backend.integrations.mastodon.MastodonApiModule
+import socialpublish.backend.integrations.twitter.TwitterApiModule
+import socialpublish.backend.models.ApiError
+import socialpublish.backend.models.ApiResult
+import socialpublish.backend.models.CompositeError
+import socialpublish.backend.models.CompositeErrorResponse
+import socialpublish.backend.models.CompositeErrorWithDetails
+import socialpublish.backend.models.ErrorResponse
+import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.ValidationError
 
 /** Form module for broadcasting posts to multiple social media platforms */
 class FormModule(
@@ -154,9 +156,12 @@ class FormModule(
                 val error = result.value
                 val payload =
                     if (error is CompositeError) {
-                        mapOf("error" to error.errorMessage, "responses" to error.responses)
+                        CompositeErrorWithDetails(
+                            error = error.errorMessage,
+                            responses = error.responses,
+                        )
                     } else {
-                        mapOf("error" to error.errorMessage)
+                        ErrorResponse(error = error.errorMessage)
                     }
                 call.respond(HttpStatusCode.fromValue(error.status), payload)
             }

@@ -3,6 +3,24 @@ package socialpublish.backend.server
 import arrow.continuations.ktor.server
 import arrow.core.Either
 import arrow.fx.coroutines.resource
+import socialpublish.backend.AppConfig
+import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.integrations.bluesky.BlueskyApiModule
+import socialpublish.backend.integrations.mastodon.MastodonApiModule
+import socialpublish.backend.integrations.twitter.TwitterApiModule
+import socialpublish.backend.models.NewBlueSkyPostResponse
+import socialpublish.backend.models.NewMastodonPostResponse
+import socialpublish.backend.models.NewPostResponse
+import socialpublish.backend.models.NewRssPostResponse
+import socialpublish.backend.models.NewTwitterPostResponse
+import socialpublish.backend.modules.AuthModule
+import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.modules.FormModule
+import socialpublish.backend.modules.RssModule
+import socialpublish.backend.modules.configureAuth
+import socialpublish.backend.modules.extractJwtToken
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -27,25 +45,6 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.slf4j.event.Level
-import socialpublish.backend.AppConfig
-import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.db.FilesDatabase
-import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.integrations.bluesky.BlueskyApiModule
-import socialpublish.backend.integrations.mastodon.MastodonApiModule
-import socialpublish.backend.integrations.twitter.TwitterApiModule
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.modules.FormModule
-import socialpublish.backend.modules.RssModule
-import socialpublish.backend.modules.configureAuth
-import socialpublish.backend.modules.extractJwtToken
 
 private val logger = KotlinLogging.logger {}
 
@@ -157,7 +156,7 @@ fun startServer(
                             val error = result.value
                             call.respond(
                                 HttpStatusCode.fromValue(error.status),
-                                ErrorResponse(error = error.errorMessage),
+                                mapOf("error" to error.errorMessage),
                             )
                         }
                     }
@@ -170,7 +169,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Bluesky integration not configured"),
+                            mapOf("error" to "Bluesky integration not configured"),
                         )
                     }
                 }
@@ -181,7 +180,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Mastodon integration not configured"),
+                            mapOf("error" to "Mastodon integration not configured"),
                         )
                     }
                 }
@@ -192,7 +191,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -205,7 +204,7 @@ fun startServer(
                                 ?: run {
                                     call.respond(
                                         HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
+                                        mapOf("error" to "Unauthorized"),
                                     )
                                     return@get
                                 }
@@ -213,7 +212,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -224,7 +223,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
@@ -235,7 +234,7 @@ fun startServer(
                     } else {
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
+                            mapOf("error" to "Twitter integration not configured"),
                         )
                     }
                 }
