@@ -74,7 +74,7 @@ data class LinkedInTokenResponse(
     @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
 )
 
-@Serializable data class LinkedInUserProfile(val id: String)
+@Serializable data class LinkedInUserProfile(val sub: String)
 
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -424,7 +424,7 @@ class LinkedInApiModule(
         // Get person URN from user profile
         when (val profileResult = getUserProfile(validToken.accessToken)) {
             is Either.Right -> {
-                val personUrn = "urn:li:person:${profileResult.value.id}"
+                val personUrn = "urn:li:person:${profileResult.value.sub}"
                 return (validToken.accessToken to personUrn).right()
             }
             is Either.Left -> return profileResult.value.left()

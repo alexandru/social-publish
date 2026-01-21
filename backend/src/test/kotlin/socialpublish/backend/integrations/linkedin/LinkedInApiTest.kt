@@ -224,10 +224,7 @@ class LinkedInApiTest {
             application {
                 routing {
                     get("/v2/me") {
-                        call.respondText(
-                            """{"id":"urn:li:person:test123"}""",
-                            ContentType.Application.Json,
-                        )
+                        call.respondText("""{"sub":"test123"}""", ContentType.Application.Json)
                     }
                     post("/v2/ugcPosts") {
                         postCreated = true
@@ -329,10 +326,7 @@ class LinkedInApiTest {
                         }
                     }
                     get("/v2/me") {
-                        call.respondText(
-                            """{"id":"urn:li:person:test123"}""",
-                            ContentType.Application.Json,
-                        )
+                        call.respondText("""{"sub":"test123"}""", ContentType.Application.Json)
                     }
                     post("/v2/assets") {
                         uploadRegistered = true
@@ -548,7 +542,7 @@ class LinkedInApiTest {
                 routing {
                     get("/v2/me") {
                         call.respondText(
-                            """{"id":"urn:li:person:testperson123"}""",
+                            """{"sub":"testperson123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -588,7 +582,7 @@ class LinkedInApiTest {
 
             assertTrue(result is Either.Right)
             val profile = (result as Either.Right).value
-            assertEquals("urn:li:person:testperson123", profile.id)
+            assertEquals("testperson123", profile.sub)
 
             linkedInClient.close()
         }
