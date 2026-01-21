@@ -63,15 +63,3 @@ kotlin {
         }
     }
 }
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    compilerOptions {
-        allWarningsAsErrors.set(true)
-        freeCompilerArgs.set(
-            listOf(
-                "-Xextended-compiler-checks",
-                "-Xreturn-value-checker=full",
-            )
-        )
-    }
-}

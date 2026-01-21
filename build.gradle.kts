@@ -21,6 +21,16 @@ subprojects {
         kotlinLangStyle()
     }
 
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+        compilerOptions {
+            allWarningsAsErrors.set(true)
+            freeCompilerArgs.addAll(
+                "-Xextended-compiler-checks",
+                "-Xreturn-value-checker=full",
+            )
+        }
+    }
+
     tasks.withType<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask> {
         fun isNonStable(version: String): Boolean {
             val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
