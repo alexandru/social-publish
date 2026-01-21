@@ -13,6 +13,7 @@ import io.ktor.server.response.respond
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
+import socialpublish.backend.integrations.linkedin.LinkedInApiModule
 import socialpublish.backend.integrations.mastodon.MastodonApiModule
 import socialpublish.backend.integrations.twitter.TwitterApiModule
 import socialpublish.backend.models.ApiError
@@ -30,6 +31,7 @@ class FormModule(
     private val mastodonModule: MastodonApiModule?,
     private val blueskyModule: BlueskyApiModule?,
     private val twitterModule: TwitterApiModule?,
+    private val linkedInModule: LinkedInApiModule?,
     private val rssModule: RssModule,
 ) {
     /** Broadcast post to multiple platforms */
@@ -37,7 +39,10 @@ class FormModule(
         val targets = request.targets?.map { it.lowercase() } ?: emptyList()
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
 
-        tasks.add { rssModule.createPost(request) }
+        // Only publish to RSS if explicitly requested
+        if (targets.contains("rss")) {
+            tasks.add { rssModule.createPost(request) }
+        }
 
         if (targets.contains("mastodon")) {
             tasks.add {
@@ -69,6 +74,18 @@ class FormModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Twitter integration not configured",
+                            module = "form",
+                        )
+                        .left()
+            }
+        }
+
+        if (targets.contains("linkedin")) {
+            tasks.add {
+                linkedInModule?.createPost(request)
+                    ?: ValidationError(
+                            status = 503,
+                            errorMessage = "LinkedIn integration not configured",
                             module = "form",
                         )
                         .left()

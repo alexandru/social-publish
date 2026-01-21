@@ -21,6 +21,7 @@ import java.io.File
 import kotlinx.coroutines.awaitCancellation
 import socialpublish.backend.db.Database
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.linkedin.LinkedInConfig
 import socialpublish.backend.integrations.mastodon.MastodonConfig
 import socialpublish.backend.integrations.twitter.TwitterConfig
 import socialpublish.backend.modules.AuthModule
@@ -169,6 +170,21 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
         )
 
+    // LinkedIn integration (optional)
+    private val linkedinAccessToken: String? by
+        option(
+            "--linkedin-access-token",
+            help = "LinkedIn API access token (env: LINKEDIN_ACCESS_TOKEN)",
+            envvar = "LINKEDIN_ACCESS_TOKEN",
+        )
+
+    private val linkedinPersonUrn: String? by
+        option(
+            "--linkedin-person-urn",
+            help = "LinkedIn person URN (env: LINKEDIN_PERSON_URN)",
+            envvar = "LINKEDIN_PERSON_URN",
+        )
+
     override fun run() {
         val serverAuthConfig =
             ServerAuthConfig(
@@ -217,6 +233,13 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 null
             }
 
+        val linkedinConfig =
+            if (linkedinAccessToken != null && linkedinPersonUrn != null) {
+                LinkedInConfig(accessToken = linkedinAccessToken!!, personUrn = linkedinPersonUrn!!)
+            } else {
+                null
+            }
+
         val config =
             AppConfig(
                 server = serverConfig,
@@ -224,6 +247,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 bluesky = blueskyConfig,
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
+                linkedin = linkedinConfig,
             )
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot

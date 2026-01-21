@@ -60,7 +60,7 @@ fun PublishFormPage() {
 private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit) -> Unit) {
     var content by remember { mutableStateOf("") }
     var link by remember { mutableStateOf("") }
-    var targets by remember { mutableStateOf(emptySet<String>()) }
+    var targets by remember { mutableStateOf(setOf("rss")) }
     var cleanupHtml by remember { mutableStateOf(false) }
     var images by remember { mutableStateOf(mapOf<Int, SelectedImage>()) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -87,7 +87,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     val resetForm: () -> Unit = {
         content = ""
         link = ""
-        targets = emptySet()
+        targets = setOf("rss")
         cleanupHtml = false
         images = emptyMap()
     }
@@ -355,21 +355,31 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
                     Text(" LinkedIn")
                 }
-                P(attrs = { classes("help") }) {
-                    A(href = "/rss/target/linkedin", attrs = { attr("target", "_blank") }) {
-                        Text("Via RSS feed")
-                    }
-                    Text(" (needs ")
-                    A(
-                        href = "https://ifttt.com",
+            }
+
+            Div(attrs = { classes("field") }) {
+                Label(attrs = { classes("checkbox") }) {
+                    Input(
+                        type = InputType.Checkbox,
                         attrs = {
-                            attr("target", "_blank")
-                            attr("rel", "noreferrer")
+                            id("rss")
+                            attr("name", "rss")
+                            checked(targets.contains("rss"))
+                            onInput { event ->
+                                val target = event.target
+                                targets =
+                                    if (target.checked) {
+                                        targets + "rss"
+                                    } else {
+                                        targets - "rss"
+                                    }
+                            }
                         },
-                    ) {
-                        Text("ifttt.com")
-                    }
-                    Text(" setup)")
+                    )
+                    Text(" RSS feed")
+                }
+                P(attrs = { classes("help") }) {
+                    A(href = "/rss", attrs = { attr("target", "_blank") }) { Text("View feed") }
                 }
             }
 

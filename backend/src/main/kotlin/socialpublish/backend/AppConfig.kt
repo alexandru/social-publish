@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.linkedin.LinkedInConfig
 import socialpublish.backend.integrations.mastodon.MastodonConfig
 import socialpublish.backend.integrations.twitter.TwitterConfig
 import socialpublish.backend.modules.FilesConfig
@@ -21,6 +22,7 @@ data class AppConfig(
     val bluesky: BlueskyConfig?,
     val mastodon: MastodonConfig?,
     val twitter: TwitterConfig?,
+    val linkedin: LinkedInConfig?,
 )
 
 class AppCliCommand : CliktCommand(name = "social-publish") {
@@ -150,6 +152,21 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
         )
 
+    // LinkedIn integration (optional)
+    private val linkedinAccessToken: String? by
+        option(
+            "--linkedin-access-token",
+            help = "LinkedIn API access token (env: LINKEDIN_ACCESS_TOKEN)",
+            envvar = "LINKEDIN_ACCESS_TOKEN",
+        )
+
+    private val linkedinPersonUrn: String? by
+        option(
+            "--linkedin-person-urn",
+            help = "LinkedIn person URN (env: LINKEDIN_PERSON_URN)",
+            envvar = "LINKEDIN_PERSON_URN",
+        )
+
     lateinit var config: AppConfig
         private set
 
@@ -201,6 +218,16 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 null
             }
 
+        val linkedinConfig =
+            if (linkedinAccessToken != null && linkedinPersonUrn != null) {
+                LinkedInConfig(
+                    accessToken = linkedinAccessToken!!,
+                    personUrn = linkedinPersonUrn!!,
+                )
+            } else {
+                null
+            }
+
         config =
             AppConfig(
                 server = serverConfig,
@@ -208,6 +235,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 bluesky = blueskyConfig,
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
+                linkedin = linkedinConfig,
             )
     }
 }

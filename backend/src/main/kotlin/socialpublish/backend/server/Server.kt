@@ -33,10 +33,12 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
+import socialpublish.backend.integrations.linkedin.LinkedInApiModule
 import socialpublish.backend.integrations.mastodon.MastodonApiModule
 import socialpublish.backend.integrations.twitter.TwitterApiModule
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.NewBlueSkyPostResponse
+import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.NewMastodonPostResponse
 import socialpublish.backend.models.NewPostResponse
 import socialpublish.backend.models.NewRssPostResponse
@@ -68,6 +70,7 @@ fun startServer(
         config.twitter?.let {
             TwitterApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
+    val linkedInModule = config.linkedin?.let { LinkedInApiModule.resource(it, filesModule).bind() }
 
     val authModule =
         AuthModule(
@@ -75,7 +78,8 @@ fun startServer(
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
         )
 
-    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
+    val formModule =
+        FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -102,6 +106,7 @@ fun startServer(
                             subclass(NewMastodonPostResponse::class)
                             subclass(NewBlueSkyPostResponse::class)
                             subclass(NewTwitterPostResponse::class)
+                            subclass(NewLinkedInPostResponse::class)
                         }
                     }
                 }
@@ -182,6 +187,17 @@ fun startServer(
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
                             ErrorResponse(error = "Twitter integration not configured"),
+                        )
+                    }
+                }
+
+                post("/api/linkedin/post") {
+                    if (linkedInModule != null) {
+                        linkedInModule.createPostRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
                         )
                     }
                 }
