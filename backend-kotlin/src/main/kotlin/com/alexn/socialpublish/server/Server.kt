@@ -10,6 +10,11 @@ import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.integrations.bluesky.BlueskyApiModule
 import com.alexn.socialpublish.integrations.mastodon.MastodonApiModule
 import com.alexn.socialpublish.integrations.twitter.TwitterApiModule
+import com.alexn.socialpublish.models.NewBlueSkyPostResponse
+import com.alexn.socialpublish.models.NewMastodonPostResponse
+import com.alexn.socialpublish.models.NewPostResponse
+import com.alexn.socialpublish.models.NewRssPostResponse
+import com.alexn.socialpublish.models.NewTwitterPostResponse
 import com.alexn.socialpublish.modules.AuthModule
 import com.alexn.socialpublish.modules.FilesModule
 import com.alexn.socialpublish.modules.FormModule
@@ -33,7 +38,11 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 import org.slf4j.event.Level
 import java.io.File
 
@@ -96,11 +105,25 @@ fun startServer(
         }
 
         install(ContentNegotiation) {
+            @OptIn(ExperimentalSerializationApi::class)
             json(
                 Json {
                     prettyPrint = true
                     isLenient = true
                     ignoreUnknownKeys = true
+                    encodeDefaults = true
+                    // Disable class discriminator to avoid adding "type" field
+                    classDiscriminator = "#type"
+                    classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
+                    serializersModule =
+                        SerializersModule {
+                            polymorphic(NewPostResponse::class) {
+                                subclass(NewRssPostResponse::class)
+                                subclass(NewMastodonPostResponse::class)
+                                subclass(NewBlueSkyPostResponse::class)
+                                subclass(NewTwitterPostResponse::class)
+                            }
+                        }
                 },
             )
         }

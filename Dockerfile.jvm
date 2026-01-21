@@ -9,7 +9,7 @@ ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"
 COPY gradle ./gradle
 COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY backend-kotlin/build.gradle.kts ./backend-kotlin/
-COPY frontend-kotlin/build.gradle.kts ./frontend-kotlin/
+COPY frontend-compose/build.gradle.kts ./frontend-compose/
 
 # Resolve dependencies for both modules to leverage layer caching
 RUN gradle dependencies --no-daemon
@@ -28,10 +28,10 @@ RUN gradle :backend-kotlin:jar --no-daemon -x test
 ############################
 FROM base AS build-frontend
 # Copy frontend source
-COPY frontend-kotlin/src ./frontend-kotlin/src
-COPY frontend-kotlin/webpack.config.d ./frontend-kotlin/webpack.config.d
+COPY frontend-compose/src ./frontend-compose/src
+COPY frontend-compose/webpack.config.d ./frontend-compose/webpack.config.d
 # Build frontend distribution
-RUN gradle :frontend-kotlin:assemble --no-daemon -x test
+RUN gradle :frontend-compose:assemble --no-daemon -x test
 
 ############################
 # JRE build stage
@@ -79,7 +79,7 @@ RUN apk add --no-cache curl
 COPY --from=build-backend --chown=appuser:root /app/backend-kotlin/build/libs/backend-kotlin-1.0.0.jar /opt/app/app.jar
 
 # Copy frontend assets from frontend stage
-COPY --from=build-frontend --chown=appuser:root /app/frontend-kotlin/build/dist/js/productionExecutable/ /opt/app/public/
+COPY --from=build-frontend --chown=appuser:root /app/frontend-compose/build/dist/js/productionExecutable/ /opt/app/public/
 
 # Copy java-exec wrapper script
 COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
