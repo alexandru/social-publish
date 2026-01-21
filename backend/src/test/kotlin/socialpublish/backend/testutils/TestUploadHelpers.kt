@@ -47,9 +47,8 @@ internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
 }
 
 internal suspend fun createFilesModule(tempDir: Path, jdbi: Jdbi): FilesModule {
-    val uploadsDir = tempDir.resolve("uploads")
-    val filesConfig =
-        FilesConfig(uploadedFilesPath = uploadsDir.toString(), baseUrl = "http://localhost")
+    val uploadsDir = tempDir.resolve("uploads").toFile()
+    val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir, baseUrl = "http://localhost")
     return FilesModule.create(filesConfig, FilesDatabase(jdbi))
 }
 

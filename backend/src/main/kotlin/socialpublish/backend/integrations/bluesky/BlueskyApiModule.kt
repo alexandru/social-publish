@@ -3,6 +3,8 @@ package socialpublish.backend.integrations.bluesky
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -86,6 +88,12 @@ class BlueskyApiModule(
                         }
                     )
                 }
+            }
+
+        fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
+            resource {
+                val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
+                BlueskyApiModule(config, filesModule, client)
             }
     }
 
@@ -253,6 +261,7 @@ class BlueskyApiModule(
      */
     private suspend fun detectFacets(text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
+        // TODO: find why this is needed
         val bytes = text.toByteArray(Charsets.UTF_8)
 
         // 1. Detect URLs

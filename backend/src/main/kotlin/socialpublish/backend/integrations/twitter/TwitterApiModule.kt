@@ -1,8 +1,12 @@
+@file:Suppress("PropertyName")
+
 package socialpublish.backend.integrations.twitter
 
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
 import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.builder.api.DefaultApi10a
 import com.github.scribejava.core.model.OAuth1AccessToken
@@ -89,6 +93,16 @@ class TwitterApiModule(
                     )
                 }
             }
+
+        fun resource(
+            config: TwitterConfig,
+            baseUrl: String,
+            documentsDb: DocumentsDatabase,
+            filesModule: FilesModule,
+        ): Resource<TwitterApiModule> = resource {
+            val client = install({ defaultHttpClient() }, { client, _ -> client.close() })
+            TwitterApiModule(config, baseUrl, documentsDb, filesModule, client)
+        }
     }
 
     private class TwitterApi(private val config: TwitterConfig) : DefaultApi10a() {

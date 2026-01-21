@@ -101,11 +101,18 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .required()
 
     // Files storage configuration
-    private val uploadedFilesPath: String by
+    private val uploadedFilesPath: File by
         option(
                 "--uploaded-files-path",
                 help = "Directory where uploaded files are stored (env: UPLOADED_FILES_PATH)",
                 envvar = "UPLOADED_FILES_PATH",
+            )
+            .file(
+                mustExist = true,
+                canBeDir = true,
+                canBeFile = false,
+                mustBeReadable = true,
+                mustBeWritable = true,
             )
             .required()
 

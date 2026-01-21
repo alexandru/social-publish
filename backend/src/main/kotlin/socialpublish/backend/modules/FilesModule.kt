@@ -46,28 +46,27 @@ data class ProcessedUpload(
     val bytes: ByteArray,
 )
 
-data class FilesConfig(val uploadedFilesPath: String, val baseUrl: String)
+data class FilesConfig(val uploadedFilesPath: File, val baseUrl: String)
 
 class FilesModule
 private constructor(
     private val config: FilesConfig,
     private val db: FilesDatabase,
     private val uploadedFilesPath: File,
-    private val processedPath: File,
-    private val resizingPath: File,
 ) {
+    private val processedPath = File(uploadedFilesPath, "processed")
+    private val resizingPath = File(uploadedFilesPath, "resizing")
+
     companion object {
         suspend fun create(config: FilesConfig, db: FilesDatabase): FilesModule {
-            val uploadedFilesPath = File(config.uploadedFilesPath)
-            val processedPath = File(uploadedFilesPath, "processed")
-            val resizingPath = File(uploadedFilesPath, "resizing")
+            val ref = FilesModule(config, db, config.uploadedFilesPath)
             runInterruptible(Dispatchers.IO) {
-                uploadedFilesPath.mkdirs()
-                processedPath.mkdirs()
-                resizingPath.mkdirs()
+                ref.uploadedFilesPath.mkdirs()
+                ref.processedPath.mkdirs()
+                ref.resizingPath.mkdirs()
             }
             logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
-            return FilesModule(config, db, uploadedFilesPath, processedPath, resizingPath)
+            return ref
         }
     }
 

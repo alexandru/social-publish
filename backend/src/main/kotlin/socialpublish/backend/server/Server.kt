@@ -62,17 +62,11 @@ fun startServer(
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
-    val blueskyClient = config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
-    val mastodonClient = config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
-    val twitterClient = config.twitter?.let { TwitterApiModule.defaultHttpClient() }
-
-    // Conditionally instantiate integration modules based on config
-    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule, blueskyClient!!) }
-    val mastodonModule =
-        config.mastodon?.let { MastodonApiModule(it, filesModule, mastodonClient!!) }
+    val blueskyModule = config.bluesky?.let { BlueskyApiModule.resource(it, filesModule).bind() }
+    val mastodonModule = config.mastodon?.let { MastodonApiModule.resource(it, filesModule).bind() }
     val twitterModule =
         config.twitter?.let {
-            TwitterApiModule(it, config.server.baseUrl, documentsDb, filesModule, twitterClient!!)
+            TwitterApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
 
     val authModule =
@@ -115,12 +109,6 @@ fun startServer(
         }
 
         install(CallLogging) { level = Level.INFO }
-
-        monitor.subscribe(io.ktor.server.application.ApplicationStopped) {
-            blueskyClient?.close()
-            mastodonClient?.close()
-            twitterClient?.close()
-        }
 
         install(StatusPages) {
             exception<Throwable> { call, cause ->

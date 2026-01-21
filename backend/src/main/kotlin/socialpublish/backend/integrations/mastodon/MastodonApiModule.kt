@@ -3,6 +3,8 @@ package socialpublish.backend.integrations.mastodon
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -66,6 +68,14 @@ class MastodonApiModule(
                     )
                 }
             }
+
+        fun resource(
+            config: MastodonConfig,
+            filesModule: FilesModule,
+        ): Resource<MastodonApiModule> = resource {
+            val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
+            MastodonApiModule(config, filesModule, client)
+        }
     }
 
     private val mediaUrlV2 = "${config.host}/api/v2/media"
@@ -143,7 +153,8 @@ class MastodonApiModule(
 
     /** Poll for media processing completion */
     private suspend fun waitForMediaProcessing(mediaId: String): ApiResult<MastodonMediaResponse> {
-        for (attempt in 1..30) { // Try for up to 6 seconds
+        (1..30).forEach { _ ->
+            // Try for up to 6 seconds
             delay(200)
 
             val response =
@@ -156,10 +167,12 @@ class MastodonApiModule(
                     val data = response.body<MastodonMediaResponse>()
                     return data.right()
                 }
+
                 202 -> {
                     // Still processing, continue polling
-                    continue
+                    return@forEach
                 }
+
                 else -> {
                     val errorBody = response.bodyAsText()
                     return RequestError(
