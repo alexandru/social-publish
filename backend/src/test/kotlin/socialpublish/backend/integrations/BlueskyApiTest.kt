@@ -3,7 +3,6 @@ package socialpublish.backend.integrations
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
@@ -15,24 +14,15 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.testutils.ImageDimensions
-import socialpublish.backend.testutils.createFilesModule
-import socialpublish.backend.testutils.createTestDatabase
-import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
-import socialpublish.backend.testutils.uploadTestImage
+import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
     @Test
@@ -70,11 +60,14 @@ class BlueskyApiTest {
                     )
                 }
             }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
-                    filesModule,
-                    blueskyClient,
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
                 )
 
             val req = NewPostRequest(content = "Hello bluesky")
@@ -152,12 +145,15 @@ class BlueskyApiTest {
             }
             val upload1 = uploadTestImage(blueskyClient, "flower1.jpeg", "rose")
             val upload2 = uploadTestImage(blueskyClient, "flower2.jpeg", "tulip")
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
 
             val blueskyModule =
                 BlueskyApiModule(
-                    BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
-                    filesModule,
-                    blueskyClient,
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
                 )
 
             val req =
@@ -308,11 +304,14 @@ class BlueskyApiTest {
                     )
                 }
             }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
-                    filesModule,
-                    blueskyClient,
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
                 )
 
             val req =

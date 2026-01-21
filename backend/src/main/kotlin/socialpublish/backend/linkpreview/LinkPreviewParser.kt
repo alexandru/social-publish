@@ -1,5 +1,8 @@
 package socialpublish.backend.linkpreview
 
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -12,7 +15,28 @@ import org.jsoup.nodes.Document
 private val logger = KotlinLogging.logger {}
 
 /** Parser for extracting link previews from HTML content. */
-object LinkPreviewParser {
+class LinkPreviewParser(private val httpClient: HttpClient) {
+    companion object {
+        suspend fun <A> scoped(block: suspend (LinkPreviewParser) -> A): A = resourceScope {
+            LinkPreviewParser().bind().let { parser -> block(parser) }
+        }
+
+        operator fun invoke(): Resource<LinkPreviewParser> = resource {
+            val httpClient =
+                install(
+                    {
+                        HttpClient(CIO) {
+                            // Disable automatic redirects to detect bot blocking
+                            followRedirects = false
+                            expectSuccess = false
+                        }
+                    },
+                    { client, _ -> client.close() },
+                )
+            LinkPreviewParser(httpClient)
+        }
+    }
+
     /**
      * Parses HTML content to extract link preview metadata.
      *
@@ -32,7 +56,7 @@ object LinkPreviewParser {
         val title = extractTitle(doc) ?: return null
         val description = extractDescription(doc)
         val url = extractUrl(doc) ?: fallbackUrl
-        val image = extractImage(doc)
+        val image = extractImage(doc, fallbackUrl)
 
         return LinkPreview(title = title, description = description, url = url, image = image)
     }
@@ -47,10 +71,7 @@ object LinkPreviewParser {
      * @param httpClient Optional HTTP client (defaults to a client with redirects disabled)
      * @return A LinkPreview object if successful, null if redirect detected or fetch failed
      */
-    suspend fun fetchPreview(
-        url: String,
-        httpClient: HttpClient = defaultHttpClient(),
-    ): LinkPreview? {
+    suspend fun fetchPreview(url: String): LinkPreview? {
         return try {
             val response = httpClient.get(url)
 
@@ -66,13 +87,6 @@ object LinkPreviewParser {
             null
         }
     }
-
-    private fun defaultHttpClient(): HttpClient =
-        HttpClient(CIO) {
-            // Disable automatic redirects to detect bot blocking
-            followRedirects = false
-            expectSuccess = false
-        }
 
     private fun extractTitle(doc: Document): String? {
         // Priority 1: Open Graph
@@ -158,14 +172,20 @@ object LinkPreviewParser {
         return null
     }
 
-    private fun extractImage(doc: Document): String? {
+    private fun extractImage(doc: Document, baseUrl: String): String? {
         // Priority 1: Open Graph
         doc.select("meta[property=og:image]")
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
+            ?.let { imageUrl ->
+                val resolved = resolveImageUrl(imageUrl, baseUrl)
+                if (resolved == null) {
+                    logger.warn {
+                        "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
+                    }
+                }
+                return resolved
             }
 
         // Priority 2: Twitter Cards (twitter:image)
@@ -173,8 +193,14 @@ object LinkPreviewParser {
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
+            ?.let { imageUrl ->
+                val resolved = resolveImageUrl(imageUrl, baseUrl)
+                if (resolved == null) {
+                    logger.warn {
+                        "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
+                    }
+                }
+                return resolved
             }
 
         // Priority 3: Twitter Cards (twitter:image:src)
@@ -182,8 +208,14 @@ object LinkPreviewParser {
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
+            ?.let { imageUrl ->
+                val resolved = resolveImageUrl(imageUrl, baseUrl)
+                if (resolved == null) {
+                    logger.warn {
+                        "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
+                    }
+                }
+                return resolved
             }
 
         return null

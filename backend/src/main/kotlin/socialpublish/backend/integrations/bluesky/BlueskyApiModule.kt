@@ -18,6 +18,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -45,56 +46,32 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class BlueskySessionResponse(
-    val accessJwt: String,
-    val refreshJwt: String,
-    val handle: String,
-    val did: String,
-)
-
-@Serializable
-data class BlueskyBlobRef(
-    val `$type`: String = "blob",
-    val ref: JsonObject,
-    val mimeType: String,
-    val size: Int,
-)
-
-@Serializable
-data class BlueskyImageEmbed(
-    val alt: String,
-    val image: BlueskyBlobRef,
-    val aspectRatio: BlueskyAspectRatio? = null,
-)
-
-@Serializable data class BlueskyAspectRatio(val width: Int, val height: Int)
-
-@Serializable data class BlueskyPostResponse(val uri: String, val cid: String)
-
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
     private val config: BlueskyConfig,
     private val filesModule: FilesModule,
-    private val httpClient: HttpClient = defaultHttpClient(),
+    private val httpClient: HttpClient,
+    private val linkPreviewParser: LinkPreviewParser,
 ) {
     companion object {
-        fun defaultHttpClient(): HttpClient =
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
+        fun defaultHttpClient(): Resource<HttpClient> = resource {
+            install({
+                HttpClient(CIO) {
+                    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
                 }
+            }) { client, _ ->
+                client.close()
             }
+        }
 
         fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
-                val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
-                BlueskyApiModule(config, filesModule, client)
+                BlueskyApiModule(
+                    config = config,
+                    filesModule = filesModule,
+                    linkPreviewParser = LinkPreviewParser().bind(),
+                    httpClient = defaultHttpClient().bind(),
+                )
             }
     }
 
@@ -242,7 +219,7 @@ class BlueskyApiModule(
             val contentType = response.contentType()?.toString() ?: "image/jpeg"
 
             // Upload to Bluesky
-            when (val authResult = ensureAuthenticated()) {
+            when (ensureAuthenticated()) {
                 is Either.Left -> return null
                 is Either.Right -> {}
             }
@@ -254,7 +231,7 @@ class BlueskyApiModule(
                     setBody(imageBytes)
                 }
 
-            if (uploadResponse.status.value == 200) {
+            if (uploadResponse.status.isSuccess()) {
                 val blobData = uploadResponse.body<JsonObject>()
                 val blob = blobData["blob"] as? JsonObject ?: return null
 
@@ -311,8 +288,6 @@ class BlueskyApiModule(
      */
     private suspend fun detectFacets(text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
-        // TODO: find why this is needed
-        val bytes = text.toByteArray(Charsets.UTF_8)
 
         // 1. Detect URLs
         // Regex handles http/https and ensures valid surrounding characters
@@ -425,7 +400,7 @@ class BlueskyApiModule(
             // Note: Bluesky only supports one embed type at a time, and images take priority
             val linkPreview =
                 if (request.link != null && imageEmbeds.isEmpty()) {
-                    LinkPreviewParser.fetchPreview(request.link, httpClient)
+                    linkPreviewParser.fetchPreview(request.link)
                 } else {
                     null
                 }

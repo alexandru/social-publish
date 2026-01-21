@@ -24,8 +24,7 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com/article")
-
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/article") }
         assertNotNull(preview)
         assertEquals("Test Article Title", preview.title)
         assertEquals("This is a test description", preview.description)
@@ -50,7 +49,7 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com/twitter")
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/twitter") }
 
         assertNotNull(preview)
         assertEquals("Twitter Title", preview.title)
@@ -74,7 +73,8 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com/standard")
+        val preview =
+            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/standard") }
 
         assertNotNull(preview)
         assertEquals("Standard HTML Title", preview.title)
@@ -100,7 +100,7 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com")
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
         assertEquals("OG Title", preview.title)
@@ -120,7 +120,7 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com")
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNull(preview)
     }
@@ -139,7 +139,8 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com/fallback-url")
+        val preview =
+            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/fallback-url") }
 
         assertNotNull(preview)
         assertEquals("https://example.com/fallback-url", preview.url)
@@ -160,14 +161,14 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com")
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
         assertEquals("https://example.com/twitter-src.jpg", preview.image)
     }
 
     @Test
-    fun `handles relative image URLs by returning them as-is`() = runTest {
+    fun `handles relative image URLs by resolving them to absolute URLs`() = runTest {
         val html =
             """
             <!DOCTYPE html>
@@ -181,9 +182,95 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.parseHtml(html, "https://example.com")
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
-        assertEquals("/images/relative.jpg", preview.image)
+        assertEquals("https://example.com/images/relative.jpg", preview.image)
+    }
+
+    @Test
+    fun `handles absolute image URLs by keeping them unchanged`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Absolute Image Test</title>
+                <meta property="og:image" content="https://cdn.example.com/images/absolute.jpg">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+
+        assertNotNull(preview)
+        assertEquals("https://cdn.example.com/images/absolute.jpg", preview.image)
+    }
+
+    @Test
+    fun `handles protocol-relative image URLs`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Protocol Relative Image Test</title>
+                <meta property="og:image" content="//cdn.example.com/images/protocol-relative.jpg">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+
+        assertNotNull(preview)
+        assertEquals("https://cdn.example.com/images/protocol-relative.jpg", preview.image)
+    }
+
+    @Test
+    fun `handles path-relative image URLs`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Path Relative Image Test</title>
+                <meta property="og:image" content="images/path-relative.jpg">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview =
+            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/blog/post") }
+
+        assertNotNull(preview)
+        assertEquals("https://example.com/blog/images/path-relative.jpg", preview.image)
+    }
+
+    @Test
+    fun `handles malformed base URL by returning preview without image`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Malformed Base URL Test</title>
+                <meta property="og:image" content="/images/relative.jpg">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "not-a-valid-url") }
+
+        assertNotNull(preview)
+        assertEquals("Malformed Base URL Test", preview.title)
+        assertNull(preview.image) // Should be null due to malformed base URL
     }
 }
