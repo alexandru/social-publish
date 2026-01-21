@@ -12,6 +12,11 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 
+// External declaration for URLSearchParams
+external class URLSearchParams(init: String = definedExternally) {
+    fun get(name: String): String?
+}
+
 @Composable
 fun LoginPage() {
     var username by remember { mutableStateOf("") }
@@ -34,9 +39,9 @@ fun LoginPage() {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
                         Storage.setAuthStatus(response.data.hasAuth)
-                        // Check for redirect query param
-                        val urlParams = window.location.search
-                        val redirect = urlParams.split("redirect=").getOrNull(1)?.split("&")?.firstOrNull()
+                        // Check for redirect query param using URLSearchParams
+                        val searchParams = URLSearchParams(window.location.search)
+                        val redirect = searchParams.get("redirect")
                         window.location.href = redirect ?: "/"
                     }
                     is ApiResponse.Error -> {

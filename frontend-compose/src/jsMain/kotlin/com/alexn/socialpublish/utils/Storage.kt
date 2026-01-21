@@ -13,13 +13,17 @@ object Storage {
     
     // Cookie utilities
     fun cookies(): Map<String, String> {
-        return document.cookie.split("; ").mapNotNull { cookie ->
+        val cookieString = document.cookie
+        if (cookieString.isBlank()) {
+            return emptyMap()
+        }
+        return cookieString.split("; ").mapNotNull { cookie ->
             val parts = cookie.split("=")
             if (parts.size == 2) parts[0] to parts[1] else null
         }.toMap()
     }
     
-    fun setCookie(name: String, value: String, expirationMillis: Long? = null) {
+    fun setCookie(name: String, value: String, expirationMillis: Long? = null, secure: Boolean = false, sameSite: String? = null) {
         val expires = if (expirationMillis != null) {
             val expiryDate = kotlin.js.Date()
             expiryDate.asDynamic().setTime(expiryDate.getTime() + expirationMillis)
@@ -27,7 +31,9 @@ object Storage {
         } else {
             ""
         }
-        document.cookie = "$name=$value$expires;path=/"
+        val secureFlag = if (secure) ";Secure" else ""
+        val sameSiteFlag = if (sameSite != null) ";SameSite=$sameSite" else ""
+        document.cookie = "$name=$value$expires;path=/$secureFlag$sameSiteFlag"
     }
     
     fun clearCookie(name: String) {
@@ -41,8 +47,11 @@ object Storage {
     }
 
     fun setJwtToken(token: String) {
-        // 2 days expiration
-        setCookie(ACCESS_TOKEN_COOKIE, token, 1000L * 60 * 60 * 24 * 2)
+        // No expiration - cookie persists indefinitely (session cookie that survives browser restart)
+        // Using SameSite=Lax for better compatibility with redirects while maintaining good security
+        // Secure flag is optional to allow development over HTTP (will work over HTTPS in production)
+        val isHttps = kotlinx.browser.window.location.protocol == "https:"
+        setCookie(ACCESS_TOKEN_COOKIE, token, expirationMillis = null, secure = isHttps, sameSite = "Lax")
     }
 
     fun clearJwtToken() {

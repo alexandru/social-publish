@@ -32,7 +32,8 @@ fun AccountPage() {
                             val atDateTime = if (data.createdAt != null) {
                                 try {
                                     " at ${kotlin.js.Date(data.createdAt).toLocaleString()}"
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    console.warn("Failed to parse date in AccountPage:", e)
                                     ""
                                 }
                             } else {
