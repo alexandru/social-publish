@@ -82,7 +82,7 @@ fun startServer(
 
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    server(engine, port = config.server.httpPort) {
+    server(engine, port = config.server.httpPort, preWaitMillis = 5000) {
         install(CORS) {
             anyHost()
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
