@@ -14,10 +14,14 @@ import socialpublish.frontend.utils.Storage
 @Serializable
 data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
 
+@Serializable
+data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
+
 @Composable
 fun AccountPage() {
     Authorize {
         var twitterStatus by remember { mutableStateOf("Querying...") }
+        var linkedInStatus by remember { mutableStateOf("Querying...") }
         val scope = rememberCoroutineScope()
 
         LaunchedEffect(Unit) {
@@ -49,9 +53,41 @@ fun AccountPage() {
                     }
                 }
             }
+
+            scope.launch {
+                when (
+                    val response = ApiClient.get<LinkedInStatusResponse>("/api/linkedin/status")
+                ) {
+                    is ApiResponse.Success -> {
+                        val data = response.data
+                        if (data.hasAuthorization) {
+                            val atDateTime =
+                                if (data.createdAt != null) {
+                                    " at ${kotlin.js.Date(data.createdAt).toLocaleString()}"
+                                } else {
+                                    ""
+                                }
+                            linkedInStatus = "Connected$atDateTime"
+                        } else {
+                            linkedInStatus = "Not connected"
+                        }
+
+                        Storage.updateAuthStatus { current ->
+                            current.copy(linkedin = data.hasAuthorization)
+                        }
+                    }
+                    is ApiResponse.Error -> {
+                        linkedInStatus = "Error: HTTP ${response.code}"
+                    }
+                    is ApiResponse.Exception -> {
+                        linkedInStatus = "Error: ${response.message}"
+                    }
+                }
+            }
         }
 
         val authorizeTwitter: () -> Unit = { window.location.href = "/api/twitter/authorize" }
+        val authorizeLinkedIn: () -> Unit = { window.location.href = "/api/linkedin/authorize" }
 
         Div(
             attrs = {
@@ -84,6 +120,21 @@ fun AccountPage() {
                         }
                     }
                     P(attrs = { classes("help") }) { Text(twitterStatus) }
+
+                    Br()
+
+                    Button(
+                        attrs = {
+                            classes("button", "is-info")
+                            onClick { authorizeLinkedIn() }
+                        }
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fa", "fa-linkedin") })
+                        }
+                        Span(attrs = { style { fontWeight("bold") } }) { Text("Connect LinkedIn") }
+                    }
+                    P(attrs = { classes("help") }) { Text(linkedInStatus) }
                 }
             }
         }

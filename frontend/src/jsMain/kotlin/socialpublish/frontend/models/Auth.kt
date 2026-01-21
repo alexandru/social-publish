@@ -6,4 +6,4 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class LoginResponse(val token: String, val hasAuth: AuthStatus)
 
-@Serializable data class AuthStatus(val twitter: Boolean = false)
+@Serializable data class AuthStatus(val twitter: Boolean = false, val linkedin: Boolean = false)

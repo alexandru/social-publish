@@ -341,6 +341,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         attrs = {
                             id("linkedin")
                             attr("name", "linkedin")
+                            if (!hasAuth.linkedin) {
+                                attr("disabled", "")
+                            }
                             checked(targets.contains("linkedin"))
                             onInput { event ->
                                 val target = event.target

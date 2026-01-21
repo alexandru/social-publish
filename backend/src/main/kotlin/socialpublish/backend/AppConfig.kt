@@ -153,18 +153,18 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
         )
 
     // LinkedIn integration (optional)
-    private val linkedinAccessToken: String? by
+    private val linkedinClientId: String? by
         option(
-            "--linkedin-access-token",
-            help = "LinkedIn API access token (env: LINKEDIN_ACCESS_TOKEN)",
-            envvar = "LINKEDIN_ACCESS_TOKEN",
+            "--linkedin-client-id",
+            help = "LinkedIn OAuth2 client ID (env: LINKEDIN_CLIENT_ID)",
+            envvar = "LINKEDIN_CLIENT_ID",
         )
 
-    private val linkedinPersonUrn: String? by
+    private val linkedinClientSecret: String? by
         option(
-            "--linkedin-person-urn",
-            help = "LinkedIn person URN (env: LINKEDIN_PERSON_URN)",
-            envvar = "LINKEDIN_PERSON_URN",
+            "--linkedin-client-secret",
+            help = "LinkedIn OAuth2 client secret (env: LINKEDIN_CLIENT_SECRET)",
+            envvar = "LINKEDIN_CLIENT_SECRET",
         )
 
     lateinit var config: AppConfig
@@ -219,8 +219,8 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             }
 
         val linkedinConfig =
-            if (linkedinAccessToken != null && linkedinPersonUrn != null) {
-                LinkedInConfig(accessToken = linkedinAccessToken!!, personUrn = linkedinPersonUrn!!)
+            if (linkedinClientId != null && linkedinClientSecret != null) {
+                LinkedInConfig(clientId = linkedinClientId!!, clientSecret = linkedinClientSecret!!)
             } else {
                 null
             }

@@ -70,12 +70,16 @@ fun startServer(
         config.twitter?.let {
             TwitterApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
-    val linkedInModule = config.linkedin?.let { LinkedInApiModule.resource(it, filesModule).bind() }
+    val linkedInModule =
+        config.linkedin?.let {
+            LinkedInApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
+        }
 
     val authModule =
         AuthModule(
             config.server.auth,
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
+            linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
 
     val formModule =
@@ -241,6 +245,49 @@ fun startServer(
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
                             ErrorResponse(error = "Twitter integration not configured"),
+                        )
+                    }
+                }
+
+                // LinkedIn OAuth flow
+                get("/api/linkedin/authorize") {
+                    if (linkedInModule != null) {
+                        val token =
+                            extractJwtToken(call)
+                                ?: run {
+                                    call.respond(
+                                        HttpStatusCode.Unauthorized,
+                                        ErrorResponse(error = "Unauthorized"),
+                                    )
+                                    return@get
+                                }
+                        linkedInModule.authorizeRoute(call, token)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
+                        )
+                    }
+                }
+
+                get("/api/linkedin/callback") {
+                    if (linkedInModule != null) {
+                        linkedInModule.callbackRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
+                        )
+                    }
+                }
+
+                get("/api/linkedin/status") {
+                    if (linkedInModule != null) {
+                        linkedInModule.statusRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
                         )
                     }
                 }
