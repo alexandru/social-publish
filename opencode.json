@@ -1,5 +1,6 @@
 {
     "$schema": "https://opencode.ai/config.json",
+    "instructions": [".github/copilot-instructions.md"],
     "mcp": {
         "intellij-idea": {
             "type": "remote",
