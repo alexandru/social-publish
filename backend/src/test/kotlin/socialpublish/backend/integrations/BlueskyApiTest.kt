@@ -14,7 +14,6 @@ import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -23,6 +22,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.models.LinkPreview
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
@@ -208,6 +208,81 @@ class BlueskyApiTest {
                 uploadedImages[1].height,
                 ratios[1]?.get("height")?.jsonPrimitive?.content?.toInt(),
             )
+
+            blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `creates post with link preview embed`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var createRecordBody: JsonObject? = null
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        createRecordBody = Json.parseToJsonElement(body).jsonObject
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val blueskyModule =
+                BlueskyApiModule(
+                    BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule,
+                    blueskyClient,
+                )
+
+            val req =
+                NewPostRequest(
+                    content = "Hello bluesky",
+                    link = "https://example.com/article",
+                    linkPreview =
+                        LinkPreview(
+                            uri = "https://example.com/article",
+                            title = "Example Article",
+                            description = "An example",
+                            thumbnail = "https://example.com/img.png",
+                        ),
+                )
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+
+            val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
+            assertTrue(record["text"]?.jsonPrimitive?.content?.contains(req.link!!) == true)
+            val embed = requireNotNull(record["embed"]?.jsonObject)
+            assertEquals("app.bsky.embed.external", embed["\$type"]?.jsonPrimitive?.content)
+            val external = requireNotNull(embed["external"]?.jsonObject)
+            assertEquals(req.link, external["uri"]?.jsonPrimitive?.content)
+            assertEquals("Example Article", external["title"]?.jsonPrimitive?.content)
+            assertEquals("An example", external["description"]?.jsonPrimitive?.content)
+            assertEquals("https://example.com/img.png", external["thumbnail"]?.jsonPrimitive?.content)
 
             blueskyClient.close()
         }

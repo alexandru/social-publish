@@ -425,6 +425,19 @@ class BlueskyApiModule(
                             }
                         }
                     }
+                } else if (
+                    request.linkPreview != null &&
+                        (request.linkPreview.uri != null || request.link != null)
+                ) {
+                    putJsonObject("embed") {
+                        put("\$type", "app.bsky.embed.external")
+                        putJsonObject("external") {
+                            put("uri", request.linkPreview.uri ?: request.link!!)
+                            request.linkPreview.title?.let { put("title", it) }
+                            request.linkPreview.description?.let { put("description", it) }
+                            request.linkPreview.thumbnail?.let { put("thumbnail", it) }
+                        }
+                    }
                 }
             }
 

@@ -14,6 +14,7 @@ data class NewPostRequest(
     val content: String,
     val targets: List<String>? = null,
     val link: String? = null,
+    val linkPreview: LinkPreview? = null,
     val language: String? = null,
     val cleanupHtml: Boolean? = null,
     val images: List<String>? = null,
@@ -28,6 +29,14 @@ data class NewPostRequest(
         return null
     }
 }
+
+@Serializable
+data class LinkPreview(
+    val uri: String? = null,
+    val title: String? = null,
+    val description: String? = null,
+    val thumbnail: String? = null,
+)
 
 @Serializable
 sealed class NewPostResponse {
