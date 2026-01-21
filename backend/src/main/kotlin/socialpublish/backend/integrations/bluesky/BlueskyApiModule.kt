@@ -78,7 +78,7 @@ class BlueskyApiModule(
     private val filesModule: FilesModule,
     private val httpClient: HttpClient = defaultHttpClient(),
     private val linkPreviewFetcher: LinkPreviewFetcher =
-        LinkPreviewFetcher(httpClient.config { followRedirects = false }),
+        LinkPreviewFetcher(defaultHttpClientNoRedirects()),
 ) {
     companion object {
         fun defaultHttpClient(): HttpClient =
@@ -93,10 +93,30 @@ class BlueskyApiModule(
                 }
             }
 
+        private fun defaultHttpClientNoRedirects(): HttpClient =
+            HttpClient(CIO) {
+                followRedirects = false
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
         fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
                 val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
-                BlueskyApiModule(config, filesModule, client)
+                val previewClient =
+                    install({ defaultHttpClientNoRedirects() }) { client, _ -> client.close() }
+                BlueskyApiModule(
+                    config,
+                    filesModule,
+                    client,
+                    LinkPreviewFetcher(previewClient),
+                )
             }
     }
 
