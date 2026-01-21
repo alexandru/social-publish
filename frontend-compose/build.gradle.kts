@@ -18,6 +18,7 @@ kotlin {
             }
 
             runTask {
+                val resourcesDir = project.layout.buildDirectory.dir("processedResources/js/main").get().asFile
                 devServerProperty.set(
                     KotlinWebpackConfig.DevServer(
                         port = 3002,
@@ -35,7 +36,9 @@ kotlin {
                                 target = "http://localhost:3000",
                             ),
                         ),
-                    ),
+                    ).apply {
+                        static(resourcesDir.path, watch = true)
+                    },
                 )
             }
         }
