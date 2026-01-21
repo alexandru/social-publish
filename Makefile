@@ -50,7 +50,8 @@ dependency-updates:
 		-Drevision=release \
 		-DoutputFormatter=html \
 		--refresh-dependencies && \
-		open build/dependencyUpdates/report.html
+		open backend-kotlin/build/dependencyUpdates/report.html &&
+		open frontend-compose/build/dependencyUpdates/report.html
 
 # Docker setup
 init-docker:

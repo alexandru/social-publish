@@ -3,12 +3,14 @@ plugins {
     kotlin("jvm") version "2.3.0" apply false
     kotlin("plugin.serialization") version "2.3.0" apply false
     id("com.github.ben-manes.versions") version "0.53.0" apply false
-    id("com.ncorti.ktfmt.gradle") version "0.21.0" apply false
+    id("com.ncorti.ktfmt.gradle") version "0.25.0" apply false
 }
 
 allprojects {
     repositories {
+        google()
         mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-wrappers/maven")
     }
 }
@@ -24,9 +26,11 @@ subprojects {
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions {
             allWarningsAsErrors.set(true)
+            progressiveMode.set(true)
             freeCompilerArgs.addAll(
                 "-Xextended-compiler-checks",
                 "-Xreturn-value-checker=full",
+                "-Xcontext-parameters",
             )
         }
     }

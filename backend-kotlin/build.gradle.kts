@@ -5,15 +5,14 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     application
-    id("org.graalvm.buildtools.native") version "0.10.2"
+    id("org.graalvm.buildtools.native") version "0.11.4"
 }
 
 group = "com.alexn.socialpublish"
+
 version = "1.0.0"
 
-repositories {
-    mavenCentral()
-}
+repositories { mavenCentral() }
 
 dependencies {
     // Kotlin stdlib
@@ -58,16 +57,15 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+tasks.test { useJUnitPlatform() }
 
 kotlin {
     // Use the default JVM from the environment/container instead of requiring a specific toolchain
 }
 
 java {
-    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid inconsistent JVM target errors
+    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid inconsistent JVM target
+    // errors
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
@@ -81,14 +79,13 @@ tasks.withType<JavaCompile> {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         freeCompilerArgs.add("-Xjsr305=strict")
-        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM available in the environment.
+        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM
+        // available in the environment.
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 
-application {
-    mainClass.set("com.alexn.socialpublish.MainKt")
-}
+application { mainClass.set("com.alexn.socialpublish.MainKt") }
 
 graalvmNative {
     metadataRepository {
@@ -102,9 +99,15 @@ graalvmNative {
             verbose.set(true)
             imageName.set("social-publish")
 
-            buildArgs.add("--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers")
-            buildArgs.add("--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder")
-            buildArgs.add("--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls")
+            buildArgs.add(
+                "--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers"
+            )
+            buildArgs.add(
+                "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder"
+            )
+            buildArgs.add(
+                "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls"
+            )
             buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
 
             buildArgs.add("--no-fallback")
@@ -118,11 +121,7 @@ graalvmNative {
 
 tasks {
     jar {
-        manifest {
-            attributes(
-                "Main-Class" to "com.alexn.socialpublish.MainKt",
-            )
-        }
+        manifest { attributes("Main-Class" to "com.alexn.socialpublish.MainKt") }
         from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
@@ -130,12 +129,15 @@ tasks {
     // Fat JAR task
     register<Jar>("fatJar") {
         archiveClassifier.set("all")
-        manifest {
-            attributes("Main-Class" to "com.alexn.socialpublish.MainKt")
-        }
+        manifest { attributes("Main-Class" to "com.alexn.socialpublish.MainKt") }
         from(sourceSets.main.get().output)
         dependsOn(configurations.runtimeClasspath)
-        from({ configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) } })
+        from({
+            configurations.runtimeClasspath
+                .get()
+                .filter { it.exists() }
+                .map { if (it.isDirectory) it else zipTree(it) }
+        })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }

@@ -11,8 +11,8 @@ dependencyResolutionManagement {
             version("ktor", "3.3.3")
             version("arrow", "2.2.1.1")
             version("jdbi", "3.51.0")
-            version("logback", "1.5.24")
-            version("clikt", "5.0.3")
+            version("logback", "1.5.25")
+            version("clikt", "5.1.0")
             version("scrimage", "4.3.5")
             version("kotlinx-serialization", "1.9.0")
             version("sqlite-jdbc", "3.51.1.0")
@@ -79,7 +79,7 @@ dependencyResolutionManagement {
             library("scribejava-core", "com.github.scribejava", "scribejava-core").versionRef("scribejava")
 
             // Testing libraries
-            library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").withoutVersion()
+            library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").versionRef("kotlin")
             library("ktor-server-test-host", "io.ktor", "ktor-server-test-host").versionRef("ktor")
             library("ktor-client-mock", "io.ktor", "ktor-client-mock").versionRef("ktor")
             library("mockk", "io.mockk", "mockk").versionRef("mockk")
