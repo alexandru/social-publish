@@ -119,7 +119,7 @@ run-native: build-native-local
 
 # Code quality
 lint:
-	./gradlew ktlintCheck
+	./gradlew ktfmtCheck
 
 format:
-	./gradlew ktlintFormat
+	./gradlew ktfmtFormat
