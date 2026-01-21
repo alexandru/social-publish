@@ -275,11 +275,7 @@ class BlueskyApiTest {
                     blueskyClient,
                 )
 
-            val req =
-                NewPostRequest(
-                    content = "Hello bluesky",
-                    link = "http://localhost/preview",
-                )
+            val req = NewPostRequest(content = "Hello bluesky", link = "http://localhost/preview")
             val result = blueskyModule.createPost(req)
 
             assertTrue(result.isRight())

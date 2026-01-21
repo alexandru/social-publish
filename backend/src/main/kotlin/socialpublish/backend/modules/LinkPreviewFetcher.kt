@@ -10,11 +10,7 @@ import io.ktor.http.isRedirect
 import io.ktor.http.isSuccess
 import org.jsoup.Jsoup
 
-data class LinkPreviewMetadata(
-    val title: String,
-    val description: String?,
-    val thumbnail: String?,
-)
+data class LinkPreviewMetadata(val title: String, val description: String?, val thumbnail: String?)
 
 class LinkPreviewFetcher(private val httpClient: HttpClient) {
     private val logger = KotlinLogging.logger {}
@@ -39,12 +35,14 @@ class LinkPreviewFetcher(private val httpClient: HttpClient) {
                 val html = runCatching { response.body<String>() }.getOrNull() ?: raise(null)
                 val doc = runCatching { Jsoup.parse(html) }.getOrNull() ?: raise(null)
 
-                val title = doc.selectFirst("meta[property=og:title]")?.attr("content")
-                    ?: doc.title().takeIf { it.isNotBlank() }
-                    ?: raise(null)
+                val title =
+                    doc.selectFirst("meta[property=og:title]")?.attr("content")
+                        ?: doc.title().takeIf { it.isNotBlank() }
+                        ?: raise(null)
                 val description =
-                    doc.selectFirst("meta[property=og:description]")?.attr("content")
-                        ?.takeIf { it.isNotBlank() }
+                    doc.selectFirst("meta[property=og:description]")?.attr("content")?.takeIf {
+                        it.isNotBlank()
+                    }
                         ?: doc.selectFirst("meta[name=description]")?.attr("content")?.takeIf {
                             it.isNotBlank()
                         }
@@ -53,11 +51,7 @@ class LinkPreviewFetcher(private val httpClient: HttpClient) {
                         it.isNotBlank()
                     }
 
-                LinkPreviewMetadata(
-                    title = title,
-                    description = description,
-                    thumbnail = image,
-                )
+                LinkPreviewMetadata(title = title, description = description, thumbnail = image)
             }
             .getOrNull()
 }
