@@ -34,11 +34,7 @@ fun LoginPage() {
                 when (response) {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
-                        Storage.setAuthStatus(
-                            com.alexn.socialpublish.utils.HasAuth(
-                                twitter = response.data.hasAuth.twitter
-                            )
-                        )
+                        Storage.setAuthStatus(response.data.hasAuth)
                         // Check for redirect query param
                         val urlParams = window.location.search
                         val redirect = urlParams.split("redirect=").getOrNull(1)?.split("&")?.firstOrNull()

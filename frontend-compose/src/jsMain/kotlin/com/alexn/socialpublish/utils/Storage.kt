@@ -1,19 +1,13 @@
 package com.alexn.socialpublish.utils
 
+import com.alexn.socialpublish.models.AuthStatus
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
-import kotlin.js.Date
-
-@Serializable
-data class HasAuth(
-    val twitter: Boolean = false
-)
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
@@ -62,19 +56,7 @@ object Storage {
     }
     
     // Auth status management (using localStorage)
-    private fun storeObjectInLocalStorage(key: String, value: String?) {
-        if (value == null) {
-            localStorage.removeItem(key)
-        } else {
-            localStorage[key] = value
-        }
-    }
-    
-    private fun getObjectFromLocalStorage(key: String): String? {
-        return localStorage[key]
-    }
-    
-    fun setAuthStatus(hasAuth: HasAuth?) {
+    fun setAuthStatus(hasAuth: AuthStatus?) {
         if (hasAuth == null) {
             localStorage.removeItem(AUTH_STATUS_KEY)
         } else {
@@ -82,20 +64,20 @@ object Storage {
         }
     }
     
-    fun getAuthStatus(): HasAuth {
+    fun getAuthStatus(): AuthStatus {
         val stored = localStorage[AUTH_STATUS_KEY]
         return if (stored != null) {
             try {
-                Json.decodeFromString<HasAuth>(stored)
+                Json.decodeFromString<AuthStatus>(stored)
             } catch (e: Exception) {
-                HasAuth()
+                AuthStatus()
             }
         } else {
-            HasAuth()
+            AuthStatus()
         }
     }
     
-    fun updateAuthStatus(f: (HasAuth) -> HasAuth) {
+    fun updateAuthStatus(f: (AuthStatus) -> AuthStatus) {
         val current = getAuthStatus()
         setAuthStatus(f(current))
     }

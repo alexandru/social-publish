@@ -2,15 +2,14 @@ package com.alexn.socialpublish.pages
 
 import androidx.compose.runtime.*
 import com.alexn.socialpublish.components.Authorize
+import com.alexn.socialpublish.utils.ApiClient
+import com.alexn.socialpublish.utils.ApiResponse
 import com.alexn.socialpublish.utils.Storage
 import kotlinx.browser.window
-import kotlinx.coroutines.await
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
-import org.w3c.fetch.RequestInit
 
 @Serializable
 data class TwitterStatusResponse(
@@ -26,16 +25,9 @@ fun AccountPage() {
         
         LaunchedEffect(Unit) {
             scope.launch {
-                try {
-                    val response = window.fetch("/api/twitter/status", RequestInit(
-                        method = "GET"
-                    )).await()
-                    
-                    if (response.status.toInt() == 200) {
-                        val text = response.text().await()
-                        val json = Json { ignoreUnknownKeys = true }
-                        val data = json.decodeFromString<TwitterStatusResponse>(text)
-                        
+                when (val response = ApiClient.get<TwitterStatusResponse>("/api/twitter/status")) {
+                    is ApiResponse.Success -> {
+                        val data = response.data
                         if (data.hasAuthorization) {
                             val atDateTime = if (data.createdAt != null) {
                                 try {
@@ -54,11 +46,13 @@ fun AccountPage() {
                         Storage.updateAuthStatus { current ->
                             current.copy(twitter = data.hasAuthorization)
                         }
-                    } else {
-                        twitterStatus = "Error: HTTP ${response.status.toInt()}"
                     }
-                } catch (e: Exception) {
-                    twitterStatus = "Error: ${e.message}"
+                    is ApiResponse.Error -> {
+                        twitterStatus = "Error: HTTP ${response.code}"
+                    }
+                    is ApiResponse.Exception -> {
+                        twitterStatus = "Error: ${response.message}"
+                    }
                 }
             }
         }
