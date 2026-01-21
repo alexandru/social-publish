@@ -2,6 +2,7 @@ package socialpublish.frontend.utils
 
 import kotlinx.browser.window
 import kotlinx.coroutines.await
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.w3c.fetch.RequestInit
 import org.w3c.fetch.Response
@@ -112,7 +113,7 @@ object ApiClient {
     }
 }
 
-@kotlinx.serialization.Serializable data class ErrorResponse(val error: String)
+@Serializable data class ErrorResponse(val error: String)
 
 sealed class ApiResponse<out T> {
     data class Success<T>(val data: T) : ApiResponse<T>()

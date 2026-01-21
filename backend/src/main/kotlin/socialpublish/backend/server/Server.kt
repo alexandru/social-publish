@@ -35,6 +35,8 @@ import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
 import socialpublish.backend.integrations.mastodon.MastodonApiModule
 import socialpublish.backend.integrations.twitter.TwitterApiModule
+import socialpublish.backend.models.CompositeErrorResponse
+import socialpublish.backend.models.CompositeErrorWithDetails
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.NewBlueSkyPostResponse
 import socialpublish.backend.models.NewMastodonPostResponse
@@ -103,6 +105,15 @@ fun startServer(
                             subclass(NewBlueSkyPostResponse::class)
                             subclass(NewTwitterPostResponse::class)
                         }
+                        // Explicitly register serializers to ensure availability in native image
+                        contextual(
+                            CompositeErrorResponse::class,
+                            CompositeErrorResponse.serializer(),
+                        )
+                        contextual(
+                            CompositeErrorWithDetails::class,
+                            CompositeErrorWithDetails.serializer(),
+                        )
                     }
                 }
             )
