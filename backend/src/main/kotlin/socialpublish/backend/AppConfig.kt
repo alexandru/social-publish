@@ -220,10 +220,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
 
         val linkedinConfig =
             if (linkedinAccessToken != null && linkedinPersonUrn != null) {
-                LinkedInConfig(
-                    accessToken = linkedinAccessToken!!,
-                    personUrn = linkedinPersonUrn!!,
-                )
+                LinkedInConfig(accessToken = linkedinAccessToken!!, personUrn = linkedinPersonUrn!!)
             } else {
                 null
             }

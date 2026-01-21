@@ -276,15 +276,18 @@ class LinkedInApiModule(
             // Add link preview if link is provided
             if (request.link != null && mediaList.isEmpty()) {
                 val (title, imageUrl) = fetchLinkPreview(request.link)
-                mediaList.add(
-                    ShareMedia(
-                        status = "READY",
-                        originalUrl = request.link,
-                        title = title?.let { Title(text = it) },
-                        description = Description(text = content),
-                        media = imageUrl ?: "",
+                // Only add media if we have an image URL, otherwise LinkedIn will reject it
+                if (imageUrl != null && imageUrl.isNotEmpty()) {
+                    mediaList.add(
+                        ShareMedia(
+                            status = "READY",
+                            originalUrl = request.link,
+                            title = title?.let { Title(text = it) },
+                            description = Description(text = content),
+                            media = imageUrl,
+                        )
                     )
-                )
+                }
             }
 
             // Determine share media category
