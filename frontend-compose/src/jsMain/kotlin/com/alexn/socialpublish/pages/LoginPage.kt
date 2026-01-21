@@ -30,10 +30,11 @@ fun LoginPage() {
         scope.launch {
             isLoading = true
             try {
-                val response = ApiClient.post<LoginResponse, LoginRequest>(
-                    "/api/login",
-                    LoginRequest(username, password)
-                )
+                val response =
+                    ApiClient.post<LoginResponse, LoginRequest>(
+                        "/api/login",
+                        LoginRequest(username, password),
+                    )
 
                 when (response) {
                     is ApiResponse.Success -> {
@@ -59,62 +60,64 @@ fun LoginPage() {
         }
     }
 
-    ErrorModal(message = error) {
-        error = null
-    }
+    ErrorModal(message = error) { error = null }
 
     Div(attrs = { classes("login") }) {
         Section(attrs = { classes("section") }) {
             Div(attrs = { classes("container") }) {
-                H1(attrs = { classes("title") }) {
-                    Text("Login")
-                }
+                H1(attrs = { classes("title") }) { Text("Login") }
 
-                Form(attrs = {
-                    classes("box")
-                    addEventListener("submit") { event ->
-                        event.preventDefault()
-                        handleSubmit()
+                Form(
+                    attrs = {
+                        classes("box")
+                        addEventListener("submit") { event ->
+                            event.preventDefault()
+                            handleSubmit()
+                        }
                     }
-                }) {
+                ) {
                     Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label") }) {
-                            Text("Username")
-                        }
+                        Label(attrs = { classes("label") }) { Text("Username") }
                         Div(attrs = { classes("control") }) {
-                            Input(type = InputType.Text, attrs = {
-                                classes("input")
-                                value(username)
-                                onInput { username = it.value }
-                                attr("required", "")
-                                if (isLoading) attr("disabled", "")
-                            })
+                            Input(
+                                type = InputType.Text,
+                                attrs = {
+                                    classes("input")
+                                    value(username)
+                                    onInput { username = it.value }
+                                    attr("required", "")
+                                    if (isLoading) attr("disabled", "")
+                                },
+                            )
                         }
                     }
 
                     Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label") }) {
-                            Text("Password")
-                        }
+                        Label(attrs = { classes("label") }) { Text("Password") }
                         Div(attrs = { classes("control") }) {
-                            Input(type = InputType.Password, attrs = {
-                                classes("input")
-                                value(password)
-                                onInput { password = it.value }
-                                attr("required", "")
-                                if (isLoading) attr("disabled", "")
-                            })
+                            Input(
+                                type = InputType.Password,
+                                attrs = {
+                                    classes("input")
+                                    value(password)
+                                    onInput { password = it.value }
+                                    attr("required", "")
+                                    if (isLoading) attr("disabled", "")
+                                },
+                            )
                         }
                     }
 
-                    Button(attrs = {
-                        classes("button", "is-primary")
-                        attr("type", "submit")
-                        if (isLoading) {
-                            classes("is-loading")
-                            attr("disabled", "")
+                    Button(
+                        attrs = {
+                            classes("button", "is-primary")
+                            attr("type", "submit")
+                            if (isLoading) {
+                                classes("is-loading")
+                                attr("disabled", "")
+                            }
                         }
-                    }) {
+                    ) {
                         Text("Submit")
                     }
                 }

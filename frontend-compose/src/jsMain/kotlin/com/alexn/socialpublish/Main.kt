@@ -18,9 +18,7 @@ fun main() {
     link.href = "https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css"
     document.head?.appendChild(link)
 
-    renderComposable(rootElementId = "root") {
-        App()
-    }
+    renderComposable(rootElementId = "root") { App() }
 }
 
 @Composable
@@ -29,13 +27,9 @@ fun App() {
 
     // Handle browser navigation
     DisposableEffect(Unit) {
-        val listener: (dynamic) -> Unit = {
-            currentPath = window.location.pathname
-        }
+        val listener: (dynamic) -> Unit = { currentPath = window.location.pathname }
         window.addEventListener("popstate", listener)
-        onDispose {
-            window.removeEventListener("popstate", listener)
-        }
+        onDispose { window.removeEventListener("popstate", listener) }
     }
 
     Div {

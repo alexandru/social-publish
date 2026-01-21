@@ -35,30 +35,21 @@ sealed class NewPostResponse {
 }
 
 @Serializable
-data class NewBlueSkyPostResponse(
-    val uri: String,
-    val cid: String? = null,
-) : NewPostResponse() {
+data class NewBlueSkyPostResponse(val uri: String, val cid: String? = null) : NewPostResponse() {
     override val module: String = "bluesky"
 }
 
 @Serializable
-data class NewMastodonPostResponse(
-    val uri: String,
-) : NewPostResponse() {
+data class NewMastodonPostResponse(val uri: String) : NewPostResponse() {
     override val module: String = "mastodon"
 }
 
 @Serializable
-data class NewRssPostResponse(
-    val uri: String,
-) : NewPostResponse() {
+data class NewRssPostResponse(val uri: String) : NewPostResponse() {
     override val module: String = "rss"
 }
 
 @Serializable
-data class NewTwitterPostResponse(
-    val id: String,
-) : NewPostResponse() {
+data class NewTwitterPostResponse(val id: String) : NewPostResponse() {
     override val module: String = "twitter"
 }

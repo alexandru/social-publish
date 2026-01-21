@@ -23,18 +23,14 @@ import io.ktor.server.response.respond
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-/**
- * Form module for broadcasting posts to multiple social media platforms
- */
+/** Form module for broadcasting posts to multiple social media platforms */
 class FormModule(
     private val mastodonModule: MastodonApiModule?,
     private val blueskyModule: BlueskyApiModule?,
     private val twitterModule: TwitterApiModule?,
     private val rssModule: RssModule,
 ) {
-    /**
-     * Broadcast post to multiple platforms
-     */
+    /** Broadcast post to multiple platforms */
     suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
         val targets = request.targets?.map { it.lowercase() } ?: emptyList()
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
@@ -45,10 +41,11 @@ class FormModule(
             tasks.add {
                 mastodonModule?.createPost(request)
                     ?: ValidationError(
-                        status = 503,
-                        errorMessage = "Mastodon integration not configured",
-                        module = "form",
-                    ).left()
+                            status = 503,
+                            errorMessage = "Mastodon integration not configured",
+                            module = "form",
+                        )
+                        .left()
             }
         }
 
@@ -56,10 +53,11 @@ class FormModule(
             tasks.add {
                 blueskyModule?.createPost(request)
                     ?: ValidationError(
-                        status = 503,
-                        errorMessage = "Bluesky integration not configured",
-                        module = "form",
-                    ).left()
+                            status = 503,
+                            errorMessage = "Bluesky integration not configured",
+                            module = "form",
+                        )
+                        .left()
             }
         }
 
@@ -67,19 +65,15 @@ class FormModule(
             tasks.add {
                 twitterModule?.createPost(request)
                     ?: ValidationError(
-                        status = 503,
-                        errorMessage = "Twitter integration not configured",
-                        module = "form",
-                    ).left()
+                            status = 503,
+                            errorMessage = "Twitter integration not configured",
+                            module = "form",
+                        )
+                        .left()
             }
         }
 
-        val results =
-            coroutineScope {
-                tasks.map { task ->
-                    async { task() }
-                }.map { it.await() }
-            }
+        val results = coroutineScope { tasks.map { task -> async { task() } }.map { it.await() } }
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {
@@ -88,10 +82,7 @@ class FormModule(
                 results.map { result ->
                     when (result) {
                         is Either.Right ->
-                            CompositeErrorResponse(
-                                type = "success",
-                                result = result.value,
-                            )
+                            CompositeErrorResponse(type = "success", result = result.value)
                         is Either.Left ->
                             CompositeErrorResponse(
                                 type = "error",
@@ -102,11 +93,13 @@ class FormModule(
                     }
                 }
             return CompositeError(
-                status = status,
-                module = "form",
-                errorMessage = "Failed to create post via ${errors.joinToString(", ") { it.value.module ?: "unknown" }}.",
-                responses = responsePayloads,
-            ).left()
+                    status = status,
+                    module = "form",
+                    errorMessage =
+                        "Failed to create post via ${errors.joinToString(", ") { it.value.module ?: "unknown" }}.",
+                    responses = responsePayloads,
+                )
+                .left()
         }
 
         val responseMap = mutableMapOf<String, NewPostResponse>()
@@ -117,22 +110,20 @@ class FormModule(
         return responseMap.right()
     }
 
-    /**
-     * Handle broadcast POST HTTP route
-     */
+    /** Handle broadcast POST HTTP route */
     suspend fun broadcastPostRoute(call: ApplicationCall) {
         val request =
-            runCatching {
-                call.receive<NewPostRequest>()
-            }.getOrNull()
+            runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
-                    // If JSON receive failed, try form parameters. To avoid RequestAlreadyConsumedException,
+                    // If JSON receive failed, try form parameters. To avoid
+                    // RequestAlreadyConsumedException,
                     // only attempt to read form parameters if content type is form data.
                     val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
                     val contentType = contentTypeHeader?.let { ContentType.parse(it) }
                     val params =
-                        if (contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
-                            contentType?.match(ContentType.MultiPart.FormData) == true
+                        if (
+                            contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
+                                contentType?.match(ContentType.MultiPart.FormData) == true
                         ) {
                             call.receiveParameters()
                         } else {
@@ -163,10 +154,7 @@ class FormModule(
                 val error = result.value
                 val payload =
                     if (error is CompositeError) {
-                        mapOf(
-                            "error" to error.errorMessage,
-                            "responses" to error.responses,
-                        )
+                        mapOf("error" to error.errorMessage, "responses" to error.responses)
                     } else {
                         mapOf("error" to error.errorMessage)
                     }

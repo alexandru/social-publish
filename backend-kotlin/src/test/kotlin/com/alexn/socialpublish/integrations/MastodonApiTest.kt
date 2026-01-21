@@ -12,6 +12,7 @@ import com.alexn.socialpublish.testutils.imageDimensions
 import com.alexn.socialpublish.testutils.loadTestResourceBytes
 import com.alexn.socialpublish.testutils.receiveMultipart
 import com.alexn.socialpublish.testutils.uploadTestImage
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
@@ -19,6 +20,8 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import java.nio.file.Path
+import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -26,15 +29,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.Test
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
 class MastodonApiTest {
     @Test
-    fun `uploads images with alt text and creates status`(
-        @TempDir tempDir: Path,
-    ) = runTest {
+    fun `uploads images with alt text and creates status`(@TempDir tempDir: Path) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -68,7 +66,8 @@ class MastodonApiTest {
                         descriptions.add(multipart.fields["description"]?.firstOrNull())
                         mediaCounter += 1
                         call.respondText(
-                            "{" + "\"id\":\"media-$mediaCounter\",\"url\":\"http://media.local/$mediaCounter\"}",
+                            "{" +
+                                "\"id\":\"media-$mediaCounter\",\"url\":\"http://media.local/$mediaCounter\"}",
                             io.ktor.http.ContentType.Application.Json,
                         )
                     }
@@ -76,30 +75,34 @@ class MastodonApiTest {
                         val params = call.receiveParameters()
                         statusMediaIds = params.getAll("media_ids[]")
                         call.respondText(
-                            "{" + "\"id\":\"status-1\",\"uri\":\"http://mastodon.local/status/1\",\"url\":\"http://mastodon.local/s/1\"}",
+                            "{" +
+                                "\"id\":\"status-1\",\"uri\":\"http://mastodon.local/status/1\",\"url\":\"http://mastodon.local/s/1\"}",
                             io.ktor.http.ContentType.Application.Json,
                         )
                     }
                 }
             }
 
-            val mastodonClient =
-                createClient {
-                    install(ClientContentNegotiation) {
-                        json(
-                            Json {
-                                ignoreUnknownKeys = true
-                                isLenient = true
-                            },
-                        )
-                    }
+            val mastodonClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
                 }
+            }
 
             val upload1 = uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
             val upload2 = uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
 
             val mastodonModule =
-                MastodonApiModule(MastodonConfig(host = "http://localhost", accessToken = "token"), filesModule, mastodonClient)
+                MastodonApiModule(
+                    MastodonConfig(host = "http://localhost", accessToken = "token"),
+                    filesModule,
+                    mastodonClient,
+                )
 
             val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
             val result = mastodonModule.createPost(req)
@@ -118,8 +121,14 @@ class MastodonApiTest {
             assertTrue(uploadedImages[0].height <= 1080)
             assertTrue(uploadedImages[1].width <= 1920)
             assertTrue(uploadedImages[1].height <= 1080)
-            assertTrue(uploadedImages[0].width < original1.width || uploadedImages[0].height < original1.height)
-            assertTrue(uploadedImages[1].width < original2.width || uploadedImages[1].height < original2.height)
+            assertTrue(
+                uploadedImages[0].width < original1.width ||
+                    uploadedImages[0].height < original1.height
+            )
+            assertTrue(
+                uploadedImages[1].width < original2.width ||
+                    uploadedImages[1].height < original2.height
+            )
 
             mastodonClient.close()
         }

@@ -4,15 +4,12 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 
-/**
- * Tests to ensure error JSON serialization matches the legacy backend format.
- */
+/** Tests to ensure error JSON serialization matches the legacy backend format. */
 class ErrorSerializationTest {
-    private val json =
-        Json {
-            prettyPrint = false
-            encodeDefaults = true
-        }
+    private val json = Json {
+        prettyPrint = false
+        encodeDefaults = true
+    }
 
     @Test
     fun `ValidationError should serialize correctly`() {
@@ -26,7 +23,11 @@ class ErrorSerializationTest {
         val jsonString = json.encodeToString(error)
 
         assert(jsonString.contains("\"status\":400"))
-        assert(jsonString.contains("\"errorMessage\":\"Content must be between 1 and 1000 characters\""))
+        assert(
+            jsonString.contains(
+                "\"errorMessage\":\"Content must be between 1 and 1000 characters\""
+            )
+        )
         assert(jsonString.contains("\"module\":\"form\""))
     }
 

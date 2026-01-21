@@ -1,6 +1,6 @@
-# Social-Publish Backend (Kotlin)
+# Social-Publish (Kotlin)
 
-This project is the backend for the Social Publish project. Its purpose is to expose an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn).
+This project is the Social Publish application. Its purpose is to expose an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn).
 
 It's built in Kotlin, using idiomatic functional programming and Arrow for functional data types and resource management.
 
@@ -15,7 +15,7 @@ Commands:
 - To run tests:
   `./gradlew test`
 - To format the source code (required):
-  `./gradlew ktlintFormat`
+  `./gradlew ktfmtFormat`
 
 ## Coding style
 

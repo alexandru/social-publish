@@ -5,6 +5,7 @@ import com.alexn.socialpublish.testutils.createTestDatabase
 import com.alexn.socialpublish.testutils.imageDimensions
 import com.alexn.socialpublish.testutils.loadTestResourceBytes
 import com.alexn.socialpublish.testutils.uploadTestImage
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -14,20 +15,17 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import java.nio.file.Path
+import kotlin.test.Test
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.Test
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
 class FilesModuleTest {
     @Test
-    fun `uploads images and stores originals`(
-        @TempDir tempDir: Path,
-    ) = testApplication {
+    fun `uploads images and stores originals`(@TempDir tempDir: Path) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val filesDb = com.alexn.socialpublish.db.FilesDatabase(jdbi)
@@ -53,17 +51,16 @@ class FilesModuleTest {
             }
         }
 
-        val client =
-            createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        },
-                    )
-                }
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
             }
+        }
 
         val upload1 = uploadTestImage(client, "flower1.jpeg", "rose")
         val upload2 = uploadTestImage(client, "flower2.jpeg", "tulip")
@@ -91,25 +88,28 @@ class FilesModuleTest {
 
         val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid))
         val resized =
-            requireNotNull(filesModule.readImageFile(upload1.uuid, maxWidth = 1920, maxHeight = 1080))
+            requireNotNull(
+                filesModule.readImageFile(upload1.uuid, maxWidth = 1920, maxHeight = 1080)
+            )
         val resizedDimensions = imageDimensions(resized.bytes)
 
         assertTrue(resizedDimensions.width <= 1920)
         assertTrue(resizedDimensions.height <= 1080)
-        assertTrue(resizedDimensions.width < original1.width || resizedDimensions.height < original1.height)
+        assertTrue(
+            resizedDimensions.width < original1.width || resizedDimensions.height < original1.height
+        )
         assertEquals(resizedDimensions.width, resized.width)
         assertEquals(resizedDimensions.height, resized.height)
 
-        val resizedFile = tempDir.resolve("uploads").resolve("resizing").resolve(uploadRow.hash).toFile()
+        val resizedFile =
+            tempDir.resolve("uploads").resolve("resizing").resolve(uploadRow.hash).toFile()
         assertTrue(resizedFile.exists())
 
         client.close()
     }
 
     @Test
-    fun `fails when file part name is incorrect`(
-        @TempDir tempDir: Path,
-    ) = testApplication {
+    fun `fails when file part name is incorrect`(@TempDir tempDir: Path) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
 
@@ -134,17 +134,16 @@ class FilesModuleTest {
             }
         }
 
-        val client =
-            createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        },
-                    )
-                }
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
             }
+        }
 
         val response =
             client.submitFormWithBinaryData(
@@ -156,7 +155,10 @@ class FilesModuleTest {
                             loadTestResourceBytes("flower1.jpeg"),
                             io.ktor.http.Headers.build {
                                 append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
-                                append(io.ktor.http.HttpHeaders.ContentDisposition, "filename=\"flower1.jpeg\"")
+                                append(
+                                    io.ktor.http.HttpHeaders.ContentDisposition,
+                                    "filename=\"flower1.jpeg\"",
+                                )
                             },
                         )
                     },

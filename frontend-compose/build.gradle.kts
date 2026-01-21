@@ -55,5 +55,23 @@ kotlin {
                 implementation(npm("bulma", "1.0.4"))
             }
         }
+        val jsTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+    }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+        freeCompilerArgs.set(
+            listOf(
+                "-Xextended-compiler-checks",
+                "-Xreturn-value-checker=full",
+            )
+        )
     }
 }

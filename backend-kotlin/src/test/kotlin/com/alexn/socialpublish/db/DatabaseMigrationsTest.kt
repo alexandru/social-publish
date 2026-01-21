@@ -1,18 +1,16 @@
 package com.alexn.socialpublish.db
 
+import java.nio.file.Path
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.assertTrue
 
 class DatabaseMigrationsTest {
     @Test
-    fun `database migrations create required tables`(
-        @TempDir tempDir: Path,
-    ) = runTest {
+    fun `database migrations create required tables`(@TempDir tempDir: Path) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
         val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 
@@ -21,7 +19,8 @@ class DatabaseMigrationsTest {
 
         jdbi.useHandle<Exception> { handle ->
             val tables =
-                handle.createQuery("SELECT name FROM sqlite_master WHERE type='table'")
+                handle
+                    .createQuery("SELECT name FROM sqlite_master WHERE type='table'")
                     .mapTo(String::class.java)
                     .list()
 
@@ -32,7 +31,8 @@ class DatabaseMigrationsTest {
 
         jdbi.useHandle<Exception> { handle ->
             val tables =
-                handle.createQuery("SELECT name FROM sqlite_master WHERE type='table'")
+                handle
+                    .createQuery("SELECT name FROM sqlite_master WHERE type='table'")
                     .mapTo(String::class.java)
                     .list()
 

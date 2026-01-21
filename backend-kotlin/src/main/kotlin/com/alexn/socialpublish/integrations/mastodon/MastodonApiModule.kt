@@ -46,12 +46,7 @@ data class MastodonMediaResponse(
     val description: String? = null,
 )
 
-@Serializable
-data class MastodonStatusResponse(
-    val id: String,
-    val uri: String,
-    val url: String,
-)
+@Serializable data class MastodonStatusResponse(val id: String, val uri: String, val url: String)
 
 class MastodonApiModule(
     private val config: MastodonConfig,
@@ -66,7 +61,7 @@ class MastodonApiModule(
                         Json {
                             ignoreUnknownKeys = true
                             isLenient = true
-                        },
+                        }
                     )
                 }
             }
@@ -76,18 +71,17 @@ class MastodonApiModule(
     private val mediaUrlV1 = "${config.host}/api/v1/media"
     private val statusesUrlV1 = "${config.host}/api/v1/statuses"
 
-    /**
-     * Upload media to Mastodon
-     */
+    /** Upload media to Mastodon */
     private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> {
         return try {
             val file =
                 filesModule.readImageFile(uuid, maxWidth = 1920, maxHeight = 1080)
                     ?: return ValidationError(
-                        status = 404,
-                        errorMessage = "Failed to read image file — uuid: $uuid",
-                        module = "mastodon",
-                    ).left()
+                            status = 404,
+                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            module = "mastodon",
+                        )
+                        .left()
 
             val response =
                 httpClient.submitFormWithBinaryData(
@@ -99,7 +93,10 @@ class MastodonApiModule(
                                 file.bytes,
                                 Headers.build {
                                     append(HttpHeaders.ContentType, file.mimetype)
-                                    append(HttpHeaders.ContentDisposition, "filename=\"${file.originalname}\"")
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"${file.originalname}\"",
+                                    )
                                 },
                             )
                             file.altText?.let { append("description", it) }
@@ -120,28 +117,30 @@ class MastodonApiModule(
                 }
                 else -> {
                     val errorBody = response.bodyAsText()
-                    logger.warn { "Failed to upload media to Mastodon: ${response.status}, body: $errorBody" }
+                    logger.warn {
+                        "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
+                    }
                     RequestError(
-                        status = response.status.value,
-                        module = "mastodon",
-                        errorMessage = "Failed to upload media",
-                        body = ResponseBody(asString = errorBody),
-                    ).left()
+                            status = response.status.value,
+                            module = "mastodon",
+                            errorMessage = "Failed to upload media",
+                            body = ResponseBody(asString = errorBody),
+                        )
+                        .left()
                 }
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
             CaughtException(
-                status = 500,
-                module = "mastodon",
-                errorMessage = "Failed to upload media — uuid: $uuid",
-            ).left()
+                    status = 500,
+                    module = "mastodon",
+                    errorMessage = "Failed to upload media — uuid: $uuid",
+                )
+                .left()
         }
     }
 
-    /**
-     * Poll for media processing completion
-     */
+    /** Poll for media processing completion */
     private suspend fun waitForMediaProcessing(mediaId: String): ApiResult<MastodonMediaResponse> {
         for (attempt in 1..30) { // Try for up to 6 seconds
             delay(200)
@@ -163,25 +162,25 @@ class MastodonApiModule(
                 else -> {
                     val errorBody = response.bodyAsText()
                     return RequestError(
-                        status = response.status.value,
-                        module = "mastodon",
-                        errorMessage = "Failed to get media status",
-                        body = ResponseBody(asString = errorBody),
-                    ).left()
+                            status = response.status.value,
+                            module = "mastodon",
+                            errorMessage = "Failed to get media status",
+                            body = ResponseBody(asString = errorBody),
+                        )
+                        .left()
                 }
             }
         }
 
         return CaughtException(
-            status = 500,
-            module = "mastodon",
-            errorMessage = "Media processing timeout",
-        ).left()
+                status = 500,
+                module = "mastodon",
+                errorMessage = "Media processing timeout",
+            )
+            .left()
     }
 
-    /**
-     * Create a post on Mastodon
-     */
+    /** Create a post on Mastodon */
     suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -228,37 +227,33 @@ class MastodonApiModule(
 
             if (response.status.value == 200) {
                 val data = response.body<MastodonStatusResponse>()
-                NewMastodonPostResponse(
-                    uri = data.url,
-                ).right()
+                NewMastodonPostResponse(uri = data.url).right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn { "Failed to post to Mastodon: ${response.status}, body: $errorBody" }
                 RequestError(
-                    status = response.status.value,
-                    module = "mastodon",
-                    errorMessage = "Failed to create status",
-                    body = ResponseBody(asString = errorBody),
-                ).left()
+                        status = response.status.value,
+                        module = "mastodon",
+                        errorMessage = "Failed to create status",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to post to Mastodon" }
             CaughtException(
-                status = 500,
-                module = "mastodon",
-                errorMessage = "Failed to post to Mastodon: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "mastodon",
+                    errorMessage = "Failed to post to Mastodon: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Handle Mastodon post creation HTTP route
-     */
+    /** Handle Mastodon post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
         val request =
-            runCatching {
-                call.receive<NewPostRequest>()
-            }.getOrNull()
+            runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
@@ -275,7 +270,10 @@ class MastodonApiModule(
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
-                call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    mapOf("error" to error.errorMessage),
+                )
             }
         }
     }

@@ -1,24 +1,20 @@
 package com.alexn.socialpublish.db
 
+import java.nio.file.Path
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class PostsDatabaseTest {
     @Test
-    fun `test create and retrieve post`(
-        @TempDir tempDir: Path,
-    ) = runTest {
+    fun `test create and retrieve post`(@TempDir tempDir: Path) = runTest {
         // Setup
         val dbPath = tempDir.resolve("test.db").toString()
-        val jdbi =
-            Jdbi.create("jdbc:sqlite:$dbPath")
-                .installPlugin(KotlinPlugin())
+        val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 
         // Run migrations
         jdbi.useHandle<Exception> { handle ->
@@ -31,7 +27,8 @@ class PostsDatabaseTest {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
             handle.execute(
                 """
@@ -41,7 +38,8 @@ class PostsDatabaseTest {
                    kind VARCHAR(255) NOT NULL,
                    PRIMARY KEY (document_uuid, name, kind)
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
         }
 

@@ -17,19 +17,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import kotlinx.serialization.json.Json
-import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Test
 
 class AuthModuleTest {
     private val config =
-        ServerAuthConfig(
-            username = "testuser",
-            password = "testpass",
-            jwtSecret = "test-secret",
-        )
+        ServerAuthConfig(username = "testuser", password = "testpass", jwtSecret = "test-secret")
 
     @Test
     fun `should generate valid JWT token`() {
@@ -63,14 +59,8 @@ class AuthModuleTest {
             val authModule = AuthModule(config, twitterAuthProvider = { true })
 
             application {
-                install(ContentNegotiation) {
-                    json()
-                }
-                routing {
-                    post("/api/login") {
-                        authModule.login(call)
-                    }
-                }
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
             }
 
             val response =
@@ -93,15 +83,11 @@ class AuthModuleTest {
             val authModule = AuthModule(config)
 
             application {
-                install(ContentNegotiation) {
-                    json()
-                }
+                install(ContentNegotiation) { json() }
                 configureAuth(config)
                 routing {
                     authenticate("auth-jwt") {
-                        get("/api/protected") {
-                            authModule.protectedRoute(call)
-                        }
+                        get("/api/protected") { authModule.protectedRoute(call) }
                     }
                 }
             }

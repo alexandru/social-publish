@@ -38,13 +38,13 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import java.io.File
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.slf4j.event.Level
-import java.io.File
 
 private val logger = KotlinLogging.logger {}
 
@@ -60,31 +60,17 @@ fun startServer(
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
-    val blueskyClient =
-        config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
-    val mastodonClient =
-        config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
-    val twitterClient =
-        config.twitter?.let { TwitterApiModule.defaultHttpClient() }
+    val blueskyClient = config.bluesky?.let { BlueskyApiModule.defaultHttpClient() }
+    val mastodonClient = config.mastodon?.let { MastodonApiModule.defaultHttpClient() }
+    val twitterClient = config.twitter?.let { TwitterApiModule.defaultHttpClient() }
 
     // Conditionally instantiate integration modules based on config
-    val blueskyModule =
-        config.bluesky?.let {
-            BlueskyApiModule(it, filesModule, blueskyClient!!)
-        }
+    val blueskyModule = config.bluesky?.let { BlueskyApiModule(it, filesModule, blueskyClient!!) }
     val mastodonModule =
-        config.mastodon?.let {
-            MastodonApiModule(it, filesModule, mastodonClient!!)
-        }
+        config.mastodon?.let { MastodonApiModule(it, filesModule, mastodonClient!!) }
     val twitterModule =
         config.twitter?.let {
-            TwitterApiModule(
-                it,
-                config.server.baseUrl,
-                documentsDb,
-                filesModule,
-                twitterClient!!,
-            )
+            TwitterApiModule(it, config.server.baseUrl, documentsDb, filesModule, twitterClient!!)
         }
 
     val authModule =
@@ -93,8 +79,7 @@ fun startServer(
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
         )
 
-    val formModule =
-        FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
+    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
     server(engine, port = config.server.httpPort) {
         install(CORS) {
@@ -115,22 +100,19 @@ fun startServer(
                     // Disable class discriminator to avoid adding "type" field
                     classDiscriminator = "#type"
                     classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
-                    serializersModule =
-                        SerializersModule {
-                            polymorphic(NewPostResponse::class) {
-                                subclass(NewRssPostResponse::class)
-                                subclass(NewMastodonPostResponse::class)
-                                subclass(NewBlueSkyPostResponse::class)
-                                subclass(NewTwitterPostResponse::class)
-                            }
+                    serializersModule = SerializersModule {
+                        polymorphic(NewPostResponse::class) {
+                            subclass(NewRssPostResponse::class)
+                            subclass(NewMastodonPostResponse::class)
+                            subclass(NewBlueSkyPostResponse::class)
+                            subclass(NewTwitterPostResponse::class)
                         }
-                },
+                    }
+                }
             )
         }
 
-        install(CallLogging) {
-            level = Level.INFO
-        }
+        install(CallLogging) { level = Level.INFO }
 
         monitor.subscribe(io.ktor.server.application.ApplicationStopped) {
             blueskyClient?.close()
@@ -153,25 +135,17 @@ fun startServer(
 
         routing {
             // Health check endpoints
-            get("/ping") {
-                call.respondText("pong", status = HttpStatusCode.OK)
-            }
+            get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
 
             // Authentication routes
-            post("/api/login") {
-                authModule.login(call)
-            }
+            post("/api/login") { authModule.login(call) }
 
             // Protected routes
             authenticate("auth-jwt") {
-                get("/api/protected") {
-                    authModule.protectedRoute(call)
-                }
+                get("/api/protected") { authModule.protectedRoute(call) }
 
                 // RSS post creation
-                post("/api/rss/post") {
-                    rssModule.createPostRoute(call)
-                }
+                post("/api/rss/post") { rssModule.createPostRoute(call) }
 
                 // File upload
                 post("/api/files/upload") {
@@ -265,34 +239,22 @@ fun startServer(
                     }
                 }
 
-                post("/api/multiple/post") {
-                    formModule.broadcastPostRoute(call)
-                }
+                post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
             }
 
             // Public RSS feed
-            get("/rss") {
-                rssModule.generateRssRoute(call)
-            }
+            get("/rss") { rssModule.generateRssRoute(call) }
 
-            get("/rss/target/{target}") {
-                rssModule.generateRssRoute(call)
-            }
+            get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
 
-            get("/rss/{uuid}") {
-                rssModule.getRssItem(call)
-            }
+            get("/rss/{uuid}") { rssModule.getRssItem(call) }
 
-            get("/files/{uuid}") {
-                filesModule.getFile(call)
-            }
+            get("/files/{uuid}") { filesModule.getFile(call) }
 
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
                 get("/{path...}") {
-                    val path =
-                        call.parameters.getAll("path")?.joinToString("/")
-                            ?: ""
+                    val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
                     val triedPaths = mutableListOf<String>()
                     for (baseDir in config.server.staticContentPaths) {
                         val canonicalBaseDir = baseDir.canonicalFile
@@ -304,10 +266,10 @@ fun startServer(
                                 File(canonicalBaseDir, path)
                             }
 
-                        if (file.exists() && file.isFile &&
-                            file.canonicalPath.startsWith(
-                                canonicalBaseDir.path,
-                            )
+                        if (
+                            file.exists() &&
+                                file.isFile &&
+                                file.canonicalPath.startsWith(canonicalBaseDir.path)
                         ) {
                             call.respondFile(file)
                             return@get
@@ -318,7 +280,7 @@ fun startServer(
                     logger.warn {
                         "Static file not found. Tried paths:\n${
                             triedPaths.joinToString(
-                                ",\n",
+                                ",\n"
                             )
                         }"
                     }

@@ -1,11 +1,11 @@
 package com.alexn.socialpublish.db
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.time.Instant
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jdbi.v3.core.Jdbi
-import java.time.Instant
-import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 private val json = Json { ignoreUnknownKeys = true }
@@ -42,15 +42,15 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
             )
         }
         if (tags.isNotEmpty()) {
-            logger.info { "Tags for document $documentUuid: ${tags.joinToString(", ") { it.name }}" }
+            logger.info {
+                "Tags for document $documentUuid: ${tags.joinToString(", ") { it.name }}"
+            }
         }
     }
 
-    private fun getDocumentTags(
-        handle: org.jdbi.v3.core.Handle,
-        documentUuid: String,
-    ): List<Tag> {
-        return handle.createQuery("SELECT name, kind FROM document_tags WHERE document_uuid = ?")
+    private fun getDocumentTags(handle: org.jdbi.v3.core.Handle, documentUuid: String): List<Tag> {
+        return handle
+            .createQuery("SELECT name, kind FROM document_tags WHERE document_uuid = ?")
             .bind(0, documentUuid)
             .map { rs, _ -> Tag(rs.getString("name"), rs.getString("kind")) }
             .list()
@@ -66,7 +66,8 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
             jdbi.inTransaction<Document, Exception> { handle ->
                 val existing =
                     searchKey?.let { key ->
-                        handle.createQuery("SELECT * FROM documents WHERE search_key = ?")
+                        handle
+                            .createQuery("SELECT * FROM documents WHERE search_key = ?")
                             .bind(0, key)
                             .mapToMap()
                             .findOne()
@@ -121,7 +122,8 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         return dbInterruptible {
             jdbi.withHandle<Document?, Exception> { handle ->
                 val row =
-                    handle.createQuery("SELECT * FROM documents WHERE search_key = ?")
+                    handle
+                        .createQuery("SELECT * FROM documents WHERE search_key = ?")
                         .bind(0, searchKey)
                         .mapToMap()
                         .findOne()
@@ -144,7 +146,8 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         return dbInterruptible {
             jdbi.withHandle<Document?, Exception> { handle ->
                 val row =
-                    handle.createQuery("SELECT * FROM documents WHERE uuid = ?")
+                    handle
+                        .createQuery("SELECT * FROM documents WHERE uuid = ?")
                         .bind(0, uuid)
                         .mapToMap()
                         .findOne()
@@ -168,14 +171,14 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         CREATED_AT_ASC("created_at ASC"),
     }
 
-    suspend fun getAll(
-        kind: String,
-        orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
-    ): List<Document> {
+    suspend fun getAll(kind: String, orderBy: OrderBy = OrderBy.CREATED_AT_DESC): List<Document> {
         return dbInterruptible {
             jdbi.withHandle<List<Document>, Exception> { handle ->
                 val rows =
-                    handle.createQuery("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}")
+                    handle
+                        .createQuery(
+                            "SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}"
+                        )
                         .bind(0, kind)
                         .mapToMap()
                         .list()

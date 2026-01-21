@@ -16,12 +16,12 @@ import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveMultipart
 import io.ktor.utils.io.readRemaining
-import kotlinx.io.readByteArray
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
 import java.io.ByteArrayInputStream
 import java.nio.file.Path
 import javax.imageio.ImageIO
+import kotlinx.io.readByteArray
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.core.kotlin.KotlinPlugin
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
 
@@ -46,12 +46,10 @@ internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
     return jdbi
 }
 
-internal suspend fun createFilesModule(
-    tempDir: Path,
-    jdbi: Jdbi,
-): FilesModule {
+internal suspend fun createFilesModule(tempDir: Path, jdbi: Jdbi): FilesModule {
     val uploadsDir = tempDir.resolve("uploads")
-    val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir.toString(), baseUrl = "http://localhost")
+    val filesConfig =
+        FilesConfig(uploadedFilesPath = uploadsDir.toString(), baseUrl = "http://localhost")
     return FilesModule.create(filesConfig, FilesDatabase(jdbi))
 }
 
@@ -89,7 +87,8 @@ internal suspend fun uploadTestImage(
                         },
                     )
                 },
-        ).body()
+        )
+        .body()
 }
 
 internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {
@@ -111,7 +110,7 @@ internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {
                             filename = part.originalFileName,
                             contentType = part.contentType,
                             bytes = bytes,
-                        ),
+                        )
                     )
                 }
                 else -> {}

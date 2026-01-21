@@ -17,32 +17,18 @@ import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import kotlinx.serialization.Serializable
 import java.util.Date
+import kotlinx.serialization.Serializable
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class LoginRequest(
-    val username: String,
-    val password: String,
-)
+@Serializable data class LoginRequest(val username: String, val password: String)
 
-@Serializable
-data class LoginResponse(
-    val token: String,
-    val hasAuth: AuthStatus,
-)
+@Serializable data class LoginResponse(val token: String, val hasAuth: AuthStatus)
 
-@Serializable
-data class AuthStatus(
-    val twitter: Boolean = false,
-)
+@Serializable data class AuthStatus(val twitter: Boolean = false)
 
-@Serializable
-data class UserResponse(
-    val username: String,
-)
+@Serializable data class UserResponse(val username: String)
 
 class AuthModule(
     private val config: ServerAuthConfig,
@@ -50,20 +36,18 @@ class AuthModule(
 ) {
     private val algorithm = Algorithm.HMAC256(config.jwtSecret)
 
-    /**
-     * Generate JWT token for authenticated user
-     */
+    /** Generate JWT token for authenticated user */
     fun generateToken(username: String): String {
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
-            .withExpiresAt(Date(System.currentTimeMillis() + 168 * 60 * 60 * 1000)) // 168 hours = 7 days
+            .withExpiresAt(
+                Date(System.currentTimeMillis() + 168 * 60 * 60 * 1000)
+            ) // 168 hours = 7 days
             .sign(algorithm)
     }
 
-    /**
-     * Verify JWT token
-     */
+    /** Verify JWT token */
     fun verifyToken(token: String): String? {
         return try {
             val verifier = JWT.require(algorithm).build()
@@ -76,10 +60,7 @@ class AuthModule(
     }
 
     private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? {
-        val jsonRequest =
-            runCatching {
-                call.receive<LoginRequest>()
-            }.getOrNull()
+        val jsonRequest = runCatching { call.receive<LoginRequest>() }.getOrNull()
         if (jsonRequest != null) {
             return jsonRequest
         }
@@ -94,9 +75,7 @@ class AuthModule(
         }
     }
 
-    /**
-     * Login route handler
-     */
+    /** Login route handler */
     suspend fun login(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
@@ -108,19 +87,14 @@ class AuthModule(
             val token = generateToken(request.username)
             val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
             call.respond(
-                LoginResponse(
-                    token = token,
-                    hasAuth = AuthStatus(twitter = hasTwitterAuth),
-                ),
+                LoginResponse(token = token, hasAuth = AuthStatus(twitter = hasTwitterAuth))
             )
         } else {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
         }
     }
 
-    /**
-     * Protected route handler
-     */
+    /** Protected route handler */
     suspend fun protectedRoute(call: ApplicationCall) {
         val principal = call.principal<JWTPrincipal>()
         val username = principal?.getClaim("username", String::class)
@@ -142,27 +116,24 @@ fun extractJwtToken(call: ApplicationCall): String? {
         }
     }
 
-    call.request.queryParameters["access_token"]?.let { return it }
-    call.request.cookies["access_token"]?.let { return it }
+    call.request.queryParameters["access_token"]?.let {
+        return it
+    }
+    call.request.cookies["access_token"]?.let {
+        return it
+    }
     return null
 }
 
-/**
- * Configure JWT authentication for Ktor
- */
+/** Configure JWT authentication for Ktor */
 fun Application.configureAuth(config: ServerAuthConfig) {
     install(Authentication) {
         jwt("auth-jwt") {
             realm = "social-publish"
             authHeader { call ->
-                extractJwtToken(call)?.let { token ->
-                    HttpAuthHeader.Single("Bearer", token)
-                }
+                extractJwtToken(call)?.let { token -> HttpAuthHeader.Single("Bearer", token) }
             }
-            verifier(
-                JWT.require(Algorithm.HMAC256(config.jwtSecret))
-                    .build(),
-            )
+            verifier(JWT.require(Algorithm.HMAC256(config.jwtSecret)).build())
             validate { credential ->
                 val username = credential.payload.getClaim("username").asString()
                 if (username != null) {

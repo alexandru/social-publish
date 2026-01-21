@@ -23,24 +23,23 @@ fun main(args: Array<String>) {
     SuspendApp {
         resourceScope {
             logger.info { "Starting the Social Publish backend..." }
-            logger.info {
-                "Using database path: ${config.server.dbPath}"
-            }
+            logger.info { "Using database path: ${config.server.dbPath}" }
             logger.info {
                 "Serving static content from: ${config.server.staticContentPaths.joinToString(", ")}"
             }
             try {
-                val resources =
-                    Database.resourceBundle(config.server.dbPath).bind()
+                val resources = Database.resourceBundle(config.server.dbPath).bind()
 
                 logger.info { "Database initialized successfully" }
-                startServer(
-                    config,
-                    resources.documentsDb,
-                    resources.postsDb,
-                    resources.filesDb,
-                    engine = CIO,
-                ).bind()
+                val _ =
+                    startServer(
+                            config,
+                            resources.documentsDb,
+                            resources.postsDb,
+                            resources.filesDb,
+                            engine = CIO,
+                        )
+                        .bind()
 
                 logger.info { "Server running on port ${config.server.httpPort}" }
                 awaitCancellation()

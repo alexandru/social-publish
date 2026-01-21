@@ -44,50 +44,27 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.net.URLEncoder
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class TwitterOAuthToken(
-    val key: String,
-    val secret: String,
-)
+@Serializable data class TwitterOAuthToken(val key: String, val secret: String)
 
-@Serializable
-data class TwitterMediaResponse(
-    val media_id_string: String,
-)
+@Serializable data class TwitterMediaResponse(val media_id_string: String)
 
-@Serializable
-data class TwitterPostResponse(
-    val data: TwitterPostData,
-)
+@Serializable data class TwitterPostResponse(val data: TwitterPostData)
 
-@Serializable
-data class TwitterPostData(
-    val id: String,
-    val text: String,
-)
+@Serializable data class TwitterPostData(val id: String, val text: String)
 
-@Serializable
-data class TwitterCreateRequest(
-    val text: String,
-    val media: TwitterMedia? = null,
-)
+@Serializable data class TwitterCreateRequest(val text: String, val media: TwitterMedia? = null)
 
-@Serializable
-data class TwitterMedia(
-    val media_ids: List<String>,
-)
+@Serializable data class TwitterMedia(val media_ids: List<String>)
 
-/**
- * Twitter API module with OAuth 1.0a implementation
- */
+/** Twitter API module with OAuth 1.0a implementation */
 class TwitterApiModule(
     private val config: TwitterConfig,
     private val baseUrl: String,
@@ -103,7 +80,7 @@ class TwitterApiModule(
                         Json {
                             ignoreUnknownKeys = true
                             isLenient = true
-                        },
+                        }
                     )
                 }
             }
@@ -119,8 +96,7 @@ class TwitterApiModule(
 
     private fun createOAuthService(callback: String? = null): OAuth10aService {
         val builder =
-            ServiceBuilder(config.oauth1ConsumerKey)
-                .apiSecret(config.oauth1ConsumerSecret)
+            ServiceBuilder(config.oauth1ConsumerKey).apiSecret(config.oauth1ConsumerSecret)
         if (callback != null) {
             builder.callback(callback)
         }
@@ -129,24 +105,18 @@ class TwitterApiModule(
 
     private var requestToken: OAuth1RequestToken? = null
 
-    /**
-     * Get OAuth callback URL
-     */
+    /** Get OAuth callback URL */
     private fun getCallbackUrl(jwtToken: String): String {
         return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
     }
 
-    /**
-     * Check if Twitter auth exists
-     */
+    /** Check if Twitter auth exists */
     suspend fun hasTwitterAuth(): Boolean {
         val token = restoreOauthTokenFromDb()
         return token != null
     }
 
-    /**
-     * Restore OAuth token from database
-     */
+    /** Restore OAuth token from database */
     private suspend fun restoreOauthTokenFromDb(): TwitterOAuthToken? {
         val doc = documentsDb.searchByKey("twitter-oauth-token")
         return if (doc != null) {
@@ -161,72 +131,58 @@ class TwitterApiModule(
         }
     }
 
-    /**
-     * Build authorization URL for OAuth flow
-     */
+    /** Build authorization URL for OAuth flow */
     suspend fun buildAuthorizeURL(jwtToken: String): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
             val service = createOAuthService(callbackUrl)
-            val token =
-                withContext(Dispatchers.IO) {
-                    service.requestToken
-                }
+            val token = withContext(Dispatchers.IO) { service.requestToken }
             requestToken = token
             val authUrl = service.getAuthorizationUrl(token)
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to get Twitter request token" }
             CaughtException(
-                status = 500,
-                module = "twitter",
-                errorMessage = "Failed to get request token: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "twitter",
+                    errorMessage = "Failed to get request token: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Save OAuth token after callback
-     */
-    suspend fun saveOauthToken(
-        token: String,
-        verifier: String,
-    ): ApiResult<Unit> {
+    /** Save OAuth token after callback */
+    suspend fun saveOauthToken(token: String, verifier: String): ApiResult<Unit> {
         return try {
             val reqToken = requestToken ?: OAuth1RequestToken(token, "")
             val service = createOAuthService()
             val accessToken =
-                withContext(Dispatchers.IO) {
-                    service.getAccessToken(reqToken, verifier)
-                }
+                withContext(Dispatchers.IO) { service.getAccessToken(reqToken, verifier) }
 
             val authorizedToken =
-                TwitterOAuthToken(
-                    key = accessToken.token,
-                    secret = accessToken.tokenSecret,
-                )
+                TwitterOAuthToken(key = accessToken.token, secret = accessToken.tokenSecret)
 
-            documentsDb.createOrUpdate(
-                kind = "twitter-oauth-token",
-                payload = Json.encodeToString(TwitterOAuthToken.serializer(), authorizedToken),
-                searchKey = "twitter-oauth-token",
-                tags = emptyList(),
-            )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "twitter-oauth-token",
+                    payload = Json.encodeToString(TwitterOAuthToken.serializer(), authorizedToken),
+                    searchKey = "twitter-oauth-token",
+                    tags = emptyList(),
+                )
 
             Unit.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save Twitter OAuth token" }
             CaughtException(
-                status = 500,
-                module = "twitter",
-                errorMessage = "Failed to save OAuth token: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "twitter",
+                    errorMessage = "Failed to save OAuth token: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Sign a request and return the Authorization header
-     */
+    /** Sign a request and return the Authorization header */
     private suspend fun signRequest(
         url: String,
         token: TwitterOAuthToken,
@@ -237,24 +193,21 @@ class TwitterApiModule(
             val accessToken = OAuth1AccessToken(token.key, token.secret)
             val request = OAuthRequest(verb, url)
             service.signRequest(accessToken, request)
-            request.headers["Authorization"] ?: throw IllegalStateException("Authorization header not found")
+            request.headers["Authorization"]
+                ?: throw IllegalStateException("Authorization header not found")
         }
 
-    /**
-     * Upload media to Twitter
-     */
-    private suspend fun uploadMedia(
-        token: TwitterOAuthToken,
-        uuid: String,
-    ): ApiResult<String> {
+    /** Upload media to Twitter */
+    private suspend fun uploadMedia(token: TwitterOAuthToken, uuid: String): ApiResult<String> {
         return try {
             val file =
                 filesModule.readImageFile(uuid, maxWidth = 1920, maxHeight = 1080)
                     ?: return ValidationError(
-                        status = 404,
-                        errorMessage = "Failed to read image file — uuid: $uuid",
-                        module = "twitter",
-                    ).left()
+                            status = 404,
+                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            module = "twitter",
+                        )
+                        .left()
 
             val url = "${config.uploadBase}/1.1/media/upload.json"
 
@@ -271,7 +224,10 @@ class TwitterApiModule(
                                 file.bytes,
                                 Headers.build {
                                     append(HttpHeaders.ContentType, file.mimetype)
-                                    append(HttpHeaders.ContentDisposition, "filename=\"${file.originalname}\"")
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"${file.originalname}\"",
+                                    )
                                 },
                             )
                             append("media_category", "tweet_image")
@@ -299,27 +255,29 @@ class TwitterApiModule(
                 mediaId.right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn { "Failed to upload media to Twitter: ${response.status}, body: $errorBody" }
+                logger.warn {
+                    "Failed to upload media to Twitter: ${response.status}, body: $errorBody"
+                }
                 RequestError(
-                    status = response.status.value,
-                    module = "twitter",
-                    errorMessage = "Failed to upload media",
-                    body = ResponseBody(asString = errorBody),
-                ).left()
+                        status = response.status.value,
+                        module = "twitter",
+                        errorMessage = "Failed to upload media",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media (twitter) — uuid $uuid" }
             CaughtException(
-                status = 500,
-                module = "twitter",
-                errorMessage = "Failed to upload media — uuid: $uuid",
-            ).left()
+                    status = 500,
+                    module = "twitter",
+                    errorMessage = "Failed to upload media — uuid: $uuid",
+                )
+                .left()
         }
     }
 
-    /**
-     * Create a post on Twitter
-     */
+    /** Create a post on Twitter */
     suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -331,10 +289,11 @@ class TwitterApiModule(
             val token =
                 restoreOauthTokenFromDb()
                     ?: return ValidationError(
-                        status = 401,
-                        errorMessage = "Unauthorized: Missing Twitter OAuth token!",
-                        module = "twitter",
-                    ).left()
+                            status = 401,
+                            errorMessage = "Unauthorized: Missing Twitter OAuth token!",
+                            module = "twitter",
+                        )
+                        .left()
 
             // Upload images if present
             val mediaIds = mutableListOf<String>()
@@ -378,48 +337,44 @@ class TwitterApiModule(
 
             if (response.status.value == 201) {
                 val data = response.body<TwitterPostResponse>()
-                NewTwitterPostResponse(
-                    id = data.data.id,
-                ).right()
+                NewTwitterPostResponse(id = data.data.id).right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn { "Failed to post to Twitter: ${response.status}, body: $errorBody" }
                 RequestError(
-                    status = response.status.value,
-                    module = "twitter",
-                    errorMessage = "Failed to create post",
-                    body = ResponseBody(asString = errorBody),
-                ).left()
+                        status = response.status.value,
+                        module = "twitter",
+                        errorMessage = "Failed to create post",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to post to Twitter" }
             CaughtException(
-                status = 500,
-                module = "twitter",
-                errorMessage = "Failed to post to Twitter: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "twitter",
+                    errorMessage = "Failed to post to Twitter: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Handle authorize redirect HTTP route
-     */
-    suspend fun authorizeRoute(
-        call: ApplicationCall,
-        jwtToken: String,
-    ) {
+    /** Handle authorize redirect HTTP route */
+    suspend fun authorizeRoute(call: ApplicationCall, jwtToken: String) {
         when (val result = buildAuthorizeURL(jwtToken)) {
             is Either.Right -> call.respondRedirect(result.value)
             is Either.Left -> {
                 val error = result.value
-                call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    mapOf("error" to error.errorMessage),
+                )
             }
         }
     }
 
-    /**
-     * Handle OAuth callback HTTP route
-     */
+    /** Handle OAuth callback HTTP route */
     suspend fun callbackRoute(call: ApplicationCall) {
         val token = call.request.queryParameters["oauth_token"]
         val verifier = call.request.queryParameters["oauth_verifier"]
@@ -433,39 +388,39 @@ class TwitterApiModule(
 
         when (val result = saveOauthToken(token, verifier)) {
             is Either.Right -> {
-                call.response.header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+                call.response.header(
+                    "Cache-Control",
+                    "no-store, no-cache, must-revalidate, private",
+                )
                 call.response.header("Pragma", "no-cache")
                 call.response.header("Expires", "0")
                 call.respondRedirect("/account")
             }
             is Either.Left -> {
                 val error = result.value
-                call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    mapOf("error" to error.errorMessage),
+                )
             }
         }
     }
 
-    /**
-     * Handle status check HTTP route
-     */
+    /** Handle status check HTTP route */
     suspend fun statusRoute(call: ApplicationCall) {
         val row = documentsDb.searchByKey("twitter-oauth-token")
         call.respond(
             mapOf(
                 "hasAuthorization" to (row != null),
                 "createdAt" to row?.createdAt?.toEpochMilli(),
-            ),
+            )
         )
     }
 
-    /**
-     * Handle Twitter post creation HTTP route
-     */
+    /** Handle Twitter post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
         val request =
-            runCatching {
-                call.receive<NewPostRequest>()
-            }.getOrNull()
+            runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
@@ -482,7 +437,10 @@ class TwitterApiModule(
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
-                call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    mapOf("error" to error.errorMessage),
+                )
             }
         }
     }

@@ -1,10 +1,10 @@
 package com.alexn.socialpublish.db
 
-import org.jdbi.v3.core.Jdbi
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
+import org.jdbi.v3.core.Jdbi
 
 data class UploadPayload(
     val hash: String,
@@ -32,18 +32,15 @@ class FilesDatabase(private val jdbi: Jdbi) {
     companion object {
         private val UUID_NAMESPACE = UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac")
 
-        /**
-         * Generate UUID v5 from string (deterministic UUID based on namespace and name)
-         */
-        fun generateUuidV5(
-            name: String,
-            namespace: UUID = UUID_NAMESPACE,
-        ): UUID {
+        /** Generate UUID v5 from string (deterministic UUID based on namespace and name) */
+        fun generateUuidV5(name: String, namespace: UUID = UUID_NAMESPACE): UUID {
             val namespaceBytes =
-                ByteBuffer.allocate(16).apply {
-                    putLong(namespace.mostSignificantBits)
-                    putLong(namespace.leastSignificantBits)
-                }.array()
+                ByteBuffer.allocate(16)
+                    .apply {
+                        putLong(namespace.mostSignificantBits)
+                        putLong(namespace.leastSignificantBits)
+                    }
+                    .array()
 
             val nameBytes = name.toByteArray(Charsets.UTF_8)
             val combined = namespaceBytes + nameBytes
@@ -65,19 +62,21 @@ class FilesDatabase(private val jdbi: Jdbi) {
                 // Generate deterministic UUID
                 val uuidInput =
                     listOf(
-                        "h:${payload.hash}",
-                        "n:${payload.originalname}",
-                        "a:${payload.altText ?: ""}",
-                        "w:${payload.imageWidth ?: ""}",
-                        "h:${payload.imageHeight ?: ""}",
-                        "m:${payload.mimetype}",
-                    ).joinToString("/")
+                            "h:${payload.hash}",
+                            "n:${payload.originalname}",
+                            "a:${payload.altText ?: ""}",
+                            "w:${payload.imageWidth ?: ""}",
+                            "h:${payload.imageHeight ?: ""}",
+                            "m:${payload.mimetype}",
+                        )
+                        .joinToString("/")
 
                 val uuid = generateUuidV5(uuidInput).toString()
 
                 // Check if already exists
                 val existing =
-                    handle.createQuery("SELECT * FROM uploads WHERE uuid = ?")
+                    handle
+                        .createQuery("SELECT * FROM uploads WHERE uuid = ?")
                         .bind(0, uuid)
                         .mapToMap()
                         .findOne()
@@ -120,7 +119,8 @@ class FilesDatabase(private val jdbi: Jdbi) {
                     INSERT INTO uploads
                         (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """.trimIndent(),
+                    """
+                        .trimIndent(),
                     upload.uuid,
                     upload.hash,
                     upload.originalname,
@@ -140,7 +140,8 @@ class FilesDatabase(private val jdbi: Jdbi) {
     suspend fun getFileByUuid(uuid: String): Upload? {
         return dbInterruptible {
             jdbi.withHandle<Upload?, Exception> { handle ->
-                // Some JDBC drivers / sqlite variants may normalize column names; fetch all rows and match by uuid string
+                // Some JDBC drivers / sqlite variants may normalize column names; fetch all rows
+                // and match by uuid string
                 val rows = handle.createQuery("SELECT * FROM uploads").mapToMap().list()
                 val normalizedRows = rows.map { it.normalizeKeys() }
                 val row = normalizedRows.firstOrNull { r -> r["uuid"]?.toString() == uuid }
@@ -169,7 +170,8 @@ class FilesDatabase(private val jdbi: Jdbi) {
     }
 }
 
-private fun Map<String, Any?>.normalizeKeys(): Map<String, Any?> = this.mapKeys { it.key.lowercase() }
+private fun Map<String, Any?>.normalizeKeys(): Map<String, Any?> =
+    this.mapKeys { it.key.lowercase() }
 
 private fun ByteBuffer.putUUID(uuid: UUID): ByteBuffer {
     putLong(uuid.mostSignificantBits)

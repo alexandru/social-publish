@@ -1,4 +1,3 @@
-import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import org.gradle.api.JavaVersion
 import org.gradle.api.tasks.compile.JavaCompile
 
@@ -6,8 +5,6 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     application
-    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
-    id("com.github.ben-manes.versions") version "0.53.0"
     id("org.graalvm.buildtools.native") version "0.10.2"
 }
 
@@ -65,20 +62,6 @@ tasks.test {
     useJUnitPlatform()
 }
 
-ktlint {
-    version.set("1.2.1")
-    android.set(false)
-    ignoreFailures.set(false)
-    reporters {
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
-        reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.CHECKSTYLE)
-    }
-    filter {
-        exclude("**/build/**")
-        exclude("**/resources/**")
-    }
-}
-
 kotlin {
     // Use the default JVM from the environment/container instead of requiring a specific toolchain
 }
@@ -98,7 +81,13 @@ tasks.withType<JavaCompile> {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         allWarningsAsErrors.set(true)
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
+        freeCompilerArgs.set(
+            listOf(
+                "-Xjsr305=strict",
+                "-Xextended-compiler-checks",
+                "-Xreturn-value-checker=full",
+            )
+        )
         // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM available in the environment.
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
@@ -155,22 +144,5 @@ tasks {
         dependsOn(configurations.runtimeClasspath)
         from({ configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) } })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
-
-    named<DependencyUpdatesTask>("dependencyUpdates").configure {
-        fun isNonStable(version: String): Boolean {
-            val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
-            val regex = "^[0-9,.v-]+(-r)?$".toRegex()
-            val isStable = stableKeyword || regex.matches(version)
-            return isStable.not()
-        }
-
-        rejectVersionIf {
-            isNonStable(candidate.version) && !isNonStable(currentVersion)
-        }
-        checkForGradleUpdate = true
-        outputFormatter = "html"
-        outputDir = "build/dependencyUpdates"
-        reportfileName = "report"
     }
 }

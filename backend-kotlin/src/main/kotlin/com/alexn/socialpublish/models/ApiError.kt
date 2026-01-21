@@ -3,9 +3,7 @@ package com.alexn.socialpublish.models
 import arrow.core.Either
 import kotlinx.serialization.Serializable
 
-/**
- * Represents typed errors in the application using Arrow's Either type.
- */
+/** Represents typed errors in the application using Arrow's Either type. */
 sealed class ApiError {
     abstract val status: Int
     abstract val module: String?
@@ -27,11 +25,7 @@ data class RequestError(
     val body: ResponseBody? = null,
 ) : ApiError()
 
-@Serializable
-data class ResponseBody(
-    val asString: String,
-    val asJson: String? = null,
-)
+@Serializable data class ResponseBody(val asString: String, val asJson: String? = null)
 
 @Serializable
 data class CaughtException(
@@ -57,7 +51,5 @@ data class CompositeError(
     val responses: List<CompositeErrorResponse> = emptyList(),
 ) : ApiError()
 
-/**
- * Type alias for common Result type pattern
- */
+/** Type alias for common Result type pattern */
 typealias ApiResult<T> = Either<ApiError, T>

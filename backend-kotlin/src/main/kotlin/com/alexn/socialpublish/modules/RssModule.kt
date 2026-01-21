@@ -24,9 +24,9 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import java.util.Date
 import org.jdom2.Element
 import org.jdom2.Namespace
-import java.util.Date
 
 private val logger = KotlinLogging.logger {}
 
@@ -35,9 +35,7 @@ class RssModule(
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
-    /**
-     * Create a new RSS post
-     */
+    /** Create a new RSS post */
     suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -54,7 +52,8 @@ class RssModule(
 
             // Extract hashtags
             val tags =
-                Regex("""(?:^|\s)(#\w+)""").findAll(content)
+                Regex("""(?:^|\s)(#\w+)""")
+                    .findAll(content)
                     .map { it.value.trim().substring(1) }
                     .toList()
 
@@ -69,22 +68,19 @@ class RssModule(
 
             val post = postsDb.create(payload, request.targets ?: emptyList())
 
-            NewRssPostResponse(
-                uri = "$baseUrl/rss/${post.uuid}",
-            ).right()
+            NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save RSS item" }
             CaughtException(
-                status = 500,
-                module = "rss",
-                errorMessage = "Failed to save RSS item: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "rss",
+                    errorMessage = "Failed to save RSS item: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Generate RSS feed
-     */
+    /** Generate RSS feed */
     suspend fun generateRss(
         filterByLinks: String? = null,
         filterByImages: String? = null,
@@ -166,9 +162,7 @@ class RssModule(
                     if (categoryNames.isNotEmpty()) {
                         categories =
                             categoryNames.map { name ->
-                                SyndCategoryImpl().apply {
-                                    this.name = name
-                                }
+                                SyndCategoryImpl().apply { this.name = name }
                             }
                     }
 
@@ -184,14 +178,10 @@ class RssModule(
         return output.outputString(feed)
     }
 
-    /**
-     * Handle RSS post creation HTTP route
-     */
+    /** Handle RSS post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
         val request =
-            runCatching {
-                call.receive<NewPostRequest>()
-            }.getOrNull()
+            runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
@@ -208,14 +198,15 @@ class RssModule(
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
-                call.respond(HttpStatusCode.fromValue(error.status), mapOf("error" to error.errorMessage))
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    mapOf("error" to error.errorMessage),
+                )
             }
         }
     }
 
-    /**
-     * Handle RSS feed generation HTTP route
-     */
+    /** Handle RSS feed generation HTTP route */
     suspend fun generateRssRoute(call: ApplicationCall) {
         val target = call.parameters["target"]
         val filterByLinks = call.request.queryParameters["filterByLinks"]
@@ -225,15 +216,14 @@ class RssModule(
         call.respondText(rssContent, ContentType.Application.Rss)
     }
 
-    /**
-     * Get RSS item by UUID
-     */
+    /** Get RSS item by UUID */
     suspend fun getRssItem(call: ApplicationCall) {
         val uuid =
-            call.parameters["uuid"] ?: run {
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
-                return
-            }
+            call.parameters["uuid"]
+                ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
+                    return
+                }
 
         val post = postsDb.searchByUuid(uuid)
         if (post == null) {

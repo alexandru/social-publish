@@ -8,18 +8,16 @@ import arrow.fx.coroutines.resource
 import com.alexn.socialpublish.models.ApiError
 import com.alexn.socialpublish.models.CaughtException
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.jdbi.v3.core.Handle
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
-import java.io.File
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Database connection wrapper using Arrow's Resource for safe resource management
- */
+/** Database connection wrapper using Arrow's Resource for safe resource management */
 data class DatabaseResources(
     val jdbi: Jdbi,
     val documentsDb: DocumentsDatabase,
@@ -28,47 +26,37 @@ data class DatabaseResources(
 )
 
 object Database {
-    fun resource(dbPath: String): Resource<Jdbi> =
-        resource {
-            logger.info { "Connecting to database at $dbPath" }
+    fun resource(dbPath: String): Resource<Jdbi> = resource {
+        logger.info { "Connecting to database at $dbPath" }
 
-            val jdbi =
-                dbInterruptible {
-                    val dbFile = File(dbPath)
-                    dbFile.parentFile?.mkdirs()
-                    Jdbi.create("jdbc:sqlite:$dbPath")
-                        .installPlugin(KotlinPlugin())
-                }
-
-            migrate(jdbi)
-
-            logger.info { "Database connected and migrated" }
-            jdbi
+        val jdbi = dbInterruptible {
+            val dbFile = File(dbPath)
+            dbFile.parentFile?.mkdirs()
+            Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
         }
 
-    fun resourceBundle(dbPath: String): Resource<DatabaseResources> =
-        resource {
-            val jdbi = resource(dbPath).bind()
-            val documentsDb = DocumentsDatabase(jdbi)
-            val postsDb = PostsDatabase(documentsDb)
-            val filesDb = FilesDatabase(jdbi)
-            DatabaseResources(
-                jdbi = jdbi,
-                documentsDb = documentsDb,
-                postsDb = postsDb,
-                filesDb = filesDb,
-            )
-        }
+        migrate(jdbi)
 
-    /**
-     * Expose migrations so tests and other callers can reuse the same DDLs.
-     */
+        logger.info { "Database connected and migrated" }
+        jdbi
+    }
+
+    fun resourceBundle(dbPath: String): Resource<DatabaseResources> = resource {
+        val jdbi = resource(dbPath).bind()
+        val documentsDb = DocumentsDatabase(jdbi)
+        val postsDb = PostsDatabase(documentsDb)
+        val filesDb = FilesDatabase(jdbi)
+        DatabaseResources(
+            jdbi = jdbi,
+            documentsDb = documentsDb,
+            postsDb = postsDb,
+            filesDb = filesDb,
+        )
+    }
+
+    /** Expose migrations so tests and other callers can reuse the same DDLs. */
     suspend fun migrate(jdbi: Jdbi) {
-        dbInterruptible {
-            jdbi.useHandle<Exception> { handle ->
-                runMigrations(handle)
-            }
-        }
+        dbInterruptible { jdbi.useHandle<Exception> { handle -> runMigrations(handle) } }
     }
 
     private fun runMigrations(handle: Handle) {
@@ -87,13 +75,15 @@ object Database {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
             handle.execute(
                 """
                 CREATE INDEX IF NOT EXISTS documents_created_at
                 ON documents(kind, created_at)
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
         }
 
@@ -108,7 +98,8 @@ object Database {
                     kind VARCHAR(255) NOT NULL,
                     PRIMARY KEY (document_uuid, name, kind)
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
         }
 
@@ -128,26 +119,24 @@ object Database {
                     imageHeight INTEGER,
                     createdAt INTEGER NOT NULL
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
             handle.execute(
                 """
                 CREATE INDEX IF NOT EXISTS uploads_createdAt
                     ON uploads(createdAt)
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
         }
 
         logger.info { "Database migrations completed" }
     }
 
-    private fun tableExists(
-        handle: Handle,
-        tableName: String,
-    ): Boolean {
-        return handle.createQuery(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name",
-        )
+    private fun tableExists(handle: Handle, tableName: String): Boolean {
+        return handle
+            .createQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name")
             .bind("name", tableName)
             .mapTo(Int::class.java)
             .findOne()
@@ -155,23 +144,19 @@ object Database {
     }
 }
 
-suspend fun <T> dbInterruptible(block: () -> T): T =
-    runInterruptible(Dispatchers.IO) {
-        block()
-    }
+suspend fun <T> dbInterruptible(block: () -> T): T = runInterruptible(Dispatchers.IO) { block() }
 
-/**
- * Execute a database operation safely with typed errors
- */
+/** Execute a database operation safely with typed errors */
 suspend fun <T> safeDbOperation(block: suspend () -> T): Either<ApiError, T> {
     return try {
         block().right()
     } catch (e: Exception) {
         logger.error(e) { "Database operation failed" }
         CaughtException(
-            status = 500,
-            module = "database",
-            errorMessage = "Database operation failed: ${e.message}",
-        ).left()
+                status = 500,
+                module = "database",
+                errorMessage = "Database operation failed: ${e.message}",
+            )
+            .left()
     }
 }

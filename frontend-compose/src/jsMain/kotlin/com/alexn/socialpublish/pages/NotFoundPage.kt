@@ -8,12 +8,8 @@ fun NotFoundPage() {
     Div(attrs = { classes("notFound") }) {
         Section(attrs = { classes("section") }) {
             Div(attrs = { classes("container") }) {
-                H1(attrs = { classes("title") }) {
-                    Text("404: Not Found")
-                }
-                P(attrs = { classes("subtitle") }) {
-                    Text("It's gone 😞")
-                }
+                H1(attrs = { classes("title") }) { Text("404: Not Found") }
+                P(attrs = { classes("subtitle") }) { Text("It's gone 😞") }
             }
         }
     }

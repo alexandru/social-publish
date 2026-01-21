@@ -7,7 +7,8 @@ data class TwitterConfig(
     val apiBase: String = "https://api.twitter.com",
     val uploadBase: String = "https://upload.twitter.com",
     // OAuth endpoints (allow overriding in tests)
-    val oauthRequestTokenUrl: String = "https://api.twitter.com/oauth/request_token?x_auth_access_type=write",
+    val oauthRequestTokenUrl: String =
+        "https://api.twitter.com/oauth/request_token?x_auth_access_type=write",
     val oauthAccessTokenUrl: String = "https://api.twitter.com/oauth/access_token",
     val oauthAuthorizeUrl: String = "https://api.twitter.com/oauth/authorize",
 )

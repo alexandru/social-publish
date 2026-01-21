@@ -1,8 +1,8 @@
 package com.alexn.socialpublish.db
 
+import java.time.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -28,10 +28,7 @@ data class Post(
 )
 
 class PostsDatabase(private val docs: DocumentsDatabase) {
-    suspend fun create(
-        payload: PostPayload,
-        targets: List<String>,
-    ): Post {
+    suspend fun create(payload: PostPayload, targets: List<String>): Post {
         val payloadJson = json.encodeToString(PostPayload.serializer(), payload)
         val row =
             docs.createOrUpdate(

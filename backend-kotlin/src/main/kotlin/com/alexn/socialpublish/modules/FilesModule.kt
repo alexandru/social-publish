@@ -21,23 +21,19 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.security.MessageDigest
+import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
-import java.io.ByteArrayInputStream
-import java.io.File
-import java.security.MessageDigest
-import javax.imageio.ImageIO
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable
-data class FileUploadResponse(
-    val uuid: String,
-    val url: String,
-)
+@Serializable data class FileUploadResponse(val uuid: String, val url: String)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -49,12 +45,10 @@ data class ProcessedUpload(
     val bytes: ByteArray,
 )
 
-data class FilesConfig(
-    val uploadedFilesPath: String,
-    val baseUrl: String,
-)
+data class FilesConfig(val uploadedFilesPath: String, val baseUrl: String)
 
-class FilesModule private constructor(
+class FilesModule
+private constructor(
     private val config: FilesConfig,
     private val db: FilesDatabase,
     private val uploadedFilesPath: File,
@@ -62,10 +56,7 @@ class FilesModule private constructor(
     private val resizingPath: File,
 ) {
     companion object {
-        suspend fun create(
-            config: FilesConfig,
-            db: FilesDatabase,
-        ): FilesModule {
+        suspend fun create(config: FilesConfig, db: FilesDatabase): FilesModule {
             val uploadedFilesPath = File(config.uploadedFilesPath)
             val processedPath = File(uploadedFilesPath, "processed")
             val resizingPath = File(uploadedFilesPath, "resizing")
@@ -79,9 +70,7 @@ class FilesModule private constructor(
         }
     }
 
-    /**
-     * Upload and process file
-     */
+    /** Upload and process file */
     suspend fun uploadFile(call: ApplicationCall): ApiResult<FileUploadResponse> {
         return try {
             val multipart = call.receiveMultipart()
@@ -115,10 +104,11 @@ class FilesModule private constructor(
 
             if (fileBytes == null || fileName == null) {
                 return ValidationError(
-                    status = 400,
-                    errorMessage = "Missing file in upload",
-                    module = "files",
-                ).left()
+                        status = 400,
+                        errorMessage = "Missing file in upload",
+                        module = "files",
+                    )
+                    .left()
             }
 
             // Calculate hash
@@ -128,10 +118,12 @@ class FilesModule private constructor(
             val mimeType = formatName?.let { toSupportedMimeType(it) }
             if (mimeType == null) {
                 return ValidationError(
-                    status = 400,
-                    errorMessage = "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
-                    module = "files",
-                ).left()
+                        status = 400,
+                        errorMessage =
+                            "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
+                        module = "files",
+                    )
+                    .left()
             }
 
             val processed = processImage(fileBytes, fileName, mimeType, altText)
@@ -147,40 +139,36 @@ class FilesModule private constructor(
                         altText = processed.altText,
                         imageWidth = if (processed.width > 0) processed.width else null,
                         imageHeight = if (processed.height > 0) processed.height else null,
-                    ),
+                    )
                 )
 
             // Save file to disk
             val filePath = File(processedPath, upload.hash)
-            runInterruptible(Dispatchers.IO) {
-                filePath.writeBytes(processed.bytes)
-            }
+            runInterruptible(Dispatchers.IO) { filePath.writeBytes(processed.bytes) }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
 
-            FileUploadResponse(
-                uuid = upload.uuid,
-                url = "${config.baseUrl}/files/${upload.uuid}",
-            ).right()
+            FileUploadResponse(uuid = upload.uuid, url = "${config.baseUrl}/files/${upload.uuid}")
+                .right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload file" }
             CaughtException(
-                status = 500,
-                module = "files",
-                errorMessage = "Failed to upload file: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "files",
+                    errorMessage = "Failed to upload file: ${e.message}",
+                )
+                .left()
         }
     }
 
-    /**
-     * Retrieve uploaded file
-     */
+    /** Retrieve uploaded file */
     suspend fun getFile(call: ApplicationCall) {
         val uuid =
-            call.parameters["uuid"] ?: run {
-                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
-                return
-            }
+            call.parameters["uuid"]
+                ?: run {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing UUID"))
+                    return
+                }
 
         val upload = db.getFileByUuid(uuid)
         if (upload == null) {
@@ -195,13 +183,14 @@ class FilesModule private constructor(
         }
 
         call.response.header(HttpHeaders.ContentType, upload.mimetype)
-        call.response.header(HttpHeaders.ContentDisposition, "inline; filename=\"${upload.originalname}\"")
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            "inline; filename=\"${upload.originalname}\"",
+        )
         call.respondFile(filePath)
     }
 
-    /**
-     * Read image file for API posting
-     */
+    /** Read image file for API posting */
     suspend fun readImageFile(
         uuid: String,
         maxWidth: Int? = null,
@@ -217,15 +206,17 @@ class FilesModule private constructor(
                 } else {
                     filePath.readBytes()
                 }
-            }
-                ?: return null
+            } ?: return null
 
         val storedWidth = upload.imageWidth ?: 0
         val storedHeight = upload.imageHeight ?: 0
 
         if (maxWidth != null && maxHeight != null) {
             val storedWithinBounds =
-                storedWidth > 0 && storedHeight > 0 && storedWidth <= maxWidth && storedHeight <= maxHeight
+                storedWidth > 0 &&
+                    storedHeight > 0 &&
+                    storedWidth <= maxWidth &&
+                    storedHeight <= maxHeight
 
             if (!storedWithinBounds) {
                 val cachedBytes =
@@ -263,7 +254,8 @@ class FilesModule private constructor(
                         val height = image.height
 
                         if (width > maxWidth || height > maxHeight) {
-                            val scale = minOf(maxWidth.toDouble() / width, maxHeight.toDouble() / height)
+                            val scale =
+                                minOf(maxWidth.toDouble() / width, maxHeight.toDouble() / height)
                             val newWidth = (width * scale).toInt()
                             val newHeight = (height * scale).toInt()
                             val scaled = image.scaleTo(newWidth, newHeight)
@@ -334,7 +326,8 @@ class FilesModule private constructor(
     private fun toSupportedMimeType(format: String): String? {
         return when (format.lowercase()) {
             "png" -> "image/png"
-            "jpg", "jpeg" -> "image/jpeg"
+            "jpg",
+            "jpeg" -> "image/jpeg"
             else -> null
         }
     }
@@ -370,10 +363,7 @@ class FilesModule private constructor(
         }
     }
 
-    private fun encodeImage(
-        image: ImmutableImage,
-        mimeType: String,
-    ): ByteArray {
+    private fun encodeImage(image: ImmutableImage, mimeType: String): ByteArray {
         return when {
             mimeType.contains("jpeg") || mimeType.contains("jpg") -> {
                 image.bytes(JpegWriter.Default.withCompression(80))

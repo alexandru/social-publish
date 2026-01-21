@@ -18,19 +18,18 @@ object ApiClient {
         if (includeContentType) {
             headers["Content-Type"] = "application/json"
         }
-        Storage.getJwtToken()?.let {
-            headers["Authorization"] = "Bearer $it"
-        }
+        Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
         return headers
     }
 
     suspend inline fun <reified T, reified B> post(url: String, body: B? = null): ApiResponse<T> {
         return try {
-            val requestInit = RequestInit(
-                method = "POST",
-                headers = createHeaders(),
-                body = body?.let { json.encodeToString(it) }
-            )
+            val requestInit =
+                RequestInit(
+                    method = "POST",
+                    headers = createHeaders(),
+                    body = body?.let { json.encodeToString(it) },
+                )
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
@@ -55,10 +54,7 @@ object ApiClient {
 
     suspend inline fun <reified T> get(url: String): ApiResponse<T> {
         return try {
-            val requestInit = RequestInit(
-                method = "GET",
-                headers = createHeaders()
-            )
+            val requestInit = RequestInit(method = "GET", headers = createHeaders())
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
@@ -80,11 +76,11 @@ object ApiClient {
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
     }
-    
+
     suspend inline fun <reified T> uploadFile(
-        url: String, 
-        file: File, 
-        altText: String? = null
+        url: String,
+        file: File,
+        altText: String? = null,
     ): ApiResponse<T> {
         return try {
             val formData = org.w3c.xhr.FormData()
@@ -92,19 +88,13 @@ object ApiClient {
             if (altText != null) {
                 formData.append("altText", altText)
             }
-            
+
             // Don't include Content-Type header for multipart/form-data
             // Browser will set it automatically with boundary
             val headers = js("{}")
-            Storage.getJwtToken()?.let {
-                headers["Authorization"] = "Bearer $it"
-            }
-            
-            val requestInit = RequestInit(
-                method = "POST",
-                headers = headers,
-                body = formData
-            )
+            Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+
+            val requestInit = RequestInit(method = "POST", headers = headers, body = formData)
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
@@ -122,13 +112,12 @@ object ApiClient {
     }
 }
 
-@kotlinx.serialization.Serializable
-data class ErrorResponse(
-    val error: String
-)
+@kotlinx.serialization.Serializable data class ErrorResponse(val error: String)
 
 sealed class ApiResponse<out T> {
     data class Success<T>(val data: T) : ApiResponse<T>()
+
     data class Error(val message: String, val code: Int) : ApiResponse<Nothing>()
+
     data class Exception(val message: String) : ApiResponse<Nothing>()
 }

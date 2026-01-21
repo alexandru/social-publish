@@ -11,33 +11,31 @@ import org.junit.jupiter.api.Test
 /**
  * Tests to ensure JSON serialization matches the legacy backend format.
  *
- * The legacy backend (./backend/) returns plain JSON objects without type discriminators.
- * This test ensures backward compatibility.
+ * The legacy backend (./backend/) returns plain JSON objects without type discriminators. This test
+ * ensures backward compatibility.
  */
 @OptIn(ExperimentalSerializationApi::class)
 class PostsSerializationTest {
-    private val json =
-        Json {
-            prettyPrint = false
-            encodeDefaults = true
-            classDiscriminator = "#type"
-            classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
-            serializersModule =
-                SerializersModule {
-                    polymorphic(NewPostResponse::class) {
-                        subclass(NewRssPostResponse::class)
-                        subclass(NewMastodonPostResponse::class)
-                        subclass(NewBlueSkyPostResponse::class)
-                        subclass(NewTwitterPostResponse::class)
-                    }
-                }
+    private val json = Json {
+        prettyPrint = false
+        encodeDefaults = true
+        classDiscriminator = "#type"
+        classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
+        serializersModule = SerializersModule {
+            polymorphic(NewPostResponse::class) {
+                subclass(NewRssPostResponse::class)
+                subclass(NewMastodonPostResponse::class)
+                subclass(NewBlueSkyPostResponse::class)
+                subclass(NewTwitterPostResponse::class)
+            }
         }
+    }
 
     @Test
     fun `NewRssPostResponse should serialize without type discriminator`() {
         val response =
             NewRssPostResponse(
-                uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000",
+                uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000"
             )
 
         val jsonString = json.encodeToString<NewRssPostResponse>(response)
@@ -46,7 +44,11 @@ class PostsSerializationTest {
 
         // Check that required fields are present
         assert(jsonString.contains("\"module\":\"rss\""))
-        assert(jsonString.contains("\"uri\":\"http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000\""))
+        assert(
+            jsonString.contains(
+                "\"uri\":\"http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000\""
+            )
+        )
         // Ensure no type discriminator
         assert(!jsonString.contains("\"type\""))
         assert(!jsonString.contains("NewRssPostResponse"))
@@ -54,10 +56,7 @@ class PostsSerializationTest {
 
     @Test
     fun `NewMastodonPostResponse should serialize without type discriminator`() {
-        val response =
-            NewMastodonPostResponse(
-                uri = "https://mastodon.social/@user/123456789",
-            )
+        val response = NewMastodonPostResponse(uri = "https://mastodon.social/@user/123456789")
 
         val jsonString = json.encodeToString<NewMastodonPostResponse>(response)
 
@@ -84,10 +83,7 @@ class PostsSerializationTest {
 
     @Test
     fun `NewTwitterPostResponse should serialize without type discriminator`() {
-        val response =
-            NewTwitterPostResponse(
-                id = "1234567890",
-            )
+        val response = NewTwitterPostResponse(id = "1234567890")
 
         val jsonString = json.encodeToString<NewTwitterPostResponse>(response)
 
@@ -102,15 +98,19 @@ class PostsSerializationTest {
             mapOf(
                 "rss" to
                     NewRssPostResponse(
-                        uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000",
-                    ),
+                        uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000"
+                    )
             )
 
         val jsonString = json.encodeToString<Map<String, NewPostResponse>>(response)
 
         assert(jsonString.contains("\"rss\""))
         assert(jsonString.contains("\"module\":\"rss\""))
-        assert(jsonString.contains("\"uri\":\"http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000\""))
+        assert(
+            jsonString.contains(
+                "\"uri\":\"http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000\""
+            )
+        )
         assert(!jsonString.contains("\"type\""))
     }
 
@@ -120,12 +120,10 @@ class PostsSerializationTest {
             mapOf(
                 "rss" to
                     NewRssPostResponse(
-                        uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000",
+                        uri = "http://localhost:3000/rss/123e4567-e89b-12d3-a456-426614174000"
                     ),
                 "mastodon" to
-                    NewMastodonPostResponse(
-                        uri = "https://mastodon.social/@user/123456789",
-                    ),
+                    NewMastodonPostResponse(uri = "https://mastodon.social/@user/123456789"),
                 "bluesky" to
                     NewBlueSkyPostResponse(
                         uri = "at://did:plc:abc123/app.bsky.feed.post/xyz789",

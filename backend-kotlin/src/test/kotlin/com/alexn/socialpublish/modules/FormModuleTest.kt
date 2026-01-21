@@ -6,14 +6,14 @@ import com.alexn.socialpublish.db.FilesDatabase
 import com.alexn.socialpublish.db.PostsDatabase
 import com.alexn.socialpublish.models.CompositeError
 import com.alexn.socialpublish.models.NewPostRequest
+import java.nio.file.Path
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
-import kotlin.test.assertTrue
 
 class FormModuleTest {
     private lateinit var postsDb: PostsDatabase
@@ -21,9 +21,7 @@ class FormModuleTest {
     private lateinit var rssModule: RssModule
 
     @BeforeEach
-    fun setup(
-        @TempDir tempDir: Path,
-    ) {
+    fun setup(@TempDir tempDir: Path) {
         val dbPath = tempDir.resolve("test.db").toString()
         val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 
@@ -37,7 +35,8 @@ class FormModuleTest {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
             handle.execute(
                 """
@@ -47,7 +46,8 @@ class FormModuleTest {
                    kind VARCHAR(255) NOT NULL,
                    PRIMARY KEY (document_uuid, name, kind)
                 )
-                """.trimIndent(),
+                """
+                    .trimIndent()
             )
         }
 
@@ -58,38 +58,32 @@ class FormModuleTest {
     }
 
     @Test
-    fun `broadcast should always include RSS`() =
-        runTest {
-            val formModule = FormModule(null, null, null, rssModule)
-            val request = NewPostRequest(content = "Hello world")
+    fun `broadcast should always include RSS`() = runTest {
+        val formModule = FormModule(null, null, null, rssModule)
+        val request = NewPostRequest(content = "Hello world")
 
-            val result = formModule.broadcastPost(request)
+        val result = formModule.broadcastPost(request)
 
-            assertTrue(result.isRight())
-            when (result) {
-                is Either.Right -> {
-                    assertTrue(result.value.containsKey("rss"))
-                }
-                is Either.Left -> assertTrue(false, "Expected success")
+        assertTrue(result.isRight())
+        when (result) {
+            is Either.Right -> {
+                assertTrue(result.value.containsKey("rss"))
             }
+            is Either.Left -> assertTrue(false, "Expected success")
         }
+    }
 
     @Test
-    fun `broadcast should return composite error on partial failure`() =
-        runTest {
-            val formModule = FormModule(null, null, null, rssModule)
-            val request =
-                NewPostRequest(
-                    content = "Hello world",
-                    targets = listOf("mastodon"),
-                )
+    fun `broadcast should return composite error on partial failure`() = runTest {
+        val formModule = FormModule(null, null, null, rssModule)
+        val request = NewPostRequest(content = "Hello world", targets = listOf("mastodon"))
 
-            val result = formModule.broadcastPost(request)
+        val result = formModule.broadcastPost(request)
 
-            assertTrue(result.isLeft())
-            when (result) {
-                is Either.Left -> assertTrue(result.value is CompositeError)
-                is Either.Right -> assertTrue(false, "Expected failure")
-            }
+        assertTrue(result.isLeft())
+        when (result) {
+            is Either.Left -> assertTrue(result.value is CompositeError)
+            is Either.Right -> assertTrue(false, "Expected failure")
         }
+    }
 }
