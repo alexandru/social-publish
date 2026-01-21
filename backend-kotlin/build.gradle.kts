@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.jsoup)
 
     // BCrypt for password hashing
+    implementation(libs.bcrypt)
     implementation(libs.jbcrypt)
 
     // Testing

@@ -13,6 +13,7 @@ import com.alexn.socialpublish.server.ServerConfig
 import com.alexn.socialpublish.server.startServer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoOpCliktCommand
+import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.default
@@ -33,7 +34,7 @@ private val logger = KotlinLogging.logger {}
 /** Main CLI command that delegates to subcommands. */
 class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
     init {
-        subcommands(StartServerCommand(), GenBcryptHashCommand())
+        subcommands(StartServerCommand(), GenBcryptHashCommand(), CheckPasswordCommand())
     }
 }
 
@@ -85,8 +86,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
     private val serverAuthPassword: String by
         option(
                 "--server-auth-password",
-                help =
-                    "Password for server authentication - supports BCrypt hashes (env: SERVER_AUTH_PASSWORD)",
+                help = "Password for server authentication, BCrypt hash (env: SERVER_AUTH_PASSWORD)",
                 envvar = "SERVER_AUTH_PASSWORD",
             )
             .required()
@@ -277,6 +277,51 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
             echo(
                 "You can use this hash as the value for SERVER_AUTH_PASSWORD environment variable or --server-auth-password option."
             )
+        }
+    }
+}
+
+/** Subcommand to check a password against the stored BCrypt hash. */
+class CheckPasswordCommand : CliktCommand(name = "check-password") {
+    override fun help(context: com.github.ajalt.clikt.core.Context) =
+        "Check if a password matches the stored BCrypt hash"
+
+    private val serverAuthPassword: String by
+        option(
+                "--server-auth-password",
+                help = "BCrypt hash to check against (env: SERVER_AUTH_PASSWORD)",
+                envvar = "SERVER_AUTH_PASSWORD",
+            )
+            .required()
+
+    private val password by
+        option("--password", "-p", help = "Password to check (will prompt if not provided)")
+            .prompt("Enter password to check", hideInput = true, requireConfirmation = false)
+
+    override fun run() {
+        val authModule =
+            AuthModule(
+                ServerAuthConfig(
+                    username = "dummy",
+                    passwordHash = serverAuthPassword.trim(),
+                    jwtSecret = "dummy",
+                )
+            )
+
+        // Use reflection to access the private verifyPassword method
+        val verifyMethod =
+            AuthModule::class
+                .java
+                .getDeclaredMethod("verifyPassword", String::class.java, String::class.java)
+        verifyMethod.isAccessible = true
+        val matches =
+            verifyMethod.invoke(authModule, password, serverAuthPassword.trim()) as Boolean
+
+        if (matches) {
+            echo("✓ Password matches the hash")
+        } else {
+            echo("✗ Password does NOT match the hash")
+            throw ProgramResult(1)
         }
     }
 }

@@ -24,8 +24,14 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 
 class AuthModuleTest {
+    // Use a BCrypt hash for "testpass" for all tests
+    private val testPasswordHash = AuthModule.hashPassword("testpass", rounds = 10)
     private val config =
-        ServerAuthConfig(username = "testuser", passwordHash = "testpass", jwtSecret = "test-secret")
+        ServerAuthConfig(
+            username = "testuser",
+            passwordHash = testPasswordHash,
+            jwtSecret = "test-secret",
+        )
 
     @Test
     fun `should generate valid JWT token`() {
@@ -54,7 +60,7 @@ class AuthModuleTest {
     }
 
     @Test
-    fun `login should work with plain text password`() {
+    fun `login should work with correct password`() {
         testApplication {
             val authModule = AuthModule(config)
 
@@ -186,7 +192,8 @@ class AuthModuleTest {
         assertTrue(hash.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+")))
 
         // Verify the hash can be used to authenticate
-        val testConfig = ServerAuthConfig(username = "user", passwordHash = hash, jwtSecret = "secret")
+        val testConfig =
+            ServerAuthConfig(username = "user", passwordHash = hash, jwtSecret = "secret")
 
         testApplication {
             val authModule = AuthModule(testConfig)

@@ -149,9 +149,9 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
     override fun run() {
         val serverAuthConfig =
             ServerAuthConfig(
-                username = serverAuthUsername,
-                passwordHash = serverAuthPassword,
-                jwtSecret = serverAuthJwtSecret,
+                username = serverAuthUsername.trim(),
+                passwordHash = serverAuthPassword.trim(),
+                jwtSecret = serverAuthJwtSecret.trim(),
             )
 
         val serverConfig =

@@ -20,6 +20,7 @@ dependencyResolutionManagement {
             version("rome", "2.1.0")
             version("scribejava", "8.3.3")
             version("jsoup", "1.18.3")
+            version("bcrypt", "0.10.2")
             version("jbcrypt", "0.4")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
@@ -84,6 +85,7 @@ dependencyResolutionManagement {
             library("jsoup", "org.jsoup", "jsoup").versionRef("jsoup")
 
             // BCrypt for password hashing
+            library("bcrypt", "at.favre.lib", "bcrypt").versionRef("bcrypt")
             library("jbcrypt", "org.mindrot", "jbcrypt").versionRef("jbcrypt")
 
             // Testing libraries

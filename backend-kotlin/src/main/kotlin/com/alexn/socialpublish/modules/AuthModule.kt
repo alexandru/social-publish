@@ -1,5 +1,6 @@
 package com.alexn.socialpublish.modules
 
+import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import com.alexn.socialpublish.server.ServerAuthConfig
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
@@ -19,7 +20,6 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import java.util.Date
 import kotlinx.serialization.Serializable
-import org.mindrot.jbcrypt.BCrypt
 
 private val logger = KotlinLogging.logger {}
 
@@ -86,10 +86,8 @@ class AuthModule(
 
         // Check username and verify password with BCrypt
         if (
-            request.username == config.username && verifyPassword(
-                request.password,
-                config.passwordHash
-            )
+            request.username == config.username &&
+                verifyPassword(request.password, config.passwordHash)
         ) {
             val token = generateToken(request.username)
             val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
@@ -104,26 +102,19 @@ class AuthModule(
     /**
      * Verify a password against a BCrypt hash.
      *
-     * The stored password can be either:
-     * 1. A BCrypt hash (starts with $2a$, $2b$, or $2y$)
-     * 2. Plain text (for backward compatibility or development)
-     *
-     * In production, always use BCrypt hashed passwords.
+     * The stored password must be a BCrypt hash (starts with $2a$, $2b$, or $2y$).
      */
-    private fun verifyPassword(providedPassword: String, storedPassword: String): Boolean =
-        try {
-            BCrypt.checkpw(providedPassword, storedPassword)
+    private fun verifyPassword(providedPassword: String, storedPassword: String): Boolean {
+        val trimmedStoredPassword = storedPassword.trim()
+        return try {
+            val result =
+                FavreBCrypt.verifyer()
+                    .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
+            result.verified
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify BCrypt password" }
             false
         }
-
-    /**
-     * Check if a string is a BCrypt hash. BCrypt hashes start with $2a$, $2b$, or $2y$ followed by
-     * cost factor.
-     */
-    private fun isBCryptHash(password: String): Boolean {
-        return password.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+"))
     }
 
     /** Protected route handler */
@@ -150,7 +141,10 @@ class AuthModule(
          * ```
          */
         fun hashPassword(password: String, rounds: Int = 12): String {
-            return BCrypt.hashpw(password, BCrypt.gensalt(rounds))
+            return String(
+                FavreBCrypt.withDefaults().hash(rounds, password.toCharArray()),
+                Charsets.UTF_8,
+            )
         }
     }
 }
