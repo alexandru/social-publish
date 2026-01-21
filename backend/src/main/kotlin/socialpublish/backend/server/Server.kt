@@ -21,6 +21,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
@@ -82,7 +83,7 @@ fun startServer(
 
     val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
 
-    server(engine, port = config.server.httpPort, preWaitMillis = 5000) {
+    server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
             anyHost()
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
