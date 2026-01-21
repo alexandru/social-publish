@@ -21,7 +21,7 @@ A Compose Multiplatform for Web frontend for the Social Publish application.
 ## Project Structure
 
 ```
-frontend-compose/
+frontend/
 ├── build.gradle.kts                    # Build configuration
 ├── webpack.config.d/
 │   └── dev-server.js                   # Webpack configuration
@@ -53,30 +53,47 @@ frontend-compose/
 ### Running Locally
 
 1. **Start the backend server** (in another terminal):
+
    ```bash
    make dev-backend
    ```
+
    This starts the backend on port 3000.
 
 2. **Start the frontend development server**:
+
    ```bash
-   make dev-frontend-compose
+   make dev-frontend
    ```
+
    This starts webpack-dev-server on port 3002 with:
    - Hot module replacement
    - API proxy to backend (port 3000)
    - Auto-reload on file changes
 
 3. **Or run both together**:
+
+   ```bash
+   make dev
+   ```
+
+   This starts webpack-dev-server on port 3002 with:
+   - Hot module replacement
+   - API proxy to backend (port 3000)
+   - Auto-reload on file changes
+
+4. **Or run both together**:
+
    ```bash
    make dev-compose
    ```
 
-4. **Open browser**: Navigate to http://localhost:3002/
+5. **Open browser**: Navigate to http://localhost:3002/
 
 ### Default Credentials
 
 Set these in your `.envrc` file (see `.envrc.sample`):
+
 - Username: `admin`
 - Password: `adminpass`
 
@@ -84,10 +101,10 @@ Set these in your `.envrc` file (see `.envrc.sample`):
 
 ```bash
 # Build the project
-./gradlew :frontend-compose:build
+./gradlew :frontend:build
 
 # Production build
-./gradlew :frontend-compose:jsBrowserProductionWebpack
+./gradlew :frontend:jsBrowserProductionWebpack
 ```
 
 The output will be in `build/dist/js/productionExecutable/`.
@@ -154,15 +171,17 @@ Key dependencies in `build.gradle.kts`:
 ### Build Errors
 
 If you see class file version errors:
+
 ```bash
 # Make sure you're using Java 21
 export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
-./gradlew :frontend-compose:build
+./gradlew :frontend:build
 ```
 
 ### Port Already in Use
 
 If port 3002 is already in use:
+
 ```bash
 # Find and kill the process
 lsof -i :3002
@@ -172,6 +191,7 @@ kill -9 <PID>
 ### API Proxy Not Working
 
 Make sure the backend is running on port 3000:
+
 ```bash
 make dev-backend
 ```

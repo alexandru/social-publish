@@ -1,17 +1,5 @@
 # Logs
-logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-build
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -34,7 +22,7 @@ kotlin-js-store/
 *.class
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
-!backend-kotlin/gradle/wrapper/gradle-wrapper.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.ear
 *.nar

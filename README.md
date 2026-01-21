@@ -1,6 +1,6 @@
 # social-publish
 
-[![build](https://github.com/alexandru/social-publish/actions/workflows/build.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/build.yaml) [![deploy-latest](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-latest.yaml) [![deploy-release](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy-release.yaml)
+[![build](https://github.com/alexandru/social-publish/actions/workflows/build.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/build.yaml) [![deploy](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml)
 
 In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. I'm using [ifttt.com](https://ifttt.com/), but it doesn't do a good job — their LinkedIn integration is most often broken, and Bluesky integration is currently missing.
 
@@ -26,7 +26,7 @@ This project is the start of a simple tool to publish my content to multiple soc
 My `docker-compose` setup:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   # ...
@@ -35,9 +35,9 @@ services:
     image: ghcr.io/alexandru/social-publish:latest
     restart: always
     healthcheck:
-      test: ['CMD-SHELL', 'curl --head http://localhost:3000/ || exit 1']
+      test: ["CMD-SHELL", "curl --head http://localhost:3000/ || exit 1"]
     ports:
-      - '3000:3000'
+      - "3000:3000"
     env_file:
       - ./envs/social-publish.env
     networks:
@@ -120,6 +120,14 @@ While this service is able to publish directly to Mastodon and Bluesky, for othe
 
 ## Developing
 
+This is a Kotlin multiplatform project with:
+
+- **Backend**: Ktor server with Arrow for functional programming
+- **Frontend**: Compose for Web (Kotlin/JS)
+- **Build**: Gradle with Kotlin DSL
+
+### Development Commands
+
 To run the development environment with live reload:
 
 ```sh
@@ -140,10 +148,12 @@ make dev-frontend
 
 You can navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
 
-To build and test the Docker image locally:
+### Building
+
+To build the project:
 
 ```sh
-make run-local
+make build
 ```
 
 To run tests:
@@ -152,22 +162,26 @@ To run tests:
 make test
 ```
 
-To check code formatting:
+To check and fix code formatting:
 
 ```sh
-make lint
-make format
+make lint    # Check formatting
+make format  # Auto-format code
 ```
 
-See the [Makefile](./Makefile) for more commands.
+### Docker Images
 
-### Legacy Node.js development
-
-The legacy Node/Vite-based frontend and backend are still available in `./frontend/` and `./backend/` directories but are no longer the primary development path:
+To build and test the Docker images locally:
 
 ```sh
-make dev-legacy
+# Build and run JVM image (smaller build time, larger image)
+make run-jvm
+
+# Or build and run native image (longer build time, smaller image)
+make run-native
 ```
+
+See the [Makefile](./Makefile) for all available commands.
 
 ## License
 

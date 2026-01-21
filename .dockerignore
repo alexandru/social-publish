@@ -12,19 +12,8 @@
 build
 .gradle
 .kotlin
-backend-kotlin/.gradle
-frontend-compose/.gradle
-
-# Node modules (legacy)
-node_modules
-backend/node_modules
-frontend/node_modules
-kotlin-js-store/yarn.lock
-
-# Legacy builds
-backend/build
-frontend/dist
-dist
+backend/.gradle
+frontend/.gradle
 
 # Environment and config
 .env
@@ -47,10 +36,6 @@ __tests__
 *.swo
 *~
 .DS_Store
-
-# Package manager
-package-lock.json
-yarn.lock
 
 # OpenCode
 .opencode

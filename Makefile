@@ -27,15 +27,15 @@ RUN_ENV_VARS := \
 # Development targets
 dev:
 	@trap 'kill 0' INT; \
-	./gradlew :backend-kotlin:run --args="start-server" --continuous & \
-	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous & \
+	./gradlew :backend:run --args="start-server" --continuous & \
+	./gradlew :frontend:jsBrowserDevelopmentRun --continuous & \
 	wait
 
 dev-backend:
-	./gradlew :backend-kotlin:run --args="start-server"
+	./gradlew :backend:run --args="start-server"
 
 dev-frontend:
-	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
+	./gradlew :frontend:jsBrowserDevelopmentRun --continuous
 
 # Gradle build targets
 build:
@@ -53,8 +53,8 @@ dependency-updates:
 		-Drevision=release \
 		-DoutputFormatter=html \
 		--refresh-dependencies && \
-		open backend-kotlin/build/dependencyUpdates/report.html &&
-		open frontend-compose/build/dependencyUpdates/report.html
+		open backend/build/dependencyUpdates/report.html &&
+		open frontend/build/dependencyUpdates/report.html
 
 # Docker setup
 init-docker:

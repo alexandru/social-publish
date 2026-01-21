@@ -131,20 +131,9 @@ tasks {
         manifest { attributes("Main-Class" to "socialpublish.backend.MainKt") }
         from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
-
-    // Fat JAR task
-    register<Jar>("fatJar") {
-        archiveClassifier.set("all")
-        manifest { attributes("Main-Class" to "socialpublish.backend.MainKt") }
-        from(sourceSets.main.get().output)
-        dependsOn(configurations.runtimeClasspath)
-        from({
-            configurations.runtimeClasspath
-                .get()
-                .filter { it.exists() }
-                .map { if (it.isDirectory) it else zipTree(it) }
-        })
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        // Exclude signature files from signed JARs to prevent security exceptions
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/INDEX.LIST")
+        // Exclude module-info to avoid conflicts in fat JAR
+        exclude("**/module-info.class")
     }
 }

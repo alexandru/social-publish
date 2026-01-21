@@ -1,11 +1,11 @@
 # Browser Verification Plan
 
-Goal: validate the Kotlin/JS frontend (TanStack Router) end-to-end in the browser and surface any runtime issues.
+Goal: validate the Compose for Web frontend end-to-end in the browser and surface any runtime issues.
 
 ## Prerequisites
 
 - Backend running on `http://localhost:3000` with valid `.envrc`/env vars
-- Frontend dev server via `./gradlew :frontend-kotlin:jsBrowserDevelopmentRun`
+- Frontend dev server via `./gradlew :frontend:jsBrowserDevelopmentRun`
 - Clean browser session (incognito) to avoid stale cookies/localStorage
 
 ## Test Matrix
@@ -22,10 +22,10 @@ Goal: validate the Kotlin/JS frontend (TanStack Router) end-to-end in the browse
 
 ## Execution Steps
 
-1. Start backend + frontend: `./gradlew :backend-kotlin:run` (or existing backend) and `./gradlew :frontend-kotlin:jsBrowserDevelopmentRun`
+1. Start backend + frontend: `./gradlew :backend:run` (or existing backend) and `./gradlew :frontend:jsBrowserDevelopmentRun`
 2. Open `http://localhost:3001`
 3. Run through Test Matrix; note console errors/network failures
-4. Verify production bundle: `./gradlew :frontend-kotlin:jsBrowserProductionWebpack` then open `frontend-kotlin/build/dist/index.html` with simple static server for spot checks
+4. Verify production bundle: `./gradlew :frontend:jsBrowserProductionWebpack` then open `frontend/build/dist/index.html` with simple static server for spot checks
 
 ## Reporting
 

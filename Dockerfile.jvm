@@ -8,8 +8,8 @@ ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"
 # Copy Gradle wrapper and configuration files
 COPY gradle ./gradle
 COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
-COPY backend-kotlin/build.gradle.kts ./backend-kotlin/
-COPY frontend-compose/build.gradle.kts ./frontend-compose/
+COPY backend/build.gradle.kts ./backend/
+COPY frontend/build.gradle.kts ./frontend/
 
 # Resolve dependencies for both modules to leverage layer caching
 RUN gradle dependencies --no-daemon
@@ -19,19 +19,19 @@ RUN gradle dependencies --no-daemon
 ############################
 FROM base AS build-backend
 # Copy backend source
-COPY backend-kotlin/src ./backend-kotlin/src
+COPY backend/src ./backend/src
 # Build backend JAR
-RUN gradle :backend-kotlin:jar --no-daemon -x test
+RUN gradle :backend:jar --no-daemon -x test
 
 ############################
 # Frontend Build stage
 ############################
 FROM base AS build-frontend
 # Copy frontend source
-COPY frontend-compose/src ./frontend-compose/src
-COPY frontend-compose/webpack.config.d ./frontend-compose/webpack.config.d
+COPY frontend/src ./frontend/src
+COPY frontend/webpack.config.d ./frontend/webpack.config.d
 # Build frontend distribution
-RUN gradle :frontend-compose:assemble --no-daemon -x test
+RUN gradle :frontend:assemble --no-daemon -x test
 
 ############################
 # JRE build stage
@@ -68,18 +68,18 @@ WORKDIR /opt/app
 RUN adduser -u 1001 -h /opt/app -s /bin/sh -D appuser
 RUN chown -R appuser /opt/app && chmod -R "g+rwX" /opt/app
 
-# Create data directory
-RUN mkdir -p /var/lib/social-publish
+# Create data directory and uploads subdirectory
+RUN mkdir -p /var/lib/social-publish/uploads
 RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
 
 # Install minimal runtime dependencies
 RUN apk add --no-cache curl
 
 # Copy application JAR from backend stage
-COPY --from=build-backend --chown=appuser:root /app/backend-kotlin/build/libs/backend-kotlin-1.0.0.jar /opt/app/app.jar
+COPY --from=build-backend --chown=appuser:root /app/backend/build/libs/backend-1.0.0.jar /opt/app/app.jar
 
 # Copy frontend assets from frontend stage
-COPY --from=build-frontend --chown=appuser:root /app/frontend-compose/build/dist/js/productionExecutable/ /opt/app/public/
+COPY --from=build-frontend --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
 
 # Copy java-exec wrapper script
 COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
@@ -94,8 +94,6 @@ ENV DB_PATH=/var/lib/social-publish/sqlite3.db
 ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
 ENV HTTP_PORT=3000
 ENV STATIC_CONTENT_PATH=/opt/app/public
-
-RUN mkdir -p "${UPLOADED_FILES_PATH}"
 
 # Run the application with optimized GC settings
 CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar", "start-server"]

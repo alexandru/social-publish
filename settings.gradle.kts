@@ -1,7 +1,7 @@
 rootProject.name = "social-publish-multiproject"
 
-include("backend-kotlin")
-include("frontend-compose")
+include("backend")
+include("frontend")
 
 dependencyResolutionManagement {
     versionCatalogs {
