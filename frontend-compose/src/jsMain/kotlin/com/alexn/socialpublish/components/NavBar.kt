@@ -47,9 +47,9 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                 }
 
                 if (isLoggedIn) {
-                    A(href = "/publish", attrs = {
+                    A(href = "/form", attrs = {
                         classes("navbar-item")
-                        if (currentPath == "/publish") classes("is-active")
+                        if (currentPath == "/form") classes("is-active")
                     }) {
                         Span(attrs = { classes("icon") }) {
                             Text("▶️")
