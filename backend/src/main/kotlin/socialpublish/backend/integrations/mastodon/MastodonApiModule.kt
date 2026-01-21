@@ -54,27 +54,32 @@ data class MastodonMediaResponse(
 class MastodonApiModule(
     private val config: MastodonConfig,
     private val filesModule: FilesModule,
-    private val httpClient: HttpClient = defaultHttpClient(),
+    private val httpClient: HttpClient,
 ) {
     companion object {
-        fun defaultHttpClient(): HttpClient =
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
+        fun defaultHttpClient(): Resource<HttpClient> = resource {
+            install(
+                {
+                    HttpClient(CIO) {
+                        install(ContentNegotiation) {
+                            json(
+                                Json {
+                                    ignoreUnknownKeys = true
+                                    isLenient = true
+                                }
+                            )
                         }
-                    )
-                }
-            }
+                    }
+                },
+                { client, _ -> client.close() },
+            )
+        }
 
         fun resource(
             config: MastodonConfig,
             filesModule: FilesModule,
         ): Resource<MastodonApiModule> = resource {
-            val client = install({ defaultHttpClient() }) { client, _ -> client.close() }
-            MastodonApiModule(config, filesModule, client)
+            MastodonApiModule(config, filesModule, defaultHttpClient().bind())
         }
     }
 
