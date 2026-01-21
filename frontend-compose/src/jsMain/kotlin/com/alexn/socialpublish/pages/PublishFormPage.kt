@@ -5,6 +5,7 @@ import com.alexn.socialpublish.components.*
 import com.alexn.socialpublish.models.FileUploadResponse
 import com.alexn.socialpublish.models.PublishRequest
 import com.alexn.socialpublish.models.PublishResponse
+import com.alexn.socialpublish.models.ModulePostResponse
 import com.alexn.socialpublish.utils.ApiClient
 import com.alexn.socialpublish.utils.ApiResponse
 import com.alexn.socialpublish.utils.Storage
@@ -161,7 +162,7 @@ private fun PostForm(
                     cleanupHtml = cleanupHtml
                 )
                 
-                when (val response = ApiClient.post<PublishResponse, PublishRequest>(
+                when (val response = ApiClient.post<Map<String, ModulePostResponse>, PublishRequest>(
                     "/api/multiple/post",
                     publishRequest
                 )) {
@@ -187,12 +188,13 @@ private fun PostForm(
                         onError("Error submitting form: ${response.message}")
                     }
                     is ApiResponse.Exception -> {
+                        console.error("Exception while submitting form: ${response.message}")
                         onError("Unexpected exception while submitting form!")
                     }
                 }
             } catch (e: Exception) {
+                console.error("Exception while submitting form:", e)
                 onError("Unexpected exception while submitting form!")
-                console.error(e)
             } finally {
                 isSubmitting = false
                 fieldset?.removeAttribute("disabled")

@@ -18,5 +18,13 @@ data class PublishRequest(
 
 @Serializable
 data class PublishResponse(
-    val message: String
+    val message: String? = null
+)
+
+@Serializable
+data class ModulePostResponse(
+    val module: String,
+    val uri: String? = null,
+    val id: String? = null,
+    val cid: String? = null
 )

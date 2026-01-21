@@ -35,6 +35,9 @@ object ApiClient {
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
+            
+            console.log("ApiClient.post response (url=$url, status=${response.status}):")
+            console.log(text)
 
             if (response.ok) {
                 val data = json.decodeFromString<T>(text)
@@ -48,6 +51,7 @@ object ApiClient {
                 }
             }
         } catch (e: Exception) {
+            console.error("ApiClient.post exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
     }
@@ -74,6 +78,7 @@ object ApiClient {
                 }
             }
         } catch (e: Exception) {
+            console.error("ApiClient.get exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
     }
@@ -113,6 +118,7 @@ object ApiClient {
                 ApiResponse.Error("HTTP ${response.status}: $text", response.status.toInt())
             }
         } catch (e: Exception) {
+            console.error("ApiClient.uploadFile exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
     }
