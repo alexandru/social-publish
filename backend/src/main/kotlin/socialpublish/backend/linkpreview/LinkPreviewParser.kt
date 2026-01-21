@@ -3,7 +3,6 @@ package socialpublish.backend.linkpreview
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
@@ -71,9 +70,7 @@ object LinkPreviewParser {
     private fun defaultHttpClient(): HttpClient =
         HttpClient(CIO) {
             // Disable automatic redirects to detect bot blocking
-            install(HttpRedirect) { allowHttpsDowngrade = false }
             followRedirects = false
-
             expectSuccess = false
         }
 

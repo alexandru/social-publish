@@ -261,19 +261,31 @@ class BlueskyApiTest {
                         )
                     }
                     get("/test-image.jpg") {
-                        // Return a simple 1x1 pixel image
+                        // Return a minimal valid 1x1 JPEG image
                         val bytes =
                             byteArrayOf(
                                 0xFF.toByte(),
-                                0xD8.toByte(),
+                                0xD8.toByte(), // JPEG SOI marker
                                 0xFF.toByte(),
-                                0xE0.toByte(),
+                                0xE0.toByte(), // JFIF APP0 marker
                                 0x00,
-                                0x10,
+                                0x10, // Length
                                 0x4A,
                                 0x46,
                                 0x49,
-                                0x46,
+                                0x46, // "JFIF"
+                                0x00, // Null terminator
+                                0x01,
+                                0x01, // Version 1.1
+                                0x00, // No units
+                                0x00,
+                                0x01, // X density
+                                0x00,
+                                0x01, // Y density
+                                0x00,
+                                0x00, // No thumbnail
+                                0xFF.toByte(),
+                                0xD9.toByte(), // JPEG EOI marker
                             )
                         call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
                     }
