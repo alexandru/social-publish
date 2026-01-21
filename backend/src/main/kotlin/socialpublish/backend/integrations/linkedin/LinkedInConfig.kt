@@ -1,6 +1,6 @@
 package socialpublish.backend.integrations.linkedin
 
-data class LinkedinConfig(
+data class LinkedInConfig(
     val clientId: String,
     val clientSecret: String,
     val authorUrn: String,

@@ -73,8 +73,8 @@ data class LinkedinShareResponse(@SerialName("id") val id: String) : NewPostResp
     override val module: String = "linkedin"
 }
 
-class LinkedinApiModule(
-    private val config: LinkedinConfig,
+class LinkedInApiModule(
+    private val config: LinkedInConfig,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient = defaultHttpClient(),
@@ -93,12 +93,12 @@ class LinkedinApiModule(
             }
 
         fun resource(
-            config: LinkedinConfig,
+            config: LinkedInConfig,
             documentsDb: DocumentsDatabase,
             filesModule: FilesModule,
-        ): Resource<LinkedinApiModule> = resource {
+        ): Resource<LinkedInApiModule> = resource {
             val client = install({ defaultHttpClient() }, { client, _ -> client.close() })
-            LinkedinApiModule(config, documentsDb, filesModule, client)
+            LinkedInApiModule(config, documentsDb, filesModule, client)
         }
     }
 
