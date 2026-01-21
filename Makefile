@@ -42,13 +42,13 @@ run-local: build-local
 
 # Development targets
 dev:
-	./gradlew :backend-kotlin:run & ./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
+	./gradlew :backend-kotlin:run & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
 
 dev-backend:
 	./gradlew :backend-kotlin:run
 
 dev-frontend:
-	./gradlew :frontend-kotlin:jsBrowserDevelopmentRun --continuous
+	./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous
 
 dev-compose:
 	./gradlew :backend-kotlin:run & ./gradlew :frontend-compose:jsBrowserDevelopmentRun --continuous

@@ -1,7 +1,6 @@
 rootProject.name = "social-publish-multiproject"
 
 include("backend-kotlin")
-include("frontend-kotlin")
 include("frontend-compose")
 
 dependencyResolutionManagement {
