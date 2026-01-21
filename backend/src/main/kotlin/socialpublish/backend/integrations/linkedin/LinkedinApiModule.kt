@@ -33,7 +33,7 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewLinkedinPostResponse
+import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.RequestError
 import socialpublish.backend.models.ResponseBody
 import socialpublish.backend.models.ValidationError
@@ -42,7 +42,7 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 @Serializable
-data class LinkedinToken(
+data class LinkedInToken(
     @SerialName("access_token") val accessToken: String,
     @SerialName("expires_in") val expiresIn: Long,
 )
@@ -106,7 +106,7 @@ class LinkedInApiModule(
         val doc = documentsDb.searchByKey("linkedin-token")
         return if (doc != null) {
             try {
-                val token = Json.decodeFromString<LinkedinToken>(doc.payload)
+                val token = Json.decodeFromString<LinkedInToken>(doc.payload)
                 token.accessToken.right()
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to parse LinkedIn token" }
@@ -127,11 +127,11 @@ class LinkedInApiModule(
         }
     }
 
-    suspend fun saveToken(token: LinkedinToken): ApiResult<Unit> {
+    suspend fun saveToken(token: LinkedInToken): ApiResult<Unit> {
         return try {
             documentsDb.createOrUpdate(
                 kind = "linkedin-token",
-                payload = Json.encodeToString(LinkedinToken.serializer(), token),
+                payload = Json.encodeToString(LinkedInToken.serializer(), token),
                 searchKey = "linkedin-token",
                 tags = emptyList(),
             )
@@ -146,7 +146,7 @@ class LinkedInApiModule(
         }
     }
 
-    suspend fun hasLinkedinAuth(): Boolean = getToken().isRight()
+    suspend fun hasLinkedInAuth(): Boolean = getToken().isRight()
 
     private suspend fun registerUpload(auth: String, altText: String?): ApiResult<LinkedinUploadRequest> {
         return try {
