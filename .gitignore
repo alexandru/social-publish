@@ -1,17 +1,5 @@
 # Logs
-logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-build
-*.local
 
 # Editor directories and files
 .vscode/*
@@ -24,3 +12,21 @@ build
 *.sln
 *.sw?
 .envrc
+
+# Kotlin/Gradle
+.kotlin
+.gradle/
+**/build/
+kotlin-js-store/
+!kotlin-js-store/yarn.lock
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+# Local development junk
+var/

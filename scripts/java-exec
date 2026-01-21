@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Java execution wrapper with minimal RAM GC configuration
+# Uses Shenandoah GC for low memory footprint and memory release back to OS
+
+exec java \
+  -XX:+UseShenandoahGC \
+  -XX:+UnlockExperimentalVMOptions \
+  -XX:ShenandoahUncommitDelay=1000 \
+  -XX:ShenandoahGuaranteedGCInterval=10000 \
+  "$@"

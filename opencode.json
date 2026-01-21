@@ -1,0 +1,14 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "intellij-idea": {
+            "type": "remote",
+            "url": "http://localhost:64342/sse",
+            "enabled": true
+        },
+        "chrome-devtools": {
+            "type": "local",
+            "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
+        }
+    }
+}

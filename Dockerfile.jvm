@@ -1,0 +1,99 @@
+############################
+# Base stage (Dependency Resolution)
+############################
+FROM gradle:8.11-jdk21 AS base
+WORKDIR /app
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"
+
+# Copy Gradle wrapper and configuration files
+COPY gradle ./gradle
+COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
+COPY backend/build.gradle.kts ./backend/
+COPY frontend/build.gradle.kts ./frontend/
+
+# Resolve dependencies for both modules to leverage layer caching
+RUN gradle dependencies --no-daemon
+
+############################
+# Backend Build stage
+############################
+FROM base AS build-backend
+# Copy backend source
+COPY backend/src ./backend/src
+# Build backend JAR
+RUN gradle :backend:jar --no-daemon -x test
+
+############################
+# Frontend Build stage
+############################
+FROM base AS build-frontend
+# Copy frontend source
+COPY frontend/src ./frontend/src
+COPY frontend/webpack.config.d ./frontend/webpack.config.d
+# Build frontend distribution
+RUN gradle :frontend:assemble --no-daemon -x test
+
+############################
+# JRE build stage
+############################
+FROM eclipse-temurin:21-alpine AS jre-build
+
+# Create a custom minimal Java runtime with only required modules
+RUN apk add --no-cache binutils
+RUN $JAVA_HOME/bin/jlink \
+        --add-modules java.base \
+        --add-modules java.xml \
+        --add-modules java.naming \
+        --add-modules java.management \
+        --add-modules java.sql \
+        --add-modules java.desktop \
+        --strip-debug \
+        --no-man-pages \
+        --no-header-files \
+        --compress=2 \
+        --output /javaruntime
+
+############################
+# Runtime stage
+############################
+FROM alpine:latest
+
+ENV JAVA_HOME=/opt/java
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+COPY --from=jre-build /javaruntime $JAVA_HOME
+
+WORKDIR /opt/app
+
+# Create application user
+RUN adduser -u 1001 -h /opt/app -s /bin/sh -D appuser
+RUN chown -R appuser /opt/app && chmod -R "g+rwX" /opt/app
+
+# Create data directory and uploads subdirectory
+RUN mkdir -p /var/lib/social-publish/uploads
+RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache curl
+
+# Copy application JAR from backend stage
+COPY --from=build-backend --chown=appuser:root /app/backend/build/libs/backend-1.0.0.jar /opt/app/app.jar
+
+# Copy frontend assets from frontend stage
+COPY --from=build-frontend --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
+
+# Copy java-exec wrapper script
+COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
+RUN chmod +x /opt/app/java-exec
+
+# Expose port 3000
+EXPOSE 3000
+USER appuser
+
+# Environment variables
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db
+ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
+ENV HTTP_PORT=3000
+ENV STATIC_CONTENT_PATH=/opt/app/public
+
+# Run the application with optimized GC settings
+CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar", "start-server"]

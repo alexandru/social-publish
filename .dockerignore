@@ -1,0 +1,42 @@
+# Git
+.git
+.github
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Build outputs
+build
+.gradle
+.kotlin
+backend/.gradle
+frontend/.gradle
+
+# Environment and config
+.env
+.envrc
+*.log
+
+# Documentation
+docs
+plans
+*.md
+!README.md
+
+# Test files
+*.test.*
+__tests__
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OpenCode
+.opencode
+opencode.json
