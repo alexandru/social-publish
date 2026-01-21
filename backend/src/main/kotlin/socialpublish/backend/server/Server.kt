@@ -35,6 +35,7 @@ import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
 import socialpublish.backend.integrations.mastodon.MastodonApiModule
 import socialpublish.backend.integrations.twitter.TwitterApiModule
+import socialpublish.backend.integrations.linkedin.LinkedinApiModule
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.NewBlueSkyPostResponse
 import socialpublish.backend.models.NewMastodonPostResponse
@@ -68,6 +69,8 @@ fun startServer(
         config.twitter?.let {
             TwitterApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
+    val linkedinModule =
+        config.linkedin?.let { LinkedinApiModule.resource(it, documentsDb, filesModule).bind() }
 
     val authModule =
         AuthModule(
@@ -75,7 +78,7 @@ fun startServer(
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
         )
 
-    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
+    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, linkedinModule, rssModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -101,8 +104,9 @@ fun startServer(
                             subclass(NewRssPostResponse::class)
                             subclass(NewMastodonPostResponse::class)
                             subclass(NewBlueSkyPostResponse::class)
-                            subclass(NewTwitterPostResponse::class)
-                        }
+                             subclass(NewTwitterPostResponse::class)
+                             subclass(socialpublish.backend.models.NewLinkedinPostResponse::class)
+                         }
                     }
                 }
             )

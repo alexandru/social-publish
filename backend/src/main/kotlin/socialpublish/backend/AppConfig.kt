@@ -21,6 +21,7 @@ data class AppConfig(
     val bluesky: BlueskyConfig?,
     val mastodon: MastodonConfig?,
     val twitter: TwitterConfig?,
+    val linkedin: socialpublish.backend.integrations.linkedin.LinkedinConfig?,
 )
 
 class AppCliCommand : CliktCommand(name = "social-publish") {
@@ -145,9 +146,9 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
 
     private val twitterOauth1ConsumerSecret: String? by
         option(
-            "--twitter-oauth1-consumer-secret",
-            help = "Twitter OAuth1 consumer secret (env: TWITTER_OAUTH1_CONSUMER_SECRET)",
-            envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
+                "--twitter-oauth1-consumer-secret",
+                help = "Twitter OAuth1 consumer secret (env: TWITTER_OAUTH1_CONSUMER_SECRET)",
+                envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
         )
 
     lateinit var config: AppConfig
@@ -201,6 +202,17 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 null
             }
 
+        val linkedinConfig =
+            if (linkedinClientId != null && linkedinClientSecret != null && linkedinAuthorUrn != null) {
+                socialpublish.backend.integrations.linkedin.LinkedinConfig(
+                    clientId = linkedinClientId!!,
+                    clientSecret = linkedinClientSecret!!,
+                    authorUrn = linkedinAuthorUrn!!,
+                )
+            } else {
+                null
+            }
+
         config =
             AppConfig(
                 server = serverConfig,
@@ -208,6 +220,28 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 bluesky = blueskyConfig,
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
+                linkedin = linkedinConfig,
             )
     }
 }
+    // LinkedIn integration (optional)
+    private val linkedinClientId: String? by
+        option(
+            "--linkedin-client-id",
+            help = "LinkedIn client id (env: LINKEDIN_CLIENT_ID)",
+            envvar = "LINKEDIN_CLIENT_ID",
+        )
+
+    private val linkedinClientSecret: String? by
+        option(
+            "--linkedin-client-secret",
+            help = "LinkedIn client secret (env: LINKEDIN_CLIENT_SECRET)",
+            envvar = "LINKEDIN_CLIENT_SECRET",
+        )
+
+    private val linkedinAuthorUrn: String? by
+        option(
+            "--linkedin-author-urn",
+            help = "LinkedIn author URN (urn:li:person:...) (env: LINKEDIN_AUTHOR_URN)",
+            envvar = "LINKEDIN_AUTHOR_URN",
+        )

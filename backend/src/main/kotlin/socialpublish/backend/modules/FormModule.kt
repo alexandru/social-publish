@@ -30,6 +30,7 @@ class FormModule(
     private val mastodonModule: MastodonApiModule?,
     private val blueskyModule: BlueskyApiModule?,
     private val twitterModule: TwitterApiModule?,
+    private val linkedinModule: socialpublish.backend.integrations.linkedin.LinkedinApiModule?,
     private val rssModule: RssModule,
 ) {
     /** Broadcast post to multiple platforms */
@@ -69,6 +70,18 @@ class FormModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Twitter integration not configured",
+                            module = "form",
+                        )
+                        .left()
+            }
+        }
+
+        if (targets.contains("linkedin")) {
+            tasks.add {
+                linkedinModule?.createPost(request)
+                    ?: ValidationError(
+                            status = 503,
+                            errorMessage = "LinkedIn integration not configured",
                             module = "form",
                         )
                         .left()

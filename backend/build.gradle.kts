@@ -51,6 +51,8 @@ dependencies {
 
     // HTML parsing
     implementation(libs.jsoup)
+    // LinkedIn HTTP calls
+    implementation(libs.ktor.client.auth)
 
     // BCrypt for password hashing
     implementation(libs.bcrypt)

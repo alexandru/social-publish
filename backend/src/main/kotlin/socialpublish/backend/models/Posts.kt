@@ -53,3 +53,8 @@ data class NewRssPostResponse(val uri: String) : NewPostResponse() {
 data class NewTwitterPostResponse(val id: String) : NewPostResponse() {
     override val module: String = "twitter"
 }
+
+@Serializable
+data class NewLinkedinPostResponse(val id: String) : NewPostResponse() {
+    override val module: String = "linkedin"
+}
