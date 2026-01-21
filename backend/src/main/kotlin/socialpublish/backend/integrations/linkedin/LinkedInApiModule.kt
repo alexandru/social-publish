@@ -49,6 +49,9 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
+// Token refresh buffer: refresh 5 minutes before expiry
+private const val TOKEN_REFRESH_BUFFER_SECONDS = 300L
+
 @Serializable
 data class LinkedInOAuthToken(
     val accessToken: String,
@@ -59,7 +62,7 @@ data class LinkedInOAuthToken(
 ) {
     fun isExpired(): Boolean {
         val now = Instant.now().epochSecond
-        return (now - obtainedAt) >= (expiresIn - 300) // Refresh 5 min before expiry
+        return (now - obtainedAt) >= (expiresIn - TOKEN_REFRESH_BUFFER_SECONDS)
     }
 }
 
@@ -224,7 +227,10 @@ class LinkedInApiModule(
     }
 
     /** Exchange authorization code for access token */
-    suspend fun exchangeCodeForToken(code: String): ApiResult<LinkedInOAuthToken> {
+    suspend fun exchangeCodeForToken(
+        code: String,
+        redirectUri: String,
+    ): ApiResult<LinkedInOAuthToken> {
         return try {
             val response =
                 httpClient.submitForm(
@@ -235,10 +241,7 @@ class LinkedInApiModule(
                             append("code", code)
                             append("client_id", config.clientId)
                             append("client_secret", config.clientSecret)
-                            append(
-                                "redirect_uri",
-                                getCallbackUrl(""),
-                            ) // JWT not needed for token exchange
+                            append("redirect_uri", redirectUri)
                         },
                 )
 
@@ -653,6 +656,7 @@ class LinkedInApiModule(
     /** Handle OAuth callback HTTP route */
     suspend fun callbackRoute(call: ApplicationCall) {
         val code = call.request.queryParameters["code"]
+        val accessToken = call.request.queryParameters["access_token"]
 
         if (code == null) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
@@ -661,7 +665,15 @@ class LinkedInApiModule(
 
         logger.info { "LinkedIn auth callback: code=$code" }
 
-        when (val tokenResult = exchangeCodeForToken(code)) {
+        // Reconstruct the original redirect_uri (must match the one used in authorization)
+        val redirectUri =
+            if (accessToken != null) {
+                "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, "UTF-8")}"
+            } else {
+                "$baseUrl/api/linkedin/callback"
+            }
+
+        when (val tokenResult = exchangeCodeForToken(code, redirectUri)) {
             is Either.Right -> {
                 val token = tokenResult.value
                 when (val saveResult = saveOAuthToken(token)) {
