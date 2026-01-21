@@ -393,13 +393,25 @@ class LinkedInApiModule(
                     .left()
 
         val validToken =
-            if (token.isExpired() && token.refreshToken != null) {
+            if (token.isExpired()) {
+                if (token.refreshToken == null) {
+                    return ValidationError(
+                            status = 401,
+                            errorMessage =
+                                "LinkedIn token expired and no refresh token available. Please re-authorize.",
+                            module = "linkedin",
+                        )
+                        .left()
+                }
+
                 logger.info { "LinkedIn token expired, refreshing..." }
                 when (val result = refreshAccessToken(token.refreshToken)) {
                     is Either.Right -> {
                         val newToken = result.value
-                        val _ = saveOAuthToken(newToken)
-                        newToken
+                        when (val saveResult = saveOAuthToken(newToken)) {
+                            is Either.Right -> newToken
+                            is Either.Left -> return saveResult.value.left()
+                        }
                     }
                     is Either.Left -> return result.value.left()
                 }
