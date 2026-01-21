@@ -15,10 +15,11 @@ data class PostPayload(
     val images: List<String>? = null,
 )
 
+@Serializable
 data class Post(
     val uuid: String,
     val targets: List<String>,
-    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class) val createdAt: Instant,
     val content: String,
     val link: String? = null,
     val tags: List<String>? = null,
