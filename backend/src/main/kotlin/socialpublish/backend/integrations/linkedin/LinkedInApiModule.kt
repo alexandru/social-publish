@@ -34,8 +34,8 @@ import java.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.jsoup.Jsoup
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
@@ -153,6 +153,7 @@ class LinkedInApiModule(
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
     private val httpClientEngine: HttpClientEngine,
+    private val linkPreviewParser: LinkPreviewParser,
 ) {
     private val httpClient: HttpClient by lazy {
         HttpClient(httpClientEngine) {
@@ -175,7 +176,8 @@ class LinkedInApiModule(
             filesModule: FilesModule,
         ): Resource<LinkedInApiModule> = resource {
             val engine = install({ CIO.create() }) { engine, _ -> engine.close() }
-            LinkedInApiModule(config, baseUrl, documentsDb, filesModule, engine)
+            val linkPreviewParser = LinkPreviewParser().bind()
+            LinkedInApiModule(config, baseUrl, documentsDb, filesModule, engine, linkPreviewParser)
         }
     }
 
@@ -522,14 +524,15 @@ class LinkedInApiModule(
         }
     }
 
-    /** Fetch link preview metadata using og:tags */
+    /** Fetch link preview metadata using LinkPreviewParser */
     private suspend fun fetchLinkPreview(url: String): Pair<String?, String?> {
         return try {
-            val doc = Jsoup.connect(url).get()
-            val title =
-                doc.select("meta[property=og:title]").attr("content").ifEmpty { doc.title() }
-            val imageUrl = doc.select("meta[property=og:image]").attr("content").ifEmpty { null }
-            Pair(title.ifEmpty { null }, imageUrl)
+            val preview = linkPreviewParser.fetchPreview(url)
+            if (preview != null) {
+                Pair(preview.title, preview.image)
+            } else {
+                Pair(null, null)
+            }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch link preview for $url" }
             Pair(null, null)
