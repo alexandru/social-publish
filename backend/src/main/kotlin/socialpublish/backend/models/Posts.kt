@@ -14,7 +14,6 @@ data class NewPostRequest(
     val content: String,
     val targets: List<String>? = null,
     val link: String? = null,
-    val linkPreview: LinkPreview? = null,
     val language: String? = null,
     val cleanupHtml: Boolean? = null,
     val images: List<String>? = null,
@@ -31,14 +30,6 @@ data class NewPostRequest(
 }
 
 @Serializable
-data class LinkPreview(
-    val uri: String? = null,
-    val title: String? = null,
-    val description: String? = null,
-    val thumbnail: String? = null,
-)
-
-@Serializable
 sealed class NewPostResponse {
     abstract val module: String
 }
@@ -48,17 +39,14 @@ data class NewBlueSkyPostResponse(val uri: String, val cid: String? = null) : Ne
     override val module: String = "bluesky"
 }
 
-@Serializable
-data class NewMastodonPostResponse(val uri: String) : NewPostResponse() {
+@Serializable data class NewMastodonPostResponse(val uri: String) : NewPostResponse() {
     override val module: String = "mastodon"
 }
 
-@Serializable
-data class NewRssPostResponse(val uri: String) : NewPostResponse() {
+@Serializable data class NewRssPostResponse(val uri: String) : NewPostResponse() {
     override val module: String = "rss"
 }
 
-@Serializable
-data class NewTwitterPostResponse(val id: String) : NewPostResponse() {
+@Serializable data class NewTwitterPostResponse(val id: String) : NewPostResponse() {
     override val module: String = "twitter"
 }

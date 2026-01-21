@@ -41,6 +41,7 @@ import socialpublish.backend.models.RequestError
 import socialpublish.backend.models.ResponseBody
 import socialpublish.backend.models.ValidationError
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.modules.LinkPreviewFetcher
 
 private val logger = KotlinLogging.logger {}
 
@@ -76,6 +77,8 @@ class BlueskyApiModule(
     private val config: BlueskyConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient = defaultHttpClient(),
+    private val linkPreviewFetcher: LinkPreviewFetcher =
+        LinkPreviewFetcher(httpClient.config { followRedirects = false }),
 ) {
     companion object {
         fun defaultHttpClient(): HttpClient =
@@ -425,17 +428,16 @@ class BlueskyApiModule(
                             }
                         }
                     }
-                } else if (
-                    request.linkPreview != null &&
-                        (request.linkPreview.uri != null || request.link != null)
-                ) {
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.external")
-                        putJsonObject("external") {
-                            put("uri", request.linkPreview.uri ?: request.link!!)
-                            request.linkPreview.title?.let { put("title", it) }
-                            request.linkPreview.description?.let { put("description", it) }
-                            request.linkPreview.thumbnail?.let { put("thumbnail", it) }
+                } else if (request.link != null) {
+                    linkPreviewFetcher.fetch(request.link)?.let { preview ->
+                        putJsonObject("embed") {
+                            put("\$type", "app.bsky.embed.external")
+                            putJsonObject("external") {
+                                put("uri", request.link)
+                                put("title", preview.title)
+                                preview.description?.let { put("description", it) }
+                                preview.thumbnail?.let { put("thumb", it) }
+                            }
                         }
                     }
                 }

@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
-import socialpublish.backend.models.LinkPreview
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
@@ -219,6 +218,7 @@ class BlueskyApiTest {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
             var createRecordBody: JsonObject? = null
+            var previewCalls = 0
 
             application {
                 routing {
@@ -227,6 +227,23 @@ class BlueskyApiTest {
                             "{" +
                                 "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
                             io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    get("/preview") {
+                        previewCalls++
+                        call.respondText(
+                            """
+                            <html>
+                              <head>
+                                <title>Example Article</title>
+                                <meta name="description" content="An example" />
+                                <meta property="og:image" content="https://example.com/img.png" />
+                              </head>
+                              <body>hello</body>
+                            </html>
+                            """
+                                .trimIndent(),
+                            io.ktor.http.ContentType.Text.Html,
                         )
                     }
                     post("/xrpc/com.atproto.repo.createRecord") {
@@ -261,18 +278,12 @@ class BlueskyApiTest {
             val req =
                 NewPostRequest(
                     content = "Hello bluesky",
-                    link = "https://example.com/article",
-                    linkPreview =
-                        LinkPreview(
-                            uri = "https://example.com/article",
-                            title = "Example Article",
-                            description = "An example",
-                            thumbnail = "https://example.com/img.png",
-                        ),
+                    link = "http://localhost/preview",
                 )
             val result = blueskyModule.createPost(req)
 
             assertTrue(result.isRight())
+            assertEquals(1, previewCalls)
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             assertTrue(record["text"]?.jsonPrimitive?.content?.contains(req.link!!) == true)
@@ -282,7 +293,7 @@ class BlueskyApiTest {
             assertEquals(req.link, external["uri"]?.jsonPrimitive?.content)
             assertEquals("Example Article", external["title"]?.jsonPrimitive?.content)
             assertEquals("An example", external["description"]?.jsonPrimitive?.content)
-            assertEquals("https://example.com/img.png", external["thumbnail"]?.jsonPrimitive?.content)
+            assertEquals("https://example.com/img.png", external["thumb"]?.jsonPrimitive?.content)
 
             blueskyClient.close()
         }
