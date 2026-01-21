@@ -75,14 +75,14 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   ```bash
   make lint
   # or
-  ./gradlew ktlintCheck
+  ./gradlew ktfmtCheck
   ```
 
 - Format the source code (required before committing):
   ```bash
   make format
   # or
-  ./gradlew ktlintFormat
+  ./gradlew ktfmtFormat
   ```
 
 ### Docker
