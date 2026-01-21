@@ -8,7 +8,7 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.11.4"
 }
 
-group = "com.alexn.socialpublish"
+group = "socialpublish.backend"
 
 version = "1.0.0"
 
@@ -92,7 +92,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     }
 }
 
-application { mainClass.set("com.alexn.socialpublish.MainKt") }
+application { mainClass.set("socialpublish.backend.MainKt") }
 
 graalvmNative {
     metadataRepository {
@@ -128,7 +128,7 @@ graalvmNative {
 
 tasks {
     jar {
-        manifest { attributes("Main-Class" to "com.alexn.socialpublish.MainKt") }
+        manifest { attributes("Main-Class" to "socialpublish.backend.MainKt") }
         from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
@@ -136,7 +136,7 @@ tasks {
     // Fat JAR task
     register<Jar>("fatJar") {
         archiveClassifier.set("all")
-        manifest { attributes("Main-Class" to "com.alexn.socialpublish.MainKt") }
+        manifest { attributes("Main-Class" to "socialpublish.backend.MainKt") }
         from(sourceSets.main.get().output)
         dependsOn(configurations.runtimeClasspath)
         from({
