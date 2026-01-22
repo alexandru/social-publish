@@ -1,3 +1,6 @@
+# To build the JVM container:
+#   docker build -f docker/Dockerfile.jvm -t social-publish-jvm .
+#
 ############################
 # Base stage (Dependency Resolution)
 ############################
