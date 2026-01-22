@@ -105,7 +105,7 @@ fun startServer(
                             subclass(NewBlueSkyPostResponse::class)
                             subclass(NewTwitterPostResponse::class)
                         }
-                        // Explicitly register serializers to ensure availability in native image
+                        // Explicitly register serializers
                         contextual(
                             CompositeErrorResponse::class,
                             CompositeErrorResponse.serializer(),
