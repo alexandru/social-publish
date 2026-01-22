@@ -586,7 +586,7 @@ class LinkedInApiModule(
         accessToken: String,
         personUrn: String,
         uuid: String,
-    ): ApiResult<String> {
+    ): ApiResult<UploadedAsset> {
         return try {
             val file =
                 filesModule.readImageFile(uuid, maxWidth = 5000, maxHeight = 5000)
@@ -662,7 +662,8 @@ class LinkedInApiModule(
                     .left()
             }
 
-            asset.right()
+            // Return asset URN along with optional alt text stored in file metadata
+            UploadedAsset(asset = asset, description = file.altText).right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
             CaughtException(
@@ -742,11 +743,11 @@ class LinkedInApiModule(
             }
 
             // Upload images if present
-            val uploadedImageUrns = mutableListOf<String>()
+            val uploadedAssets = mutableListOf<UploadedAsset>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
                     when (val result = uploadMedia(accessToken, personUrn, imageUuid)) {
-                        is Either.Right -> uploadedImageUrns.add(result.value)
+                        is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
                 }
@@ -756,7 +757,7 @@ class LinkedInApiModule(
             val ugcPostRequest =
                 when {
                     // If we have images, create IMAGE share
-                    uploadedImageUrns.isNotEmpty() -> {
+                    uploadedAssets.isNotEmpty() -> {
                         UgcPostRequest(
                             author = personUrn,
                             lifecycleState = UgcLifecycleState.PUBLISHED,
@@ -767,8 +768,12 @@ class LinkedInApiModule(
                                             shareCommentary = UgcText(content),
                                             shareMediaCategory = UgcMediaCategory.IMAGE,
                                             media =
-                                                uploadedImageUrns.map { assetUrn ->
-                                                    UgcMedia(status = "READY", media = assetUrn)
+                                                uploadedAssets.map { uploaded ->
+                                                    UgcMedia(
+                                                        status = "READY",
+                                                        media = uploaded.asset,
+                                                        description = uploaded.description?.let { UgcText(it) },
+                                                    )
                                                 },
                                         )
                                 ),
