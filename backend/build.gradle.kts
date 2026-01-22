@@ -103,18 +103,19 @@ graalvmNative {
         version = "0.3.8"
     }
 
-    val commonBuildArgs = listOf(
-        "--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers",
-        "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder",
-        "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls",
-        "--initialize-at-build-time=ch.qos.logback.classic.Logger",
-        "--initialize-at-run-time=io.ktor.server.cio.backend.HttpServerKt",
-        "--no-fallback",
-        "-H:+UnlockExperimentalVMOptions",
-        "-H:+InstallExitHandlers",
-        "-H:+ReportExceptionStackTraces",
-        "-H:+ReportUnsupportedElementsAtRuntime"
-    )
+    val commonBuildArgs =
+        listOf(
+            "--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers",
+            "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder",
+            "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls",
+            "--initialize-at-build-time=ch.qos.logback.classic.Logger",
+            "--initialize-at-run-time=io.ktor.server.cio.backend.HttpServerKt",
+            "--no-fallback",
+            "-H:+UnlockExperimentalVMOptions",
+            "-H:+InstallExitHandlers",
+            "-H:+ReportExceptionStackTraces",
+            "-H:+ReportUnsupportedElementsAtRuntime",
+        )
 
     binaries {
         named("main") {
