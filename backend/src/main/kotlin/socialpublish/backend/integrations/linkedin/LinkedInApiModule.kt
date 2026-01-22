@@ -74,7 +74,11 @@ data class LinkedInTokenResponse(
     @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
 )
 
-@Serializable data class LinkedInUserProfile(val id: String)
+@Serializable
+data class LinkedInUserProfile(
+    /** Subject identifier from OIDC userinfo endpoint */
+    val sub: String
+)
 
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -356,11 +360,11 @@ class LinkedInApiModule(
         }
     }
 
-    /** Get user profile to obtain person URN */
+    /** Get user profile to obtain person URN via OIDC userinfo endpoint */
     suspend fun getUserProfile(accessToken: String): ApiResult<LinkedInUserProfile> {
         return try {
             val response =
-                httpClient.get("${config.apiBase}/me") {
+                httpClient.get("${config.apiBase}/userinfo") {
                     header("Authorization", "Bearer $accessToken")
                 }
 
@@ -430,9 +434,9 @@ class LinkedInApiModule(
         // Get person URN from user profile
         when (val profileResult = getUserProfile(validToken.accessToken)) {
             is Either.Right -> {
-                // The /me endpoint may return just the ID or the full URN
+                // The OIDC /userinfo endpoint returns the subject ID in "sub" field
                 // Normalize to always use the full URN format
-                val rawId = profileResult.value.id
+                val rawId = profileResult.value.sub
                 val personUrn =
                     if (rawId.startsWith("urn:li:person:")) {
                         rawId
