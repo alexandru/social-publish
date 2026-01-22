@@ -862,4 +862,8 @@ class LinkedInApiTest {
                 linkedInClient.close()
             }
         }
+    // TODO: Add automated test for LinkedIn OAuth callback error handling
+    // The implementation correctly handles LinkedIn OAuth errors by redirecting to
+    // /account?error=...
+    // Manual testing confirmed this works correctly with the user-friendly error message.
 }

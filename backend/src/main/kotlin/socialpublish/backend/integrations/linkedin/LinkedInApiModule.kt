@@ -812,9 +812,27 @@ class LinkedInApiModule(
     suspend fun callbackRoute(call: ApplicationCall) {
         val code = call.request.queryParameters["code"]
         val accessToken = call.request.queryParameters["access_token"]
+        val error = call.request.queryParameters["error"]
+        val errorDescription = call.request.queryParameters["error_description"]
+
+        // Check if LinkedIn returned an error
+        if (error != null) {
+            val errorMsg =
+                errorDescription?.let { URLEncoder.encode(it, "UTF-8") }
+                    ?: URLEncoder.encode("LinkedIn authorization failed: $error", "UTF-8")
+            logger.warn { "LinkedIn OAuth error: $error, description: $errorDescription" }
+            call.respondRedirect("/account?error=$errorMsg")
+            return
+        }
 
         if (code == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
+            val errorMsg =
+                URLEncoder.encode(
+                    "LinkedIn authorization failed: missing authorization code",
+                    "UTF-8",
+                )
+            logger.warn { "LinkedIn callback missing code parameter" }
+            call.respondRedirect("/account?error=$errorMsg")
             return
         }
 
@@ -842,20 +860,20 @@ class LinkedInApiModule(
                         call.respondRedirect("/account")
                     }
                     is Either.Left -> {
-                        val error = saveResult.value
-                        call.respond(
-                            HttpStatusCode.fromValue(error.status),
-                            ErrorResponse(error = error.errorMessage),
-                        )
+                        val saveError = saveResult.value
+                        val errorMsg = URLEncoder.encode(saveError.errorMessage, "UTF-8")
+                        logger.error { "Failed to save LinkedIn token: ${saveError.errorMessage}" }
+                        call.respondRedirect("/account?error=$errorMsg")
                     }
                 }
             }
             is Either.Left -> {
-                val error = tokenResult.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
+                val tokenError = tokenResult.value
+                val errorMsg = URLEncoder.encode(tokenError.errorMessage, "UTF-8")
+                logger.error {
+                    "Failed to exchange LinkedIn code for token: ${tokenError.errorMessage}"
+                }
+                call.respondRedirect("/account?error=$errorMsg")
             }
         }
     }
