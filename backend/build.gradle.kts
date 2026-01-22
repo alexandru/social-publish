@@ -61,7 +61,6 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
-
 }
 
 tasks.test { useJUnitPlatform() }

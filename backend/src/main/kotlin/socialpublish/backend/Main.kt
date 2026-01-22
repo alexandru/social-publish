@@ -18,7 +18,6 @@ import com.github.ajalt.clikt.parameters.types.int
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
-import java.security.Security
 import kotlinx.coroutines.awaitCancellation
 import socialpublish.backend.db.Database
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
@@ -253,7 +252,6 @@ class StartServerCommand : CliktCommand(name = "start-server") {
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot
         // be inside SuspendApp
-
 
         SuspendApp {
             resourceScope {
