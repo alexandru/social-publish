@@ -1,1193 +1,2934 @@
 [
-{
-  "name":"[B"
-},
-{
-  "name":"[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
-},
-{
-  "name":"[Lcom.fasterxml.jackson.databind.ser.Serializers;"
-},
-{
-  "name":"[Ljava.lang.Object;"
-},
-{
-  "name":"[Ljava.lang.String;"
-},
-{
-  "name":"[Lorg.jdom2.Content;"
-},
-{
-  "name":"[Lorg.jdom2.Namespace;"
-},
-{
-  "name":"[Lsun.security.pkcs.SignerInfo;"
-},
-{
-  "name":"android.os.Build"
-},
-{
-  "name":"android.os.Build$VERSION"
-},
-{
-  "name":"ch.qos.logback.classic.encoder.PatternLayoutEncoder",
-  "queryAllPublicMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"ch.qos.logback.classic.util.DefaultJoranConfigurator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"ch.qos.logback.core.ConsoleAppender",
-  "queryAllPublicMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"ch.qos.logback.core.OutputStreamAppender",
-  "methods":[{"name":"setEncoder","parameterTypes":["ch.qos.logback.core.encoder.Encoder"] }]
-},
-{
-  "name":"ch.qos.logback.core.encoder.Encoder",
-  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"ch.qos.logback.core.encoder.LayoutWrappingEncoder",
-  "methods":[{"name":"setParent","parameterTypes":["ch.qos.logback.core.spi.ContextAware"] }]
-},
-{
-  "name":"ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
-  "methods":[{"name":"setPattern","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"ch.qos.logback.core.spi.ContextAware",
-  "methods":[{"name":"valueOf","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"com.drew.metadata.exif.ExifIFD0Directory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.drew.metadata.exif.ExifSubIFDDirectory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.fasterxml.jackson.databind.ext.Java7SupportImpl",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.module.DCModuleImpl",
-  "queryAllPublicMethods":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"getContributors","parameterTypes":[] }, {"name":"getCoverages","parameterTypes":[] }, {"name":"getCreators","parameterTypes":[] }, {"name":"getDates","parameterTypes":[] }, {"name":"getDescriptions","parameterTypes":[] }, {"name":"getFormats","parameterTypes":[] }, {"name":"getIdentifiers","parameterTypes":[] }, {"name":"getLanguages","parameterTypes":[] }, {"name":"getPublishers","parameterTypes":[] }, {"name":"getRelations","parameterTypes":[] }, {"name":"getRightsList","parameterTypes":[] }, {"name":"getSources","parameterTypes":[] }, {"name":"getSubjects","parameterTypes":[] }, {"name":"getTitles","parameterTypes":[] }, {"name":"getTypes","parameterTypes":[] }, {"name":"setContributors","parameterTypes":["java.util.List"] }, {"name":"setCoverages","parameterTypes":["java.util.List"] }, {"name":"setCreators","parameterTypes":["java.util.List"] }, {"name":"setDates","parameterTypes":["java.util.List"] }, {"name":"setDescriptions","parameterTypes":["java.util.List"] }, {"name":"setFormats","parameterTypes":["java.util.List"] }, {"name":"setIdentifiers","parameterTypes":["java.util.List"] }, {"name":"setLanguages","parameterTypes":["java.util.List"] }, {"name":"setPublishers","parameterTypes":["java.util.List"] }, {"name":"setRelations","parameterTypes":["java.util.List"] }, {"name":"setRightsList","parameterTypes":["java.util.List"] }, {"name":"setSources","parameterTypes":["java.util.List"] }, {"name":"setSubjects","parameterTypes":["java.util.List"] }, {"name":"setTitles","parameterTypes":["java.util.List"] }, {"name":"setTypes","parameterTypes":["java.util.List"] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForAtom03",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForAtom10",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS090",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS091Netscape",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS091Userland",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS092",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS093",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS094",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS10",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.feed.synd.impl.ConverterForRSS20",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.Atom03Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.Atom10Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.DCModuleGenerator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS090Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS091NetscapeGenerator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS091UserlandGenerator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS092Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS093Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS094Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS10Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.RSS20Generator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.rometools.rome.io.impl.SyModuleGenerator",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.crypto.provider.HmacCore$HmacSHA256",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.crypto.provider.HmacSHA1",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.jna.CallbackProxy",
-  "methods":[{"name":"callback","parameterTypes":["java.lang.Object[]"] }]
-},
-{
-  "name":"com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"io.ktor.client.HttpClient",
-  "fields":[{"name":"closed"}]
-},
-{
-  "name":"io.ktor.client.HttpClientConfig"
-},
-{
-  "name":"io.ktor.client.call.HttpClientCall",
-  "fields":[{"name":"received"}]
-},
-{
-  "name":"io.ktor.client.content.ProgressListener"
-},
-{
-  "name":"io.ktor.client.engine.HttpClientEngineBase",
-  "fields":[{"name":"closed"}]
-},
-{
-  "name":"io.ktor.client.engine.HttpClientEngineCapability"
-},
-{
-  "name":"io.ktor.client.engine.HttpClientEngineConfig"
-},
-{
-  "name":"io.ktor.client.plugins.HttpRetryDelayContext"
-},
-{
-  "name":"io.ktor.client.plugins.HttpRetryModifyRequestContext"
-},
-{
-  "name":"io.ktor.client.plugins.HttpRetryShouldRetryContext"
-},
-{
-  "name":"io.ktor.client.plugins.HttpSend"
-},
-{
-  "name":"io.ktor.client.plugins.HttpTimeoutConfig"
-},
-{
-  "name":"io.ktor.client.plugins.api.ClientPluginImpl"
-},
-{
-  "name":"io.ktor.client.plugins.api.ClientPluginInstance"
-},
-{
-  "name":"io.ktor.client.request.HttpRequest"
-},
-{
-  "name":"io.ktor.client.request.HttpRequestBuilder"
-},
-{
-  "name":"io.ktor.client.request.ResponseAdapter"
-},
-{
-  "name":"io.ktor.client.statement.HttpResponse"
-},
-{
-  "name":"io.ktor.http.ContentType"
-},
-{
-  "name":"io.ktor.http.HttpStatusCode"
-},
-{
-  "name":"io.ktor.http.Parameters"
-},
-{
-  "name":"io.ktor.http.content.ByteArrayContent"
-},
-{
-  "name":"io.ktor.http.content.MultiPartData"
-},
-{
-  "name":"io.ktor.http.content.TextContent"
-},
-{
-  "name":"io.ktor.network.selector.LockFreeMPSCQueue",
-  "fields":[{"name":"curRef"}]
-},
-{
-  "name":"io.ktor.network.selector.LockFreeMPSCQueueCore",
-  "fields":[{"name":"nextRef"}, {"name":"stateRef"}]
-},
-{
-  "name":"io.ktor.server.application.PluginInstance"
-},
-{
-  "name":"io.ktor.server.auth.AuthenticateProvidersRegistration"
-},
-{
-  "name":"io.ktor.server.auth.Authentication"
-},
-{
-  "name":"io.ktor.server.auth.AuthenticationContext"
-},
-{
-  "name":"io.ktor.server.engine.BaseApplicationResponse"
-},
-{
-  "name":"io.ktor.server.plugins.MutableOriginConnectionPoint"
-},
-{
-  "name":"io.ktor.server.request.DoubleReceivePreventionToken"
-},
-{
-  "name":"io.ktor.server.routing.RoutingCall"
-},
-{
-  "name":"io.ktor.server.routing.RoutingRoot"
-},
-{
-  "name":"io.ktor.server.testing.TestApplication",
-  "fields":[{"name":"state"}]
-},
-{
-  "name":"io.ktor.server.testing.TestApplicationResponse",
-  "fields":[{"name":"writeContentChannel$internal"}]
-},
-{
-  "name":"io.ktor.util.Attributes"
-},
-{
-  "name":"io.ktor.util.collections.CopyOnWriteHashMap",
-  "fields":[{"name":"current"}]
-},
-{
-  "name":"io.ktor.util.internal.LockFreeLinkedListNode",
-  "fields":[{"name":"_next"}, {"name":"_prev"}, {"name":"removedRef"}]
-},
-{
-  "name":"io.ktor.util.reflect.TypeInfo"
-},
-{
-  "name":"io.ktor.utils.io.ByteChannel",
-  "fields":[{"name":"_closedCause"}, {"name":"suspensionSlot"}]
-},
-{
-  "name":"io.ktor.utils.io.jvm.javaio.BlockingKt",
-  "methods":[{"name":"toInputStream","parameterTypes":["io.ktor.utils.io.ByteReadChannel","kotlinx.coroutines.Job"] }]
-},
-{
-  "name":"io.ktor.utils.io.pool.DefaultPool",
-  "fields":[{"name":"top"}]
-},
-{
-  "name":"java.awt.image.ColorConvertOp"
-},
-{
-  "name":"java.io.File"
-},
-{
-  "name":"java.io.InputStream"
-},
-{
-  "name":"java.lang.Boolean"
-},
-{
-  "name":"java.lang.Class",
-  "methods":[{"name":"getModule","parameterTypes":[] }, {"name":"getPermittedSubclasses","parameterTypes":[] }, {"name":"getRecordComponents","parameterTypes":[] }, {"name":"isRecord","parameterTypes":[] }, {"name":"isSealed","parameterTypes":[] }]
-},
-{
-  "name":"java.lang.ClassValue"
-},
-{
-  "name":"java.lang.Enum"
-},
-{
-  "name":"java.lang.Exception",
-  "allDeclaredFields":true
-},
-{
-  "name":"java.lang.Integer"
-},
-{
-  "name":"java.lang.Long"
-},
-{
-  "name":"java.lang.Module",
-  "methods":[{"name":"getDescriptor","parameterTypes":[] }]
-},
-{
-  "name":"java.lang.Object",
-  "allDeclaredFields":true,
-  "methods":[{"name":"equals","parameterTypes":["java.lang.Object"] }, {"name":"hashCode","parameterTypes":[] }, {"name":"toString","parameterTypes":[] }]
-},
-{
-  "name":"java.lang.RuntimeException",
-  "allDeclaredFields":true
-},
-{
-  "name":"java.lang.SecurityManager"
-},
-{
-  "name":"java.lang.String",
-  "allDeclaredClasses":true,
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"java.lang.Thread",
-  "fields":[{"name":"threadLocalRandomProbe"}]
-},
-{
-  "name":"java.lang.Throwable",
-  "allDeclaredFields":true,
-  "methods":[{"name":"addSuppressed","parameterTypes":["java.lang.Throwable"] }]
-},
-{
-  "name":"java.lang.invoke.MethodHandle",
-  "methods":[{"name":"bindTo","parameterTypes":["java.lang.Object"] }, {"name":"invokeWithArguments","parameterTypes":["java.lang.Object[]"] }]
-},
-{
-  "name":"java.lang.invoke.MethodHandles",
-  "methods":[{"name":"lookup","parameterTypes":[] }, {"name":"privateLookupIn","parameterTypes":["java.lang.Class","java.lang.invoke.MethodHandles$Lookup"] }]
-},
-{
-  "name":"java.lang.invoke.MethodHandles$Lookup",
-  "methods":[{"name":"findSpecial","parameterTypes":["java.lang.Class","java.lang.String","java.lang.invoke.MethodType","java.lang.Class"] }, {"name":"in","parameterTypes":["java.lang.Class"] }, {"name":"unreflectSpecial","parameterTypes":["java.lang.reflect.Method","java.lang.Class"] }]
-},
-{
-  "name":"java.lang.invoke.MethodType",
-  "methods":[{"name":"methodType","parameterTypes":["java.lang.Class","java.lang.Class[]"] }]
-},
-{
-  "name":"java.lang.module.ModuleDescriptor",
-  "methods":[{"name":"name","parameterTypes":[] }]
-},
-{
-  "name":"java.lang.reflect.Method",
-  "methods":[{"name":"isDefault","parameterTypes":[] }, {"name":"isVarArgs","parameterTypes":[] }]
-},
-{
-  "name":"java.nio.Buffer"
-},
-{
-  "name":"java.security.MessageDigestSpi"
-},
-{
-  "name":"java.security.SecureRandomParameters"
-},
-{
-  "name":"java.security.interfaces.RSAPrivateKey"
-},
-{
-  "name":"java.security.interfaces.RSAPublicKey"
-},
-{
-  "name":"java.util.Base64"
-},
-{
-  "name":"java.util.Date",
-  "methods":[{"name":"clone","parameterTypes":[] }]
-},
-{
-  "name":"java.util.HashSet"
-},
-{
-  "name":"java.util.LinkedHashSet"
-},
-{
-  "name":"java.util.List"
-},
-{
-  "name":"java.util.Map"
-},
-{
-  "name":"java.util.NoSuchElementException",
-  "allDeclaredFields":true
-},
-{
-  "name":"java.util.concurrent.ArrayBlockingQueue"
-},
-{
-  "name":"java.util.concurrent.ForkJoinTask",
-  "fields":[{"name":"aux"}, {"name":"status"}]
-},
-{
-  "name":"java.util.concurrent.atomic.AtomicBoolean",
-  "fields":[{"name":"value"}]
-},
-{
-  "name":"java.util.concurrent.atomic.AtomicReference",
-  "fields":[{"name":"value"}]
-},
-{
-  "name":"java.util.concurrent.atomic.Striped64",
-  "fields":[{"name":"base"}, {"name":"cellsBusy"}]
-},
-{
-  "name":"java.util.concurrent.locks.AbstractOwnableSynchronizer"
-},
-{
-  "name":"java.util.concurrent.locks.AbstractQueuedSynchronizer"
-},
-{
-  "name":"java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject"
-},
-{
-  "name":"java.util.concurrent.locks.ReentrantLock"
-},
-{
-  "name":"java.util.concurrent.locks.ReentrantLock$NonfairSync"
-},
-{
-  "name":"java.util.concurrent.locks.ReentrantLock$Sync"
-},
-{
-  "name":"java.util.stream.Collectors",
-  "methods":[{"name":"toUnmodifiableSet","parameterTypes":[] }]
-},
-{
-  "name":"javax.imageio.spi.ImageReaderSpi"
-},
-{
-  "name":"javax.imageio.spi.ImageReaderWriterSpi",
-  "methods":[{"name":"getFileSuffixes","parameterTypes":[] }, {"name":"getFormatNames","parameterTypes":[] }, {"name":"getMIMETypes","parameterTypes":[] }]
-},
-{
-  "name":"javax.imageio.spi.ImageWriterSpi"
-},
-{
-  "name":"javax.security.auth.x500.X500Principal",
-  "fields":[{"name":"thisX500Name"}],
-  "methods":[{"name":"<init>","parameterTypes":["sun.security.x509.X500Name"] }]
-},
-{
-  "name":"jdk.internal.misc.Unsafe"
-},
-{
-  "name":"jdk.jfr.FlightRecorder",
-  "methods":[{"name":"isAvailable","parameterTypes":[] }, {"name":"register","parameterTypes":["java.lang.Class"] }]
-},
-{
-  "name":"kotlin.Any"
-},
-{
-  "name":"kotlin.Boolean"
-},
-{
-  "name":"kotlin.ByteArray"
-},
-{
-  "name":"kotlin.Function2"
-},
-{
-  "name":"kotlin.Function3"
-},
-{
-  "name":"kotlin.Int"
-},
-{
-  "name":"kotlin.Long"
-},
-{
-  "name":"kotlin.Metadata",
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "methods":[{"name":"bv","parameterTypes":[] }, {"name":"d1","parameterTypes":[] }, {"name":"d2","parameterTypes":[] }, {"name":"k","parameterTypes":[] }, {"name":"mv","parameterTypes":[] }, {"name":"pn","parameterTypes":[] }, {"name":"xi","parameterTypes":[] }, {"name":"xs","parameterTypes":[] }]
-},
-{
-  "name":"kotlin.SafePublicationLazyImpl",
-  "fields":[{"name":"_value"}]
-},
-{
-  "name":"kotlin.String"
-},
-{
-  "name":"kotlin.Throwable"
-},
-{
-  "name":"kotlin.Unit"
-},
-{
-  "name":"kotlin.annotation.MustBeDocumented",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"kotlin.annotation.Retention",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"kotlin.annotation.Target",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"kotlin.collections.List"
-},
-{
-  "name":"kotlin.collections.Map"
-},
-{
-  "name":"kotlin.collections.MutableMap"
-},
-{
-  "name":"kotlin.coroutines.jvm.internal.BaseContinuationImpl"
-},
-{
-  "name":"kotlin.jvm.internal.DefaultConstructorMarker"
-},
-{
-  "name":"kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"kotlinx.coroutines.CancellableContinuationImpl",
-  "fields":[{"name":"_decisionAndIndex$volatile"}, {"name":"_parentHandle$volatile"}, {"name":"_state$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.CompletedExceptionally",
-  "fields":[{"name":"_handled$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.DispatchedCoroutine",
-  "fields":[{"name":"_decision$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.EventLoopImplBase",
-  "fields":[{"name":"_delayed$volatile"}, {"name":"_isCompleted$volatile"}, {"name":"_queue$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.InvokeOnCancelling",
-  "fields":[{"name":"_invoked$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.JobSupport",
-  "fields":[{"name":"_parentHandle$volatile"}, {"name":"_state$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.JobSupport$Finishing",
-  "fields":[{"name":"_exceptionsHolder$volatile"}, {"name":"_isCompleting$volatile"}, {"name":"_rootCause$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.ThreadState",
-  "fields":[{"name":"_state$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.channels.BufferedChannel",
-  "fields":[{"name":"_closeCause$volatile"}, {"name":"bufferEnd$volatile"}, {"name":"bufferEndSegment$volatile"}, {"name":"closeHandler$volatile"}, {"name":"completedExpandBuffersAndPauseFlag$volatile"}, {"name":"receiveSegment$volatile"}, {"name":"receivers$volatile"}, {"name":"sendSegment$volatile"}, {"name":"sendersAndCloseStatus$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.channels.ClosedReceiveChannelException",
-  "allDeclaredFields":true,
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
-},
-{
-  "name":"kotlinx.coroutines.internal.ConcurrentLinkedListNode",
-  "fields":[{"name":"_next$volatile"}, {"name":"_prev$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.DispatchedContinuation",
-  "fields":[{"name":"_reusableCancellableContinuation$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.LimitedDispatcher",
-  "fields":[{"name":"runningWorkers$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.LockFreeLinkedListNode",
-  "fields":[{"name":"_next$volatile"}, {"name":"_prev$volatile"}, {"name":"_removedRef$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.LockFreeTaskQueue",
-  "fields":[{"name":"_cur$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.LockFreeTaskQueueCore",
-  "fields":[{"name":"_next$volatile"}, {"name":"_state$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.Segment",
-  "fields":[{"name":"cleanedAndPointers$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.internal.StackTraceRecoveryKt"
-},
-{
-  "name":"kotlinx.coroutines.internal.ThreadSafeHeap",
-  "fields":[{"name":"_size$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.scheduling.CoroutineScheduler",
-  "fields":[{"name":"_isTerminated$volatile"}, {"name":"controlState$volatile"}, {"name":"parkedWorkersStack$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.scheduling.CoroutineScheduler$Worker",
-  "fields":[{"name":"workerCtl$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.scheduling.WorkQueue",
-  "fields":[{"name":"blockingTasksInBuffer$volatile"}, {"name":"consumerIndex$volatile"}, {"name":"lastScheduledTask$volatile"}, {"name":"producerIndex$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.sync.SemaphoreAndMutexImpl",
-  "fields":[{"name":"_availablePermits$volatile"}, {"name":"deqIdx$volatile"}, {"name":"enqIdx$volatile"}, {"name":"head$volatile"}, {"name":"tail$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.test.AtomicBoolean",
-  "fields":[{"name":"container$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1",
-  "fields":[{"name":"label"}]
-},
-{
-  "name":"kotlinx.coroutines.test.TestCoroutineScheduler",
-  "fields":[{"name":"count$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.test.internal.TestMainDispatcher$NonConcurrentlyModifiable",
-  "fields":[{"name":"_value$volatile"}, {"name":"exceptionWhenReading$volatile"}, {"name":"reader$volatile"}, {"name":"readers$volatile"}, {"name":"writer$volatile"}]
-},
-{
-  "name":"kotlinx.coroutines.test.internal.TestMainDispatcherFactory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"kotlinx.io.RefCountingCopyTracker",
-  "fields":[{"name":"copyCount"}]
-},
-{
-  "name":"kotlinx.io.Source"
-},
-{
-  "name":"kotlinx.serialization.json.JsonObject",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"kotlinx.serialization.json.JsonObject$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.api.internal.file.temp.GradleUserHomeTemporaryFileProvider",
-  "queryAllDeclaredConstructors":true
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.TestDefinition"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.TestDefinitionProcessor",
-  "methods":[{"name":"processTestDefinition","parameterTypes":["org.gradle.api.internal.tasks.testing.TestDefinition"] }, {"name":"startProcessing","parameterTypes":["org.gradle.api.internal.tasks.testing.TestResultProcessor"] }, {"name":"stop","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.TestResultProcessor",
-  "methods":[{"name":"completed","parameterTypes":["java.lang.Object","org.gradle.api.internal.tasks.testing.TestCompleteEvent"] }, {"name":"started","parameterTypes":["org.gradle.api.internal.tasks.testing.TestDescriptorInternal","org.gradle.api.internal.tasks.testing.TestStartEvent"] }]
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.filter.TestFilterSpec"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformSpec"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessorFactory"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.worker.RemoteTestDefinitionProcessor",
-  "methods":[{"name":"processTestDefinition","parameterTypes":["org.gradle.api.internal.tasks.testing.TestDefinition"] }, {"name":"startProcessing","parameterTypes":[] }, {"name":"stop","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.worker.TestWorker"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.worker.TestWorker$State"
-},
-{
-  "name":"org.gradle.api.internal.tasks.testing.worker.TestWorker$TestFrameworkServiceRegistry",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"createActorFactory","parameterTypes":["org.gradle.internal.concurrent.ExecutorFactory"] }, {"name":"createClock","parameterTypes":[] }, {"name":"createExecutorFactory","parameterTypes":[] }, {"name":"createIdGenerator","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.internal.file.StatStatistics$Collector",
-  "queryAllDeclaredConstructors":true
-},
-{
-  "name":"org.gradle.internal.logging.services.LoggingServiceRegistry",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"createLoggingManagerFactory","parameterTypes":["org.gradle.internal.time.Clock"] }, {"name":"createTimeProvider","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.internal.logging.services.LoggingServiceRegistry$CommandLineLogging",
-  "queryAllDeclaredMethods":true
-},
-{
-  "name":"org.gradle.internal.nativeintegration.filesystem.services.FileSystemServices",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"configure","parameterTypes":["org.gradle.internal.service.ServiceRegistration"] }]
-},
-{
-  "name":"org.gradle.internal.nativeintegration.filesystem.services.GenericFileSystem$Factory",
-  "queryAllDeclaredConstructors":true
-},
-{
-  "name":"org.gradle.internal.nativeintegration.services.NativeServices",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"createNativeCapabilities","parameterTypes":[] }, {"name":"createSystemInfo","parameterTypes":["org.gradle.internal.os.OperatingSystem"] }]
-},
-{
-  "name":"org.gradle.internal.nativeintegration.services.NativeServices$1",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"configure","parameterTypes":["org.gradle.internal.service.ServiceRegistration"] }]
-},
-{
-  "name":"org.gradle.internal.nativeintegration.services.NativeServices$NativeFeatures$1$2",
-  "queryAllDeclaredMethods":true
-},
-{
-  "name":"org.gradle.internal.remote.services.MessagingServices",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"createMessagingClient","parameterTypes":["org.gradle.internal.remote.internal.OutgoingConnector","org.gradle.internal.concurrent.ExecutorFactory"] }, {"name":"createOutgoingConnector","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.internal.service.MethodHandleBasedServiceMethodFactory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker",
-  "methods":[{"name":"<init>","parameterTypes":["java.io.DataInputStream"] }]
-},
-{
-  "name":"org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker$2",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"configure","parameterTypes":["org.gradle.internal.service.ServiceRegistration"] }]
-},
-{
-  "name":"org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker$WorkerServices",
-  "queryAllDeclaredMethods":true,
-  "methods":[{"name":"createGradleUserHomeDirProvider","parameterTypes":[] }, {"name":"createWorkerDirectoryProvider","parameterTypes":["org.gradle.initialization.GradleUserHomeDirProvider"] }, {"name":"createWorkerLogEventListener","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.Handles",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.argument.Arguments",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":["org.jdbi.v3.core.config.ConfigRegistry"] }]
-},
-{
-  "name":"org.jdbi.v3.core.argument.internal.strategies.LoggableBinderArgument",
-  "methods":[{"name":"toString","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.array.SqlArrayTypes",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.collector.JdbiCollectors",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.config.internal.ConfigCaches",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.internal.CopyOnWriteHashMap",
-  "fields":[{"name":"m"}]
-},
-{
-  "name":"org.jdbi.v3.core.mapper.ColumnMappers",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.mapper.MapMappers",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.mapper.Mappers",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.mapper.RowMappers",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.mapper.reflect.internal.PojoTypes",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.qualifier.Qualifiers",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.jdbi.v3.core.statement.SqlStatements",
-  "queryAllPublicConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"org.junit.internal.AssumptionViolatedException"
-},
-{
-  "name":"org.junit.jupiter.api.Assertions"
-},
-{
-  "name":"org.junit.jupiter.api.Test",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"org.junit.jupiter.api.io.TempDir",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"org.junit.platform.commons.annotation.Testable",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"org.junit.platform.launcher.TestIdentifier",
-  "queryAllPublicMethods":true
-},
-{
-  "name":"org.junit.platform.launcher.core.LauncherFactory"
-},
-{
-  "name":"org.junit.vintage.engine.VintageTestEngine"
-},
-{
-  "name":"org.slf4j.Logger"
-},
-{
-  "name":"org.sqlite.JDBC"
-},
-{
-  "name":"socialpublish.backend.CliCommandsTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"gen-bcrypt-hash with --password option should work","parameterTypes":[] }, {"name":"gen-bcrypt-hash with --quiet should output only the hash","parameterTypes":[] }, {"name":"main command should show help when no subcommand is given","parameterTypes":[] }, {"name":"start-server should fail without required options","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.db.DatabaseMigrationsTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"database migrations create required tables","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.db.PostsDatabaseTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"test create and retrieve post","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.integrations.BlueskyApiTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"creates post with images and alt text","parameterTypes":["java.nio.file.Path"] }, {"name":"creates post with link preview","parameterTypes":["java.nio.file.Path"] }, {"name":"creates post without images","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.integrations.MastodonApiTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"uploads images with alt text and creates status","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.integrations.TwitterApiTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"cleans up HTML properly","parameterTypes":["java.nio.file.Path"] }, {"name":"status route returns serializable response with authorization","parameterTypes":["java.nio.file.Path"] }, {"name":"status route returns serializable response without authorization","parameterTypes":["java.nio.file.Path"] }, {"name":"uploads media with alt text and creates tweet","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.integrations.bluesky.BlueskyPostResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.bluesky.BlueskyPostResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.bluesky.BlueskySessionResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.bluesky.BlueskySessionResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.mastodon.MastodonMediaResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.mastodon.MastodonMediaResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.mastodon.MastodonStatusResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.mastodon.MastodonStatusResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterMediaResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterMediaResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterPostResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterPostResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterStatusResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.integrations.twitter.TwitterStatusResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.linkpreview.LinkPreviewParserTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"extracts Open Graph tags from HTML","parameterTypes":[] }, {"name":"falls back to Twitter Cards when OG tags are missing","parameterTypes":[] }, {"name":"falls back to standard HTML tags when meta tags are missing","parameterTypes":[] }, {"name":"handles Twitter image src variant","parameterTypes":[] }, {"name":"handles absolute image URLs by keeping them unchanged","parameterTypes":[] }, {"name":"handles malformed base URL by returning preview without image","parameterTypes":[] }, {"name":"handles path-relative image URLs","parameterTypes":[] }, {"name":"handles protocol-relative image URLs","parameterTypes":[] }, {"name":"handles relative image URLs by resolving them to absolute URLs","parameterTypes":[] }, {"name":"prioritizes Open Graph over Twitter Cards","parameterTypes":[] }, {"name":"returns null when no usable metadata found","parameterTypes":[] }, {"name":"uses fallback URL when no URL in metadata","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.linkpreview.UrlUtilsTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"handles base URL with fragment","parameterTypes":[] }, {"name":"handles base URL with path and query parameters","parameterTypes":[] }, {"name":"handles empty image URL","parameterTypes":[] }, {"name":"handles fragments in image URL","parameterTypes":[] }, {"name":"handles malformed base URL gracefully","parameterTypes":[] }, {"name":"handles query parameters in image URL","parameterTypes":[] }, {"name":"resolves URLs with special characters","parameterTypes":[] }, {"name":"resolves absolute HTTP URLs unchanged","parameterTypes":[] }, {"name":"resolves absolute HTTPS URLs unchanged","parameterTypes":[] }, {"name":"resolves complex path-relative URLs","parameterTypes":[] }, {"name":"resolves path-relative URLs from directory","parameterTypes":[] }, {"name":"resolves path-relative URLs from file","parameterTypes":[] }, {"name":"resolves path-relative URLs from root","parameterTypes":[] }, {"name":"resolves path-relative URLs with parent directory navigation","parameterTypes":[] }, {"name":"resolves path-relative URLs with subdirectories","parameterTypes":[] }, {"name":"resolves protocol-relative URLs with HTTP base","parameterTypes":[] }, {"name":"resolves protocol-relative URLs with HTTPS base","parameterTypes":[] }, {"name":"resolves root-relative URLs","parameterTypes":[] }, {"name":"resolves root-relative URLs with port","parameterTypes":[] }, {"name":"resolves root-relative URLs with standard HTTP port","parameterTypes":[] }, {"name":"resolves root-relative URLs with standard HTTPS port","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.models.ErrorSerializationTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"CaughtException should serialize correctly","parameterTypes":[] }, {"name":"CompositeError should serialize correctly","parameterTypes":[] }, {"name":"CompositeErrorResponse with error should serialize correctly","parameterTypes":[] }, {"name":"CompositeErrorResponse with success should serialize correctly","parameterTypes":[] }, {"name":"RequestError should serialize correctly","parameterTypes":[] }, {"name":"ValidationError should serialize correctly","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.models.PostsSerializationTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"Map with multiple responses should serialize correctly","parameterTypes":[] }, {"name":"Map with single RSS response should serialize correctly","parameterTypes":[] }, {"name":"NewBlueSkyPostResponse should serialize without type discriminator","parameterTypes":[] }, {"name":"NewMastodonPostResponse should serialize without type discriminator","parameterTypes":[] }, {"name":"NewRssPostResponse should serialize without type discriminator","parameterTypes":[] }, {"name":"NewTwitterPostResponse should serialize without type discriminator","parameterTypes":[] }, {"name":"Polymorphic serialization should work with NewPostResponse base class","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.AuthModuleTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"hashPassword should generate valid BCrypt hash","parameterTypes":[] }, {"name":"login should reject wrong password with BCrypt","parameterTypes":[] }, {"name":"login should return twitter auth status","parameterTypes":[] }, {"name":"login should work with BCrypt hashed password","parameterTypes":[] }, {"name":"login should work with correct password","parameterTypes":[] }, {"name":"should accept access token query param","parameterTypes":[] }, {"name":"should generate valid JWT token","parameterTypes":[] }, {"name":"should reject invalid JWT token","parameterTypes":[] }, {"name":"should verify valid JWT token","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.FileUploadResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.modules.FileUploadResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.FilesModuleTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"fails when file part name is incorrect","parameterTypes":["java.nio.file.Path"] }, {"name":"uploads images and stores originals","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.modules.FormModuleTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"broadcast should always include RSS","parameterTypes":[] }, {"name":"broadcast should return composite error on partial failure","parameterTypes":[] }, {"name":"setup","parameterTypes":["java.nio.file.Path"] }]
-},
-{
-  "name":"socialpublish.backend.modules.LoginRequest",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.modules.LoginRequest$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.LoginResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.modules.LoginResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.RssModuleTest",
-  "allDeclaredFields":true,
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true,
-  "queryAllDeclaredConstructors":true,
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"setup","parameterTypes":["java.nio.file.Path"] }, {"name":"should create RSS post successfully","parameterTypes":[] }, {"name":"should extract hashtags from content","parameterTypes":[] }, {"name":"should filter RSS feed by links","parameterTypes":[] }, {"name":"should generate RSS feed","parameterTypes":[] }, {"name":"should reject empty content","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.modules.UserResponse",
-  "fields":[{"name":"Companion"}]
-},
-{
-  "name":"socialpublish.backend.modules.UserResponse$Companion",
-  "methods":[{"name":"serializer","parameterTypes":[] }]
-},
-{
-  "name":"socialpublish.backend.testutils.ImageDimensions",
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true
-},
-{
-  "name":"socialpublish.backend.testutils.MultipartFile",
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true
-},
-{
-  "name":"socialpublish.backend.testutils.MultipartRequest",
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true
-},
-{
-  "name":"socialpublish.backend.testutils.TestUploadHelpersKt",
-  "allDeclaredClasses":true,
-  "queryAllDeclaredMethods":true,
-  "queryAllPublicMethods":true
-},
-{
-  "name":"sun.security.provider.NativePRNG",
-  "methods":[{"name":"<init>","parameterTypes":[] }, {"name":"<init>","parameterTypes":["java.security.SecureRandomParameters"] }]
-},
-{
-  "name":"sun.security.provider.SHA",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.provider.SHA2$SHA256",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.provider.X509Factory",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.rsa.RSAKeyFactory$Legacy",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.rsa.RSASignature$SHA256withRSA",
-  "methods":[{"name":"<init>","parameterTypes":[] }]
-},
-{
-  "name":"sun.security.util.ObjectIdentifier"
-},
-{
-  "name":"sun.security.x509.CertificateExtensions"
-},
-{
-  "name":"sun.security.x509.SubjectKeyIdentifierExtension",
-  "methods":[{"name":"<init>","parameterTypes":["java.lang.Boolean","java.lang.Object"] }]
-}
+  {
+    "name": "[B"
+  },
+  {
+    "name": "[Lcom.fasterxml.jackson.databind.deser.Deserializers;"
+  },
+  {
+    "name": "[Lcom.fasterxml.jackson.databind.ser.Serializers;"
+  },
+  {
+    "name": "[Ljava.lang.Object;"
+  },
+  {
+    "name": "[Ljava.lang.String;"
+  },
+  {
+    "name": "[Lorg.jdom2.Content;"
+  },
+  {
+    "name": "[Lorg.jdom2.Namespace;"
+  },
+  {
+    "name": "[Lsun.security.pkcs.SignerInfo;"
+  },
+  {
+    "name": "android.os.Build"
+  },
+  {
+    "name": "android.os.Build$VERSION"
+  },
+  {
+    "name": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.classic.util.DefaultJoranConfigurator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.ConsoleAppender",
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.OutputStreamAppender",
+    "methods": [
+      {
+        "name": "setEncoder",
+        "parameterTypes": [
+          "ch.qos.logback.core.encoder.Encoder"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.encoder.Encoder",
+    "methods": [
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+    "methods": [
+      {
+        "name": "setParent",
+        "parameterTypes": [
+          "ch.qos.logback.core.spi.ContextAware"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+    "methods": [
+      {
+        "name": "setPattern",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "ch.qos.logback.core.spi.ContextAware",
+    "methods": [
+      {
+        "name": "valueOf",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.drew.metadata.exif.ExifIFD0Directory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.drew.metadata.exif.ExifSubIFDDirectory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.module.DCModuleImpl",
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "getContributors",
+        "parameterTypes": []
+      },
+      {
+        "name": "getCoverages",
+        "parameterTypes": []
+      },
+      {
+        "name": "getCreators",
+        "parameterTypes": []
+      },
+      {
+        "name": "getDates",
+        "parameterTypes": []
+      },
+      {
+        "name": "getDescriptions",
+        "parameterTypes": []
+      },
+      {
+        "name": "getFormats",
+        "parameterTypes": []
+      },
+      {
+        "name": "getIdentifiers",
+        "parameterTypes": []
+      },
+      {
+        "name": "getLanguages",
+        "parameterTypes": []
+      },
+      {
+        "name": "getPublishers",
+        "parameterTypes": []
+      },
+      {
+        "name": "getRelations",
+        "parameterTypes": []
+      },
+      {
+        "name": "getRightsList",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSources",
+        "parameterTypes": []
+      },
+      {
+        "name": "getSubjects",
+        "parameterTypes": []
+      },
+      {
+        "name": "getTitles",
+        "parameterTypes": []
+      },
+      {
+        "name": "getTypes",
+        "parameterTypes": []
+      },
+      {
+        "name": "setContributors",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setCoverages",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setCreators",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setDates",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setDescriptions",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setFormats",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setIdentifiers",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setLanguages",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setPublishers",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setRelations",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setRightsList",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setSources",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setSubjects",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setTitles",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      },
+      {
+        "name": "setTypes",
+        "parameterTypes": [
+          "java.util.List"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForAtom03",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForAtom10",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS090",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS091Netscape",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS091Userland",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS092",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS093",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS094",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS10",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.feed.synd.impl.ConverterForRSS20",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.Atom03Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.Atom10Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.DCModuleGenerator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS090Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS091NetscapeGenerator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS091UserlandGenerator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS092Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS093Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS094Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS10Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.RSS20Generator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.rometools.rome.io.impl.SyModuleGenerator",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.crypto.provider.HmacCore$HmacSHA256",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.crypto.provider.HmacSHA1",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.jna.CallbackProxy",
+    "methods": [
+      {
+        "name": "callback",
+        "parameterTypes": [
+          "java.lang.Object[]"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.client.HttpClient",
+    "fields": [
+      {
+        "name": "closed"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.client.HttpClientConfig"
+  },
+  {
+    "name": "io.ktor.client.call.HttpClientCall",
+    "fields": [
+      {
+        "name": "received"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.client.content.ProgressListener"
+  },
+  {
+    "name": "io.ktor.client.engine.HttpClientEngineBase",
+    "fields": [
+      {
+        "name": "closed"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.client.engine.HttpClientEngineCapability"
+  },
+  {
+    "name": "io.ktor.client.engine.HttpClientEngineConfig"
+  },
+  {
+    "name": "io.ktor.client.plugins.HttpRetryDelayContext"
+  },
+  {
+    "name": "io.ktor.client.plugins.HttpRetryModifyRequestContext"
+  },
+  {
+    "name": "io.ktor.client.plugins.HttpRetryShouldRetryContext"
+  },
+  {
+    "name": "io.ktor.client.plugins.HttpSend"
+  },
+  {
+    "name": "io.ktor.client.plugins.HttpTimeoutConfig"
+  },
+  {
+    "name": "io.ktor.client.plugins.api.ClientPluginImpl"
+  },
+  {
+    "name": "io.ktor.client.plugins.api.ClientPluginInstance"
+  },
+  {
+    "name": "io.ktor.client.request.HttpRequest"
+  },
+  {
+    "name": "io.ktor.client.request.HttpRequestBuilder"
+  },
+  {
+    "name": "io.ktor.client.request.ResponseAdapter"
+  },
+  {
+    "name": "io.ktor.client.statement.HttpResponse"
+  },
+  {
+    "name": "io.ktor.http.ContentType"
+  },
+  {
+    "name": "io.ktor.http.HttpStatusCode"
+  },
+  {
+    "name": "io.ktor.http.Parameters"
+  },
+  {
+    "name": "io.ktor.http.content.ByteArrayContent"
+  },
+  {
+    "name": "io.ktor.http.content.MultiPartData"
+  },
+  {
+    "name": "io.ktor.http.content.TextContent"
+  },
+  {
+    "name": "io.ktor.network.selector.LockFreeMPSCQueue",
+    "fields": [
+      {
+        "name": "curRef"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.network.selector.LockFreeMPSCQueueCore",
+    "fields": [
+      {
+        "name": "nextRef"
+      },
+      {
+        "name": "stateRef"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.server.application.PluginInstance"
+  },
+  {
+    "name": "io.ktor.server.auth.AuthenticateProvidersRegistration"
+  },
+  {
+    "name": "io.ktor.server.auth.Authentication"
+  },
+  {
+    "name": "io.ktor.server.auth.AuthenticationContext"
+  },
+  {
+    "name": "io.ktor.server.engine.BaseApplicationResponse"
+  },
+  {
+    "name": "io.ktor.server.plugins.MutableOriginConnectionPoint"
+  },
+  {
+    "name": "io.ktor.server.request.DoubleReceivePreventionToken"
+  },
+  {
+    "name": "io.ktor.server.routing.RoutingCall"
+  },
+  {
+    "name": "io.ktor.server.routing.RoutingRoot"
+  },
+  {
+    "name": "io.ktor.server.testing.TestApplication",
+    "fields": [
+      {
+        "name": "state"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.server.testing.TestApplicationResponse",
+    "fields": [
+      {
+        "name": "writeContentChannel$internal"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.util.Attributes"
+  },
+  {
+    "name": "io.ktor.util.collections.CopyOnWriteHashMap",
+    "fields": [
+      {
+        "name": "current"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.util.internal.LockFreeLinkedListNode",
+    "fields": [
+      {
+        "name": "_next"
+      },
+      {
+        "name": "_prev"
+      },
+      {
+        "name": "removedRef"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.util.reflect.TypeInfo"
+  },
+  {
+    "name": "io.ktor.utils.io.ByteChannel",
+    "fields": [
+      {
+        "name": "_closedCause"
+      },
+      {
+        "name": "suspensionSlot"
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.utils.io.jvm.javaio.BlockingKt",
+    "methods": [
+      {
+        "name": "toInputStream",
+        "parameterTypes": [
+          "io.ktor.utils.io.ByteReadChannel",
+          "kotlinx.coroutines.Job"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "io.ktor.utils.io.pool.DefaultPool",
+    "fields": [
+      {
+        "name": "top"
+      }
+    ]
+  },
+  {
+    "name": "java.awt.image.ColorConvertOp"
+  },
+  {
+    "name": "java.io.File"
+  },
+  {
+    "name": "java.io.InputStream"
+  },
+  {
+    "name": "java.lang.Boolean"
+  },
+  {
+    "name": "java.lang.Class",
+    "methods": [
+      {
+        "name": "getModule",
+        "parameterTypes": []
+      },
+      {
+        "name": "getPermittedSubclasses",
+        "parameterTypes": []
+      },
+      {
+        "name": "getRecordComponents",
+        "parameterTypes": []
+      },
+      {
+        "name": "isRecord",
+        "parameterTypes": []
+      },
+      {
+        "name": "isSealed",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.lang.ClassValue"
+  },
+  {
+    "name": "java.lang.Enum"
+  },
+  {
+    "name": "java.lang.Exception",
+    "allDeclaredFields": true
+  },
+  {
+    "name": "java.lang.Integer"
+  },
+  {
+    "name": "java.lang.Long"
+  },
+  {
+    "name": "java.lang.Module",
+    "methods": [
+      {
+        "name": "getDescriptor",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.lang.Object",
+    "allDeclaredFields": true,
+    "methods": [
+      {
+        "name": "equals",
+        "parameterTypes": [
+          "java.lang.Object"
+        ]
+      },
+      {
+        "name": "hashCode",
+        "parameterTypes": []
+      },
+      {
+        "name": "toString",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.lang.RuntimeException",
+    "allDeclaredFields": true
+  },
+  {
+    "name": "java.lang.SecurityManager"
+  },
+  {
+    "name": "java.lang.String",
+    "allDeclaredClasses": true,
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "java.lang.Thread",
+    "fields": [
+      {
+        "name": "threadLocalRandomProbe"
+      }
+    ]
+  },
+  {
+    "name": "java.lang.Throwable",
+    "allDeclaredFields": true,
+    "methods": [
+      {
+        "name": "addSuppressed",
+        "parameterTypes": [
+          "java.lang.Throwable"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.invoke.MethodHandle",
+    "methods": [
+      {
+        "name": "bindTo",
+        "parameterTypes": [
+          "java.lang.Object"
+        ]
+      },
+      {
+        "name": "invokeWithArguments",
+        "parameterTypes": [
+          "java.lang.Object[]"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.invoke.MethodHandles",
+    "methods": [
+      {
+        "name": "lookup",
+        "parameterTypes": []
+      },
+      {
+        "name": "privateLookupIn",
+        "parameterTypes": [
+          "java.lang.Class",
+          "java.lang.invoke.MethodHandles$Lookup"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.invoke.MethodHandles$Lookup",
+    "methods": [
+      {
+        "name": "findSpecial",
+        "parameterTypes": [
+          "java.lang.Class",
+          "java.lang.String",
+          "java.lang.invoke.MethodType",
+          "java.lang.Class"
+        ]
+      },
+      {
+        "name": "in",
+        "parameterTypes": [
+          "java.lang.Class"
+        ]
+      },
+      {
+        "name": "unreflectSpecial",
+        "parameterTypes": [
+          "java.lang.reflect.Method",
+          "java.lang.Class"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.invoke.MethodType",
+    "methods": [
+      {
+        "name": "methodType",
+        "parameterTypes": [
+          "java.lang.Class",
+          "java.lang.Class[]"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "java.lang.module.ModuleDescriptor",
+    "methods": [
+      {
+        "name": "name",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.lang.reflect.Method",
+    "methods": [
+      {
+        "name": "isDefault",
+        "parameterTypes": []
+      },
+      {
+        "name": "isVarArgs",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.nio.Buffer"
+  },
+  {
+    "name": "java.security.MessageDigestSpi"
+  },
+  {
+    "name": "java.security.SecureRandomParameters"
+  },
+  {
+    "name": "java.security.interfaces.RSAPrivateKey"
+  },
+  {
+    "name": "java.security.interfaces.RSAPublicKey"
+  },
+  {
+    "name": "java.util.Base64"
+  },
+  {
+    "name": "java.util.Date",
+    "methods": [
+      {
+        "name": "clone",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "java.util.HashSet"
+  },
+  {
+    "name": "java.util.LinkedHashSet"
+  },
+  {
+    "name": "java.util.List"
+  },
+  {
+    "name": "java.util.Map"
+  },
+  {
+    "name": "java.util.NoSuchElementException",
+    "allDeclaredFields": true
+  },
+  {
+    "name": "java.util.concurrent.ArrayBlockingQueue"
+  },
+  {
+    "name": "java.util.concurrent.ForkJoinTask",
+    "fields": [
+      {
+        "name": "aux"
+      },
+      {
+        "name": "status"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicBoolean",
+    "fields": [
+      {
+        "name": "value"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicReference",
+    "fields": [
+      {
+        "name": "value"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.atomic.Striped64",
+    "fields": [
+      {
+        "name": "base"
+      },
+      {
+        "name": "cellsBusy"
+      }
+    ]
+  },
+  {
+    "name": "java.util.concurrent.locks.AbstractOwnableSynchronizer"
+  },
+  {
+    "name": "java.util.concurrent.locks.AbstractQueuedSynchronizer"
+  },
+  {
+    "name": "java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject"
+  },
+  {
+    "name": "java.util.concurrent.locks.ReentrantLock"
+  },
+  {
+    "name": "java.util.concurrent.locks.ReentrantLock$NonfairSync"
+  },
+  {
+    "name": "java.util.concurrent.locks.ReentrantLock$Sync"
+  },
+  {
+    "name": "java.util.stream.Collectors",
+    "methods": [
+      {
+        "name": "toUnmodifiableSet",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "javax.imageio.spi.ImageReaderSpi"
+  },
+  {
+    "name": "javax.imageio.spi.ImageReaderWriterSpi",
+    "methods": [
+      {
+        "name": "getFileSuffixes",
+        "parameterTypes": []
+      },
+      {
+        "name": "getFormatNames",
+        "parameterTypes": []
+      },
+      {
+        "name": "getMIMETypes",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "javax.imageio.spi.ImageWriterSpi"
+  },
+  {
+    "name": "javax.security.auth.x500.X500Principal",
+    "fields": [
+      {
+        "name": "thisX500Name"
+      }
+    ],
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "sun.security.x509.X500Name"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "jdk.internal.misc.Unsafe"
+  },
+  {
+    "name": "jdk.jfr.FlightRecorder",
+    "methods": [
+      {
+        "name": "isAvailable",
+        "parameterTypes": []
+      },
+      {
+        "name": "register",
+        "parameterTypes": [
+          "java.lang.Class"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "kotlin.Any"
+  },
+  {
+    "name": "kotlin.Boolean"
+  },
+  {
+    "name": "kotlin.ByteArray"
+  },
+  {
+    "name": "kotlin.Function2"
+  },
+  {
+    "name": "kotlin.Function3"
+  },
+  {
+    "name": "kotlin.Int"
+  },
+  {
+    "name": "kotlin.Long"
+  },
+  {
+    "name": "kotlin.Metadata",
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "methods": [
+      {
+        "name": "bv",
+        "parameterTypes": []
+      },
+      {
+        "name": "d1",
+        "parameterTypes": []
+      },
+      {
+        "name": "d2",
+        "parameterTypes": []
+      },
+      {
+        "name": "k",
+        "parameterTypes": []
+      },
+      {
+        "name": "mv",
+        "parameterTypes": []
+      },
+      {
+        "name": "pn",
+        "parameterTypes": []
+      },
+      {
+        "name": "xi",
+        "parameterTypes": []
+      },
+      {
+        "name": "xs",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "kotlin.SafePublicationLazyImpl",
+    "fields": [
+      {
+        "name": "_value"
+      }
+    ]
+  },
+  {
+    "name": "kotlin.String"
+  },
+  {
+    "name": "kotlin.Throwable"
+  },
+  {
+    "name": "kotlin.Unit"
+  },
+  {
+    "name": "kotlin.annotation.MustBeDocumented",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "kotlin.annotation.Retention",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "kotlin.annotation.Target",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "kotlin.collections.List"
+  },
+  {
+    "name": "kotlin.collections.Map"
+  },
+  {
+    "name": "kotlin.collections.MutableMap"
+  },
+  {
+    "name": "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+  },
+  {
+    "name": "kotlin.jvm.internal.DefaultConstructorMarker"
+  },
+  {
+    "name": "kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.CancellableContinuationImpl",
+    "fields": [
+      {
+        "name": "_decisionAndIndex$volatile"
+      },
+      {
+        "name": "_parentHandle$volatile"
+      },
+      {
+        "name": "_state$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.CompletedExceptionally",
+    "fields": [
+      {
+        "name": "_handled$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.DispatchedCoroutine",
+    "fields": [
+      {
+        "name": "_decision$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.EventLoopImplBase",
+    "fields": [
+      {
+        "name": "_delayed$volatile"
+      },
+      {
+        "name": "_isCompleted$volatile"
+      },
+      {
+        "name": "_queue$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.InvokeOnCancelling",
+    "fields": [
+      {
+        "name": "_invoked$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.JobSupport",
+    "fields": [
+      {
+        "name": "_parentHandle$volatile"
+      },
+      {
+        "name": "_state$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.JobSupport$Finishing",
+    "fields": [
+      {
+        "name": "_exceptionsHolder$volatile"
+      },
+      {
+        "name": "_isCompleting$volatile"
+      },
+      {
+        "name": "_rootCause$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.ThreadState",
+    "fields": [
+      {
+        "name": "_state$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.channels.BufferedChannel",
+    "fields": [
+      {
+        "name": "_closeCause$volatile"
+      },
+      {
+        "name": "bufferEnd$volatile"
+      },
+      {
+        "name": "bufferEndSegment$volatile"
+      },
+      {
+        "name": "closeHandler$volatile"
+      },
+      {
+        "name": "completedExpandBuffersAndPauseFlag$volatile"
+      },
+      {
+        "name": "receiveSegment$volatile"
+      },
+      {
+        "name": "receivers$volatile"
+      },
+      {
+        "name": "sendSegment$volatile"
+      },
+      {
+        "name": "sendersAndCloseStatus$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.channels.ClosedReceiveChannelException",
+    "allDeclaredFields": true,
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.String"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.ConcurrentLinkedListNode",
+    "fields": [
+      {
+        "name": "_next$volatile"
+      },
+      {
+        "name": "_prev$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.DispatchedContinuation",
+    "fields": [
+      {
+        "name": "_reusableCancellableContinuation$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.LimitedDispatcher",
+    "fields": [
+      {
+        "name": "runningWorkers$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.LockFreeLinkedListNode",
+    "fields": [
+      {
+        "name": "_next$volatile"
+      },
+      {
+        "name": "_prev$volatile"
+      },
+      {
+        "name": "_removedRef$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.LockFreeTaskQueue",
+    "fields": [
+      {
+        "name": "_cur$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.LockFreeTaskQueueCore",
+    "fields": [
+      {
+        "name": "_next$volatile"
+      },
+      {
+        "name": "_state$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.Segment",
+    "fields": [
+      {
+        "name": "cleanedAndPointers$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.internal.StackTraceRecoveryKt"
+  },
+  {
+    "name": "kotlinx.coroutines.internal.ThreadSafeHeap",
+    "fields": [
+      {
+        "name": "_size$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.scheduling.CoroutineScheduler",
+    "fields": [
+      {
+        "name": "_isTerminated$volatile"
+      },
+      {
+        "name": "controlState$volatile"
+      },
+      {
+        "name": "parkedWorkersStack$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker",
+    "fields": [
+      {
+        "name": "workerCtl$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.scheduling.WorkQueue",
+    "fields": [
+      {
+        "name": "blockingTasksInBuffer$volatile"
+      },
+      {
+        "name": "consumerIndex$volatile"
+      },
+      {
+        "name": "lastScheduledTask$volatile"
+      },
+      {
+        "name": "producerIndex$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.sync.SemaphoreAndMutexImpl",
+    "fields": [
+      {
+        "name": "_availablePermits$volatile"
+      },
+      {
+        "name": "deqIdx$volatile"
+      },
+      {
+        "name": "enqIdx$volatile"
+      },
+      {
+        "name": "head$volatile"
+      },
+      {
+        "name": "tail$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.test.AtomicBoolean",
+    "fields": [
+      {
+        "name": "container$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1",
+    "fields": [
+      {
+        "name": "label"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.test.TestCoroutineScheduler",
+    "fields": [
+      {
+        "name": "count$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.test.internal.TestMainDispatcher$NonConcurrentlyModifiable",
+    "fields": [
+      {
+        "name": "_value$volatile"
+      },
+      {
+        "name": "exceptionWhenReading$volatile"
+      },
+      {
+        "name": "reader$volatile"
+      },
+      {
+        "name": "readers$volatile"
+      },
+      {
+        "name": "writer$volatile"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.coroutines.test.internal.TestMainDispatcherFactory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.io.RefCountingCopyTracker",
+    "fields": [
+      {
+        "name": "copyCount"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.io.Source"
+  },
+  {
+    "name": "kotlinx.serialization.json.JsonObject",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "kotlinx.serialization.json.JsonObject$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.api.internal.file.temp.GradleUserHomeTemporaryFileProvider",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.TestDefinition"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.TestDefinitionProcessor",
+    "methods": [
+      {
+        "name": "processTestDefinition",
+        "parameterTypes": [
+          "org.gradle.api.internal.tasks.testing.TestDefinition"
+        ]
+      },
+      {
+        "name": "startProcessing",
+        "parameterTypes": [
+          "org.gradle.api.internal.tasks.testing.TestResultProcessor"
+        ]
+      },
+      {
+        "name": "stop",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.TestResultProcessor",
+    "methods": [
+      {
+        "name": "completed",
+        "parameterTypes": [
+          "java.lang.Object",
+          "org.gradle.api.internal.tasks.testing.TestCompleteEvent"
+        ]
+      },
+      {
+        "name": "started",
+        "parameterTypes": [
+          "org.gradle.api.internal.tasks.testing.TestDescriptorInternal",
+          "org.gradle.api.internal.tasks.testing.TestStartEvent"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.filter.TestFilterSpec"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformSpec"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessorFactory"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.worker.RemoteTestDefinitionProcessor",
+    "methods": [
+      {
+        "name": "processTestDefinition",
+        "parameterTypes": [
+          "org.gradle.api.internal.tasks.testing.TestDefinition"
+        ]
+      },
+      {
+        "name": "startProcessing",
+        "parameterTypes": []
+      },
+      {
+        "name": "stop",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.worker.TestWorker"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.worker.TestWorker$State"
+  },
+  {
+    "name": "org.gradle.api.internal.tasks.testing.worker.TestWorker$TestFrameworkServiceRegistry",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "createActorFactory",
+        "parameterTypes": [
+          "org.gradle.internal.concurrent.ExecutorFactory"
+        ]
+      },
+      {
+        "name": "createClock",
+        "parameterTypes": []
+      },
+      {
+        "name": "createExecutorFactory",
+        "parameterTypes": []
+      },
+      {
+        "name": "createIdGenerator",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.file.StatStatistics$Collector",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "org.gradle.internal.logging.services.LoggingServiceRegistry",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "createLoggingManagerFactory",
+        "parameterTypes": [
+          "org.gradle.internal.time.Clock"
+        ]
+      },
+      {
+        "name": "createTimeProvider",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.logging.services.LoggingServiceRegistry$CommandLineLogging",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "org.gradle.internal.nativeintegration.filesystem.services.FileSystemServices",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "configure",
+        "parameterTypes": [
+          "org.gradle.internal.service.ServiceRegistration"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.nativeintegration.filesystem.services.GenericFileSystem$Factory",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "org.gradle.internal.nativeintegration.services.NativeServices",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "createNativeCapabilities",
+        "parameterTypes": []
+      },
+      {
+        "name": "createSystemInfo",
+        "parameterTypes": [
+          "org.gradle.internal.os.OperatingSystem"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.nativeintegration.services.NativeServices$1",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "configure",
+        "parameterTypes": [
+          "org.gradle.internal.service.ServiceRegistration"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.nativeintegration.services.NativeServices$NativeFeatures$1$2",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "org.gradle.internal.remote.services.MessagingServices",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "createMessagingClient",
+        "parameterTypes": [
+          "org.gradle.internal.remote.internal.OutgoingConnector",
+          "org.gradle.internal.concurrent.ExecutorFactory"
+        ]
+      },
+      {
+        "name": "createOutgoingConnector",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.internal.service.MethodHandleBasedServiceMethodFactory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.io.DataInputStream"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker$2",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "configure",
+        "parameterTypes": [
+          "org.gradle.internal.service.ServiceRegistration"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker$WorkerServices",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      {
+        "name": "createGradleUserHomeDirProvider",
+        "parameterTypes": []
+      },
+      {
+        "name": "createWorkerDirectoryProvider",
+        "parameterTypes": [
+          "org.gradle.initialization.GradleUserHomeDirProvider"
+        ]
+      },
+      {
+        "name": "createWorkerLogEventListener",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.jdbi.v3.core.Handles",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.argument.Arguments",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "org.jdbi.v3.core.config.ConfigRegistry"
+        ]
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.argument.internal.strategies.LoggableBinderArgument",
+    "methods": [
+      {
+        "name": "toString",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.array.SqlArrayTypes",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.collector.JdbiCollectors",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.config.internal.ConfigCaches",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.internal.CopyOnWriteHashMap",
+    "fields": [
+      {
+        "name": "m"
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.mapper.ColumnMappers",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.mapper.MapMappers",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.mapper.Mappers",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.mapper.RowMappers",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.mapper.reflect.internal.PojoTypes",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.qualifier.Qualifiers",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.jdbi.v3.core.statement.SqlStatements",
+    "queryAllPublicConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ],
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "org.junit.internal.AssumptionViolatedException"
+  },
+  {
+    "name": "org.junit.jupiter.api.Assertions"
+  },
+  {
+    "name": "org.junit.jupiter.api.Test",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "org.junit.jupiter.api.io.TempDir",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "org.junit.platform.commons.annotation.Testable",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "org.junit.platform.launcher.TestIdentifier",
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "org.junit.platform.launcher.core.LauncherFactory"
+  },
+  {
+    "name": "org.junit.vintage.engine.VintageTestEngine"
+  },
+  {
+    "name": "org.slf4j.Logger"
+  },
+  {
+    "name": "org.sqlite.JDBC"
+  },
+  {
+    "name": "socialpublish.backend.CliCommandsTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "gen-bcrypt-hash with --password option should work",
+        "parameterTypes": []
+      },
+      {
+        "name": "gen-bcrypt-hash with --quiet should output only the hash",
+        "parameterTypes": []
+      },
+      {
+        "name": "main command should show help when no subcommand is given",
+        "parameterTypes": []
+      },
+      {
+        "name": "start-server should fail without required options",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.db.DatabaseMigrationsTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "database migrations create required tables",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.db.PostsDatabaseTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "test create and retrieve post",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.BlueskyApiTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "creates post with images and alt text",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "creates post with link preview",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "creates post without images",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.MastodonApiTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "uploads images with alt text and creates status",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.TwitterApiTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "cleans up HTML properly",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "status route returns serializable response with authorization",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "status route returns serializable response without authorization",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "uploads media with alt text and creates tweet",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.bluesky.BlueskyPostResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.bluesky.BlueskyPostResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.bluesky.BlueskySessionResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.bluesky.BlueskySessionResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.mastodon.MastodonMediaResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.mastodon.MastodonMediaResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.mastodon.MastodonStatusResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.mastodon.MastodonStatusResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterMediaResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterMediaResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterPostResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterPostResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterStatusResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.integrations.twitter.TwitterStatusResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.linkpreview.LinkPreviewParserTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "extracts Open Graph tags from HTML",
+        "parameterTypes": []
+      },
+      {
+        "name": "falls back to Twitter Cards when OG tags are missing",
+        "parameterTypes": []
+      },
+      {
+        "name": "falls back to standard HTML tags when meta tags are missing",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles Twitter image src variant",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles absolute image URLs by keeping them unchanged",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles malformed base URL by returning preview without image",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles path-relative image URLs",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles protocol-relative image URLs",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles relative image URLs by resolving them to absolute URLs",
+        "parameterTypes": []
+      },
+      {
+        "name": "prioritizes Open Graph over Twitter Cards",
+        "parameterTypes": []
+      },
+      {
+        "name": "returns null when no usable metadata found",
+        "parameterTypes": []
+      },
+      {
+        "name": "uses fallback URL when no URL in metadata",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.linkpreview.UrlUtilsTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles base URL with fragment",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles base URL with path and query parameters",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles empty image URL",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles fragments in image URL",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles malformed base URL gracefully",
+        "parameterTypes": []
+      },
+      {
+        "name": "handles query parameters in image URL",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves URLs with special characters",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves absolute HTTP URLs unchanged",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves absolute HTTPS URLs unchanged",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves complex path-relative URLs",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves path-relative URLs from directory",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves path-relative URLs from file",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves path-relative URLs from root",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves path-relative URLs with parent directory navigation",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves path-relative URLs with subdirectories",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves protocol-relative URLs with HTTP base",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves protocol-relative URLs with HTTPS base",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves root-relative URLs",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves root-relative URLs with port",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves root-relative URLs with standard HTTP port",
+        "parameterTypes": []
+      },
+      {
+        "name": "resolves root-relative URLs with standard HTTPS port",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.models.ErrorSerializationTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "CaughtException should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "CompositeError should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "CompositeErrorResponse with error should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "CompositeErrorResponse with success should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "RequestError should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "ValidationError should serialize correctly",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.models.PostsSerializationTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "Map with multiple responses should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "Map with single RSS response should serialize correctly",
+        "parameterTypes": []
+      },
+      {
+        "name": "NewBlueSkyPostResponse should serialize without type discriminator",
+        "parameterTypes": []
+      },
+      {
+        "name": "NewMastodonPostResponse should serialize without type discriminator",
+        "parameterTypes": []
+      },
+      {
+        "name": "NewRssPostResponse should serialize without type discriminator",
+        "parameterTypes": []
+      },
+      {
+        "name": "NewTwitterPostResponse should serialize without type discriminator",
+        "parameterTypes": []
+      },
+      {
+        "name": "Polymorphic serialization should work with NewPostResponse base class",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.AuthModuleTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "hashPassword should generate valid BCrypt hash",
+        "parameterTypes": []
+      },
+      {
+        "name": "login should reject wrong password with BCrypt",
+        "parameterTypes": []
+      },
+      {
+        "name": "login should return twitter auth status",
+        "parameterTypes": []
+      },
+      {
+        "name": "login should work with BCrypt hashed password",
+        "parameterTypes": []
+      },
+      {
+        "name": "login should work with correct password",
+        "parameterTypes": []
+      },
+      {
+        "name": "should accept access token query param",
+        "parameterTypes": []
+      },
+      {
+        "name": "should generate valid JWT token",
+        "parameterTypes": []
+      },
+      {
+        "name": "should reject invalid JWT token",
+        "parameterTypes": []
+      },
+      {
+        "name": "should verify valid JWT token",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.FileUploadResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.FileUploadResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.FilesModuleTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "fails when file part name is incorrect",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "uploads images and stores originals",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.FormModuleTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "broadcast should always include RSS",
+        "parameterTypes": []
+      },
+      {
+        "name": "broadcast should return composite error on partial failure",
+        "parameterTypes": []
+      },
+      {
+        "name": "setup",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.LoginRequest",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.LoginRequest$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.LoginResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.LoginResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.RssModuleTest",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true,
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "setup",
+        "parameterTypes": [
+          "java.nio.file.Path"
+        ]
+      },
+      {
+        "name": "should create RSS post successfully",
+        "parameterTypes": []
+      },
+      {
+        "name": "should extract hashtags from content",
+        "parameterTypes": []
+      },
+      {
+        "name": "should filter RSS feed by links",
+        "parameterTypes": []
+      },
+      {
+        "name": "should generate RSS feed",
+        "parameterTypes": []
+      },
+      {
+        "name": "should reject empty content",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.UserResponse",
+    "fields": [
+      {
+        "name": "Companion"
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.modules.UserResponse$Companion",
+    "methods": [
+      {
+        "name": "serializer",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "socialpublish.backend.testutils.ImageDimensions",
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "socialpublish.backend.testutils.MultipartFile",
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "socialpublish.backend.testutils.MultipartRequest",
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "socialpublish.backend.testutils.TestUploadHelpersKt",
+    "allDeclaredClasses": true,
+    "queryAllDeclaredMethods": true,
+    "queryAllPublicMethods": true
+  },
+  {
+    "name": "sun.security.provider.NativePRNG",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      },
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.security.SecureRandomParameters"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.SHA",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.SHA2$SHA256",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.provider.X509Factory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.rsa.RSAKeyFactory$Legacy",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.rsa.RSASignature$SHA256withRSA",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "sun.security.util.ObjectIdentifier"
+  },
+  {
+    "name": "sun.security.x509.CertificateExtensions"
+  },
+  {
+    "name": "sun.security.x509.SubjectKeyIdentifierExtension",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "java.lang.Boolean",
+          "java.lang.Object"
+        ]
+      }
+    ]
+  }
 ]
