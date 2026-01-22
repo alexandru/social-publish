@@ -89,7 +89,14 @@ fun startServer(
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
-            anyHost()
+            // Allow localhost for development
+            allowHost("localhost:3000")
+            allowHost("localhost:3001")
+            // Allow 127.0.0.1 for development
+            allowHost("127.0.0.1:3000")
+            allowHost("127.0.0.1:3001")
+            // Allow same origin (when frontend is served from same domain)
+            allowSameOrigin = true
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
             allowHeader(io.ktor.http.HttpHeaders.Authorization)
             allowCredentials = true
@@ -132,9 +139,10 @@ fun startServer(
 
         install(StatusPages) {
             exception<Throwable> { call, cause ->
-                logger.error(cause) { "Unhandled exception" }
+                logger.error(cause) { "Unhandled exception: ${cause.message}" }
+                // Don't expose internal error details to clients for security
                 call.respondText(
-                    text = "500: ${cause.message}",
+                    text = "500: Internal Server Error",
                     status = HttpStatusCode.InternalServerError,
                 )
             }
@@ -330,11 +338,15 @@ fun startServer(
                                 File(canonicalBaseDir, path)
                             }
 
-                        if (
-                            file.exists() &&
-                                file.isFile &&
-                                file.canonicalPath.startsWith(canonicalBaseDir.path)
-                        ) {
+                        // Security: Check that the resolved file is within the allowed directory
+                        // Use File.separator to prevent path traversal attacks like /app matching
+                        // /app-malicious
+                        val allowedPath = canonicalBaseDir.path + File.separator
+                        val isWithinBaseDir =
+                            file.canonicalPath == canonicalBaseDir.path ||
+                                file.canonicalPath.startsWith(allowedPath)
+
+                        if (file.exists() && file.isFile && isWithinBaseDir) {
                             call.respondFile(file)
                             return@get
                         }

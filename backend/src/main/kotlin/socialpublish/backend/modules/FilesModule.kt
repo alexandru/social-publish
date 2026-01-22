@@ -68,6 +68,19 @@ private constructor(
             logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
             return ref
         }
+
+        /**
+         * Sanitize filename to prevent header injection attacks. Removes newlines, quotes, and
+         * other special characters that could be used to inject additional headers or break the
+         * Content-Disposition header.
+         */
+        private fun sanitizeFilename(filename: String): String {
+            return filename
+                .replace(Regex("[\\r\\n]"), "") // Remove newlines
+                .replace("\"", "'") // Replace quotes with single quotes
+                .replace(Regex("[^a-zA-Z0-9._\\-]"), "_") // Replace other special chars
+                .take(255) // Limit length
+        }
     }
 
     /** Upload and process file */
@@ -185,7 +198,7 @@ private constructor(
         call.response.header(HttpHeaders.ContentType, upload.mimetype)
         call.response.header(
             HttpHeaders.ContentDisposition,
-            "inline; filename=\"${upload.originalname}\"",
+            "inline; filename=\"${sanitizeFilename(upload.originalname)}\"",
         )
         call.respondFile(filePath)
     }

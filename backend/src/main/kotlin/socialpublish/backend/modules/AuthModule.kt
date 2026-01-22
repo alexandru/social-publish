@@ -44,9 +44,7 @@ class AuthModule(
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
-            .withExpiresAt(
-                Date(System.currentTimeMillis() + 168 * 60 * 60 * 1000)
-            ) // 168 hours = 7 days
+            .withExpiresAt(Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 24 hours
             .sign(algorithm)
     }
 

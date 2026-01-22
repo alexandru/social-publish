@@ -29,6 +29,13 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
                             // Disable automatic redirects to detect bot blocking
                             followRedirects = false
                             expectSuccess = false
+
+                            // Configure timeouts to prevent hanging on unresponsive servers
+                            install(io.ktor.client.plugins.HttpTimeout) {
+                                requestTimeoutMillis = 30_000 // 30 seconds
+                                connectTimeoutMillis = 10_000 // 10 seconds
+                                socketTimeoutMillis = 20_000 // 20 seconds
+                            }
                         }
                     },
                     { client, _ -> client.close() },
