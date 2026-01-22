@@ -1,5 +1,45 @@
 package socialpublish.backend.integrations.linkedin
 
+/**
+ * LinkedIn API integration module using OpenID Connect (OIDC) and Posts API v2.
+ *
+ * This module provides complete integration with LinkedIn's social platform, including:
+ * - OAuth2 authentication with OpenID Connect
+ * - User profile retrieval via OIDC UserInfo endpoint
+ * - Post creation with text, images, and link previews
+ * - Automatic token refresh management
+ *
+ * ## Prerequisites
+ *
+ * Before using this module, you must:
+ * 1. Create a LinkedIn App at https://www.linkedin.com/developers/apps
+ * 2. Request access to these products in the LinkedIn Developer Portal:
+ *     - **Sign In with LinkedIn using OpenID Connect** (provides `openid` and `profile` scopes)
+ *     - **Share on LinkedIn** (provides `w_member_social` scope)
+ * 3. Configure redirect URL: `{baseUrl}/api/linkedin/callback`
+ * 4. Set environment variables: `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`
+ *
+ * ## API Documentation
+ * - [LinkedIn Developer Portal](https://www.linkedin.com/developers/)
+ * - [OAuth 2.0
+ *   Documentation](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication)
+ * - [Sign In with LinkedIn using OpenID
+ *   Connect](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2)
+ * - [Posts
+ *   API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api)
+ * - [Images, Videos, and
+ *   Documents](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-videos-documents)
+ * - [API Versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning)
+ *
+ * ## Token Management
+ * - Access tokens expire after 60 days
+ * - Refresh tokens expire after 1 year
+ * - Tokens are automatically refreshed when expired (with 5-minute buffer)
+ * - All tokens are stored securely in the database
+ *
+ * @see LinkedInApiModule Main API client class
+ * @see LinkedInConfig Configuration for OAuth credentials and API endpoints
+ */
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
@@ -52,6 +92,16 @@ private val logger = KotlinLogging.logger {}
 // Token refresh buffer: refresh 5 minutes before expiry
 private const val TOKEN_REFRESH_BUFFER_SECONDS = 300L
 
+/**
+ * OAuth2 access token with refresh token and expiration tracking.
+ *
+ * LinkedIn access tokens expire after 60 days, and refresh tokens expire after 1 year. The token is
+ * considered expired 5 minutes before actual expiry to allow for refresh.
+ *
+ * **API Reference:**
+ * - [Access Token
+ *   Expiration](https://learn.microsoft.com/en-us/linkedin/shared/authentication/programmatic-refresh-tokens)
+ */
 @Serializable
 data class LinkedInOAuthToken(
     val accessToken: String,
@@ -66,6 +116,13 @@ data class LinkedInOAuthToken(
     }
 }
 
+/**
+ * Response from LinkedIn's OAuth2 token endpoint.
+ *
+ * **API Reference:**
+ * - [Token
+ *   Exchange](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow#step-3-exchange-authorization-code-for-an-access-token)
+ */
 @Serializable
 data class LinkedInTokenResponse(
     @SerialName("access_token") val accessToken: String,
@@ -74,7 +131,21 @@ data class LinkedInTokenResponse(
     @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
 )
 
-@Serializable data class LinkedInUserProfile(val id: String)
+/**
+ * User profile from LinkedIn's OIDC UserInfo endpoint.
+ *
+ * The `sub` (subject) field contains the LinkedIn member identifier, which may be either a plain ID
+ * (e.g., "abc123") or full URN format (e.g., "urn:li:person:abc123").
+ *
+ * **API Reference:**
+ * - [OIDC
+ *   UserInfo](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2#retrieving-member-profiles)
+ */
+@Serializable
+data class LinkedInUserProfile(
+    /** Subject identifier from OIDC userinfo endpoint */
+    val sub: String
+)
 
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -153,6 +224,49 @@ data class ArticleContent(
 
 @Serializable data class LinkedInPostResponse(val id: String)
 
+/**
+ * LinkedIn API integration for OAuth2 authentication and posting to LinkedIn.
+ *
+ * This module provides integration with LinkedIn's APIs using OpenID Connect (OIDC) for
+ * authentication and the Posts API v2 for creating posts with text and media.
+ *
+ * ## Required LinkedIn Products
+ *
+ * In the LinkedIn Developer Portal, request access to:
+ * - **Sign In with LinkedIn using OpenID Connect** - Provides `openid` and `profile` scopes
+ * - **Share on LinkedIn** - Provides `w_member_social` scope
+ *
+ * ## API Documentation
+ * - [LinkedIn OAuth
+ *   2.0](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication)
+ * - [Sign In with LinkedIn using OpenID
+ *   Connect](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2)
+ * - [Posts
+ *   API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api)
+ * - [Images, Videos, and
+ *   Documents](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-videos-documents)
+ *
+ * ## OAuth Flow
+ * 1. Call [buildAuthorizeURL] to get the authorization URL
+ * 2. Redirect user to LinkedIn for consent
+ * 3. LinkedIn redirects back to callback URL with auth code
+ * 4. Call [handleCallback] to exchange code for access token
+ * 5. Token is stored in database and automatically refreshed when needed
+ *
+ * ## Creating Posts
+ *
+ * Use [createPost] to publish content. The module supports:
+ * - Text-only posts
+ * - Posts with single or multiple images
+ * - Posts with article/link previews
+ *
+ * @property config LinkedIn OAuth2 client credentials and API endpoints
+ * @property baseUrl Base URL of this application (for OAuth callbacks)
+ * @property documentsDb Database for storing OAuth tokens
+ * @property filesModule Module for handling file uploads
+ * @property httpClientEngine HTTP client engine for API requests
+ * @property linkPreviewParser Parser for extracting link preview metadata
+ */
 class LinkedInApiModule(
     private val config: LinkedInConfig,
     private val baseUrl: String,
@@ -213,7 +327,19 @@ class LinkedInApiModule(
         }
     }
 
-    /** Build authorization URL for OAuth flow */
+    /**
+     * Build the LinkedIn OAuth2 authorization URL.
+     *
+     * Constructs the URL to redirect users to LinkedIn for OAuth consent. Uses OpenID Connect
+     * (OIDC) scopes: `openid`, `profile`, and `w_member_social`.
+     *
+     * **API Reference:**
+     * - [Authorization Code
+     *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
+     *
+     * @param jwtToken JWT token to include in callback URL for state verification
+     * @return Authorization URL to redirect the user to, or an error
+     */
     suspend fun buildAuthorizeURL(jwtToken: String): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
@@ -356,11 +482,28 @@ class LinkedInApiModule(
         }
     }
 
-    /** Get user profile to obtain person URN */
+    /**
+     * Get user profile information from LinkedIn's OIDC UserInfo endpoint.
+     *
+     * Uses the standard OpenID Connect `/userinfo` endpoint to retrieve the user's subject
+     * identifier (sub), which contains the LinkedIn member ID.
+     *
+     * This endpoint works with the `openid` and `profile` OAuth scopes and returns standard OIDC
+     * claims. The `sub` field contains either a plain member ID or the full URN format
+     * (`urn:li:person:...`).
+     *
+     * **API Reference:**
+     * - [OpenID Connect
+     *   UserInfo](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2#retrieving-member-profiles)
+     * - [OIDC Standard](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo)
+     *
+     * @param accessToken OAuth2 access token with `openid` and `profile` scopes
+     * @return User profile containing the subject identifier, or an error
+     */
     suspend fun getUserProfile(accessToken: String): ApiResult<LinkedInUserProfile> {
         return try {
             val response =
-                httpClient.get("${config.apiBase}/me") {
+                httpClient.get("${config.apiBase}/userinfo") {
                     header("Authorization", "Bearer $accessToken")
                 }
 
@@ -430,9 +573,9 @@ class LinkedInApiModule(
         // Get person URN from user profile
         when (val profileResult = getUserProfile(validToken.accessToken)) {
             is Either.Right -> {
-                // The /me endpoint may return just the ID or the full URN
+                // The OIDC /userinfo endpoint returns the subject ID in "sub" field
                 // Normalize to always use the full URN format
-                val rawId = profileResult.value.id
+                val rawId = profileResult.value.sub
                 val personUrn =
                     if (rawId.startsWith("urn:li:person:")) {
                         rawId
@@ -638,7 +781,32 @@ class LinkedInApiModule(
         }
     }
 
-    /** Create a post on LinkedIn */
+    /**
+     * Create a post on LinkedIn with optional text, images, and link previews.
+     *
+     * This function uses LinkedIn's Posts API (v2) to publish content. It supports:
+     * - Text-only posts
+     * - Posts with single or multiple images (up to 9 images)
+     * - Posts with article/link previews (with optional thumbnail)
+     *
+     * The function automatically:
+     * - Retrieves and refreshes OAuth tokens as needed
+     * - Uploads images to LinkedIn's media service
+     * - Fetches link preview metadata for URLs
+     * - Normalizes person URN format
+     *
+     * **API Reference:**
+     * - [Posts
+     *   API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api)
+     * - [Image
+     *   Upload](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api)
+     * - [API Version Header](https://learn.microsoft.com/en-us/linkedin/marketing/versioning)
+     *
+     * **API Version:** Uses `LinkedIn-Version: 202401` (January 2024)
+     *
+     * @param request Post content including text, images, and links
+     * @return Post response with created post ID, or an error
+     */
     suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -808,7 +976,22 @@ class LinkedInApiModule(
         }
     }
 
-    /** Handle OAuth callback HTTP route */
+    /**
+     * Handle OAuth2 callback from LinkedIn after user authorization.
+     *
+     * This route processes the authorization code returned by LinkedIn, exchanges it for an access
+     * token and refresh token, and stores them in the database.
+     *
+     * **Flow:**
+     * 1. Receives authorization code from LinkedIn redirect
+     * 2. Exchanges code for access token via token endpoint
+     * 3. Stores tokens in database for future use
+     * 4. Redirects user back to account page
+     *
+     * **API Reference:**
+     * - [Authorization Code
+     *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
+     */
     suspend fun callbackRoute(call: ApplicationCall) {
         val code = call.request.queryParameters["code"]
         val accessToken = call.request.queryParameters["access_token"]

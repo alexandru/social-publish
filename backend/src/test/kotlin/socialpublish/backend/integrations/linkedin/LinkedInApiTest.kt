@@ -225,9 +225,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    get("/v2/me") {
+                    get("/v2/userinfo") {
                         call.respondText(
-                            """{"id":"urn:li:person:test123"}""",
+                            """{"sub":"urn:li:person:test123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -330,9 +330,9 @@ class LinkedInApiTest {
                                 )
                         }
                     }
-                    get("/v2/me") {
+                    get("/v2/userinfo") {
                         call.respondText(
-                            """{"id":"urn:li:person:test123"}""",
+                            """{"sub":"urn:li:person:test123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -548,9 +548,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    get("/v2/me") {
+                    get("/v2/userinfo") {
                         call.respondText(
-                            """{"id":"urn:li:person:testperson123"}""",
+                            """{"sub":"testperson123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -590,7 +590,8 @@ class LinkedInApiTest {
 
             assertTrue(result is Either.Right)
             val profile = (result as Either.Right).value
-            assertEquals("urn:li:person:testperson123", profile.id)
+            // OIDC /userinfo returns plain ID in "sub" field
+            assertEquals("testperson123", profile.sub)
 
             linkedInClient.close()
         }
@@ -639,9 +640,9 @@ class LinkedInApiTest {
                                 )
                         }
                     }
-                    get("/v2/me") {
+                    get("/v2/userinfo") {
                         call.respondText(
-                            """{"id":"urn:li:person:test123"}""",
+                            """{"sub":"urn:li:person:test123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -746,9 +747,9 @@ class LinkedInApiTest {
 
                 application {
                     routing {
-                        get("/v2/me") {
+                        get("/v2/userinfo") {
                             call.respondText(
-                                """{"id":"urn:li:person:test123"}""",
+                                """{"sub":"urn:li:person:test123"}""",
                                 ContentType.Application.Json,
                             )
                         }
