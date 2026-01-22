@@ -186,11 +186,10 @@ data class UploadMechanism(
 )
 
 /**
- * Result of a successful media upload registration + binary upload.
- * Carries the LinkedIn asset URN and optional description (alt text) for UGC posts.
+ * Result of a successful media upload registration + binary upload. Carries the LinkedIn asset URN
+ * and optional description (alt text) for UGC posts.
  */
-@Serializable
-data class UploadedAsset(val asset: String, val description: String? = null)
+@Serializable data class UploadedAsset(val asset: String, val description: String? = null)
 
 @Serializable
 data class MediaUploadHttpRequest(val uploadUrl: String, val headers: Map<String, String>? = null)

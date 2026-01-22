@@ -772,7 +772,10 @@ class LinkedInApiModule(
                                                     UgcMedia(
                                                         status = "READY",
                                                         media = uploaded.asset,
-                                                        description = uploaded.description?.let { UgcText(it) },
+                                                        description =
+                                                            uploaded.description?.let {
+                                                                UgcText(it)
+                                                            },
                                                     )
                                                 },
                                         )
