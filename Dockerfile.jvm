@@ -47,6 +47,10 @@ RUN $JAVA_HOME/bin/jlink \
         --add-modules java.management \
         --add-modules java.sql \
         --add-modules java.desktop \
+        --add-modules jdk.crypto.ec \
+        --add-modules jdk.crypto.cryptoki \
+        --add-modules java.security.jgss \
+        --add-modules java.security.sasl \
         --strip-debug \
         --no-man-pages \
         --no-header-files \
