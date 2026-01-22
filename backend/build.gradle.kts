@@ -62,8 +62,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
 
-    // BouncyCastle provider for EC algorithms in runtimes missing SunEC
-    implementation(libs.bouncycastle)
 }
 
 tasks.test { useJUnitPlatform() }

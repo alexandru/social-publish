@@ -20,7 +20,6 @@ import io.ktor.server.cio.CIO
 import java.io.File
 import java.security.Security
 import kotlinx.coroutines.awaitCancellation
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import socialpublish.backend.db.Database
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
 import socialpublish.backend.integrations.linkedin.LinkedInConfig
@@ -255,14 +254,6 @@ class StartServerCommand : CliktCommand(name = "start-server") {
         // SuspendApp currently has issues with System.exit, hence logic above cannot
         // be inside SuspendApp
 
-        // Ensure BouncyCastle provider is registered early so EC KeyPairGenerator is available
-        try {
-            val provider = BouncyCastleProvider()
-            Security.addProvider(provider)
-            logger.info { "BouncyCastle provider added: ${provider.name}" }
-        } catch (e: Throwable) {
-            logger.warn(e) { "Failed to add BouncyCastle provider; continuing without it" }
-        }
 
         SuspendApp {
             resourceScope {
