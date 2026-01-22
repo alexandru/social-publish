@@ -206,6 +206,7 @@ class LinkedInApiTest {
             val filesModule = createFilesModule(tempDir, jdbi)
             val documentsDb = DocumentsDatabase(jdbi)
             var postCreated = false
+            var postBody: String? = null
 
             // Save a mock OAuth token to DB
             val token =
@@ -233,6 +234,7 @@ class LinkedInApiTest {
                     }
                     post("/v2/posts") {
                         postCreated = true
+                        postBody = call.receiveStream().readBytes().decodeToString()
                         call.respondText(
                             """{"id":"urn:li:share:12345"}""",
                             ContentType.Application.Json,
@@ -281,6 +283,29 @@ class LinkedInApiTest {
             val response = (result as Either.Right).value as NewLinkedInPostResponse
             assertEquals("linkedin", response.module)
             assertNotNull(response.postId)
+
+            // Verify the post body contains all required fields
+            assertNotNull(postBody)
+            assertTrue(
+                postBody!!.contains("\"distribution\""),
+                "Post body should contain distribution field",
+            )
+            assertTrue(
+                postBody.contains("\"feedDistribution\""),
+                "Post body should contain feedDistribution field",
+            )
+            assertTrue(
+                postBody.contains("\"MAIN_FEED\""),
+                "Post body should contain MAIN_FEED value",
+            )
+            assertTrue(
+                postBody.contains("\"lifecycleState\""),
+                "Post body should contain lifecycleState field",
+            )
+            assertTrue(
+                postBody.contains("\"PUBLISHED\""),
+                "Post body should contain PUBLISHED value",
+            )
 
             linkedInClient.close()
         }
@@ -863,8 +888,149 @@ class LinkedInApiTest {
                 linkedInClient.close()
             }
         }
+
     // TODO: Add automated test for LinkedIn OAuth callback error handling
     // The implementation correctly handles LinkedIn OAuth errors by redirecting to
     // /account?error=...
     // Manual testing confirmed this works correctly with the user-friendly error message.
+
+    @Test
+    fun `Distribution serializes with all required fields`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+        }
+
+        val distribution = Distribution()
+        val serialized = json.encodeToString(distribution)
+
+        // Verify all required fields are present
+        assertTrue(
+            serialized.contains("\"feedDistribution\""),
+            "feedDistribution field should be present",
+        )
+        assertTrue(
+            serialized.contains("\"MAIN_FEED\""),
+            "feedDistribution value should be MAIN_FEED",
+        )
+        assertTrue(
+            serialized.contains("\"targetEntities\""),
+            "targetEntities field should be present",
+        )
+        assertTrue(
+            serialized.contains("\"thirdPartyDistributionChannels\""),
+            "thirdPartyDistributionChannels field should be present",
+        )
+    }
+
+    @Test
+    fun `LinkedInPostRequest serializes with all required fields including defaults`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+        }
+
+        val request =
+            LinkedInPostRequest(
+                author = "urn:li:person:test123",
+                commentary = "Test post content",
+                visibility = "PUBLIC",
+                distribution = Distribution(),
+                lifecycleState = "PUBLISHED",
+            )
+
+        val serialized = json.encodeToString(request)
+
+        // Verify all required fields are present
+        assertTrue(serialized.contains("\"author\""), "author field should be present")
+        assertTrue(
+            serialized.contains("\"urn:li:person:test123\""),
+            "author value should be present",
+        )
+        assertTrue(serialized.contains("\"commentary\""), "commentary field should be present")
+        assertTrue(
+            serialized.contains("\"Test post content\""),
+            "commentary value should be present",
+        )
+        assertTrue(serialized.contains("\"visibility\""), "visibility field should be present")
+        assertTrue(serialized.contains("\"PUBLIC\""), "visibility value should be PUBLIC")
+        assertTrue(serialized.contains("\"distribution\""), "distribution field should be present")
+        assertTrue(
+            serialized.contains("\"feedDistribution\""),
+            "feedDistribution field should be present in distribution",
+        )
+        assertTrue(
+            serialized.contains("\"MAIN_FEED\""),
+            "feedDistribution value should be MAIN_FEED",
+        )
+        assertTrue(
+            serialized.contains("\"lifecycleState\""),
+            "lifecycleState field should be present",
+        )
+        assertTrue(serialized.contains("\"PUBLISHED\""), "lifecycleState value should be PUBLISHED")
+    }
+
+    @Test
+    fun `LinkedInPostRequest with content serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+        }
+
+        val request =
+            LinkedInPostRequest(
+                author = "urn:li:person:test123",
+                commentary = "Test post with image",
+                visibility = "PUBLIC",
+                distribution = Distribution(),
+                content =
+                    PostContent(media = MediaContent(id = "urn:li:digitalmediaAsset:image123")),
+                lifecycleState = "PUBLISHED",
+            )
+
+        val serialized = json.encodeToString(request)
+
+        // Verify content structure
+        assertTrue(serialized.contains("\"content\""), "content field should be present")
+        assertTrue(serialized.contains("\"media\""), "media field should be present in content")
+        assertTrue(serialized.contains("\"id\""), "id field should be present in media")
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaAsset:image123\""),
+            "media id value should be present",
+        )
+    }
+
+    @Test
+    fun `Distribution with custom values serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+        }
+
+        val distribution =
+            Distribution(
+                feedDistribution = "NONE",
+                targetEntities = listOf("urn:li:organization:123"),
+                thirdPartyDistributionChannels = emptyList(),
+            )
+
+        val serialized = json.encodeToString(distribution)
+
+        assertTrue(
+            serialized.contains("\"feedDistribution\""),
+            "feedDistribution field should be present",
+        )
+        assertTrue(
+            serialized.contains("\"NONE\""),
+            "feedDistribution custom value should be present",
+        )
+        assertTrue(
+            serialized.contains("\"targetEntities\""),
+            "targetEntities field should be present",
+        )
+        assertTrue(
+            serialized.contains("\"urn:li:organization:123\""),
+            "targetEntities value should be present",
+        )
+    }
 }
