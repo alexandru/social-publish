@@ -285,11 +285,19 @@ class LinkedInApiModule(
             ignoreUnknownKeys = true
             isLenient = true
             encodeDefaults = true
-            explicitNulls = false // Don't encode null fields in JSON
+            // Don't encode null fields in JSON - CRITICAL for LinkedIn API compatibility.
+            // LinkedIn's API rejects requests containing null 'content' field with:
+            // "Unpermitted fields present in REQUEST_BODY: Data Processing Exception
+            // while processing fields [/content]"
+            // Text-only posts must omit the 'content' field entirely, not send it as null.
+            explicitNulls = false
         }
 
         // Shared JSON instance for pretty printing logs
         private val prettyJson = Json { prettyPrint = true }
+
+        // Number of characters to show from authorization token in logs
+        private const val AUTH_TOKEN_PREVIEW_LENGTH = 20
 
         fun resource(
             config: LinkedInConfig,
@@ -338,7 +346,7 @@ class LinkedInApiModule(
                 // Mask sensitive headers
                 val maskedValue =
                     if (key.equals("Authorization", ignoreCase = true)) {
-                        value.take(20) + "..." // Show only first 20 chars of auth token
+                        value.take(AUTH_TOKEN_PREVIEW_LENGTH) + "..."
                     } else {
                         value
                     }
@@ -1026,9 +1034,8 @@ class LinkedInApiModule(
 
             // Log the HTTP response
             val responseHeaders =
-                response.headers.entries().groupBy({ it.key }, { it.value }).mapValues { (_, values)
-                    ->
-                    values.flatten()
+                response.headers.entries().groupBy({ it.key }, { it.value }).mapValues {
+                    it.value.flatten()
                 }
             logger.info {
                 formatHttpResponse(
