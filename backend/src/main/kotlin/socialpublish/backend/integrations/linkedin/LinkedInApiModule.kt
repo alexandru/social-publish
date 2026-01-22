@@ -283,6 +283,7 @@ class LinkedInApiModule(
                         ignoreUnknownKeys = true
                         isLenient = true
                         encodeDefaults = true
+                        explicitNulls = false // Don't encode null fields in JSON
                     }
                 )
             }
@@ -290,6 +291,9 @@ class LinkedInApiModule(
     }
 
     companion object {
+        // Shared JSON instance for pretty printing logs
+        private val prettyJson = Json { prettyPrint = true }
+
         fun resource(
             config: LinkedInConfig,
             baseUrl: String,
@@ -305,6 +309,82 @@ class LinkedInApiModule(
     /** Get OAuth callback URL */
     private fun getCallbackUrl(jwtToken: String): String {
         return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+    }
+
+    /** Format HTTP request for logging with nice formatting */
+    private fun formatHttpRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: String?,
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine("HTTP Request:")
+        sb.appendLine("  Method: $method")
+        sb.appendLine("  URL: $url")
+        if (headers.isNotEmpty()) {
+            sb.appendLine("  Headers:")
+            headers.forEach { (key, value) ->
+                // Mask sensitive headers
+                val maskedValue =
+                    if (key.equals("Authorization", ignoreCase = true)) {
+                        value.take(20) + "..." // Show only first 20 chars of auth token
+                    } else {
+                        value
+                    }
+                sb.appendLine("    $key: $maskedValue")
+            }
+        }
+        if (body != null) {
+            sb.appendLine("  Body:")
+            // Pretty print JSON if possible
+            val prettyBody =
+                try {
+                    val jsonElement = Json.parseToJsonElement(body)
+                    prettyJson.encodeToString(
+                        kotlinx.serialization.json.JsonElement.serializer(),
+                        jsonElement,
+                    )
+                } catch (e: Exception) {
+                    body
+                }
+            sb.append(prettyBody.prependIndent("    "))
+        }
+        return sb.toString()
+    }
+
+    /** Format HTTP response for logging with nice formatting */
+    private fun formatHttpResponse(
+        statusCode: Int,
+        statusText: String,
+        headers: Map<String, List<String>>,
+        body: String?,
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine("HTTP Response:")
+        sb.appendLine("  Status: $statusCode $statusText")
+        if (headers.isNotEmpty()) {
+            sb.appendLine("  Headers:")
+            headers.forEach { (key, values) ->
+                values.forEach { value -> sb.appendLine("    $key: $value") }
+            }
+        }
+        if (body != null && body.isNotEmpty()) {
+            sb.appendLine("  Body:")
+            // Pretty print JSON if possible
+            val prettyBody =
+                try {
+                    val jsonElement = Json.parseToJsonElement(body)
+                    prettyJson.encodeToString(
+                        kotlinx.serialization.json.JsonElement.serializer(),
+                        jsonElement,
+                    )
+                } catch (e: Exception) {
+                    body
+                }
+            sb.append(prettyBody.prependIndent("    "))
+        }
+        return sb.toString()
     }
 
     /** Check if LinkedIn auth exists */
@@ -929,8 +1009,22 @@ class LinkedInApiModule(
                     lifecycleState = "PUBLISHED",
                 )
 
+            // Serialize request body for logging
+            val requestBody = Json.encodeToString(LinkedInPostRequest.serializer(), postRequest)
+            val requestUrl = "${config.apiBase}/posts"
+            val requestHeaders =
+                mapOf(
+                    "Authorization" to "Bearer $accessToken",
+                    "LinkedIn-Version" to "202401",
+                    "X-Restli-Protocol-Version" to "2.0.0",
+                    "Content-Type" to "application/json",
+                )
+
+            // Log the HTTP request
+            logger.info { formatHttpRequest("POST", requestUrl, requestHeaders, requestBody) }
+
             val response =
-                httpClient.post("${config.apiBase}/posts") {
+                httpClient.post(requestUrl) {
                     header("Authorization", "Bearer $accessToken")
                     header("LinkedIn-Version", "202401")
                     header("X-Restli-Protocol-Version", "2.0.0")
@@ -938,17 +1032,34 @@ class LinkedInApiModule(
                     setBody(postRequest)
                 }
 
+            // Get response body for logging
+            val responseBody = response.bodyAsText()
+
+            // Log the HTTP response
+            val responseHeaders =
+                response.headers.entries().groupBy({ it.key }, { it.value }).mapValues { (_, values)
+                    ->
+                    values.flatten()
+                }
+            logger.info {
+                formatHttpResponse(
+                    response.status.value,
+                    response.status.description,
+                    responseHeaders,
+                    responseBody,
+                )
+            }
+
             if (response.status == HttpStatusCode.Created) {
-                val data = response.body<LinkedInPostResponse>()
+                val data = Json.decodeFromString<LinkedInPostResponse>(responseBody)
                 NewLinkedInPostResponse(postId = data.id).right()
             } else {
-                val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to LinkedIn: ${response.status}, body: $errorBody" }
+                logger.warn { "Failed to post to LinkedIn: ${response.status}" }
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
                         errorMessage = "Failed to create post",
-                        body = ResponseBody(asString = errorBody),
+                        body = ResponseBody(asString = responseBody),
                     )
                     .left()
             }
