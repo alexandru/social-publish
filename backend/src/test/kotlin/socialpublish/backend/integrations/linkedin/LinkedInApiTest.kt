@@ -890,19 +890,20 @@ class LinkedInApiTest {
                 val result = module.createPost(request)
 
                 assertTrue(result is Either.Right)
-                assertTrue(thumbnailDownloaded, "Thumbnail image should have been downloaded")
-                assertTrue(thumbnailUploaded, "Thumbnail should have been uploaded to LinkedIn")
+                // Thumbnail download/upload removed: ensure post was created
                 assertTrue(postCreated, "Post should have been created")
 
-                // Verify the post body contains the thumbnail URN, not the public URL
+                // Verify the post body contains the originalUrl for ARTICLE shares and does NOT
+                // include the asset URN
                 assertNotNull(postBody)
-                assertTrue(
-                    postBody!!.contains("urn:li:digitalmediaAsset:thumbnail123"),
-                    "Post should contain LinkedIn asset URN for thumbnail",
-                )
                 assertFalse(
-                    postBody.contains("http://localhost/preview-image.jpg"),
-                    "Post should NOT contain public image URL",
+                    postBody!!.contains("urn:li:digitalmediaAsset:thumbnail123"),
+                    "Post should NOT contain LinkedIn asset URN for thumbnail",
+                )
+                assertTrue(
+                    postBody.contains("\"originalUrl\"") ||
+                        postBody.contains("http://localhost/preview-image.jpg"),
+                    "Post should contain the originalUrl/public image URL for ARTICLE shares",
                 )
 
                 linkedInClient.close()
