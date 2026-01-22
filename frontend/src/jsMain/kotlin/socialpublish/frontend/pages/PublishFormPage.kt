@@ -124,7 +124,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 imageUUIDs.add(response.data.uuid)
                             }
                             is ApiResponse.Error -> {
-                                if (response.code in listOf(401, 403)) {
+                                if (response.code == 401) {
                                     window.location.href =
                                         "/login?error=${response.code}&redirect=/form"
                                     return@launch
@@ -172,7 +172,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         }
                     }
                     is ApiResponse.Error -> {
-                        if (response.code in listOf(401, 403)) {
+                        if (response.code == 401) {
                             window.location.href = "/login?error=${response.code}&redirect=/form"
                             return@launch
                         }
