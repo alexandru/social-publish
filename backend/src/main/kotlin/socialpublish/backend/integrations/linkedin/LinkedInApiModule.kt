@@ -282,6 +282,7 @@ class LinkedInApiModule(
                     Json {
                         ignoreUnknownKeys = true
                         isLenient = true
+                        encodeDefaults = true
                     }
                 )
             }
