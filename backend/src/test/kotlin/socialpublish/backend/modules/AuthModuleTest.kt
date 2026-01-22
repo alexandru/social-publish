@@ -212,4 +212,72 @@ class AuthModuleTest {
             assertEquals(HttpStatusCode.OK, response.status)
         }
     }
+
+    @Test
+    fun `login should be rate limited after too many failed attempts`() {
+        testApplication {
+            val authModule = AuthModule(config)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            // Make 5 failed login attempts
+            repeat(5) {
+                val response =
+                    client.post("/api/login") {
+                        header(HttpHeaders.ContentType, ContentType.Application.Json)
+                        setBody("""{"username":"testuser","password":"wrongpass"}""")
+                    }
+                assertEquals(HttpStatusCode.Unauthorized, response.status)
+            }
+
+            // The 6th attempt should be rate limited
+            val rateLimitedResponse =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"wrongpass"}""")
+                }
+            assertEquals(HttpStatusCode.TooManyRequests, rateLimitedResponse.status)
+        }
+    }
+
+    @Test
+    fun `successful login should reset rate limiter`() {
+        testApplication {
+            val authModule = AuthModule(config)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authModule.login(call) } }
+            }
+
+            // Make a few failed login attempts
+            repeat(3) {
+                val response =
+                    client.post("/api/login") {
+                        header(HttpHeaders.ContentType, ContentType.Application.Json)
+                        setBody("""{"username":"testuser","password":"wrongpass"}""")
+                    }
+                assertEquals(HttpStatusCode.Unauthorized, response.status)
+            }
+
+            // Successful login should reset the counter
+            val successResponse =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"testpass"}""")
+                }
+            assertEquals(HttpStatusCode.OK, successResponse.status)
+
+            // We should be able to attempt again even though we had 3 failures
+            val afterSuccessResponse =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"wrongpass"}""")
+                }
+            assertEquals(HttpStatusCode.Unauthorized, afterSuccessResponse.status)
+        }
+    }
 }
