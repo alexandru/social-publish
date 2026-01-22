@@ -422,17 +422,22 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         onClick { addImage() }
                     }
                 ) {
-                    Text("Add image")
+                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-plus") }) }
+                    Span { Text("Add image") }
                 }
                 Text(" ")
             }
-            Input(
-                type = InputType.Submit,
+            Button(
                 attrs = {
                     classes("button", "is-primary")
-                    value("Submit")
-                },
-            )
+                    attr("type", "submit")
+                }
+            ) {
+                Span(attrs = { classes("icon") }) {
+                    I(attrs = { classes("fas", "fa-paper-plane") })
+                }
+                Span { Text("Submit") }
+            }
         }
     }
 }

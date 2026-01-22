@@ -73,14 +73,17 @@ fun ImageUpload(
         Div(attrs = { classes("field") }) {
             Button(
                 attrs = {
-                    classes("button", "is-small")
+                    classes("button", "is-small", "is-danger")
                     onClick { event ->
                         event.preventDefault()
                         onRemove(id)
                     }
                 }
             ) {
-                Text("Remove")
+                Span(attrs = { classes("icon", "is-small") }) {
+                    I(attrs = { classes("fas", "fa-trash") })
+                }
+                Span { Text("Remove") }
             }
         }
     }
