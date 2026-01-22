@@ -33,12 +33,14 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.integrations.bluesky.BlueskyApiModule
+import socialpublish.backend.integrations.linkedin.LinkedInApiModule
 import socialpublish.backend.integrations.mastodon.MastodonApiModule
 import socialpublish.backend.integrations.twitter.TwitterApiModule
 import socialpublish.backend.models.CompositeErrorResponse
 import socialpublish.backend.models.CompositeErrorWithDetails
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.NewBlueSkyPostResponse
+import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.NewMastodonPostResponse
 import socialpublish.backend.models.NewPostResponse
 import socialpublish.backend.models.NewRssPostResponse
@@ -70,14 +72,20 @@ fun startServer(
         config.twitter?.let {
             TwitterApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
+    val linkedInModule =
+        config.linkedin?.let {
+            LinkedInApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
+        }
 
     val authModule =
         AuthModule(
             config.server.auth,
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
+            linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
 
-    val formModule = FormModule(mastodonModule, blueskyModule, twitterModule, rssModule)
+    val formModule =
+        FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -104,6 +112,7 @@ fun startServer(
                             subclass(NewMastodonPostResponse::class)
                             subclass(NewBlueSkyPostResponse::class)
                             subclass(NewTwitterPostResponse::class)
+                            subclass(NewLinkedInPostResponse::class)
                         }
                         // Explicitly register serializers
                         contextual(
@@ -197,6 +206,17 @@ fun startServer(
                     }
                 }
 
+                post("/api/linkedin/post") {
+                    if (linkedInModule != null) {
+                        linkedInModule.createPostRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
+                        )
+                    }
+                }
+
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
                     if (twitterModule != null) {
@@ -236,6 +256,49 @@ fun startServer(
                         call.respond(
                             HttpStatusCode.ServiceUnavailable,
                             ErrorResponse(error = "Twitter integration not configured"),
+                        )
+                    }
+                }
+
+                // LinkedIn OAuth flow
+                get("/api/linkedin/authorize") {
+                    if (linkedInModule != null) {
+                        val token =
+                            extractJwtToken(call)
+                                ?: run {
+                                    call.respond(
+                                        HttpStatusCode.Unauthorized,
+                                        ErrorResponse(error = "Unauthorized"),
+                                    )
+                                    return@get
+                                }
+                        linkedInModule.authorizeRoute(call, token)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
+                        )
+                    }
+                }
+
+                get("/api/linkedin/callback") {
+                    if (linkedInModule != null) {
+                        linkedInModule.callbackRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
+                        )
+                    }
+                }
+
+                get("/api/linkedin/status") {
+                    if (linkedInModule != null) {
+                        linkedInModule.statusRoute(call)
+                    } else {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(error = "LinkedIn integration not configured"),
                         )
                     }
                 }

@@ -2,11 +2,11 @@
 
 [![build](https://github.com/alexandru/social-publish/actions/workflows/build.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/build.yaml) [![deploy](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml)
 
-In implementing [POSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. I'm using [ifttt.com](https://ifttt.com/), but it doesn't do a good job — their LinkedIn integration is most often broken, and Bluesky integration is currently missing.
+In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. This project provides direct API integration for X (Twitter), Mastodon, Bluesky, and LinkedIn.
 
-This project is the start of a simple tool to publish my content to multiple social networks.
+This project is a simple tool to publish content to multiple social networks.
 
-- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), and [Bluesky](https://bsky.app/) support is implemented, LinkedIn is planned (currently supported via an RSS feed meant for `ifttt.com`)
+- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), [Bluesky](https://bsky.app/), and [LinkedIn](https://linkedin.com) support is implemented
 - Image upload is supported, with alt-text included 😊
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
@@ -16,6 +16,7 @@ This project is the start of a simple tool to publish my content to multiple soc
   - [Bluesky credentials](#bluesky-credentials)
   - [Mastodon credentials](#mastodon-credentials)
   - [Twitter setup](#twitter-setup)
+  - [LinkedIn setup](#linkedin-setup)
 - [Usage](#usage)
   - [RSS feed](#rss-feed)
 - [Developing](#developing)
@@ -67,6 +68,10 @@ MASTODON_ACCESS_TOKEN="your-access-token"
 TWITTER_OAUTH1_CONSUMER_KEY="Api Key"
 TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
 
+# LinkedIn OAuth2 credentials
+LINKEDIN_CLIENT_ID="your-client-id"
+LINKEDIN_CLIENT_SECRET="your-client-secret"
+
 # Used for authentication (https://jwt.io)
 JWT_SECRET="random string"
 ```
@@ -102,6 +107,20 @@ For Twitter, we're working with Oauth1.
 - In the app's settings, go to "_User authentication settings_" and add as the "_Callback URL_": `https://<your-domain.com>/api/twitter/callback` (replace `<your-domain.com>` with your domain, obviously)
 - Set the `TWITTER_OAUTH1_CONSUMER_KEY` and the `TWITTER_OAUTH1_CONSUMER_SECRET` environment variables
 - Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect Twitter_"
+
+### LinkedIn setup
+
+For LinkedIn, we're working with OAuth2.
+
+- Go to: <https://www.linkedin.com/developers/apps>
+- Click "_Create app_" and fill in the required details
+- In the "_Auth_" tab, copy the "_Client ID_" and "_Client Secret_"
+- Add the following redirect URL: `https://<your-domain.com>/api/linkedin/callback` (replace `<your-domain.com>` with your actual domain)
+- In the "_Products_" tab, request access to "_Share on LinkedIn_" (this provides the `w_member_social` scope)
+- Set the `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` environment variables
+- Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect LinkedIn_"
+
+**Note:** LinkedIn access tokens expire after 60 days. The system automatically refreshes tokens using the refresh token, which is valid for 1 year. You'll need to reconnect if the refresh token expires.
 
 ## Usage
 

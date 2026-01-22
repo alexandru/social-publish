@@ -28,13 +28,14 @@ private val logger = KotlinLogging.logger {}
 
 @Serializable data class LoginResponse(val token: String, val hasAuth: AuthStatus)
 
-@Serializable data class AuthStatus(val twitter: Boolean = false)
+@Serializable data class AuthStatus(val twitter: Boolean = false, val linkedin: Boolean = false)
 
 @Serializable data class UserResponse(val username: String)
 
 class AuthModule(
     private val config: ServerAuthConfig,
     private val twitterAuthProvider: (suspend () -> Boolean)? = null,
+    private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
 ) {
     private val algorithm = Algorithm.HMAC256(config.jwtSecret)
 
@@ -92,8 +93,12 @@ class AuthModule(
         ) {
             val token = generateToken(request.username)
             val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
+            val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
             call.respond(
-                LoginResponse(token = token, hasAuth = AuthStatus(twitter = hasTwitterAuth))
+                LoginResponse(
+                    token = token,
+                    hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                )
             )
         } else {
             call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))

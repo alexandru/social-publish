@@ -48,7 +48,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                         if (currentPath == "/") classes("is-active")
                     },
                 ) {
-                    Span(attrs = { classes("icon") }) { Text("🏠") }
+                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-home") }) }
                     B { Text("Home") }
                 }
 
@@ -60,7 +60,9 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                             if (currentPath == "/form") classes("is-active")
                         },
                     ) {
-                        Span(attrs = { classes("icon") }) { Text("▶️") }
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fas", "fa-paper-plane") })
+                        }
                         B { Text("Publish") }
                     }
                 }
@@ -73,7 +75,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                         attr("rel", "noreferrer")
                     },
                 ) {
-                    Span(attrs = { classes("icon") }) { Text("📖") }
+                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fab", "fa-github") }) }
                     B { Text("Help") }
                 }
             }
@@ -89,6 +91,9 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                     if (currentPath == "/account") classes("is-active")
                                 },
                             ) {
+                                Span(attrs = { classes("icon") }) {
+                                    I(attrs = { classes("fas", "fa-user-circle") })
+                                }
                                 B { Text("Account") }
                             }
 
@@ -98,8 +103,10 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                     onClick { onLogout() }
                                 }
                             ) {
+                                Span(attrs = { classes("icon") }) {
+                                    I(attrs = { classes("fas", "fa-sign-out-alt") })
+                                }
                                 B { Text("Logout") }
-                                Span(attrs = { classes("icon") }) { Text("🚪") }
                             }
                         } else {
                             A(
@@ -109,7 +116,9 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                     if (currentPath == "/login") classes("is-active")
                                 },
                             ) {
-                                Span(attrs = { classes("icon") }) { Text("🔑") }
+                                Span(attrs = { classes("icon") }) {
+                                    I(attrs = { classes("fas", "fa-key") })
+                                }
                                 B { Text("Login") }
                             }
                         }

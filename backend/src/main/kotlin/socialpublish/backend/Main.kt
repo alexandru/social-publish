@@ -23,6 +23,7 @@ import kotlinx.coroutines.awaitCancellation
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import socialpublish.backend.db.Database
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.linkedin.LinkedInConfig
 import socialpublish.backend.integrations.mastodon.MastodonConfig
 import socialpublish.backend.integrations.twitter.TwitterConfig
 import socialpublish.backend.modules.AuthModule
@@ -171,6 +172,21 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
         )
 
+    // LinkedIn integration (optional)
+    private val linkedinClientId: String? by
+        option(
+            "--linkedin-client-id",
+            help = "LinkedIn OAuth2 client ID (env: LINKEDIN_CLIENT_ID)",
+            envvar = "LINKEDIN_CLIENT_ID",
+        )
+
+    private val linkedinClientSecret: String? by
+        option(
+            "--linkedin-client-secret",
+            help = "LinkedIn OAuth2 client secret (env: LINKEDIN_CLIENT_SECRET)",
+            envvar = "LINKEDIN_CLIENT_SECRET",
+        )
+
     override fun run() {
         val serverAuthConfig =
             ServerAuthConfig(
@@ -219,6 +235,13 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 null
             }
 
+        val linkedinConfig =
+            if (linkedinClientId != null && linkedinClientSecret != null) {
+                LinkedInConfig(clientId = linkedinClientId!!, clientSecret = linkedinClientSecret!!)
+            } else {
+                null
+            }
+
         val config =
             AppConfig(
                 server = serverConfig,
@@ -226,6 +249,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 bluesky = blueskyConfig,
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
+                linkedin = linkedinConfig,
             )
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot

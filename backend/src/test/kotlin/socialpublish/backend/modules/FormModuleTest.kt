@@ -58,9 +58,9 @@ class FormModuleTest {
     }
 
     @Test
-    fun `broadcast should always include RSS`() = runTest {
-        val formModule = FormModule(null, null, null, rssModule)
-        val request = NewPostRequest(content = "Hello world")
+    fun `broadcast should always include RSS when requested`() = runTest {
+        val formModule = FormModule(null, null, null, null, rssModule)
+        val request = NewPostRequest(content = "Hello world", targets = listOf("rss"))
 
         val result = formModule.broadcastPost(request)
 
@@ -75,7 +75,7 @@ class FormModuleTest {
 
     @Test
     fun `broadcast should return composite error on partial failure`() = runTest {
-        val formModule = FormModule(null, null, null, rssModule)
+        val formModule = FormModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Hello world", targets = listOf("mastodon"))
 
         val result = formModule.broadcastPost(request)

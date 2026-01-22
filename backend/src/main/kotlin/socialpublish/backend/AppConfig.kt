@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import socialpublish.backend.integrations.bluesky.BlueskyConfig
+import socialpublish.backend.integrations.linkedin.LinkedInConfig
 import socialpublish.backend.integrations.mastodon.MastodonConfig
 import socialpublish.backend.integrations.twitter.TwitterConfig
 import socialpublish.backend.modules.FilesConfig
@@ -21,6 +22,7 @@ data class AppConfig(
     val bluesky: BlueskyConfig?,
     val mastodon: MastodonConfig?,
     val twitter: TwitterConfig?,
+    val linkedin: LinkedInConfig?,
 )
 
 class AppCliCommand : CliktCommand(name = "social-publish") {
@@ -150,6 +152,21 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
             envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
         )
 
+    // LinkedIn integration (optional)
+    private val linkedinClientId: String? by
+        option(
+            "--linkedin-client-id",
+            help = "LinkedIn OAuth2 client ID (env: LINKEDIN_CLIENT_ID)",
+            envvar = "LINKEDIN_CLIENT_ID",
+        )
+
+    private val linkedinClientSecret: String? by
+        option(
+            "--linkedin-client-secret",
+            help = "LinkedIn OAuth2 client secret (env: LINKEDIN_CLIENT_SECRET)",
+            envvar = "LINKEDIN_CLIENT_SECRET",
+        )
+
     lateinit var config: AppConfig
         private set
 
@@ -201,6 +218,13 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 null
             }
 
+        val linkedinConfig =
+            if (linkedinClientId != null && linkedinClientSecret != null) {
+                LinkedInConfig(clientId = linkedinClientId!!, clientSecret = linkedinClientSecret!!)
+            } else {
+                null
+            }
+
         config =
             AppConfig(
                 server = serverConfig,
@@ -208,6 +232,7 @@ class AppCliCommand : CliktCommand(name = "social-publish") {
                 bluesky = blueskyConfig,
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
+                linkedin = linkedinConfig,
             )
     }
 }
