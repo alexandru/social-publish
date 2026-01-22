@@ -7,6 +7,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveStream
+import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -34,7 +35,9 @@ import socialpublish.backend.testutils.uploadTestImage
 
 class LinkedInApiTest {
     @Test
-    fun `buildAuthorizeURL generates correct OAuth URL`(@TempDir tempDir: Path) = runTest {
+    fun `buildAuthorizeURL generates correct OAuth URL with state parameter`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -76,6 +79,10 @@ class LinkedInApiTest {
                 "URL should contain openid profile w_member_social scope",
             )
             assertTrue(url.contains("redirect_uri="), "URL should contain redirect_uri parameter")
+            assertTrue(
+                url.contains("state="),
+                "URL should contain state parameter for CSRF protection",
+            )
 
             linkedInClient.close()
         }
@@ -232,11 +239,12 @@ class LinkedInApiTest {
                             ContentType.Application.Json,
                         )
                     }
-                    post("/v2/posts") {
+                    post("/v2/ugcPosts") {
                         postCreated = true
                         postBody = call.receiveStream().readBytes().decodeToString()
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
                         call.respondText(
-                            """{"id":"urn:li:share:12345"}""",
+                            """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
                             HttpStatusCode.Created,
                         )
@@ -284,19 +292,23 @@ class LinkedInApiTest {
             assertEquals("linkedin", response.module)
             assertNotNull(response.postId)
 
-            // Verify the post body contains all required fields
+            // Verify the post body contains UGC API required fields
             assertNotNull(postBody)
             assertTrue(
-                postBody!!.contains("\"distribution\""),
-                "Post body should contain distribution field",
+                postBody!!.contains("\"com.linkedin.ugc.ShareContent\""),
+                "Post body should contain UGC ShareContent discriminator",
             )
             assertTrue(
-                postBody.contains("\"feedDistribution\""),
-                "Post body should contain feedDistribution field",
+                postBody.contains("\"shareCommentary\""),
+                "Post body should contain shareCommentary field",
             )
             assertTrue(
-                postBody.contains("\"MAIN_FEED\""),
-                "Post body should contain MAIN_FEED value",
+                postBody.contains("\"shareMediaCategory\""),
+                "Post body should contain shareMediaCategory field",
+            )
+            assertTrue(
+                postBody.contains("\"NONE\""),
+                "Post body should contain NONE for text-only posts",
             )
             assertTrue(
                 postBody.contains("\"lifecycleState\""),
@@ -306,10 +318,9 @@ class LinkedInApiTest {
                 postBody.contains("\"PUBLISHED\""),
                 "Post body should contain PUBLISHED value",
             )
-            // Verify that the 'content' field is NOT present for text-only posts
-            assertFalse(
-                postBody.contains("\"content\""),
-                "Post body should NOT contain content field for text-only posts",
+            assertTrue(
+                postBody.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
+                "Post body should contain UGC visibility discriminator",
             )
 
             linkedInClient.close()
@@ -377,10 +388,11 @@ class LinkedInApiTest {
                         binaryUploaded = true
                         call.respondText("", status = HttpStatusCode.Created)
                     }
-                    post("/v2/posts") {
+                    post("/v2/ugcPosts") {
                         postCreated = true
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
                         call.respondText(
-                            """{"id":"urn:li:share:12345"}""",
+                            """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
                             HttpStatusCode.Created,
                         )
@@ -686,10 +698,11 @@ class LinkedInApiTest {
                     put("/upload-test-1") { call.respondText("", status = HttpStatusCode.Created) }
                     put("/upload-test-2") { call.respondText("", status = HttpStatusCode.Created) }
                     put("/upload-test-3") { call.respondText("", status = HttpStatusCode.Created) }
-                    post("/v2/posts") {
+                    post("/v2/ugcPosts") {
                         postCreated = true
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
                         call.respondText(
-                            """{"id":"urn:li:share:12345"}""",
+                            """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
                             HttpStatusCode.Created,
                         )
@@ -824,11 +837,12 @@ class LinkedInApiTest {
                         put("/upload-thumbnail") {
                             call.respondText("", status = HttpStatusCode.Created)
                         }
-                        post("/v2/posts") {
+                        post("/v2/ugcPosts") {
                             postCreated = true
                             postBody = call.receiveStream().readBytes().decodeToString()
+                            call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
                             call.respondText(
-                                """{"id":"urn:li:share:12345"}""",
+                                """{"id":"urn:li:ugcPost:12345"}""",
                                 ContentType.Application.Json,
                                 HttpStatusCode.Created,
                             )
@@ -899,143 +913,358 @@ class LinkedInApiTest {
     // /account?error=...
     // Manual testing confirmed this works correctly with the user-friendly error message.
 
-    @Test
-    fun `Distribution serializes with all required fields`() {
-        val json = Json {
-            encodeDefaults = true
-            prettyPrint = true
-        }
-
-        val distribution = Distribution()
-        val serialized = json.encodeToString(distribution)
-
-        // Verify all required fields are present
-        assertTrue(
-            serialized.contains("\"feedDistribution\""),
-            "feedDistribution field should be present",
-        )
-        assertTrue(
-            serialized.contains("\"MAIN_FEED\""),
-            "feedDistribution value should be MAIN_FEED",
-        )
-        assertTrue(
-            serialized.contains("\"targetEntities\""),
-            "targetEntities field should be present",
-        )
-        assertTrue(
-            serialized.contains("\"thirdPartyDistributionChannels\""),
-            "thirdPartyDistributionChannels field should be present",
-        )
-    }
+    // ============================================================================
+    // UGC Model Serialization Tests
+    // ============================================================================
 
     @Test
-    fun `LinkedInPostRequest serializes with all required fields including defaults`() {
+    fun `UgcPostRequest for text-only post serializes correctly`() {
         val json = Json {
             encodeDefaults = true
             prettyPrint = true
         }
 
         val request =
-            LinkedInPostRequest(
+            UgcPostRequest(
                 author = "urn:li:person:test123",
-                commentary = "Test post content",
-                visibility = "PUBLIC",
-                distribution = Distribution(),
-                lifecycleState = "PUBLISHED",
+                lifecycleState = UgcLifecycleState.PUBLISHED,
+                specificContent =
+                    UgcSpecificContent(
+                        shareContent =
+                            UgcShareContent(
+                                shareCommentary = UgcText("Hello World!"),
+                                shareMediaCategory = UgcMediaCategory.NONE,
+                            )
+                    ),
+                visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
             )
 
         val serialized = json.encodeToString(request)
 
-        // Verify all required fields are present
+        // Verify required fields
         assertTrue(serialized.contains("\"author\""), "author field should be present")
         assertTrue(
             serialized.contains("\"urn:li:person:test123\""),
             "author value should be present",
         )
-        assertTrue(serialized.contains("\"commentary\""), "commentary field should be present")
-        assertTrue(
-            serialized.contains("\"Test post content\""),
-            "commentary value should be present",
-        )
-        assertTrue(serialized.contains("\"visibility\""), "visibility field should be present")
-        assertTrue(serialized.contains("\"PUBLIC\""), "visibility value should be PUBLIC")
-        assertTrue(serialized.contains("\"distribution\""), "distribution field should be present")
-        assertTrue(
-            serialized.contains("\"feedDistribution\""),
-            "feedDistribution field should be present in distribution",
-        )
-        assertTrue(
-            serialized.contains("\"MAIN_FEED\""),
-            "feedDistribution value should be MAIN_FEED",
-        )
         assertTrue(
             serialized.contains("\"lifecycleState\""),
             "lifecycleState field should be present",
         )
-        assertTrue(serialized.contains("\"PUBLISHED\""), "lifecycleState value should be PUBLISHED")
+        assertTrue(serialized.contains("\"PUBLISHED\""), "lifecycleState should be PUBLISHED")
+        assertTrue(
+            serialized.contains("\"com.linkedin.ugc.ShareContent\""),
+            "specificContent discriminator should be present",
+        )
+        assertTrue(
+            serialized.contains("\"shareCommentary\""),
+            "shareCommentary field should be present",
+        )
+        assertTrue(
+            serialized.contains("\"Hello World!\""),
+            "shareCommentary text should be present",
+        )
+        assertTrue(
+            serialized.contains("\"shareMediaCategory\""),
+            "shareMediaCategory field should be present",
+        )
+        assertTrue(serialized.contains("\"NONE\""), "shareMediaCategory should be NONE")
+        assertTrue(
+            serialized.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
+            "visibility discriminator should be present",
+        )
+        assertTrue(serialized.contains("\"PUBLIC\""), "visibility should be PUBLIC")
     }
 
     @Test
-    fun `LinkedInPostRequest with content serializes correctly`() {
+    fun `UgcPostRequest for article share serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+            explicitNulls = false
+        }
+
+        val request =
+            UgcPostRequest(
+                author = "urn:li:person:test123",
+                lifecycleState = UgcLifecycleState.PUBLISHED,
+                specificContent =
+                    UgcSpecificContent(
+                        shareContent =
+                            UgcShareContent(
+                                shareCommentary = UgcText("Check out this blog!"),
+                                shareMediaCategory = UgcMediaCategory.ARTICLE,
+                                media =
+                                    listOf(
+                                        UgcMedia(
+                                            status = "READY",
+                                            originalUrl = "https://blog.linkedin.com/",
+                                            title = UgcText("Official LinkedIn Blog"),
+                                            description = UgcText("Blog description"),
+                                        )
+                                    ),
+                            )
+                    ),
+                visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+            )
+
+        val serialized = json.encodeToString(request)
+
+        assertTrue(serialized.contains("\"ARTICLE\""), "shareMediaCategory should be ARTICLE")
+        assertTrue(serialized.contains("\"originalUrl\""), "originalUrl field should be present")
+        assertTrue(
+            serialized.contains("\"https://blog.linkedin.com/\""),
+            "originalUrl value should be present",
+        )
+        assertTrue(serialized.contains("\"READY\""), "media status should be READY")
+        assertTrue(
+            serialized.contains("\"Official LinkedIn Blog\""),
+            "title text should be present",
+        )
+    }
+
+    @Test
+    fun `UgcPostRequest for image share serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+            explicitNulls = false
+        }
+
+        val request =
+            UgcPostRequest(
+                author = "urn:li:person:test123",
+                lifecycleState = UgcLifecycleState.PUBLISHED,
+                specificContent =
+                    UgcSpecificContent(
+                        shareContent =
+                            UgcShareContent(
+                                shareCommentary = UgcText("My photo!"),
+                                shareMediaCategory = UgcMediaCategory.IMAGE,
+                                media =
+                                    listOf(
+                                        UgcMedia(
+                                            status = "READY",
+                                            media = "urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg",
+                                            title = UgcText("Photo title"),
+                                        )
+                                    ),
+                            )
+                    ),
+                visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+            )
+
+        val serialized = json.encodeToString(request)
+
+        assertTrue(serialized.contains("\"IMAGE\""), "shareMediaCategory should be IMAGE")
+        assertTrue(serialized.contains("\"media\""), "media field should be present")
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg\""),
+            "media asset URN should be present",
+        )
+        assertTrue(serialized.contains("\"READY\""), "media status should be READY")
+    }
+
+    @Test
+    fun `UgcPostRequest with multiple images serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+            explicitNulls = false
+        }
+
+        val request =
+            UgcPostRequest(
+                author = "urn:li:person:test123",
+                lifecycleState = UgcLifecycleState.PUBLISHED,
+                specificContent =
+                    UgcSpecificContent(
+                        shareContent =
+                            UgcShareContent(
+                                shareCommentary = UgcText("Multiple photos!"),
+                                shareMediaCategory = UgcMediaCategory.IMAGE,
+                                media =
+                                    listOf(
+                                        UgcMedia(
+                                            status = "READY",
+                                            media = "urn:li:digitalmediaAsset:image1",
+                                        ),
+                                        UgcMedia(
+                                            status = "READY",
+                                            media = "urn:li:digitalmediaAsset:image2",
+                                        ),
+                                        UgcMedia(
+                                            status = "READY",
+                                            media = "urn:li:digitalmediaAsset:image3",
+                                        ),
+                                    ),
+                            )
+                    ),
+                visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+            )
+
+        val serialized = json.encodeToString(request)
+
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaAsset:image1\""),
+            "First image asset should be present",
+        )
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaAsset:image2\""),
+            "Second image asset should be present",
+        )
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaAsset:image3\""),
+            "Third image asset should be present",
+        )
+    }
+
+    @Test
+    fun `UgcVisibility with CONNECTIONS serializes correctly`() {
+        val json = Json {
+            encodeDefaults = true
+            prettyPrint = true
+        }
+
+        val visibility = UgcVisibility(UgcVisibilityType.CONNECTIONS)
+        val serialized = json.encodeToString(visibility)
+
+        assertTrue(
+            serialized.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
+            "visibility discriminator should be present",
+        )
+        assertTrue(serialized.contains("\"CONNECTIONS\""), "visibility should be CONNECTIONS")
+    }
+
+    // ============================================================================
+    // OAuth Token Model Tests
+    // ============================================================================
+
+    @Test
+    fun `LinkedInOAuthToken isExpired returns false for fresh token`() {
+        val token =
+            LinkedInOAuthToken(
+                accessToken = "test-token",
+                expiresIn = 5184000L, // 60 days
+                obtainedAt = java.time.Instant.now().epochSecond,
+            )
+
+        assertFalse(token.isExpired(), "Fresh token should not be expired")
+    }
+
+    @Test
+    fun `LinkedInOAuthToken isExpired returns true for old token`() {
+        val token =
+            LinkedInOAuthToken(
+                accessToken = "test-token",
+                expiresIn = 5184000L, // 60 days
+                obtainedAt = java.time.Instant.now().epochSecond - 5184000L, // 60 days ago
+            )
+
+        assertTrue(token.isExpired(), "Old token should be expired")
+    }
+
+    @Test
+    fun `LinkedInTokenResponse deserializes correctly`() {
+        val json = Json { ignoreUnknownKeys = true }
+
+        val responseJson =
+            """{"access_token":"AQUvlL_DYEzvT2wz1QJiEPeLioeA","expires_in":5184000,"refresh_token":"AQWAft_WjYZKwuWXLC5hQlghgTam","refresh_token_expires_in":31536000,"scope":"r_basicprofile w_member_social"}"""
+
+        val response = json.decodeFromString<LinkedInTokenResponse>(responseJson)
+
+        assertEquals("AQUvlL_DYEzvT2wz1QJiEPeLioeA", response.accessToken)
+        assertEquals(5184000L, response.expiresIn)
+        assertEquals("AQWAft_WjYZKwuWXLC5hQlghgTam", response.refreshToken)
+        assertEquals(31536000L, response.refreshTokenExpiresIn)
+        assertEquals("r_basicprofile w_member_social", response.scope)
+    }
+
+    // ============================================================================
+    // Upload Registration Model Tests
+    // ============================================================================
+
+    @Test
+    fun `LinkedInRegisterUploadRequest serializes correctly`() {
         val json = Json {
             encodeDefaults = true
             prettyPrint = true
         }
 
         val request =
-            LinkedInPostRequest(
-                author = "urn:li:person:test123",
-                commentary = "Test post with image",
-                visibility = "PUBLIC",
-                distribution = Distribution(),
-                content =
-                    PostContent(media = MediaContent(id = "urn:li:digitalmediaAsset:image123")),
-                lifecycleState = "PUBLISHED",
+            LinkedInRegisterUploadRequest(
+                registerUploadRequest =
+                    RegisterUploadRequestData(
+                        owner = "urn:li:person:8675309",
+                        recipes = listOf(LinkedInMediaRecipe.FEEDSHARE_IMAGE),
+                        serviceRelationships =
+                            listOf(
+                                ServiceRelationship(
+                                    relationshipType = "OWNER",
+                                    identifier = "urn:li:userGeneratedContent",
+                                )
+                            ),
+                    )
             )
 
         val serialized = json.encodeToString(request)
 
-        // Verify content structure
-        assertTrue(serialized.contains("\"content\""), "content field should be present")
-        assertTrue(serialized.contains("\"media\""), "media field should be present in content")
-        assertTrue(serialized.contains("\"id\""), "id field should be present in media")
         assertTrue(
-            serialized.contains("\"urn:li:digitalmediaAsset:image123\""),
-            "media id value should be present",
+            serialized.contains("\"registerUploadRequest\""),
+            "registerUploadRequest field should be present",
+        )
+        assertTrue(serialized.contains("\"urn:li:person:8675309\""), "owner should be present")
+        assertTrue(
+            serialized.contains("\"urn:li:digitalmediaRecipe:feedshare-image\""),
+            "recipe should be present",
+        )
+        assertTrue(serialized.contains("\"OWNER\""), "relationshipType should be OWNER")
+        assertTrue(
+            serialized.contains("\"urn:li:userGeneratedContent\""),
+            "identifier should be present",
         )
     }
 
     @Test
-    fun `Distribution with custom values serializes correctly`() {
-        val json = Json {
-            encodeDefaults = true
-            prettyPrint = true
-        }
+    fun `LinkedInRegisterUploadResponse deserializes correctly`() {
+        val json = Json { ignoreUnknownKeys = true }
 
-        val distribution =
-            Distribution(
-                feedDistribution = "NONE",
-                targetEntities = listOf("urn:li:organization:123"),
-                thirdPartyDistributionChannels = emptyList(),
-            )
+        val responseJson =
+            """{"value":{"uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"headers":{},"uploadUrl":"https://api.linkedin.com/mediaUpload/test"}},"mediaArtifact":"urn:li:digitalmediaMediaArtifact:(...)","asset":"urn:li:digitalmediaAsset:C5522AQGTYER3k3ByHQ"}}"""
 
-        val serialized = json.encodeToString(distribution)
+        val response = json.decodeFromString<LinkedInRegisterUploadResponse>(responseJson)
 
-        assertTrue(
-            serialized.contains("\"feedDistribution\""),
-            "feedDistribution field should be present",
+        assertEquals("urn:li:digitalmediaAsset:C5522AQGTYER3k3ByHQ", response.value.asset)
+        assertEquals(
+            "https://api.linkedin.com/mediaUpload/test",
+            response.value.uploadMechanism.uploadRequest.uploadUrl,
         )
-        assertTrue(
-            serialized.contains("\"NONE\""),
-            "feedDistribution custom value should be present",
-        )
-        assertTrue(
-            serialized.contains("\"targetEntities\""),
-            "targetEntities field should be present",
-        )
-        assertTrue(
-            serialized.contains("\"urn:li:organization:123\""),
-            "targetEntities value should be present",
-        )
+    }
+
+    // ============================================================================
+    // User Profile Model Tests
+    // ============================================================================
+
+    @Test
+    fun `LinkedInUserProfile deserializes with full URN`() {
+        val json = Json { ignoreUnknownKeys = true }
+
+        val responseJson = """{"sub":"urn:li:person:abc123","name":"Test User"}"""
+
+        val profile = json.decodeFromString<LinkedInUserProfile>(responseJson)
+
+        assertEquals("urn:li:person:abc123", profile.sub)
+        assertEquals("Test User", profile.name)
+    }
+
+    @Test
+    fun `LinkedInUserProfile deserializes with plain ID`() {
+        val json = Json { ignoreUnknownKeys = true }
+
+        val responseJson = """{"sub":"abc123"}"""
+
+        val profile = json.decodeFromString<LinkedInUserProfile>(responseJson)
+
+        assertEquals("abc123", profile.sub)
     }
 }
