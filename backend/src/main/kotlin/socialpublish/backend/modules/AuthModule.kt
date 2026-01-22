@@ -94,12 +94,34 @@ class AuthModule(
     private val algorithm = Algorithm.HMAC256(config.jwtSecret)
     private val rateLimiter = LoginRateLimiter()
 
+    companion object {
+        /** JWT token expiration duration in milliseconds (24 hours) */
+        private const val JWT_EXPIRATION_MILLIS = 24L * 60 * 60 * 1000
+
+        /**
+         * Generate a BCrypt hash for a password. Use this to create hashed passwords for
+         * SERVER_AUTH_PASSWORD.
+         *
+         * Example usage:
+         * ```
+         * val hash = AuthModule.hashPassword("mypassword")
+         * println("Use this as SERVER_AUTH_PASSWORD: $hash")
+         * ```
+         */
+        fun hashPassword(password: String, rounds: Int = 12): String {
+            return String(
+                FavreBCrypt.withDefaults().hash(rounds, password.toCharArray()),
+                Charsets.UTF_8,
+            )
+        }
+    }
+
     /** Generate JWT token for authenticated user */
     fun generateToken(username: String): String {
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
-            .withExpiresAt(Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 24 hours
+            .withExpiresAt(Date(System.currentTimeMillis() + JWT_EXPIRATION_MILLIS))
             .sign(algorithm)
     }
 
@@ -206,25 +228,6 @@ class AuthModule(
             call.respond(UserResponse(username = username))
         } else {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-        }
-    }
-
-    companion object {
-        /**
-         * Generate a BCrypt hash for a password. Use this to create hashed passwords for
-         * SERVER_AUTH_PASSWORD.
-         *
-         * Example usage:
-         * ```
-         * val hash = AuthModule.hashPassword("mypassword")
-         * println("Use this as SERVER_AUTH_PASSWORD: $hash")
-         * ```
-         */
-        fun hashPassword(password: String, rounds: Int = 12): String {
-            return String(
-                FavreBCrypt.withDefaults().hash(rounds, password.toCharArray()),
-                Charsets.UTF_8,
-            )
         }
     }
 }

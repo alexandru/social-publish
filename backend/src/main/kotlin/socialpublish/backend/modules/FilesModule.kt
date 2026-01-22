@@ -70,16 +70,25 @@ private constructor(
         }
 
         /**
-         * Sanitize filename to prevent header injection attacks. Removes newlines, quotes, and
-         * other special characters that could be used to inject additional headers or break the
-         * Content-Disposition header.
+         * Sanitize filename to prevent header injection attacks and path traversal.
+         * - Allows only: letters, numbers, dots, hyphens, and underscores
+         * - Removes all other characters including whitespace, quotes, and control characters
+         * - Prevents empty filenames and filenames starting with dot (hidden files)
+         * - Limits length to 255 characters
          */
         private fun sanitizeFilename(filename: String): String {
-            return filename
-                .replace(Regex("[\\r\\n]"), "") // Remove newlines
-                .replace("\"", "'") // Replace quotes with single quotes
-                .replace(Regex("[^a-zA-Z0-9._\\-]"), "_") // Replace other special chars
-                .take(255) // Limit length
+            // Remove any path separators to prevent directory traversal
+            val nameOnly = filename.substringAfterLast('/').substringAfterLast('\\')
+
+            // Allow only safe characters: alphanumeric, dot, hyphen, underscore
+            val sanitized = nameOnly.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(255)
+
+            // Ensure filename is not empty and doesn't start with a dot
+            return if (sanitized.isBlank() || sanitized.startsWith(".")) {
+                "file_$sanitized".take(255)
+            } else {
+                sanitized
+            }
         }
     }
 
