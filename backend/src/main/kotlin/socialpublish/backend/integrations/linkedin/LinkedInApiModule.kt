@@ -276,21 +276,18 @@ class LinkedInApiModule(
     private val linkPreviewParser: LinkPreviewParser,
 ) {
     private val httpClient: HttpClient by lazy {
-        HttpClient(httpClientEngine) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                        encodeDefaults = true
-                        explicitNulls = false // Don't encode null fields in JSON
-                    }
-                )
-            }
-        }
+        HttpClient(httpClientEngine) { install(ContentNegotiation) { json(jsonConfig) } }
     }
 
     companion object {
+        // Shared JSON instance for serialization/deserialization
+        private val jsonConfig = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            encodeDefaults = true
+            explicitNulls = false // Don't encode null fields in JSON
+        }
+
         // Shared JSON instance for pretty printing logs
         private val prettyJson = Json { prettyPrint = true }
 
@@ -309,6 +306,19 @@ class LinkedInApiModule(
     /** Get OAuth callback URL */
     private fun getCallbackUrl(jwtToken: String): String {
         return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+    }
+
+    /** Pretty print JSON string for logging, or return original if not valid JSON */
+    private fun prettyPrintJson(json: String): String {
+        return try {
+            val jsonElement = Json.parseToJsonElement(json)
+            prettyJson.encodeToString(
+                kotlinx.serialization.json.JsonElement.serializer(),
+                jsonElement,
+            )
+        } catch (e: Exception) {
+            json
+        }
     }
 
     /** Format HTTP request for logging with nice formatting */
@@ -337,18 +347,7 @@ class LinkedInApiModule(
         }
         if (body != null) {
             sb.appendLine("  Body:")
-            // Pretty print JSON if possible
-            val prettyBody =
-                try {
-                    val jsonElement = Json.parseToJsonElement(body)
-                    prettyJson.encodeToString(
-                        kotlinx.serialization.json.JsonElement.serializer(),
-                        jsonElement,
-                    )
-                } catch (e: Exception) {
-                    body
-                }
-            sb.append(prettyBody.prependIndent("    "))
+            sb.append(prettyPrintJson(body).prependIndent("    "))
         }
         return sb.toString()
     }
@@ -371,18 +370,7 @@ class LinkedInApiModule(
         }
         if (body != null && body.isNotEmpty()) {
             sb.appendLine("  Body:")
-            // Pretty print JSON if possible
-            val prettyBody =
-                try {
-                    val jsonElement = Json.parseToJsonElement(body)
-                    prettyJson.encodeToString(
-                        kotlinx.serialization.json.JsonElement.serializer(),
-                        jsonElement,
-                    )
-                } catch (e: Exception) {
-                    body
-                }
-            sb.append(prettyBody.prependIndent("    "))
+            sb.append(prettyPrintJson(body).prependIndent("    "))
         }
         return sb.toString()
     }
@@ -1010,7 +998,8 @@ class LinkedInApiModule(
                 )
 
             // Serialize request body for logging
-            val requestBody = Json.encodeToString(LinkedInPostRequest.serializer(), postRequest)
+            val requestBody =
+                jsonConfig.encodeToString(LinkedInPostRequest.serializer(), postRequest)
             val requestUrl = "${config.apiBase}/posts"
             val requestHeaders =
                 mapOf(
@@ -1051,7 +1040,7 @@ class LinkedInApiModule(
             }
 
             if (response.status == HttpStatusCode.Created) {
-                val data = Json.decodeFromString<LinkedInPostResponse>(responseBody)
+                val data = jsonConfig.decodeFromString<LinkedInPostResponse>(responseBody)
                 NewLinkedInPostResponse(postId = data.id).right()
             } else {
                 logger.warn { "Failed to post to LinkedIn: ${response.status}" }
