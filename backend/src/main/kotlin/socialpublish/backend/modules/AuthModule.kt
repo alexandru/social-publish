@@ -35,7 +35,8 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * Simple in-memory rate limiter for login attempts. Tracks failed login attempts per IP address and
- * enforces a delay after too many failures.
+ * enforces a delay after too many failures. Automatically cleans up old entries to prevent memory
+ * leaks.
  */
 class LoginRateLimiter(
     private val maxAttempts: Int = 5,
@@ -46,10 +47,30 @@ class LoginRateLimiter(
     private val attempts = ConcurrentHashMap<String, AttemptRecord>()
 
     /**
+     * Remove entries older than the window period to prevent memory leaks. This is called
+     * periodically when the map grows large.
+     */
+    private fun cleanupOldEntries() {
+        val now = System.currentTimeMillis()
+        val iterator = attempts.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (now - entry.value.firstAttemptTime > windowMillis) {
+                iterator.remove()
+            }
+        }
+    }
+
+    /**
      * Check if a client IP is rate limited. Returns true if the client should be allowed, false if
      * rate limited.
      */
     fun checkLimit(clientIp: String): Boolean {
+        // Periodically cleanup old entries to prevent unbounded memory growth
+        if (attempts.size > 1000) {
+            cleanupOldEntries()
+        }
+
         val now = System.currentTimeMillis()
         val record = attempts.computeIfAbsent(clientIp) { AttemptRecord(0, now) }
 

@@ -78,14 +78,15 @@ private constructor(
          */
         private fun sanitizeFilename(filename: String): String {
             // Remove any path separators to prevent directory traversal
-            val nameOnly = filename.substringAfterLast('/').substringAfterLast('\\')
+            val nameOnly =
+                filename.substringAfterLast('/').substringAfterLast('\\').ifBlank { "unnamed" }
 
             // Allow only safe characters: alphanumeric, dot, hyphen, underscore
             val sanitized = nameOnly.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(255)
 
             // Ensure filename is not empty and doesn't start with a dot
             return if (sanitized.isBlank() || sanitized.startsWith(".")) {
-                "file_$sanitized".take(255)
+                "file_${System.currentTimeMillis()}.bin"
             } else {
                 sanitized
             }
