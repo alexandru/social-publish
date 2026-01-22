@@ -50,6 +50,10 @@ test:
 test-native:
 	./gradlew :backend:nativeTest
 
+# Collect native-image metadata by running tests with GraalVM agent
+collect-native-metadata:
+	./gradlew :backend:collectNativeMetadata
+
 # Dependency updates
 dependency-updates:
 	./gradlew dependencyUpdates \

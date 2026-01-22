@@ -143,4 +143,32 @@ tasks {
         // Exclude module-info to avoid conflicts in fat JAR
         exclude("**/module-info.class")
     }
+
+    // Task to collect native-image metadata by running tests with the GraalVM agent
+    val collectNativeMetadata by registering(Test::class) {
+        description = "Runs tests with GraalVM native-image agent to collect metadata"
+        group = "graalvm"
+
+        val metadataDir = file("${project.projectDir}/src/main/resources/META-INF/native-image")
+        
+        doFirst {
+            // Clean existing metadata to get fresh collection
+            delete(metadataDir)
+            metadataDir.mkdirs()
+        }
+
+        // Configure JVM args to enable the native-image agent
+        jvmArgs(
+            "-agentlib:native-image-agent=config-output-dir=${metadataDir}"
+        )
+
+        // Use the same test configuration as the regular test task
+        testClassesDirs = test.get().testClassesDirs
+        classpath = test.get().classpath
+        useJUnitPlatform()
+
+        doLast {
+            logger.lifecycle("Native-image metadata collected in: ${metadataDir}")
+        }
+    }
 }
