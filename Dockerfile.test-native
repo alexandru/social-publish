@@ -1,0 +1,5 @@
+FROM ghcr.io/graalvm/native-image-community:25 AS build-base
+WORKDIR /app/source
+COPY . .
+RUN microdnf install findutils -y
+RUN ./gradlew :backend:nativeTest --no-daemon

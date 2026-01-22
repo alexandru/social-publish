@@ -47,6 +47,9 @@ clean:
 test:
 	./gradlew test
 
+test-native:
+	./gradlew :backend:nativeTest
+
 # Dependency updates
 dependency-updates:
 	./gradlew dependencyUpdates \
