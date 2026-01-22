@@ -206,6 +206,7 @@ class LinkedInApiTest {
             val filesModule = createFilesModule(tempDir, jdbi)
             val documentsDb = DocumentsDatabase(jdbi)
             var postCreated = false
+            var postBody: String? = null
 
             // Save a mock OAuth token to DB
             val token =
@@ -233,6 +234,7 @@ class LinkedInApiTest {
                     }
                     post("/v2/posts") {
                         postCreated = true
+                        postBody = call.receiveStream().readBytes().decodeToString()
                         call.respondText(
                             """{"id":"urn:li:share:12345"}""",
                             ContentType.Application.Json,
@@ -281,6 +283,29 @@ class LinkedInApiTest {
             val response = (result as Either.Right).value as NewLinkedInPostResponse
             assertEquals("linkedin", response.module)
             assertNotNull(response.postId)
+
+            // Verify the post body contains all required fields
+            assertNotNull(postBody)
+            assertTrue(
+                postBody!!.contains("\"distribution\""),
+                "Post body should contain distribution field",
+            )
+            assertTrue(
+                postBody.contains("\"feedDistribution\""),
+                "Post body should contain feedDistribution field",
+            )
+            assertTrue(
+                postBody.contains("\"MAIN_FEED\""),
+                "Post body should contain MAIN_FEED value",
+            )
+            assertTrue(
+                postBody.contains("\"lifecycleState\""),
+                "Post body should contain lifecycleState field",
+            )
+            assertTrue(
+                postBody.contains("\"PUBLISHED\""),
+                "Post body should contain PUBLISHED value",
+            )
 
             linkedInClient.close()
         }
