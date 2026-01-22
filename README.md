@@ -116,7 +116,9 @@ For LinkedIn, we're working with OAuth2.
 - Click "_Create app_" and fill in the required details
 - In the "_Auth_" tab, copy the "_Client ID_" and "_Client Secret_"
 - Add the following redirect URL: `https://<your-domain.com>/api/linkedin/callback` (replace `<your-domain.com>` with your actual domain)
-- In the "_Products_" tab, request access to "_Share on LinkedIn_" (this provides the `w_member_social` scope)
+- In the "_Products_" tab, request access to:
+  - "_Sign In with LinkedIn using OpenID Connect_" (provides `openid` and `profile` scopes)
+  - "_Share on LinkedIn_" (provides `w_member_social` scope)
 - Set the `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` environment variables
 - Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect LinkedIn_"
 

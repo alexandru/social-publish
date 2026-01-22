@@ -72,8 +72,8 @@ class LinkedInApiTest {
             assertTrue(url.contains("client_id=test-client-id"), "URL should contain client_id")
             assertTrue(url.contains("response_type=code"), "URL should contain response_type=code")
             assertTrue(
-                url.contains("scope=w_member_social"),
-                "URL should contain w_member_social scope",
+                url.contains("scope=openid+profile+w_member_social"),
+                "URL should contain openid profile w_member_social scope",
             )
             assertTrue(url.contains("redirect_uri="), "URL should contain redirect_uri parameter")
 

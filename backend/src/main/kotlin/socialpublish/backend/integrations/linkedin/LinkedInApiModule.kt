@@ -221,7 +221,7 @@ class LinkedInApiModule(
                 "${config.authorizationUrl}?response_type=code" +
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
                     "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
-                    "&scope=${URLEncoder.encode("w_member_social", "UTF-8")}"
+                    "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8")}"
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to build LinkedIn authorization URL" }
