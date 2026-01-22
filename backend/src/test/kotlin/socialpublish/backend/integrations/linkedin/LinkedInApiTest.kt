@@ -224,9 +224,12 @@ class LinkedInApiTest {
             application {
                 routing {
                     get("/v2/me") {
-                        call.respondText("""{"sub":"test123"}""", ContentType.Application.Json)
+                        call.respondText(
+                            """{"id":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
                     }
-                    post("/v2/ugcPosts") {
+                    post("/v2/posts") {
                         postCreated = true
                         call.respondText(
                             """{"id":"urn:li:share:12345"}""",
@@ -326,7 +329,10 @@ class LinkedInApiTest {
                         }
                     }
                     get("/v2/me") {
-                        call.respondText("""{"sub":"test123"}""", ContentType.Application.Json)
+                        call.respondText(
+                            """{"id":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
                     }
                     post("/v2/assets") {
                         uploadRegistered = true
@@ -339,7 +345,7 @@ class LinkedInApiTest {
                         binaryUploaded = true
                         call.respondText("", status = HttpStatusCode.Created)
                     }
-                    post("/v2/ugcPosts") {
+                    post("/v2/posts") {
                         postCreated = true
                         call.respondText(
                             """{"id":"urn:li:share:12345"}""",
@@ -542,7 +548,7 @@ class LinkedInApiTest {
                 routing {
                     get("/v2/me") {
                         call.respondText(
-                            """{"sub":"testperson123"}""",
+                            """{"id":"urn:li:person:testperson123"}""",
                             ContentType.Application.Json,
                         )
                     }
@@ -582,7 +588,7 @@ class LinkedInApiTest {
 
             assertTrue(result is Either.Right)
             val profile = (result as Either.Right).value
-            assertEquals("testperson123", profile.sub)
+            assertEquals("urn:li:person:testperson123", profile.id)
 
             linkedInClient.close()
         }

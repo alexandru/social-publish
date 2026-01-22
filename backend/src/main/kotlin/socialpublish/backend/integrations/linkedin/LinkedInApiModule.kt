@@ -74,7 +74,7 @@ data class LinkedInTokenResponse(
     @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
 )
 
-@Serializable data class LinkedInUserProfile(val sub: String)
+@Serializable data class LinkedInUserProfile(val id: String)
 
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -106,46 +106,40 @@ data class UploadMechanism(
 data class UploadRequest(val uploadUrl: String, val headers: Map<String, String>? = null)
 
 @Serializable
-data class LinkedInUGCPostRequest(
-    val author: String,
-    val lifecycleState: String,
-    val specificContent: SpecificContent,
-    val visibility: Visibility,
+data class LinkedInPostRequest(
+    val author: String, // "urn:li:person:{person-id}"
+    val commentary: String,
+    val visibility: String, // "PUBLIC", "CONNECTIONS", or "LOGGED_IN"
+    val distribution: Distribution,
+    val content: PostContent? = null,
+    val lifecycleState: String = "PUBLISHED",
 )
 
 @Serializable
-data class SpecificContent(
-    @SerialName("com.linkedin.ugc.ShareContent") val shareContent: ShareContent
+data class Distribution(
+    val feedDistribution: String = "MAIN_FEED",
+    val targetEntities: List<String> = emptyList(),
+    val thirdPartyDistributionChannels: List<String> = emptyList(),
 )
 
 @Serializable
-data class ShareContent(
-    val shareCommentary: ShareCommentary,
-    val shareMediaCategory: String,
-    val media: List<ShareMedia>? = null,
-)
-
-@Serializable data class ShareCommentary(val text: String)
+data class PostContent(val media: MediaContent? = null, val article: ArticleContent? = null)
 
 @Serializable
-data class ShareMedia(
-    val status: String,
-    val description: Description? = null,
-    val media: String,
-    val title: Title? = null,
-    val originalUrl: String? = null,
+data class MediaContent(
+    val title: String? = null,
+    val id: String, // Image URN: "urn:li:image:{id}" or digitalmediaAsset URN
 )
-
-@Serializable data class Description(val text: String)
-
-@Serializable data class Title(val text: String)
 
 @Serializable
-data class Visibility(
-    @SerialName("com.linkedin.ugc.MemberNetworkVisibility") val memberNetworkVisibility: String
+data class ArticleContent(
+    val source: String, // URL
+    val title: String? = null,
+    val description: String? = null,
+    val thumbnail: String? = null, // Image URN
 )
 
-@Serializable data class LinkedInUGCPostResponse(val id: String)
+@Serializable data class LinkedInPostResponse(val id: String)
 
 class LinkedInApiModule(
     private val config: LinkedInConfig,
@@ -354,7 +348,7 @@ class LinkedInApiModule(
     suspend fun getUserProfile(accessToken: String): ApiResult<LinkedInUserProfile> {
         return try {
             val response =
-                httpClient.get("${config.apiBase}/userinfo") {
+                httpClient.get("${config.apiBase}/me") {
                     header("Authorization", "Bearer $accessToken")
                 }
 
@@ -424,7 +418,8 @@ class LinkedInApiModule(
         // Get person URN from user profile
         when (val profileResult = getUserProfile(validToken.accessToken)) {
             is Either.Right -> {
-                val personUrn = "urn:li:person:${profileResult.value.sub}"
+                // The /me endpoint returns the full URN in the id field
+                val personUrn = profileResult.value.id
                 return (validToken.accessToken to personUrn).right()
             }
             is Either.Left -> return profileResult.value.left()
@@ -564,73 +559,67 @@ class LinkedInApiModule(
 
             logger.info { "Posting to LinkedIn:\n${content.trim().prependIndent("  |")}" }
 
-            // Build media list
-            val mediaList = mutableListOf<ShareMedia>()
-
             // Upload images if present
+            val uploadedImageUrns = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
                     when (val result = uploadMedia(accessToken, personUrn, imageUuid)) {
-                        is Either.Right -> {
-                            mediaList.add(ShareMedia(status = "READY", media = result.value))
-                        }
+                        is Either.Right -> uploadedImageUrns.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
                 }
             }
 
-            // Add link preview if link is provided
-            if (request.link != null && mediaList.isEmpty()) {
-                val (title, imageUrl) = fetchLinkPreview(request.link)
-                // Only add media if we have an image URL, otherwise LinkedIn will reject it
-                if (imageUrl != null && imageUrl.isNotEmpty()) {
-                    mediaList.add(
-                        ShareMedia(
-                            status = "READY",
-                            originalUrl = request.link,
-                            title = title?.let { Title(text = it) },
-                            description = Description(text = content),
-                            media = imageUrl,
-                        )
-                    )
-                }
-            }
-
-            // Determine share media category
-            val shareMediaCategory =
+            // Build post content based on what we have
+            val postContent: PostContent? =
                 when {
-                    mediaList.isEmpty() -> "NONE"
-                    request.link != null && request.images.isNullOrEmpty() -> "ARTICLE"
-                    else -> "IMAGE"
+                    // If we have images, use media content
+                    uploadedImageUrns.isNotEmpty() -> {
+                        // For now, use the first image. The new Posts API supports multiple
+                        // images
+                        // but needs different structure (multiImage content type)
+                        PostContent(media = MediaContent(id = uploadedImageUrns.first()))
+                    }
+                    // If we have a link (and no images), create article content with link
+                    // preview
+                    request.link != null -> {
+                        val (title, imageUrl) = fetchLinkPreview(request.link)
+                        PostContent(
+                            article =
+                                ArticleContent(
+                                    source = request.link,
+                                    title = title,
+                                    thumbnail =
+                                        imageUrl, // This should be an image URN in production
+                                )
+                        )
+                    }
+                    // Text only
+                    else -> null
                 }
 
-            // Create post
+            // Create post using new Posts API
             val postRequest =
-                LinkedInUGCPostRequest(
+                LinkedInPostRequest(
                     author = personUrn,
+                    commentary = content,
+                    visibility = "PUBLIC",
+                    distribution = Distribution(),
+                    content = postContent,
                     lifecycleState = "PUBLISHED",
-                    specificContent =
-                        SpecificContent(
-                            shareContent =
-                                ShareContent(
-                                    shareCommentary = ShareCommentary(text = content),
-                                    shareMediaCategory = shareMediaCategory,
-                                    media = mediaList.ifEmpty { null },
-                                )
-                        ),
-                    visibility = Visibility(memberNetworkVisibility = "PUBLIC"),
                 )
 
             val response =
-                httpClient.post("${config.apiBase}/ugcPosts") {
+                httpClient.post("${config.apiBase}/posts") {
                     header("Authorization", "Bearer $accessToken")
+                    header("LinkedIn-Version", "202401")
                     header("X-Restli-Protocol-Version", "2.0.0")
                     contentType(ContentType.Application.Json)
                     setBody(postRequest)
                 }
 
             if (response.status == HttpStatusCode.Created) {
-                val data = response.body<LinkedInUGCPostResponse>()
+                val data = response.body<LinkedInPostResponse>()
                 NewLinkedInPostResponse(postId = data.id).right()
             } else {
                 val errorBody = response.bodyAsText()
