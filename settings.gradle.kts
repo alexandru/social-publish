@@ -24,8 +24,6 @@ dependencyResolutionManagement {
             version("jbcrypt", "0.4")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
-            // BouncyCastle provider compatible with Java 18+
-            version("bouncycastle", "1.83")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -96,9 +94,6 @@ dependencyResolutionManagement {
             library("ktor-client-mock", "io.ktor", "ktor-client-mock").versionRef("ktor")
             library("mockk", "io.mockk", "mockk").versionRef("mockk")
             library("kotlinx-coroutines-test", "org.jetbrains.kotlinx", "kotlinx-coroutines-test").versionRef("kotlinx-coroutines")
-
-            // BouncyCastle provider compatible with Java 18+
-            library("bouncycastle", "org.bouncycastle", "bcprov-jdk18on").versionRef("bouncycastle")
 
             // Bundles for grouped dependencies
             bundle(
