@@ -155,7 +155,7 @@ fun AccountPage() {
                         }
                     ) {
                         Span(attrs = { classes("icon") }) {
-                            I(attrs = { classes("fa", "fa-linkedin") })
+                            I(attrs = { classes("fa-brands", "fa-square-linkedin") })
                         }
                         Span(attrs = { style { fontWeight("bold") } }) { Text("Connect LinkedIn") }
                     }
