@@ -306,6 +306,11 @@ class LinkedInApiTest {
                 postBody.contains("\"PUBLISHED\""),
                 "Post body should contain PUBLISHED value",
             )
+            // Verify that the 'content' field is NOT present for text-only posts
+            assertFalse(
+                postBody.contains("\"content\""),
+                "Post body should NOT contain content field for text-only posts",
+            )
 
             linkedInClient.close()
         }

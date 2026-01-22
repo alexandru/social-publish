@@ -276,20 +276,29 @@ class LinkedInApiModule(
     private val linkPreviewParser: LinkPreviewParser,
 ) {
     private val httpClient: HttpClient by lazy {
-        HttpClient(httpClientEngine) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                        encodeDefaults = true
-                    }
-                )
-            }
-        }
+        HttpClient(httpClientEngine) { install(ContentNegotiation) { json(jsonConfig) } }
     }
 
     companion object {
+        // Shared JSON instance for serialization/deserialization
+        private val jsonConfig = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            encodeDefaults = true
+            // Don't encode null fields in JSON - CRITICAL for LinkedIn API compatibility.
+            // LinkedIn's API rejects requests containing null 'content' field with:
+            // "Unpermitted fields present in REQUEST_BODY: Data Processing Exception
+            // while processing fields [/content]"
+            // Text-only posts must omit the 'content' field entirely, not send it as null.
+            explicitNulls = false
+        }
+
+        // Shared JSON instance for pretty printing logs
+        private val prettyJson = Json { prettyPrint = true }
+
+        // Number of characters to show from authorization token in logs
+        private const val AUTH_TOKEN_PREVIEW_LENGTH = 20
+
         fun resource(
             config: LinkedInConfig,
             baseUrl: String,
@@ -305,6 +314,73 @@ class LinkedInApiModule(
     /** Get OAuth callback URL */
     private fun getCallbackUrl(jwtToken: String): String {
         return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+    }
+
+    /** Pretty print JSON string for logging, or return original if not valid JSON */
+    private fun prettyPrintJson(json: String): String {
+        return try {
+            val jsonElement = Json.parseToJsonElement(json)
+            prettyJson.encodeToString(
+                kotlinx.serialization.json.JsonElement.serializer(),
+                jsonElement,
+            )
+        } catch (e: Exception) {
+            json
+        }
+    }
+
+    /** Format HTTP request for logging with nice formatting */
+    private fun formatHttpRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: String?,
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine("HTTP Request:")
+        sb.appendLine("  Method: $method")
+        sb.appendLine("  URL: $url")
+        if (headers.isNotEmpty()) {
+            sb.appendLine("  Headers:")
+            headers.forEach { (key, value) ->
+                // Mask sensitive headers
+                val maskedValue =
+                    if (key.equals("Authorization", ignoreCase = true)) {
+                        value.take(AUTH_TOKEN_PREVIEW_LENGTH) + "..."
+                    } else {
+                        value
+                    }
+                sb.appendLine("    $key: $maskedValue")
+            }
+        }
+        if (body != null) {
+            sb.appendLine("  Body:")
+            sb.append(prettyPrintJson(body).prependIndent("    "))
+        }
+        return sb.toString()
+    }
+
+    /** Format HTTP response for logging with nice formatting */
+    private fun formatHttpResponse(
+        statusCode: Int,
+        statusText: String,
+        headers: Map<String, List<String>>,
+        body: String?,
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine("HTTP Response:")
+        sb.appendLine("  Status: $statusCode $statusText")
+        if (headers.isNotEmpty()) {
+            sb.appendLine("  Headers:")
+            headers.forEach { (key, values) ->
+                values.forEach { value -> sb.appendLine("    $key: $value") }
+            }
+        }
+        if (body != null && body.isNotEmpty()) {
+            sb.appendLine("  Body:")
+            sb.append(prettyPrintJson(body).prependIndent("    "))
+        }
+        return sb.toString()
     }
 
     /** Check if LinkedIn auth exists */
@@ -929,8 +1005,23 @@ class LinkedInApiModule(
                     lifecycleState = "PUBLISHED",
                 )
 
+            // Serialize request body for logging
+            val requestBody =
+                jsonConfig.encodeToString(LinkedInPostRequest.serializer(), postRequest)
+            val requestUrl = "${config.apiBase}/posts"
+            val requestHeaders =
+                mapOf(
+                    "Authorization" to "Bearer $accessToken",
+                    "LinkedIn-Version" to "202401",
+                    "X-Restli-Protocol-Version" to "2.0.0",
+                    "Content-Type" to "application/json",
+                )
+
+            // Log the HTTP request
+            logger.info { formatHttpRequest("POST", requestUrl, requestHeaders, requestBody) }
+
             val response =
-                httpClient.post("${config.apiBase}/posts") {
+                httpClient.post(requestUrl) {
                     header("Authorization", "Bearer $accessToken")
                     header("LinkedIn-Version", "202401")
                     header("X-Restli-Protocol-Version", "2.0.0")
@@ -938,17 +1029,33 @@ class LinkedInApiModule(
                     setBody(postRequest)
                 }
 
+            // Get response body for logging
+            val responseBody = response.bodyAsText()
+
+            // Log the HTTP response
+            val responseHeaders =
+                response.headers.entries().groupBy({ it.key }, { it.value }).mapValues {
+                    it.value.flatten()
+                }
+            logger.info {
+                formatHttpResponse(
+                    response.status.value,
+                    response.status.description,
+                    responseHeaders,
+                    responseBody,
+                )
+            }
+
             if (response.status == HttpStatusCode.Created) {
-                val data = response.body<LinkedInPostResponse>()
+                val data = jsonConfig.decodeFromString<LinkedInPostResponse>(responseBody)
                 NewLinkedInPostResponse(postId = data.id).right()
             } else {
-                val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to LinkedIn: ${response.status}, body: $errorBody" }
+                logger.warn { "Failed to post to LinkedIn: ${response.status}" }
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
                         errorMessage = "Failed to create post",
-                        body = ResponseBody(asString = errorBody),
+                        body = ResponseBody(asString = responseBody),
                     )
                     .left()
             }
