@@ -1,3 +1,5 @@
+@file:Suppress("BlockingMethodInNonBlockingContext")
+
 package socialpublish.backend.integrations.linkedin
 
 /**
@@ -50,12 +52,8 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.*
 import io.ktor.client.request.forms.submitForm
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -76,15 +74,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.linkpreview.LinkPreviewParser
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewLinkedInPostResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -238,7 +228,7 @@ class LinkedInApiModule(
 
     /** Format HTTP request for logging with nice formatting */
     private fun formatHttpRequest(
-        method: String,
+        @Suppress("SameParameterValue") method: String,
         url: String,
         headers: Map<String, String>,
         body: String?,
@@ -586,8 +576,8 @@ class LinkedInApiModule(
         accessToken: String,
         personUrn: String,
         uuid: String,
-    ): ApiResult<UploadedAsset> {
-        return try {
+    ): ApiResult<UploadedAsset> =
+        try {
             val file =
                 filesModule.readImageFile(uuid, maxWidth = 5000, maxHeight = 5000)
                     ?: return ValidationError(
@@ -597,6 +587,31 @@ class LinkedInApiModule(
                         )
                         .left()
 
+            uploadMediaFromBytes(
+                accessToken = accessToken,
+                personUrn = personUrn,
+                imageBytes = file.bytes,
+                mimetype = file.mimetype,
+                altText = file.altText,
+            )
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
+            return CaughtException(
+                    status = 500,
+                    module = "linkedin",
+                    errorMessage = "Failed to upload media — uuid: $uuid",
+                )
+                .left()
+        }
+
+    private suspend fun uploadMediaFromBytes(
+        accessToken: String,
+        personUrn: String,
+        imageBytes: ByteArray,
+        mimetype: String,
+        altText: String?,
+    ): ApiResult<UploadedAsset> =
+        try {
             // Step 1: Register upload
             val registerRequest =
                 LinkedInRegisterUploadRequest(
@@ -644,8 +659,8 @@ class LinkedInApiModule(
             val uploadBinaryResponse =
                 httpClient.put(uploadUrl) {
                     header("Authorization", "Bearer $accessToken")
-                    contentType(ContentType.parse(file.mimetype))
-                    setBody(file.bytes)
+                    contentType(ContentType.parse(mimetype))
+                    setBody(imageBytes)
                 }
 
             if (uploadBinaryResponse.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
@@ -663,32 +678,25 @@ class LinkedInApiModule(
             }
 
             // Return asset URN along with optional alt text stored in file metadata
-            UploadedAsset(asset = asset, description = file.altText).right()
+            UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Exception) {
-            logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
+            logger.error(e) { "Failed to upload media to LinkedIn from bytes" }
             CaughtException(
                     status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to upload media — uuid: $uuid",
+                    errorMessage = "Failed to upload media from bytes: ${e.message}",
                 )
                 .left()
         }
-    }
 
     /** Fetch link preview metadata using LinkPreviewParser */
-    private suspend fun fetchLinkPreview(url: String): Pair<String?, String?> {
-        return try {
-            val preview = linkPreviewParser.fetchPreview(url)
-            if (preview != null) {
-                Pair(preview.title, preview.image)
-            } else {
-                Pair(null, null)
-            }
+    private suspend fun fetchLinkPreview(url: String) =
+        try {
+            linkPreviewParser.fetchPreview(url)
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch link preview for $url" }
-            Pair(null, null)
+            null
         }
-    }
 
     /**
      * Create a post on LinkedIn with optional text, images, and link previews.
@@ -785,8 +793,7 @@ class LinkedInApiModule(
                     }
                     // If we have a link (and no images), create ARTICLE share
                     request.link != null -> {
-                        val (title, _) = fetchLinkPreview(request.link)
-
+                        val linkPreview = fetchLinkPreview(request.link)
                         UgcPostRequest(
                             author = personUrn,
                             lifecycleState = UgcLifecycleState.PUBLISHED,
@@ -801,8 +808,13 @@ class LinkedInApiModule(
                                                     UgcMedia(
                                                         status = "READY",
                                                         originalUrl = request.link,
-                                                        title = title?.let { UgcText(it) },
+                                                        title =
+                                                            linkPreview?.title?.let { UgcText(it) },
                                                         description = UgcText(content.take(256)),
+                                                        thumbnails =
+                                                            linkPreview?.image?.let {
+                                                                listOf(UgcThumbnail(url = it))
+                                                            },
                                                     )
                                                 ),
                                         )

@@ -289,6 +289,19 @@ data class UgcMedia(
     val media: String? = null,
     val originalUrl: String? = null,
     val title: UgcText? = null,
+    val thumbnails: List<UgcThumbnail>? = null,
+)
+
+/**
+ * Docs: [https://learn.microsoft.com/en-us/linkedin/compliance/integrations/shares/ugc-post-api]
+ */
+@Serializable
+data class UgcThumbnail(
+    val url: String,
+    val altText: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val size: Long? = null,
 )
 
 /**
@@ -317,18 +330,6 @@ data class UgcVisibility(
 // LinkedIn API Error Models
 // ============================================================================
 
-/**
- * LinkedIn API error response.
- *
- * LinkedIn returns errors in various formats depending on the API endpoint.
- */
-@Serializable
-data class LinkedInApiError(
-    val message: String? = null,
-    val status: Int? = null,
-    val serviceErrorCode: Int? = null,
-)
-
 // ============================================================================
 // Helper Enums/Constants
 // ============================================================================
@@ -338,7 +339,7 @@ object UgcMediaCategory {
     const val NONE = "NONE"
     const val ARTICLE = "ARTICLE"
     const val IMAGE = "IMAGE"
-    const val VIDEO = "VIDEO"
+    // const val VIDEO = "VIDEO"
 }
 
 /** LinkedIn visibility options for UGC posts */
@@ -350,11 +351,11 @@ object UgcVisibilityType {
 /** LinkedIn lifecycle states for posts */
 object UgcLifecycleState {
     const val PUBLISHED = "PUBLISHED"
-    const val DRAFT = "DRAFT"
+    // const val DRAFT = "DRAFT"
 }
 
 /** Digital media recipes for asset registration */
 object LinkedInMediaRecipe {
     const val FEEDSHARE_IMAGE = "urn:li:digitalmediaRecipe:feedshare-image"
-    const val FEEDSHARE_VIDEO = "urn:li:digitalmediaRecipe:feedshare-video"
+    // const val FEEDSHARE_VIDEO = "urn:li:digitalmediaRecipe:feedshare-video"
 }
