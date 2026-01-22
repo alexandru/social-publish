@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.db.DocumentsDatabase
@@ -1266,5 +1267,476 @@ class LinkedInApiTest {
         val profile = json.decodeFromString<LinkedInUserProfile>(responseJson)
 
         assertEquals("abc123", profile.sub)
+    }
+
+    // ============================================================================
+    // OAuth Error Handling Tests
+    // ============================================================================
+
+    @Test
+    fun `exchangeCodeForToken handles invalid code error`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            application {
+                routing {
+                    post("/oauth/v2/accessToken") {
+                        call.respondText(
+                            """{"error":"invalid_request","error_description":"Unable to retrieve access token: authorization code not found"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.BadRequest,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    accessTokenUrl = "http://localhost/oauth/v2/accessToken",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val result = module.exchangeCodeForToken("invalid-code", "http://localhost/callback")
+
+            assertTrue(result is Either.Left, "Should return error for invalid code")
+            val error = (result as Either.Left).value
+            assertEquals(400, error.status)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `refreshAccessToken handles expired refresh token error`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            application {
+                routing {
+                    post("/oauth/v2/accessToken") {
+                        call.respondText(
+                            """{"error":"invalid_request","error_description":"Refresh token is expired"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.BadRequest,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    accessTokenUrl = "http://localhost/oauth/v2/accessToken",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val result = module.refreshAccessToken("expired-refresh-token")
+
+            assertTrue(result is Either.Left, "Should return error for expired refresh token")
+            val error = (result as Either.Left).value
+            assertEquals(400, error.status)
+
+            linkedInClient.close()
+        }
+    }
+
+    // ============================================================================
+    // Image Upload Tests
+    // ============================================================================
+
+    @Test
+    fun `image upload registration returns asset URN`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var registrationReceived = false
+            var registrationBody: String? = null
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    searchKey = "linkedin-oauth-token",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        val result = filesModule.uploadFile(call)
+                        when (result) {
+                            is Either.Right ->
+                                call.respondText(
+                                    Json.encodeToString(result.value),
+                                    ContentType.Application.Json,
+                                )
+                            is Either.Left ->
+                                call.respondText(
+                                    """{"error":"${result.value.errorMessage}"}""",
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.fromValue(result.value.status),
+                                )
+                        }
+                    }
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/assets") {
+                        registrationReceived = true
+                        registrationBody = call.receiveStream().readBytes().decodeToString()
+                        call.respondText(
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:uploaded123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-binary"}}}}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    put("/upload-binary") { call.respondText("", status = HttpStatusCode.Created) }
+                    post("/v2/ugcPosts") {
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    content = "Post with image",
+                    targets = listOf("linkedin"),
+                    images = listOf(upload.uuid),
+                )
+
+            val result = module.createPost(request)
+
+            assertTrue(result is Either.Right)
+            assertTrue(registrationReceived, "Upload registration should have been called")
+
+            // Verify registration request body
+            assertNotNull(registrationBody)
+            assertTrue(
+                registrationBody!!.contains("\"registerUploadRequest\""),
+                "Request should contain registerUploadRequest",
+            )
+            assertTrue(
+                registrationBody.contains("\"urn:li:person:test123\""),
+                "Request should contain owner URN",
+            )
+            assertTrue(
+                registrationBody.contains("\"urn:li:digitalmediaRecipe:feedshare-image\""),
+                "Request should contain feedshare-image recipe",
+            )
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `image upload handles registration failure`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    searchKey = "linkedin-oauth-token",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        val result = filesModule.uploadFile(call)
+                        when (result) {
+                            is Either.Right ->
+                                call.respondText(
+                                    Json.encodeToString(result.value),
+                                    ContentType.Application.Json,
+                                )
+                            is Either.Left ->
+                                call.respondText(
+                                    """{"error":"${result.value.errorMessage}"}""",
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.fromValue(result.value.status),
+                                )
+                        }
+                    }
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/assets") {
+                        call.respondText(
+                            """{"serviceErrorCode":100,"message":"Upload not authorized"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Forbidden,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    content = "Post with image",
+                    targets = listOf("linkedin"),
+                    images = listOf(upload.uuid),
+                )
+
+            val result = module.createPost(request)
+
+            assertTrue(result is Either.Left, "Should fail when upload registration fails")
+            val error = (result as Either.Left).value
+            assertEquals(403, error.status)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `post creation handles API error`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    searchKey = "linkedin-oauth-token",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/ugcPosts") {
+                        call.respondText(
+                            """{"serviceErrorCode":65600,"message":"Invalid visibility","status":403}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Forbidden,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request = NewPostRequest(content = "Test post", targets = listOf("linkedin"))
+
+            val result = module.createPost(request)
+
+            assertTrue(result is Either.Left, "Should fail when API returns error")
+            val error = (result as Either.Left).value
+            assertEquals(403, error.status)
+
+            linkedInClient.close()
+        }
+    }
+
+    // ============================================================================
+    // OAuth Error Model Tests
+    // ============================================================================
+
+    @Test
+    fun `LinkedInOAuthError deserializes correctly`() {
+        val json = Json { ignoreUnknownKeys = true }
+
+        val errorJson =
+            """{"error":"user_cancelled_authorize","error_description":"The user cancelled the authorization request"}"""
+
+        val error = json.decodeFromString<LinkedInOAuthError>(errorJson)
+
+        assertEquals("user_cancelled_authorize", error.error)
+        assertEquals("The user cancelled the authorization request", error.errorDescription)
+    }
+
+    @Test
+    fun `LinkedInOAuthError deserializes with minimal fields`() {
+        val json = Json { ignoreUnknownKeys = true }
+
+        val errorJson = """{"error":"user_cancelled_login"}"""
+
+        val error = json.decodeFromString<LinkedInOAuthError>(errorJson)
+
+        assertEquals("user_cancelled_login", error.error)
+        assertNull(error.errorDescription)
     }
 }
