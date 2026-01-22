@@ -87,7 +87,36 @@ fun AccountPage() {
         }
 
         val authorizeTwitter: () -> Unit = { window.location.href = "/api/twitter/authorize" }
-        val authorizeLinkedIn: () -> Unit = { window.location.href = "/api/linkedin/authorize" }
+        val authorizeLinkedIn: () -> Unit = {
+            // Check if LinkedIn is configured before redirecting
+            scope.launch {
+                when (
+                    val response = ApiClient.get<LinkedInStatusResponse>("/api/linkedin/status")
+                ) {
+                    is ApiResponse.Success -> {
+                        // If we get a successful response, proceed with authorization
+                        window.location.href = "/api/linkedin/authorize"
+                    }
+                    is ApiResponse.Error -> {
+                        // If status returns error, the integration may not be configured
+                        if (response.code == 503 || response.code == 500) {
+                            window.alert(
+                                "LinkedIn integration is not configured on the server. " +
+                                    "Please configure LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET environment variables."
+                            )
+                        } else {
+                            // Other errors, try to proceed anyway
+                            window.location.href = "/api/linkedin/authorize"
+                        }
+                    }
+                    is ApiResponse.Exception -> {
+                        window.alert(
+                            "Could not connect to LinkedIn authorization service: ${response.message}"
+                        )
+                    }
+                }
+            }
+        }
 
         Div(
             attrs = {

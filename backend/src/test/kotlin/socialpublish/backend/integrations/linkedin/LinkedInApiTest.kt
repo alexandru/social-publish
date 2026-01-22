@@ -6,6 +6,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.call
+import io.ktor.server.request.receiveStream
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -713,4 +715,151 @@ class LinkedInApiTest {
             linkedInClient.close()
         }
     }
+
+    @Test
+    fun `creates post with link preview and downloads thumbnail as URN`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+                val documentsDb = DocumentsDatabase(jdbi)
+                var thumbnailDownloaded = false
+                var thumbnailUploaded = false
+                var postCreated = false
+                var postBody: String? = null
+
+                // Save a mock OAuth token to DB
+                val token =
+                    LinkedInOAuthToken(
+                        accessToken = "test-access-token",
+                        expiresIn = 5184000,
+                        refreshToken = "test-refresh-token",
+                        refreshTokenExpiresIn = 31536000,
+                    )
+                val _ =
+                    documentsDb.createOrUpdate(
+                        kind = "linkedin-oauth-token",
+                        payload = Json.encodeToString(token),
+                        searchKey = "linkedin-oauth-token",
+                        tags = emptyList(),
+                    )
+
+                application {
+                    routing {
+                        get("/v2/me") {
+                            call.respondText(
+                                """{"id":"urn:li:person:test123"}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        // Mock link preview endpoint
+                        get("/preview-page") {
+                            call.respondText(
+                                """
+                                <html>
+                                <head>
+                                    <meta property="og:title" content="Preview Title">
+                                    <meta property="og:image" content="http://localhost/preview-image.jpg">
+                                </head>
+                                <body>Test page</body>
+                                </html>
+                                """
+                                    .trimIndent(),
+                                ContentType.Text.Html,
+                            )
+                        }
+                        // Mock preview image download
+                        get("/preview-image.jpg") {
+                            thumbnailDownloaded = true
+                            // Return a minimal JPEG byte array
+                            call.respondBytes(
+                                byteArrayOf(
+                                    0xFF.toByte(),
+                                    0xD8.toByte(),
+                                    0xFF.toByte(),
+                                    0xE0.toByte(),
+                                ),
+                                ContentType.Image.JPEG,
+                            )
+                        }
+                        // Mock asset registration for thumbnail
+                        post("/v2/assets") {
+                            thumbnailUploaded = true
+                            call.respondText(
+                                """{"value":{"asset":"urn:li:digitalmediaAsset:thumbnail123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-thumbnail"}}}}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        put("/upload-thumbnail") {
+                            call.respondText("", status = HttpStatusCode.Created)
+                        }
+                        post("/v2/posts") {
+                            postCreated = true
+                            postBody = call.receiveStream().readBytes().decodeToString()
+                            call.respondText(
+                                """{"id":"urn:li:share:12345"}""",
+                                ContentType.Application.Json,
+                                HttpStatusCode.Created,
+                            )
+                        }
+                    }
+                }
+
+                val linkedInClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+                val config =
+                    LinkedInConfig(
+                        clientId = "test-client-id",
+                        clientSecret = "test-client-secret",
+                        apiBase = "http://localhost/v2",
+                    )
+
+                val module =
+                    LinkedInApiModule(
+                        config,
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        linkedInClient.engine,
+                        linkPreview,
+                    )
+
+                val request =
+                    NewPostRequest(
+                        content = "Check out this link!",
+                        targets = listOf("linkedin"),
+                        link = "http://localhost/preview-page",
+                    )
+
+                val result = module.createPost(request)
+
+                assertTrue(result is Either.Right)
+                assertTrue(thumbnailDownloaded, "Thumbnail image should have been downloaded")
+                assertTrue(thumbnailUploaded, "Thumbnail should have been uploaded to LinkedIn")
+                assertTrue(postCreated, "Post should have been created")
+
+                // Verify the post body contains the thumbnail URN, not the public URL
+                assertNotNull(postBody)
+                assertTrue(
+                    postBody!!.contains("urn:li:digitalmediaAsset:thumbnail123"),
+                    "Post should contain LinkedIn asset URN for thumbnail",
+                )
+                assertFalse(
+                    postBody.contains("http://localhost/preview-image.jpg"),
+                    "Post should NOT contain public image URL",
+                )
+
+                linkedInClient.close()
+            }
+        }
 }

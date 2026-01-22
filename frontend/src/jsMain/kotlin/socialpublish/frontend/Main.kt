@@ -1,22 +1,24 @@
 package socialpublish.frontend
 
 import androidx.compose.runtime.*
-import kotlinx.browser.document
 import kotlinx.browser.window
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import org.jetbrains.compose.web.renderComposable
-import org.w3c.dom.HTMLLinkElement
 import socialpublish.frontend.components.NavBar
 import socialpublish.frontend.pages.*
 import socialpublish.frontend.utils.Storage
 
+@JsModule("bulma/css/bulma.min.css") @JsNonModule external val bulmaStyles: dynamic
+
+@JsModule("@fortawesome/fontawesome-free/css/all.min.css")
+@JsNonModule
+external val fontAwesomeStyles: dynamic
+
 fun main() {
-    // Load Bulma CSS
-    val link = document.createElement("link") as HTMLLinkElement
-    link.rel = "stylesheet"
-    link.href = "https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css"
-    document.head?.appendChild(link)
+    // Load bundled CSS
+    bulmaStyles
+    fontAwesomeStyles
 
     renderComposable(rootElementId = "root") { App() }
 }

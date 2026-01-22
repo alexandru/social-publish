@@ -52,6 +52,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(npm("bulma", "1.0.4"))
+                implementation(npm("@fortawesome/fontawesome-free", "7.1.0"))
             }
         }
         val jsTest by getting {

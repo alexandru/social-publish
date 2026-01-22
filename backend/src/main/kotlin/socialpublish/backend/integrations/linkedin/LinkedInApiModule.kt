@@ -430,8 +430,15 @@ class LinkedInApiModule(
         // Get person URN from user profile
         when (val profileResult = getUserProfile(validToken.accessToken)) {
             is Either.Right -> {
-                // The /me endpoint returns the full URN in the id field
-                val personUrn = profileResult.value.id
+                // The /me endpoint may return just the ID or the full URN
+                // Normalize to always use the full URN format
+                val rawId = profileResult.value.id
+                val personUrn =
+                    if (rawId.startsWith("urn:li:person:")) {
+                        rawId
+                    } else {
+                        "urn:li:person:$rawId"
+                    }
                 return (validToken.accessToken to personUrn).right()
             }
             is Either.Left -> return profileResult.value.left()
