@@ -593,4 +593,124 @@ class LinkedInApiTest {
             linkedInClient.close()
         }
     }
+
+    @Test
+    fun `creates post with multiple images`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var uploadCount = 0
+            var postCreated = false
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    searchKey = "linkedin-oauth-token",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        val result = filesModule.uploadFile(call)
+                        when (result) {
+                            is Either.Right ->
+                                call.respondText(
+                                    Json.encodeToString(result.value),
+                                    ContentType.Application.Json,
+                                )
+                            is Either.Left ->
+                                call.respondText(
+                                    """{"error":"${result.value.errorMessage}"}""",
+                                    ContentType.Application.Json,
+                                    HttpStatusCode.fromValue(result.value.status),
+                                )
+                        }
+                    }
+                    get("/v2/me") {
+                        call.respondText(
+                            """{"id":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/assets") {
+                        uploadCount++
+                        call.respondText(
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:test$uploadCount","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-$uploadCount"}}}}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    put("/upload-test-1") { call.respondText("", status = HttpStatusCode.Created) }
+                    put("/upload-test-2") { call.respondText("", status = HttpStatusCode.Created) }
+                    put("/upload-test-3") { call.respondText("", status = HttpStatusCode.Created) }
+                    post("/v2/posts") {
+                        postCreated = true
+                        call.respondText(
+                            """{"id":"urn:li:share:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val upload1 = uploadTestImage(linkedInClient, "flower1.jpeg", "test1")
+            val upload2 = uploadTestImage(linkedInClient, "flower1.jpeg", "test2")
+            val upload3 = uploadTestImage(linkedInClient, "flower1.jpeg", "test3")
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    config,
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    content = "Post with multiple images",
+                    targets = listOf("linkedin"),
+                    images = listOf(upload1.uuid, upload2.uuid, upload3.uuid),
+                )
+
+            val result = module.createPost(request)
+
+            assertTrue(result is Either.Right)
+            assertEquals(3, uploadCount, "Should have uploaded 3 images")
+            assertTrue(postCreated, "Post should have been created")
+
+            linkedInClient.close()
+        }
+    }
 }

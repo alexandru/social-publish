@@ -123,12 +123,24 @@ data class Distribution(
 )
 
 @Serializable
-data class PostContent(val media: MediaContent? = null, val article: ArticleContent? = null)
+data class PostContent(
+    val media: MediaContent? = null,
+    val multiImage: MultiImageContent? = null,
+    val article: ArticleContent? = null,
+)
 
 @Serializable
 data class MediaContent(
     val title: String? = null,
     val id: String, // Image URN: "urn:li:image:{id}" or digitalmediaAsset URN
+)
+
+@Serializable data class MultiImageContent(val images: List<ImageContent>)
+
+@Serializable
+data class ImageContent(
+    val id: String, // Image URN
+    val title: String? = null,
 )
 
 @Serializable
@@ -426,6 +438,91 @@ class LinkedInApiModule(
         }
     }
 
+    /** Upload media from bytes to LinkedIn */
+    private suspend fun uploadMediaFromBytes(
+        accessToken: String,
+        personUrn: String,
+        bytes: ByteArray,
+        mimetype: String,
+    ): ApiResult<String> {
+        return try {
+            // Step 1: Register upload
+            val registerRequest =
+                LinkedInRegisterUploadRequest(
+                    registerUploadRequest =
+                        RegisterUploadRequestData(
+                            owner = personUrn,
+                            recipes = listOf("urn:li:digitalmediaRecipe:feedshare-image"),
+                            serviceRelationships =
+                                listOf(
+                                    ServiceRelationship(
+                                        identifier = "urn:li:userGeneratedContent",
+                                        relationshipType = "OWNER",
+                                    )
+                                ),
+                        )
+                )
+
+            val registerResponse =
+                httpClient.post("${config.apiBase}/assets?action=registerUpload") {
+                    header("Authorization", "Bearer $accessToken")
+                    header("X-Restli-Protocol-Version", "2.0.0")
+                    contentType(ContentType.Application.Json)
+                    setBody(registerRequest)
+                }
+
+            if (registerResponse.status != HttpStatusCode.OK) {
+                val errorBody = registerResponse.bodyAsText()
+                logger.warn {
+                    "Failed to register upload on LinkedIn: ${registerResponse.status}, body: $errorBody"
+                }
+                return RequestError(
+                        status = registerResponse.status.value,
+                        module = "linkedin",
+                        errorMessage = "Failed to register upload",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
+            }
+
+            val registerData = registerResponse.body<LinkedInRegisterUploadResponse>()
+            val uploadUrl = registerData.value.uploadMechanism.uploadRequest.uploadUrl
+            val asset = registerData.value.asset
+
+            // Step 2: Upload the binary
+            val uploadBinaryResponse =
+                httpClient.put(uploadUrl) {
+                    header("Authorization", "Bearer $accessToken")
+                    contentType(ContentType.parse(mimetype))
+                    setBody(bytes)
+                }
+
+            if (uploadBinaryResponse.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
+                val errorBody = uploadBinaryResponse.bodyAsText()
+                logger.warn {
+                    "Failed to upload binary to LinkedIn: ${uploadBinaryResponse.status}, body: $errorBody"
+                }
+                return RequestError(
+                        status = uploadBinaryResponse.status.value,
+                        module = "linkedin",
+                        errorMessage = "Failed to upload binary",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
+            }
+
+            asset.right()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to upload media from bytes to LinkedIn" }
+            CaughtException(
+                    status = 500,
+                    module = "linkedin",
+                    errorMessage = "Failed to upload media from bytes: ${e.message}",
+                )
+                .left()
+        }
+    }
+
     /** Upload media to LinkedIn */
     private suspend fun uploadMedia(
         accessToken: String,
@@ -573,24 +670,71 @@ class LinkedInApiModule(
             // Build post content based on what we have
             val postContent: PostContent? =
                 when {
-                    // If we have images, use media content
-                    uploadedImageUrns.isNotEmpty() -> {
-                        // For now, use the first image. The new Posts API supports multiple
-                        // images
-                        // but needs different structure (multiImage content type)
+                    // If we have multiple images, use multi-image content
+                    uploadedImageUrns.size > 1 -> {
+                        PostContent(
+                            multiImage =
+                                MultiImageContent(
+                                    images = uploadedImageUrns.map { ImageContent(id = it) }
+                                )
+                        )
+                    }
+                    // If we have a single image, use media content
+                    uploadedImageUrns.size == 1 -> {
                         PostContent(media = MediaContent(id = uploadedImageUrns.first()))
                     }
                     // If we have a link (and no images), create article content with link
                     // preview
                     request.link != null -> {
                         val (title, imageUrl) = fetchLinkPreview(request.link)
+
+                        // Download and upload thumbnail image to LinkedIn if available
+                        val thumbnailUrn: String? =
+                            if (imageUrl != null) {
+                                try {
+                                    val imageResponse = httpClient.get(imageUrl)
+                                    if (imageResponse.status == HttpStatusCode.OK) {
+                                        val imageBytes = imageResponse.body<ByteArray>()
+                                        val contentType =
+                                            imageResponse.headers["Content-Type"] ?: "image/jpeg"
+                                        when (
+                                            val uploadResult =
+                                                uploadMediaFromBytes(
+                                                    accessToken,
+                                                    personUrn,
+                                                    imageBytes,
+                                                    contentType,
+                                                )
+                                        ) {
+                                            is Either.Right -> uploadResult.value
+                                            is Either.Left -> {
+                                                logger.warn {
+                                                    "Failed to upload article thumbnail, continuing without it"
+                                                }
+                                                null
+                                            }
+                                        }
+                                    } else {
+                                        logger.warn {
+                                            "Failed to download article thumbnail: ${imageResponse.status}"
+                                        }
+                                        null
+                                    }
+                                } catch (e: Exception) {
+                                    logger.warn(e) { "Failed to download/upload article thumbnail" }
+                                    null
+                                }
+                            } else {
+                                null
+                            }
+
                         PostContent(
                             article =
                                 ArticleContent(
                                     source = request.link,
                                     title = title,
-                                    thumbnail =
-                                        imageUrl, // This should be an image URN in production
+                                    description = content.take(256), // LinkedIn limit
+                                    thumbnail = thumbnailUrn,
                                 )
                         )
                     }
