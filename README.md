@@ -203,4 +203,5 @@ See the [Makefile](./Makefile) for all available commands.
 
 ## License
 
-[MIT (see LICENSE.txt)](./LICENSE.txt)
+This project is licensed under the GNU Affero General Public License v3 (AGPL-3.0). See [LICENSE.txt](./LICENSE.txt) for details.
+
