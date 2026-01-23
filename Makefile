@@ -49,6 +49,9 @@ clean:
 test:
 	./gradlew test
 
+test-native:
+	./gradlew :backend:nativeTest
+
 # Dependency updates
 dependency-updates:
 	./gradlew dependencyUpdates \
@@ -65,7 +68,7 @@ init-docker:
 
 # JVM Docker targets
 build-jvm: init-docker
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" ${DOCKER_EXTRA_ARGS} .
 
 push-jvm:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-jvm
@@ -73,7 +76,7 @@ push-jvm:
 # Build and push for a single platform (used in matrix builds)
 build-jvm-platform: init-docker
 	$(eval PLATFORM_TAG := $(shell echo ${PLATFORM} | tr '/' '-'))
-	docker buildx build --platform ${PLATFORM} -f ./Dockerfile.jvm -t "${IMG_JVM}-${PLATFORM_TAG}" -t "${LATEST_JVM}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform ${PLATFORM} -f docker/Dockerfile.jvm -t "${IMG_JVM}-${PLATFORM_TAG}" -t "${LATEST_JVM}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 push-jvm-platform:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-jvm-platform
@@ -85,7 +88,7 @@ push-jvm-manifest:
 		"${IMG_JVM}-linux-arm64"
 
 build-jvm-local:
-	docker build -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" .
+	docker build -f docker/Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" .
 
 run-jvm: build-jvm-local
 	docker rm -f social-publish || true
@@ -93,7 +96,7 @@ run-jvm: build-jvm-local
 
 # Native Docker targets
 build-native: init-docker
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" ${DOCKER_EXTRA_ARGS} .
 
 push-native:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-native
@@ -101,7 +104,7 @@ push-native:
 # Build and push for a single platform (used in matrix builds)
 build-native-platform: init-docker
 	$(eval PLATFORM_TAG := $(shell echo ${PLATFORM} | tr '/' '-'))
-	docker buildx build --platform ${PLATFORM} -f ./Dockerfile.native -t "${IMG_NATIVE}-${PLATFORM_TAG}" -t "${LATEST_NATIVE}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform ${PLATFORM} -f docker/Dockerfile.native -t "${IMG_NATIVE}-${PLATFORM_TAG}" -t "${LATEST_NATIVE}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 push-native-platform:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-native-platform
@@ -113,7 +116,7 @@ push-native-manifest:
 		"${IMG_NATIVE}-linux-arm64"
 
 build-native-local:
-	docker build -f ./Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" .
+	docker build -f docker/Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" .
 
 run-native: build-native-local
 	docker rm -f social-publish || true

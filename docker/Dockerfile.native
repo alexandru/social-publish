@@ -1,5 +1,5 @@
 # To build the native image container:
-#   docker build -f ./Dockerfile.native -t social-publish-native .
+#   docker build -f docker/Dockerfile.native -t social-publish-native .
 #
 # To run:
 #   docker run -p 3000:3000 social-publish-native

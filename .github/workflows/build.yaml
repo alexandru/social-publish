@@ -8,7 +8,8 @@ on:
       - main
 
 jobs:
-  node-build:
+  jvm-test:
+    name: JVM Tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -29,3 +30,23 @@ jobs:
 
       - name: Build and run tests
         run: ./gradlew check --no-daemon
+
+  native-test:
+    name: Native Image Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Native tests
+        run: ./gradlew :backend:nativeTest --no-daemon

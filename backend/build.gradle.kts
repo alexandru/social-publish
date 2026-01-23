@@ -108,29 +108,32 @@ graalvmNative {
         version = "0.3.8"
     }
 
+    val commonBuildArgs =
+        listOf(
+            "--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers",
+            "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder",
+            "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls",
+            "--initialize-at-build-time=ch.qos.logback.classic.Logger",
+            "--initialize-at-run-time=io.ktor.server.cio.backend.HttpServerKt",
+            "--no-fallback",
+            "-H:+UnlockExperimentalVMOptions",
+            "-H:+InstallExitHandlers",
+            "-H:+ReportExceptionStackTraces",
+            "-H:+ReportUnsupportedElementsAtRuntime",
+        )
+
     binaries {
         named("main") {
             fallback.set(false)
             verbose.set(true)
             imageName.set("social-publish")
+            buildArgs.addAll(commonBuildArgs)
+        }
 
-            buildArgs.add(
-                "--initialize-at-build-time=io.ktor,kotlinx,kotlin,org.xml.sax.helpers,org.slf4j.helpers"
-            )
-            buildArgs.add(
-                "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback,org.slf4j.impl.StaticLoggerBinder"
-            )
-            buildArgs.add(
-                "--initialize-at-build-time=com.github.ajalt.mordant.internal.nativeimage.NativeImagePosixMppImpls"
-            )
-            buildArgs.add("--initialize-at-build-time=ch.qos.logback.classic.Logger")
-            buildArgs.add("--initialize-at-run-time=io.ktor.server.cio.backend.HttpServerKt")
-
-            buildArgs.add("--no-fallback")
-            buildArgs.add("-H:+UnlockExperimentalVMOptions")
-            buildArgs.add("-H:+InstallExitHandlers")
-            buildArgs.add("-H:+ReportExceptionStackTraces")
-            buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+        named("test") {
+            fallback.set(false)
+            verbose.set(true)
+            buildArgs.addAll(commonBuildArgs)
         }
     }
 }
