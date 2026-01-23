@@ -6,7 +6,9 @@ private val logger = KotlinLogging.logger {}
 
 data class ParsedUrl(val scheme: String, val host: String, val port: Int?) {
     fun isLocal(): Boolean {
-        return host == "localhost" || host == "127.0.0.1"
+        // Consider common loopback addresses local, including IPv6 loopback
+        val h = host.trim().removePrefix("[").removeSuffix("]").lowercase()
+        return h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0:0:0:0:0:0:0:1"
     }
 }
 
