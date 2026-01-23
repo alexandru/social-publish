@@ -275,9 +275,10 @@ private constructor(
                             )
                         }
 
+                        // Image is within bounds, return original without resizing
                         ProcessedUpload(
                             originalname = upload.originalname,
-                            mimetype = upload.mimetype,
+                            mimetype = upload.mimetype, // Original MIME type for original bytes
                             altText = upload.altText,
                             width = if (storedWidth > 0) storedWidth else width,
                             height = if (storedHeight > 0) storedHeight else height,
@@ -295,9 +296,10 @@ private constructor(
             }
         }
 
+        // No resizing requested or image within stored bounds, return original
         return ProcessedUpload(
             originalname = upload.originalname,
-            mimetype = upload.mimetype,
+            mimetype = upload.mimetype, // Original MIME type for original bytes
             altText = upload.altText,
             width = storedWidth,
             height = storedHeight,
