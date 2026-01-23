@@ -408,39 +408,36 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
 
-            Input(
-                type = InputType.Button,
-                attrs = {
-                    classes("button")
-                    id("post-form-reset-button")
-                    value("Reset")
-                    onClick { resetForm() }
-                },
-            )
-            Text(" ")
-            if (images.size < 4) {
-                Button(
-                    attrs = {
-                        classes("button")
-                        attr("type", "button")
-                        onClick { addImage() }
+            Div(attrs = { classes("field", "is-grouped") }) {
+                Div(attrs = { classes("control") }) {
+                    if (images.size < 4) {
+                        Button(
+                            attrs = {
+                                classes("button")
+                                attr("type", "button")
+                                onClick { addImage() }
+                            }
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fas", "fa-plus") })
+                            }
+                            Span { Text("Add image") }
+                        }
                     }
-                ) {
-                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-plus") }) }
-                    Span { Text("Add image") }
                 }
-                Text(" ")
-            }
-            Button(
-                attrs = {
-                    classes("button", "is-primary")
-                    attr("type", "submit")
+                Div(attrs = { classes("control") }) {
+                    Button(
+                        attrs = {
+                            classes("button", "is-primary")
+                            attr("type", "submit")
+                        }
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fas", "fa-paper-plane") })
+                        }
+                        Span { Text("Submit") }
+                    }
                 }
-            ) {
-                Span(attrs = { classes("icon") }) {
-                    I(attrs = { classes("fas", "fa-paper-plane") })
-                }
-                Span { Text("Submit") }
             }
         }
     }
