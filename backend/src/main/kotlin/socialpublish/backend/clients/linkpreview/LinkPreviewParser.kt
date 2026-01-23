@@ -127,12 +127,18 @@ class LinkPreviewParser(
      * Does not fallback to HTML fetching if the OEmbed API fails, as YouTube blocks bots and
      * servers.
      *
+     * Requests larger thumbnails by setting maxwidth and maxheight parameters to get better quality
+     * preview images.
+     *
      * @param url The YouTube URL to fetch metadata for
      * @return A LinkPreview if successful, null otherwise
      */
     private suspend fun fetchYouTubeOEmbed(url: String): LinkPreview? {
         return try {
-            val oembedUrl = "https://www.youtube.com/oembed?url=$url&format=json"
+            // Request larger thumbnails by specifying maxwidth and maxheight
+            // This helps get better quality preview images (e.g., 1280x720 instead of 480x360)
+            val oembedUrl =
+                "https://www.youtube.com/oembed?url=$url&format=json&maxwidth=1280&maxheight=720"
             val response = httpClient.get(oembedUrl)
 
             if (!response.status.isSuccess()) {
