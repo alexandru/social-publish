@@ -13,7 +13,6 @@ dependencyResolutionManagement {
             version("jdbi", "3.51.0")
             version("logback", "1.5.25")
             version("clikt", "5.1.0")
-            version("scrimage", "4.3.5")
             version("kotlinx-serialization", "1.9.0")
             version("sqlite-jdbc", "3.51.1.0")
             version("kotlin-logging", "7.0.14")
@@ -24,6 +23,8 @@ dependencyResolutionManagement {
             version("jbcrypt", "0.4")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
+            version("common-text", "1.15.0")
+            version("apache-tika", "3.2.3")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -67,10 +68,6 @@ dependencyResolutionManagement {
             // Clikt for CLI
             library("clikt", "com.github.ajalt.clikt", "clikt").versionRef("clikt")
 
-            // Scrimage libraries
-            library("scrimage-core", "com.sksamuel.scrimage", "scrimage-core").versionRef("scrimage")
-            library("scrimage-webp", "com.sksamuel.scrimage", "scrimage-webp").versionRef("scrimage")
-
             // Logging
             library("logback-classic", "ch.qos.logback", "logback-classic").versionRef("logback")
             library("kotlin-logging", "io.github.oshai", "kotlin-logging-jvm").versionRef("kotlin-logging")
@@ -87,6 +84,13 @@ dependencyResolutionManagement {
             // BCrypt for password hashing
             library("bcrypt", "at.favre.lib", "bcrypt").versionRef("bcrypt")
             library("jbcrypt", "org.mindrot", "jbcrypt").versionRef("jbcrypt")
+
+            // Common Text for escaping (e.g., shell commands)
+            library("apache-commons-text", "org.apache.commons", "commons-text")
+                .versionRef("common-text")
+            // Mime-type detection
+            library("apache-tika-core", "org.apache.tika", "tika-core")
+                .versionRef("apache-tika")
 
             // Testing libraries
             library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").versionRef("kotlin")
@@ -132,7 +136,6 @@ dependencyResolutionManagement {
                 ),
             )
             bundle("jdbi", listOf("jdbi-core", "jdbi-kotlin", "jdbi-kotlin-sqlobject"))
-            bundle("scrimage", listOf("scrimage-core", "scrimage-webp"))
             bundle("logging", listOf("logback-classic", "kotlin-logging"))
         }
     }
