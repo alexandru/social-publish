@@ -120,7 +120,7 @@ private constructor(
                 return ValidationError(
                         status = 400,
                         errorMessage =
-                            "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
+                            "Only PNG, JPEG, and WebP images are supported, got: ${formatName ?: "unknown"}",
                         module = "files",
                     )
                     .left()
@@ -328,6 +328,7 @@ private constructor(
             "png" -> "image/png"
             "jpg",
             "jpeg" -> "image/jpeg"
+            "webp" -> "image/webp"
             else -> null
         }
     }
@@ -370,6 +371,10 @@ private constructor(
             }
             mimeType.contains("png") -> {
                 image.bytes(PngWriter.MaxCompression)
+            }
+            mimeType.contains("webp") -> {
+                // Convert WebP to JPEG to avoid encoding issues and reduce file size
+                image.bytes(JpegWriter.Default.withCompression(80))
             }
             else -> {
                 image.bytes(JpegWriter.Default.withCompression(80))
