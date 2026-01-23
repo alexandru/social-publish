@@ -55,7 +55,7 @@ import socialpublish.backend.modules.FormModule
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.modules.configureAuth
 import socialpublish.backend.modules.extractJwtToken
-import socialpublish.backend.utils.FileUtils
+import socialpublish.backend.utils.isPathWithinBase
 
 private val logger = KotlinLogging.logger {}
 
@@ -349,9 +349,7 @@ fun startServer(
 
                         // Security: Check that the resolved file is within the allowed directory
                         if (
-                            file.exists() &&
-                                file.isFile &&
-                                FileUtils.isPathWithinBase(file, canonicalBaseDir)
+                            file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)
                         ) {
                             call.respondFile(file)
                             return@get
