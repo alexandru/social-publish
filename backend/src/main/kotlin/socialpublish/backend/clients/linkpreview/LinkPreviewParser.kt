@@ -8,6 +8,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.URLBuilder
 import io.ktor.http.isSuccess
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -92,14 +93,19 @@ class LinkPreviewParser(
     /**
      * Fetches a URL and extracts link preview metadata.
      *
-     * Prevents redirects to avoid bot detection (e.g., YouTube). If a redirect is detected, this
-     * function returns null.
+     * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For other URLs, fetches
+     * the HTML content directly. Prevents redirects to avoid bot detection. If a redirect is
+     * detected, this function returns null.
      *
      * @param url The URL to fetch
-     * @param httpClient Optional HTTP client (defaults to a client with redirects disabled)
      * @return A LinkPreview object if successful, null if redirect detected or fetch failed
      */
     suspend fun fetchPreview(url: String): LinkPreview? {
+        // Use YouTube OEmbed API for YouTube URLs to avoid bot blocking
+        if (isYouTubeUrl(url)) {
+            return fetchYouTubeOEmbed(url)
+        }
+
         return try {
             val response = httpClient.get(url)
 
@@ -112,6 +118,49 @@ class LinkPreviewParser(
             parseHtml(html, url)
         } catch (e: Exception) {
             logger.warn(e) { "Error fetching link preview for $url" }
+            null
+        }
+    }
+
+    /**
+     * Fetches YouTube video metadata using the YouTube OEmbed API.
+     *
+     * Does not fallback to HTML fetching if the OEmbed API fails, as YouTube blocks bots and
+     * servers.
+     *
+     * Requests larger thumbnails by setting maxwidth and maxheight parameters to get better quality
+     * preview images.
+     *
+     * @param url The YouTube URL to fetch metadata for
+     * @return A LinkPreview if successful, null otherwise
+     */
+    private suspend fun fetchYouTubeOEmbed(url: String): LinkPreview? {
+        return try {
+            // Build URL with proper encoding to prevent injection attacks
+            val oembedUrl =
+                URLBuilder("https://www.youtube.com/oembed")
+                    .apply {
+                        parameters.append("url", url)
+                        parameters.append("format", "json")
+                        // Request larger thumbnails for better quality preview images (e.g.,
+                        // 1280x720
+                        // instead of 480x360)
+                        parameters.append("maxwidth", "1280")
+                        parameters.append("maxheight", "720")
+                    }
+                    .buildString()
+
+            val response = httpClient.get(oembedUrl)
+
+            if (!response.status.isSuccess()) {
+                logger.warn { "Failed to fetch YouTube OEmbed for $url: ${response.status}" }
+                return null
+            }
+
+            val json = response.bodyAsText()
+            parseYouTubeOEmbedResponse(json, url)
+        } catch (e: Exception) {
+            logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
             null
         }
     }
