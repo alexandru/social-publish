@@ -36,9 +36,6 @@ dependencies {
     // Clikt for CLI parsing
     implementation(libs.clikt)
 
-    // Scrimage for image processing
-    implementation(libs.bundles.scrimage)
-
     // Logging
     implementation(libs.bundles.logging)
 

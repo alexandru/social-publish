@@ -13,7 +13,6 @@ dependencyResolutionManagement {
             version("jdbi", "3.51.0")
             version("logback", "1.5.25")
             version("clikt", "5.1.0")
-            version("scrimage", "4.3.5")
             version("kotlinx-serialization", "1.9.0")
             version("sqlite-jdbc", "3.51.1.0")
             version("kotlin-logging", "7.0.14")
@@ -68,10 +67,6 @@ dependencyResolutionManagement {
 
             // Clikt for CLI
             library("clikt", "com.github.ajalt.clikt", "clikt").versionRef("clikt")
-
-            // Scrimage libraries
-            library("scrimage-core", "com.sksamuel.scrimage", "scrimage-core").versionRef("scrimage")
-            library("scrimage-webp", "com.sksamuel.scrimage", "scrimage-webp").versionRef("scrimage")
 
             // Logging
             library("logback-classic", "ch.qos.logback", "logback-classic").versionRef("logback")
@@ -141,7 +136,6 @@ dependencyResolutionManagement {
                 ),
             )
             bundle("jdbi", listOf("jdbi-core", "jdbi-kotlin", "jdbi-kotlin-sqlobject"))
-            bundle("scrimage", listOf("scrimage-core", "scrimage-webp"))
             bundle("logging", listOf("logback-classic", "kotlin-logging"))
         }
     }

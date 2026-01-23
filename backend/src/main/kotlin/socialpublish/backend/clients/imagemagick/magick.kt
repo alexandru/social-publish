@@ -15,12 +15,14 @@ private constructor(
     private val magickPath: File,
     private val options: MagickOptimizeOptions = MagickOptimizeOptions(),
 ) {
-    /**
-     * Returns the dimensions of an image file, using ImageMagick's `identify` command.
-     */
+    /** Returns the dimensions of an image file, using ImageMagick's `identify` command. */
     suspend fun identifyImageSize(source: File): Either<MagickException, MagickImageSize> = either {
         if (!source.exists() || !source.canRead()) {
-            raise(MagickException("Source file does not exist or is not readable: ${source.absolutePath}"))
+            raise(
+                MagickException(
+                    "Source file does not exist or is not readable: ${source.absolutePath}"
+                )
+            )
         }
         val params = arrayOf("identify", "-format", "%w %h", source.absolutePath)
         val output =
@@ -227,7 +229,4 @@ enum class MimeType {
     OTHER,
 }
 
-data class MagickImageSize(
-    val width: Int,
-    val height: Int
-)
+data class MagickImageSize(val width: Int, val height: Int)

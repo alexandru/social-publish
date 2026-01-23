@@ -46,7 +46,6 @@ RUN $JAVA_HOME/bin/jlink \
         --add-modules java.naming \
         --add-modules java.management \
         --add-modules java.sql \
-        --add-modules java.desktop \
         --add-modules jdk.crypto.ec \
         --add-modules jdk.crypto.cryptoki \
         --add-modules java.security.jgss \
