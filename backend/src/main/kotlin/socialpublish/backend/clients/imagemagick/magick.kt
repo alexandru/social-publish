@@ -10,9 +10,16 @@ import org.apache.tika.Tika
 
 private val logger = KotlinLogging.logger {}
 
+enum class ImageMagickVersion {
+    V6, // Uses separate 'convert' and 'identify' commands
+    V7, // Uses unified 'magick' command
+}
+
 class ImageMagick
 private constructor(
     private val magickPath: File,
+    private val version: ImageMagickVersion,
+    private val identifyPath: File? = null, // Only used for V6
     private val options: MagickOptimizeOptions = MagickOptimizeOptions(),
 ) {
     /** Returns the dimensions of an image file, using ImageMagick's `identify` command. */
@@ -24,9 +31,21 @@ private constructor(
                 )
             )
         }
-        val params = arrayOf("identify", "-format", "%w %h", source.absolutePath)
+        val (command, params) =
+            when (version) {
+                ImageMagickVersion.V7 ->
+                    Pair(
+                        magickPath.absolutePath,
+                        arrayOf("identify", "-format", "%w %h", source.absolutePath),
+                    )
+                ImageMagickVersion.V6 ->
+                    Pair(
+                        identifyPath!!.absolutePath,
+                        arrayOf("-format", "%w %h", source.absolutePath),
+                    )
+            }
         val output =
-            executeShellCommand(magickPath.absolutePath, *params)
+            executeShellCommand(command, *params)
                 .orError()
                 .mapLeft {
                     MagickException("ImageMagick-powered identification of image size failed", it)
@@ -131,6 +150,8 @@ private constructor(
         quality: Int = options.jpegQuality,
     ): Either<MagickException, Unit> = either {
         validateFiles(source, dest).bind()
+        // Both ImageMagick 6 and 7 use the same parameters for JPEG optimization
+        val command = magickPath.absolutePath
         val params =
             arrayOf(
                 source.absolutePath,
@@ -146,7 +167,7 @@ private constructor(
                 "jpeg:${dest.absolutePath}",
             )
         val _ =
-            executeShellCommand(magickPath.absolutePath, *params)
+            executeShellCommand(command, *params)
                 .orError()
                 .mapLeft { MagickException("ImageMagick JPEG optimization command failed", it) }
                 .bind()
@@ -162,6 +183,8 @@ private constructor(
     private suspend fun optimizePng(source: File, dest: File): Either<MagickException, Unit> =
         either {
             validateFiles(source, dest).bind()
+            // Both ImageMagick 6 and 7 use the same parameters for PNG optimization
+            val command = magickPath.absolutePath
             val params =
                 arrayOf(
                     source.absolutePath,
@@ -175,7 +198,7 @@ private constructor(
                     "png:${dest.absolutePath}",
                 )
             val _ =
-                executeShellCommand(magickPath.absolutePath, *params)
+                executeShellCommand(command, *params)
                     .orError()
                     .mapLeft { MagickException("ImageMagick PNG optimization command failed", it) }
                     .bind()
@@ -192,23 +215,53 @@ private constructor(
         suspend operator fun invoke(
             options: MagickOptimizeOptions = MagickOptimizeOptions()
         ): Either<MagickException, ImageMagick> = either {
-            // Find path
-            val which =
-                executeShellCommand("which", "magick")
-                    .orError()
-                    .mapLeft {
-                        MagickException("Failed to locate ImageMagick 'magick' command", it)
-                    }
-                    .bind()
-            val path = File(which.trim())
-            if (!path.exists() || !path.canExecute()) {
-                raise(
-                    MagickException(
-                        "ImageMagick 'magick' command not found or not executable at path: ${path.absolutePath}"
-                    )
-                )
+            // Try to find ImageMagick 7 (unified magick command) first
+            val magickV7Result = executeShellCommand("which", "magick")
+            val magickV7 = magickV7Result.orError().getOrNull()?.trim()
+
+            if (magickV7 != null) {
+                val path = File(magickV7)
+                if (path.exists() && path.canExecute()) {
+                    logger.info { "Found ImageMagick 7 at: ${path.absolutePath}" }
+                    return@either ImageMagick(path, ImageMagickVersion.V7, null, options)
+                }
             }
-            ImageMagick(path, options)
+
+            // Fall back to ImageMagick 6 (separate convert and identify commands)
+            logger.info { "ImageMagick 7 'magick' command not found, trying ImageMagick 6..." }
+
+            val convertResult = executeShellCommand("which", "convert")
+            val convertPath = convertResult.orError().getOrNull()?.trim()
+
+            val identifyResult = executeShellCommand("which", "identify")
+            val identifyPath = identifyResult.orError().getOrNull()?.trim()
+
+            if (convertPath != null && identifyPath != null) {
+                val convert = File(convertPath)
+                val identify = File(identifyPath)
+
+                if (
+                    convert.exists() &&
+                        convert.canExecute() &&
+                        identify.exists() &&
+                        identify.canExecute()
+                ) {
+                    logger.info {
+                        "Found ImageMagick 6 - convert: ${convert.absolutePath}, identify: ${identify.absolutePath}"
+                    }
+                    return@either ImageMagick(convert, ImageMagickVersion.V6, identify, options)
+                }
+            }
+
+            // Neither version found
+            raise(
+                MagickException(
+                    "ImageMagick not found. Please install ImageMagick:\n" +
+                        "  Ubuntu/Debian: sudo apt-get install imagemagick\n" +
+                        "  macOS: brew install imagemagick\n" +
+                        "  Or visit: https://imagemagick.org/script/download.php"
+                )
+            )
         }
     }
 }
