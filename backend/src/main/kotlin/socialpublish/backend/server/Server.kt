@@ -144,7 +144,7 @@ fun startServer(
 
         // Configure rate limiting for login endpoint
         install(RateLimit) {
-            register(RateLimitName("login")) { rateLimiter(limit = 5, refillPeriod = 15.minutes) }
+            register(RateLimitName("login")) { rateLimiter(limit = 20, refillPeriod = 5.minutes) }
         }
 
         install(StatusPages) {

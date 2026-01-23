@@ -9,6 +9,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
@@ -17,14 +19,14 @@ private val logger = KotlinLogging.logger {}
 /**
  * Configuration for LinkPreviewParser HTTP client timeouts.
  *
- * @param requestTimeoutMillis Total request timeout in milliseconds
- * @param connectTimeoutMillis Connection establishment timeout in milliseconds
- * @param socketTimeoutMillis Socket read/write timeout in milliseconds
+ * @param requestTimeout Total request timeout
+ * @param connectTimeout Connection establishment timeout
+ * @param socketTimeout Socket read/write timeout
  */
 data class LinkPreviewConfig(
-    val requestTimeoutMillis: Long = 30_000, // 30 seconds
-    val connectTimeoutMillis: Long = 10_000, // 10 seconds
-    val socketTimeoutMillis: Long = 20_000, // 20 seconds
+    val requestTimeout: Duration = 30.seconds,
+    val connectTimeout: Duration = 10.seconds,
+    val socketTimeout: Duration = 20.seconds,
 )
 
 /** Parser for extracting link previews from HTML content. */
@@ -51,9 +53,9 @@ class LinkPreviewParser(
 
                             // Configure timeouts to prevent hanging on unresponsive servers
                             install(io.ktor.client.plugins.HttpTimeout) {
-                                requestTimeoutMillis = config.requestTimeoutMillis
-                                connectTimeoutMillis = config.connectTimeoutMillis
-                                socketTimeoutMillis = config.socketTimeoutMillis
+                                requestTimeoutMillis = config.requestTimeout.inWholeMilliseconds
+                                connectTimeoutMillis = config.connectTimeout.inWholeMilliseconds
+                                socketTimeoutMillis = config.socketTimeout.inWholeMilliseconds
                             }
                         }
                     },
