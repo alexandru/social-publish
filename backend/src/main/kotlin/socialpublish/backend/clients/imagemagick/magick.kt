@@ -150,43 +150,22 @@ private constructor(
         quality: Int = options.jpegQuality,
     ): Either<MagickException, Unit> = either {
         validateFiles(source, dest).bind()
-        val (command, params) =
-            when (version) {
-                ImageMagickVersion.V7 ->
-                    Pair(
-                        magickPath.absolutePath,
-                        arrayOf(
-                            source.absolutePath,
-                            "-resize",
-                            "${options.maxWidth}x${options.maxHeight}>",
-                            "-strip",
-                            "-quality",
-                            quality.toString(),
-                            "-sampling-factor",
-                            "4:2:2",
-                            "-interlace",
-                            "JPEG",
-                            "jpeg:${dest.absolutePath}",
-                        ),
-                    )
-                ImageMagickVersion.V6 ->
-                    Pair(
-                        magickPath.absolutePath,
-                        arrayOf(
-                            source.absolutePath,
-                            "-resize",
-                            "${options.maxWidth}x${options.maxHeight}>",
-                            "-strip",
-                            "-quality",
-                            quality.toString(),
-                            "-sampling-factor",
-                            "4:2:2",
-                            "-interlace",
-                            "JPEG",
-                            "jpeg:${dest.absolutePath}",
-                        ),
-                    )
-            }
+        // Both ImageMagick 6 and 7 use the same parameters for JPEG optimization
+        val command = magickPath.absolutePath
+        val params =
+            arrayOf(
+                source.absolutePath,
+                "-resize",
+                "${options.maxWidth}x${options.maxHeight}>",
+                "-strip",
+                "-quality",
+                quality.toString(),
+                "-sampling-factor",
+                "4:2:2",
+                "-interlace",
+                "JPEG",
+                "jpeg:${dest.absolutePath}",
+            )
         val _ =
             executeShellCommand(command, *params)
                 .orError()
@@ -204,39 +183,20 @@ private constructor(
     private suspend fun optimizePng(source: File, dest: File): Either<MagickException, Unit> =
         either {
             validateFiles(source, dest).bind()
-            val (command, params) =
-                when (version) {
-                    ImageMagickVersion.V7 ->
-                        Pair(
-                            magickPath.absolutePath,
-                            arrayOf(
-                                source.absolutePath,
-                                "-resize",
-                                "${options.maxWidth}x${options.maxHeight}>",
-                                "-strip",
-                                "-define",
-                                "png:compression-level=9",
-                                "-define",
-                                "png:compression-strategy=1",
-                                "png:${dest.absolutePath}",
-                            ),
-                        )
-                    ImageMagickVersion.V6 ->
-                        Pair(
-                            magickPath.absolutePath,
-                            arrayOf(
-                                source.absolutePath,
-                                "-resize",
-                                "${options.maxWidth}x${options.maxHeight}>",
-                                "-strip",
-                                "-define",
-                                "png:compression-level=9",
-                                "-define",
-                                "png:compression-strategy=1",
-                                "png:${dest.absolutePath}",
-                            ),
-                        )
-                }
+            // Both ImageMagick 6 and 7 use the same parameters for PNG optimization
+            val command = magickPath.absolutePath
+            val params =
+                arrayOf(
+                    source.absolutePath,
+                    "-resize",
+                    "${options.maxWidth}x${options.maxHeight}>",
+                    "-strip",
+                    "-define",
+                    "png:compression-level=9",
+                    "-define",
+                    "png:compression-strategy=1",
+                    "png:${dest.absolutePath}",
+                )
             val _ =
                 executeShellCommand(command, *params)
                     .orError()
