@@ -108,11 +108,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 help = "Directory where uploaded files are stored (env: UPLOADED_FILES_PATH)",
                 envvar = "UPLOADED_FILES_PATH",
             )
-            .file(
-                mustExist = false,
-                canBeDir = true,
-                canBeFile = false,
-            )
+            .file(mustExist = false, canBeDir = true, canBeFile = false)
             .required()
 
     // Bluesky integration (optional)

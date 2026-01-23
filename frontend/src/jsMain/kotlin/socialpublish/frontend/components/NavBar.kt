@@ -10,14 +10,16 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasJwtToken()
     var navbarActive by remember { mutableStateOf(false) }
 
-    // Normalize currentPath to ignore trailing slashes and query strings so active checks are robust
-    val path = currentPath.substringBefore('?').let {
-        when {
-            it.isEmpty() -> "/"
-            it != "/" && it.endsWith("/") -> it.removeSuffix("/")
-            else -> it
+    // Normalize currentPath to ignore trailing slashes and query strings so active checks are
+    // robust
+    val path =
+        currentPath.substringBefore('?').let {
+            when {
+                it.isEmpty() -> "/"
+                it != "/" && it.endsWith("/") -> it.removeSuffix("/")
+                else -> it
+            }
         }
-    }
 
     Nav(
         attrs = {
@@ -51,19 +53,21 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
         ) {
             Div(attrs = { classes("navbar-start") }) {
                 Div(attrs = { classes("navbar-item") }) {
-                        Div(attrs = { classes("buttons") }) {
-                            A(
-                                href = "/",
-                                attrs = {
-                                    classes("button", "is-primary")
-                                    if (currentPath == "/") classes("is-active")
-                                },
-                            ) {
-                                Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-home") }) }
-                                B { Text("Home") }
+                    Div(attrs = { classes("buttons") }) {
+                        A(
+                            href = "/",
+                            attrs = {
+                                classes("button", "is-primary")
+                                if (currentPath == "/") classes("is-active")
+                            },
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fas", "fa-home") })
                             }
+                            B { Text("Home") }
                         }
                     }
+                }
 
                 if (isLoggedIn) {
                     Div(attrs = { classes("navbar-item") }) {
