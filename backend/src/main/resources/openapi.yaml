@@ -61,6 +61,19 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - title
+                - content
+              properties:
+                title:
+                  type: string
+                  description: Post title
+                content:
+                  type: string
+                  description: Post content in HTML format
+                description:
+                  type: string
+                  description: Optional post description
       responses:
         '200':
           description: Post created successfully
@@ -72,6 +85,23 @@ paths:
       description: Publish a post to Bluesky
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Post text content
+                images:
+                  type: array
+                  description: Optional image attachments
+                  items:
+                    type: string
       responses:
         '200':
           description: Post created successfully
@@ -85,6 +115,23 @@ paths:
       description: Publish a post to Mastodon
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  description: Post status/content
+                mediaIds:
+                  type: array
+                  description: Optional media attachment IDs
+                  items:
+                    type: string
       responses:
         '200':
           description: Post created successfully
@@ -98,6 +145,23 @@ paths:
       description: Publish a post to Twitter/X
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Tweet text content
+                mediaIds:
+                  type: array
+                  description: Optional media attachment IDs
+                  items:
+                    type: string
       responses:
         '200':
           description: Post created successfully
@@ -111,6 +175,23 @@ paths:
       description: Publish a post to LinkedIn
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Post text content
+                mediaUrls:
+                  type: array
+                  description: Optional media URLs
+                  items:
+                    type: string
       responses:
         '200':
           description: Post created successfully
@@ -124,6 +205,29 @@ paths:
       description: Publish a post to multiple social media platforms at once
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+                - targets
+              properties:
+                text:
+                  type: string
+                  description: Post text content
+                targets:
+                  type: array
+                  description: Target platforms (e.g., bluesky, mastodon, twitter, linkedin)
+                  items:
+                    type: string
+                mediaIds:
+                  type: array
+                  description: Optional media attachment IDs
+                  items:
+                    type: string
       responses:
         '200':
           description: Posts created successfully
