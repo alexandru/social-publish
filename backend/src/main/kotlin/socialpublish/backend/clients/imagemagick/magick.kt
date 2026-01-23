@@ -187,7 +187,9 @@ private constructor(
         }
 
     companion object {
-        suspend operator fun invoke(): Either<MagickException, ImageMagick> = either {
+        suspend operator fun invoke(
+            options: MagickOptimizeOptions = MagickOptimizeOptions()
+        ): Either<MagickException, ImageMagick> = either {
             // Find path
             val which =
                 executeShellCommand("which", "magick")
@@ -204,7 +206,7 @@ private constructor(
                     )
                 )
             }
-            ImageMagick(path)
+            ImageMagick(path, options)
         }
     }
 }
