@@ -24,6 +24,8 @@ dependencyResolutionManagement {
             version("jbcrypt", "0.4")
             version("mockk", "1.14.7")
             version("kotlinx-coroutines", "1.10.2")
+            version("common-text", "1.15.0")
+            version("apache-tika", "3.2.3")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -87,6 +89,13 @@ dependencyResolutionManagement {
             // BCrypt for password hashing
             library("bcrypt", "at.favre.lib", "bcrypt").versionRef("bcrypt")
             library("jbcrypt", "org.mindrot", "jbcrypt").versionRef("jbcrypt")
+
+            // Common Text for escaping (e.g., shell commands)
+            library("apache-commons-text", "org.apache.commons", "commons-text")
+                .versionRef("common-text")
+            // Mime-type detection
+            library("apache-tika-core", "org.apache.tika", "tika-core")
+                .versionRef("apache-tika")
 
             // Testing libraries
             library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").versionRef("kotlin")
