@@ -1,5 +1,6 @@
 package socialpublish.backend.db
 
+import arrow.core.getOrElse
 import java.nio.file.Path
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -15,7 +16,7 @@ class DatabaseMigrationsTest {
         val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
 
         // Run the same migrations as production
-        Database.migrate(jdbi)
+        Database.migrate(jdbi).getOrElse { throw it }
 
         jdbi.useHandle<Exception> { handle ->
             val tables =

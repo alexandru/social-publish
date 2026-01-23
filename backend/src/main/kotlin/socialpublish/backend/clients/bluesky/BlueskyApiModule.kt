@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.bluesky
+package socialpublish.backend.clients.bluesky
 
 import arrow.core.Either
 import arrow.core.left
@@ -32,7 +32,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import socialpublish.backend.linkpreview.LinkPreviewParser
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse

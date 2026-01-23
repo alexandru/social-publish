@@ -1,9 +1,8 @@
-package socialpublish.backend.integrations
+package socialpublish.backend.clients
 
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
@@ -12,14 +11,13 @@ import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import socialpublish.backend.integrations.mastodon.MastodonApiModule
-import socialpublish.backend.integrations.mastodon.MastodonConfig
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.models.NewMastodonPostResponse
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.ImageDimensions

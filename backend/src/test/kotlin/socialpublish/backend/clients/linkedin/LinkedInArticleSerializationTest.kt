@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.linkedin
+package socialpublish.backend.clients.linkedin
 
 import kotlin.test.Test
 import kotlin.test.assertFalse

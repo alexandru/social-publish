@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.mastodon
+package socialpublish.backend.clients.mastodon
 
 import arrow.core.Either
 import arrow.core.left
@@ -26,30 +26,11 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.coroutines.delay
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
-
-@Serializable
-data class MastodonMediaResponse(
-    val id: String,
-    val url: String? = null,
-    val preview_url: String? = null,
-    val description: String? = null,
-)
-
-@Serializable data class MastodonStatusResponse(val id: String, val uri: String, val url: String)
 
 class MastodonApiModule(
     private val config: MastodonConfig,

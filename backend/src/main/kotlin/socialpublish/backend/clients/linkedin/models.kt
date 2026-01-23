@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.linkedin
+package socialpublish.backend.clients.linkedin
 
 import java.time.Instant
 import kotlinx.serialization.SerialName

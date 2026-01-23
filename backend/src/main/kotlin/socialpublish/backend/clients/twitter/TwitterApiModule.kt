@@ -1,8 +1,9 @@
 @file:Suppress("PropertyName")
 
-package socialpublish.backend.integrations.twitter
+package socialpublish.backend.clients.twitter
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
@@ -26,11 +27,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -41,37 +38,13 @@ import io.ktor.server.response.respondRedirect
 import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
-
-@Serializable data class TwitterOAuthToken(val key: String, val secret: String)
-
-@Serializable data class TwitterMediaResponse(val media_id_string: String)
-
-@Serializable data class TwitterPostResponse(val data: TwitterPostData)
-
-@Serializable data class TwitterPostData(val id: String, val text: String)
-
-@Serializable data class TwitterCreateRequest(val text: String, val media: TwitterMedia? = null)
-
-@Serializable data class TwitterMedia(val media_ids: List<String>)
-
-@Serializable
-data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
 
 /** Twitter API module with OAuth 1.0a implementation */
 class TwitterApiModule(
@@ -140,7 +113,7 @@ class TwitterApiModule(
 
     /** Restore OAuth token from database */
     private suspend fun restoreOauthTokenFromDb(): TwitterOAuthToken? {
-        val doc = documentsDb.searchByKey("twitter-oauth-token")
+        val doc = documentsDb.searchByKey("twitter-oauth-token").getOrElse { throw it }
         return if (doc != null) {
             try {
                 Json.decodeFromString<TwitterOAuthToken>(doc.payload)
@@ -431,7 +404,7 @@ class TwitterApiModule(
 
     /** Handle status check HTTP route */
     suspend fun statusRoute(call: ApplicationCall) {
-        val row = documentsDb.searchByKey("twitter-oauth-token")
+        val row = documentsDb.searchByKey("twitter-oauth-token").getOrElse { throw it }
         call.respond(
             TwitterStatusResponse(
                 hasAuthorization = row != null,

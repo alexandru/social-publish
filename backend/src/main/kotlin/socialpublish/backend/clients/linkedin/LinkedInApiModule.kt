@@ -1,6 +1,6 @@
 @file:Suppress("BlockingMethodInNonBlockingContext")
 
-package socialpublish.backend.integrations.linkedin
+package socialpublish.backend.clients.linkedin
 
 /**
  * LinkedIn API integration module using OpenID Connect (OIDC) and UGC (User Generated Content) API.
@@ -42,6 +42,7 @@ package socialpublish.backend.integrations.linkedin
  * @see LinkedInConfig Configuration for OAuth credentials and API endpoints
  */
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
@@ -72,8 +73,8 @@ import java.util.Base64
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
 
@@ -196,7 +197,7 @@ class LinkedInApiModule(
 
     /** Verify and consume OAuth state during callback */
     private suspend fun verifyOAuthState(state: String): String? {
-        val doc = documentsDb.searchByKey(state)
+        val doc = documentsDb.searchByKey(state).getOrElse { throw it }
         return if (doc != null && doc.kind == "linkedin-oauth-state") {
             // State found and valid (we don't delete it, but could track usage)
             // In production, we might want to track used states to prevent replay attacks
@@ -288,7 +289,7 @@ class LinkedInApiModule(
 
     /** Restore OAuth token from database */
     private suspend fun restoreOAuthTokenFromDb(): LinkedInOAuthToken? {
-        val doc = documentsDb.searchByKey("linkedin-oauth-token")
+        val doc = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
         return if (doc != null) {
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
@@ -1044,7 +1045,7 @@ class LinkedInApiModule(
 
     /** Handle status check HTTP route */
     suspend fun statusRoute(call: ApplicationCall) {
-        val row = documentsDb.searchByKey("linkedin-oauth-token")
+        val row = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
         call.respond(
             LinkedInStatusResponse(
                 hasAuthorization = row != null,

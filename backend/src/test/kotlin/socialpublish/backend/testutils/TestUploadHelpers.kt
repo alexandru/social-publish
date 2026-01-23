@@ -1,5 +1,6 @@
 package socialpublish.backend.testutils
 
+import arrow.core.getOrElse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -42,7 +43,7 @@ internal data class MultipartRequest(
 internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
     val dbPath = tempDir.resolve("test.db").toString()
     val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-    Database.migrate(jdbi)
+    Database.migrate(jdbi).getOrElse { throw it }
     return jdbi
 }
 

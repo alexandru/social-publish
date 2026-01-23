@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.bluesky
+package socialpublish.backend.clients.bluesky
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject

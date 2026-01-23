@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.twitter
+package socialpublish.backend.clients.twitter
 
 data class TwitterConfig(
     val oauth1ConsumerKey: String,

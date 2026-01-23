@@ -1,5 +1,6 @@
 package socialpublish.backend.modules
 
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import com.sksamuel.scrimage.ImmutableImage
@@ -131,16 +132,17 @@ private constructor(
             // Save to database
             val upload =
                 db.createFile(
-                    UploadPayload(
-                        hash = hash,
-                        originalname = processed.originalname,
-                        mimetype = processed.mimetype,
-                        size = processed.size,
-                        altText = processed.altText,
-                        imageWidth = if (processed.width > 0) processed.width else null,
-                        imageHeight = if (processed.height > 0) processed.height else null,
+                        UploadPayload(
+                            hash = hash,
+                            originalname = processed.originalname,
+                            mimetype = processed.mimetype,
+                            size = processed.size,
+                            altText = processed.altText,
+                            imageWidth = if (processed.width > 0) processed.width else null,
+                            imageHeight = if (processed.height > 0) processed.height else null,
+                        )
                     )
-                )
+                    .getOrElse { throw it }
 
             // Save file to disk
             val filePath = File(processedPath, upload.hash)
@@ -170,7 +172,7 @@ private constructor(
                     return
                 }
 
-        val upload = db.getFileByUuid(uuid)
+        val upload = db.getFileByUuid(uuid).getOrElse { throw it }
         if (upload == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "File not found"))
             return
@@ -196,7 +198,7 @@ private constructor(
         maxWidth: Int? = null,
         maxHeight: Int? = null,
     ): ProcessedUpload? {
-        val upload = db.getFileByUuid(uuid) ?: return null
+        val upload = db.getFileByUuid(uuid).getOrElse { throw it } ?: return null
         val filePath = File(processedPath, upload.hash)
 
         val bytes =

@@ -1,37 +1,16 @@
 package socialpublish.backend.db
 
+import arrow.core.Either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
 import java.util.UUID
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import org.jdbi.v3.core.Handle
 import org.jdbi.v3.core.Jdbi
 
 private val logger = KotlinLogging.logger {}
-private val json = Json { ignoreUnknownKeys = true }
-
-@Serializable
-data class Tag(
-    val name: String,
-    // "target" or "label"
-    val kind: String,
-)
-
-data class Document(
-    val uuid: String,
-    val searchKey: String,
-    val kind: String,
-    val tags: List<Tag>,
-    val payload: String,
-    val createdAt: Instant,
-)
 
 class DocumentsDatabase(private val jdbi: Jdbi) {
-    private fun setDocumentTags(
-        handle: org.jdbi.v3.core.Handle,
-        documentUuid: String,
-        tags: List<Tag>,
-    ) {
+    private fun setDocumentTags(handle: Handle, documentUuid: String, tags: List<Tag>) {
         handle.execute("DELETE FROM document_tags WHERE document_uuid = ?", documentUuid)
         tags.forEach { tag ->
             handle.execute(
@@ -48,7 +27,7 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         }
     }
 
-    private fun getDocumentTags(handle: org.jdbi.v3.core.Handle, documentUuid: String): List<Tag> {
+    private fun getDocumentTags(handle: Handle, documentUuid: String): List<Tag> {
         return handle
             .createQuery("SELECT name, kind FROM document_tags WHERE document_uuid = ?")
             .bind(0, documentUuid)
@@ -61,140 +40,129 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         payload: String,
         searchKey: String? = null,
         tags: List<Tag> = emptyList(),
-    ): Document {
-        return dbInterruptible {
-            jdbi.inTransaction<Document, Exception> { handle ->
-                val existing =
-                    searchKey?.let { key ->
-                        handle
-                            .createQuery("SELECT * FROM documents WHERE search_key = ?")
-                            .bind(0, key)
-                            .mapToMap()
-                            .findOne()
-                            .orElse(null)
-                            ?.let { row ->
-                                val tagsForRow = getDocumentTags(handle, row["uuid"] as String)
-                                Document(
-                                    uuid = row["uuid"] as String,
-                                    kind = row["kind"] as String,
-                                    payload = row["payload"] as String,
-                                    searchKey = row["search_key"] as String,
-                                    tags = tagsForRow,
-                                    createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                                )
-                            }
-                    }
-                if (existing != null) {
-                    val updated =
-                        handle.execute(
-                            "UPDATE documents SET payload = ? WHERE search_key = ?",
-                            payload,
-                            searchKey,
-                        )
-                    logger.info { "Updated document: $updated" }
-                    setDocumentTags(handle, existing.uuid, tags)
-                    if (updated > 0) {
-                        return@inTransaction existing.copy(payload = payload, tags = tags)
-                    }
-                    logger.warn { "Failed to update document with search key $searchKey" }
-                }
-
-                val uuid = UUID.randomUUID().toString()
-                val finalSearchKey = searchKey ?: "$kind:$uuid"
-                val now = Instant.now()
-
-                handle.execute(
-                    "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)",
-                    uuid,
-                    finalSearchKey,
-                    kind,
-                    payload,
-                    now.toEpochMilli(),
-                )
-                setDocumentTags(handle, uuid, tags)
-
-                Document(uuid, finalSearchKey, kind, tags, payload, now)
-            }
-        }
-    }
-
-    suspend fun searchByKey(searchKey: String): Document? {
-        return dbInterruptible {
-            jdbi.withHandle<Document?, Exception> { handle ->
-                val row =
+    ): Either<DBException, Document> =
+        jdbi.safeTransaction { handle ->
+            val existing =
+                searchKey?.let { key ->
                     handle
                         .createQuery("SELECT * FROM documents WHERE search_key = ?")
-                        .bind(0, searchKey)
+                        .bind(0, key)
                         .mapToMap()
                         .findOne()
-                        .orElse(null) ?: return@withHandle null
-
-                val tags = getDocumentTags(handle, row["uuid"] as String)
-                Document(
-                    uuid = row["uuid"] as String,
-                    kind = row["kind"] as String,
-                    payload = row["payload"] as String,
-                    searchKey = row["search_key"] as String,
-                    tags = tags,
-                    createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                )
+                        .orElse(null)
+                        ?.let { row ->
+                            val tagsForRow = getDocumentTags(handle, row["uuid"] as String)
+                            Document(
+                                uuid = row["uuid"] as String,
+                                kind = row["kind"] as String,
+                                payload = row["payload"] as String,
+                                searchKey = row["search_key"] as String,
+                                tags = tagsForRow,
+                                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
+                            )
+                        }
+                }
+            if (existing != null) {
+                val updated =
+                    handle.execute(
+                        "UPDATE documents SET payload = ? WHERE search_key = ?",
+                        payload,
+                        searchKey,
+                    )
+                logger.info { "Updated document: $updated" }
+                setDocumentTags(handle, existing.uuid, tags)
+                if (updated > 0) {
+                    return@safeTransaction existing.copy(payload = payload, tags = tags)
+                }
+                logger.warn { "Failed to update document with search key $searchKey" }
             }
-        }
-    }
 
-    suspend fun searchByUuid(uuid: String): Document? {
-        return dbInterruptible {
-            jdbi.withHandle<Document?, Exception> { handle ->
-                val row =
-                    handle
-                        .createQuery("SELECT * FROM documents WHERE uuid = ?")
-                        .bind(0, uuid)
-                        .mapToMap()
-                        .findOne()
-                        .orElse(null) ?: return@withHandle null
+            val uuid = UUID.randomUUID().toString()
+            val finalSearchKey = searchKey ?: "$kind:$uuid"
+            val now = Instant.now()
 
-                val tags = getDocumentTags(handle, row["uuid"] as String)
-                Document(
-                    uuid = row["uuid"] as String,
-                    kind = row["kind"] as String,
-                    payload = row["payload"] as String,
-                    searchKey = row["search_key"] as String,
-                    tags = tags,
-                    createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                )
-            }
+            handle.execute(
+                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+                uuid,
+                finalSearchKey,
+                kind,
+                payload,
+                now.toEpochMilli(),
+            )
+            setDocumentTags(handle, uuid, tags)
+
+            Document(uuid, finalSearchKey, kind, tags, payload, now)
         }
-    }
+
+    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> =
+        jdbi.safeHandle { handle ->
+            val row =
+                handle
+                    .createQuery("SELECT * FROM documents WHERE search_key = ?")
+                    .bind(0, searchKey)
+                    .mapToMap()
+                    .findOne()
+                    .orElse(null) ?: return@safeHandle null
+
+            val tags = getDocumentTags(handle, row["uuid"] as String)
+            Document(
+                uuid = row["uuid"] as String,
+                kind = row["kind"] as String,
+                payload = row["payload"] as String,
+                searchKey = row["search_key"] as String,
+                tags = tags,
+                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
+            )
+        }
+
+    suspend fun searchByUuid(uuid: String): Either<DBException, Document?> =
+        jdbi.safeHandle { handle ->
+            val row =
+                handle
+                    .createQuery("SELECT * FROM documents WHERE uuid = ?")
+                    .bind(0, uuid)
+                    .mapToMap()
+                    .findOne()
+                    .orElse(null) ?: return@safeHandle null
+
+            val tags = getDocumentTags(handle, row["uuid"] as String)
+            Document(
+                uuid = row["uuid"] as String,
+                kind = row["kind"] as String,
+                payload = row["payload"] as String,
+                searchKey = row["search_key"] as String,
+                tags = tags,
+                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
+            )
+        }
 
     enum class OrderBy(val sql: String) {
-        CREATED_AT_DESC("created_at DESC"),
-        CREATED_AT_ASC("created_at ASC"),
+        CREATED_AT_DESC("created_at DESC")
+        // CREATED_AT_ASC("created_at ASC"),
     }
 
-    suspend fun getAll(kind: String, orderBy: OrderBy = OrderBy.CREATED_AT_DESC): List<Document> {
-        return dbInterruptible {
-            jdbi.withHandle<List<Document>, Exception> { handle ->
-                val rows =
-                    handle
-                        .createQuery(
-                            "SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}"
-                        )
-                        .bind(0, kind)
-                        .mapToMap()
-                        .list()
+    suspend fun getAll(
+        kind: String,
+        orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
+    ): Either<DBException, List<Document>> =
+        jdbi.safeHandle { handle ->
+            val rows =
+                handle
+                    .createQuery("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}")
+                    .bind(0, kind)
+                    .mapToMap()
+                    .list()
 
-                rows.map { row ->
-                    val tags = getDocumentTags(handle, row["uuid"] as String)
-                    Document(
-                        uuid = row["uuid"] as String,
-                        kind = row["kind"] as String,
-                        payload = row["payload"] as String,
-                        searchKey = row["search_key"] as String,
-                        tags = tags,
-                        createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                    )
-                }
+            rows.map { row ->
+                val tags = getDocumentTags(handle, row["uuid"] as String)
+                Document(
+                    uuid = row["uuid"] as String,
+                    kind = row["kind"] as String,
+                    payload = row["payload"] as String,
+                    searchKey = row["search_key"] as String,
+                    tags = tags,
+                    createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
+                )
             }
         }
-    }
 }

@@ -1,27 +1,22 @@
 package socialpublish.backend.modules
 
+import arrow.core.getOrElse
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import socialpublish.backend.testutils.createFilesModule
-import socialpublish.backend.testutils.createTestDatabase
-import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
-import socialpublish.backend.testutils.uploadTestImage
+import socialpublish.backend.testutils.*
 
 class FilesModuleTest {
     @Test
@@ -86,7 +81,7 @@ class FilesModuleTest {
         assertEquals(original2.width, processed2.width)
         assertEquals(original2.height, processed2.height)
 
-        val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid))
+        val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid).getOrElse { throw it })
         val resized =
             requireNotNull(
                 filesModule.readImageFile(upload1.uuid, maxWidth = 1920, maxHeight = 1080)

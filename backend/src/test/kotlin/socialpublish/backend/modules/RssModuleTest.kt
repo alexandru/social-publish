@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -10,6 +11,7 @@ import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
@@ -68,18 +70,14 @@ class RssModuleTest {
         val request =
             NewPostRequest(content = "Test RSS post", link = "https://example.com", language = "en")
 
-        val result = rssModule.createPost(request)
-
-        assertTrue(result.isRight())
-        when (result) {
+        when (val result = rssModule.createPost(request)) {
             is Either.Right -> {
                 val response = result.value as NewRssPostResponse
                 assertNotNull(response.uri)
                 assertTrue(response.uri.contains("/rss/"))
             }
             is Either.Left -> {
-                // Should not happen
-                assertTrue(false, "Expected success but got error")
+                fail { "Expected Right but got Left: ${result.value}" }
             }
         }
     }
@@ -107,7 +105,7 @@ class RssModuleTest {
         assertTrue(result.isRight())
 
         // Verify hashtags were extracted
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAll().getOrElse { throw it }
         assertEquals(1, posts.size)
         assertNotNull(posts[0].tags)
         assertTrue(posts[0].tags!!.contains("hashtag"))
@@ -137,7 +135,7 @@ class RssModuleTest {
             rssModule.createPost(
                 NewPostRequest(content = "With link", link = "https://example.com")
             )
-        rssModule.createPost(NewPostRequest(content = "Without link", link = null)).also {}
+        val _ = rssModule.createPost(NewPostRequest(content = "Without link", link = null))
 
         val rssWithLinks = rssModule.generateRss(filterByLinks = "include")
         val rssWithoutLinks = rssModule.generateRss(filterByLinks = "exclude")

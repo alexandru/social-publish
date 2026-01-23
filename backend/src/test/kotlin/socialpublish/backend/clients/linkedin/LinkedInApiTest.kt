@@ -1,11 +1,10 @@
-package socialpublish.backend.integrations.linkedin
+package socialpublish.backend.clients.linkedin
 
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
@@ -18,7 +17,6 @@ import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -26,8 +24,8 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.createFilesModule

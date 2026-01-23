@@ -29,13 +29,13 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
+import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.integrations.bluesky.BlueskyApiModule
-import socialpublish.backend.integrations.linkedin.LinkedInApiModule
-import socialpublish.backend.integrations.mastodon.MastodonApiModule
-import socialpublish.backend.integrations.twitter.TwitterApiModule
 import socialpublish.backend.models.CompositeErrorResponse
 import socialpublish.backend.models.CompositeErrorWithDetails
 import socialpublish.backend.models.ErrorResponse
@@ -159,8 +159,7 @@ fun startServer(
 
                 // File upload
                 post("/api/files/upload") {
-                    val result = filesModule.uploadFile(call)
-                    when (result) {
+                    when (val result = filesModule.uploadFile(call)) {
                         is Either.Right -> call.respond(result.value)
                         is Either.Left -> {
                             val error = result.value
