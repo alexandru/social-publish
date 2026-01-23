@@ -14,14 +14,33 @@ import org.jsoup.nodes.Document
 
 private val logger = KotlinLogging.logger {}
 
-/** Parser for extracting link previews from HTML content. */
-class LinkPreviewParser(private val httpClient: HttpClient) {
-    companion object {
-        suspend fun <A> scoped(block: suspend (LinkPreviewParser) -> A): A = resourceScope {
-            LinkPreviewParser().bind().let { parser -> block(parser) }
-        }
+/**
+ * Configuration for LinkPreviewParser HTTP client timeouts.
+ *
+ * @param requestTimeoutMillis Total request timeout in milliseconds
+ * @param connectTimeoutMillis Connection establishment timeout in milliseconds
+ * @param socketTimeoutMillis Socket read/write timeout in milliseconds
+ */
+data class LinkPreviewConfig(
+    val requestTimeoutMillis: Long = 30_000, // 30 seconds
+    val connectTimeoutMillis: Long = 10_000, // 10 seconds
+    val socketTimeoutMillis: Long = 20_000, // 20 seconds
+)
 
-        operator fun invoke(): Resource<LinkPreviewParser> = resource {
+/** Parser for extracting link previews from HTML content. */
+class LinkPreviewParser(
+    private val httpClient: HttpClient,
+    private val config: LinkPreviewConfig = LinkPreviewConfig(),
+) {
+    companion object {
+        suspend fun <A> scoped(
+            config: LinkPreviewConfig = LinkPreviewConfig(),
+            block: suspend (LinkPreviewParser) -> A,
+        ): A = resourceScope { LinkPreviewParser(config).bind().let { parser -> block(parser) } }
+
+        operator fun invoke(
+            config: LinkPreviewConfig = LinkPreviewConfig()
+        ): Resource<LinkPreviewParser> = resource {
             val httpClient =
                 install(
                     {
@@ -32,15 +51,15 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
 
                             // Configure timeouts to prevent hanging on unresponsive servers
                             install(io.ktor.client.plugins.HttpTimeout) {
-                                requestTimeoutMillis = 30_000 // 30 seconds
-                                connectTimeoutMillis = 10_000 // 10 seconds
-                                socketTimeoutMillis = 20_000 // 20 seconds
+                                requestTimeoutMillis = config.requestTimeoutMillis
+                                connectTimeoutMillis = config.connectTimeoutMillis
+                                socketTimeoutMillis = config.socketTimeoutMillis
                             }
                         }
                     },
                     { client, _ -> client.close() },
                 )
-            LinkPreviewParser(httpClient)
+            LinkPreviewParser(httpClient, config)
         }
     }
 

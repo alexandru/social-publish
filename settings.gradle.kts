@@ -44,6 +44,7 @@ dependencyResolutionManagement {
             library("ktor-server-status-pages", "io.ktor", "ktor-server-status-pages").versionRef("ktor")
             library("ktor-server-call-logging", "io.ktor", "ktor-server-call-logging").versionRef("ktor")
             library("ktor-server-cors", "io.ktor", "ktor-server-cors").versionRef("ktor")
+            library("ktor-server-rate-limit", "io.ktor", "ktor-server-rate-limit").versionRef("ktor")
 
             // Ktor client libraries
             library("ktor-client-core", "io.ktor", "ktor-client-core").versionRef("ktor")
@@ -119,6 +120,7 @@ dependencyResolutionManagement {
                     "ktor-server-status-pages",
                     "ktor-server-call-logging",
                     "ktor-server-cors",
+                    "ktor-server-rate-limit",
                 ),
             )
             bundle(

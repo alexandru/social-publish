@@ -31,6 +31,7 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
+import socialpublish.backend.utils.FileUtils
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,29 +68,6 @@ private constructor(
             }
             logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
             return ref
-        }
-
-        /**
-         * Sanitize filename to prevent header injection attacks and path traversal.
-         * - Allows only: letters, numbers, dots, hyphens, and underscores
-         * - Removes all other characters including whitespace, quotes, and control characters
-         * - Prevents empty filenames and filenames starting with dot (hidden files)
-         * - Limits length to 255 characters
-         */
-        private fun sanitizeFilename(filename: String): String {
-            // Remove any path separators to prevent directory traversal
-            val nameOnly =
-                filename.substringAfterLast('/').substringAfterLast('\\').ifBlank { "unnamed" }
-
-            // Allow only safe characters: alphanumeric, dot, hyphen, underscore
-            val sanitized = nameOnly.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(255)
-
-            // Ensure filename is not empty and doesn't start with a dot
-            return if (sanitized.isBlank() || sanitized.startsWith(".")) {
-                "file_${System.currentTimeMillis()}.bin"
-            } else {
-                sanitized
-            }
         }
     }
 
@@ -208,7 +186,7 @@ private constructor(
         call.response.header(HttpHeaders.ContentType, upload.mimetype)
         call.response.header(
             HttpHeaders.ContentDisposition,
-            "inline; filename=\"${sanitizeFilename(upload.originalname)}\"",
+            "inline; filename=\"${FileUtils.sanitizeFilename(upload.originalname)}\"",
         )
         call.respondFile(filePath)
     }
