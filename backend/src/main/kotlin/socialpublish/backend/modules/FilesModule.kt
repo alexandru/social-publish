@@ -237,7 +237,7 @@ private constructor(
                     if (cachedImage != null) {
                         return ProcessedUpload(
                             originalname = upload.originalname,
-                            mimetype = upload.mimetype,
+                            mimetype = getOutputMimeType(upload.mimetype),
                             altText = upload.altText,
                             width = cachedImage.width,
                             height = cachedImage.height,
@@ -260,17 +260,13 @@ private constructor(
                             val newHeight = (height * scale).toInt()
                             val scaled = image.scaleTo(newWidth, newHeight)
                             val resizedBytes = encodeImage(scaled, upload.mimetype)
-                            // Update MIME type if we converted WebP to JPEG
-                            val resizedMimetype =
-                                if (upload.mimetype.contains("webp")) "image/jpeg"
-                                else upload.mimetype
                             runInterruptible(Dispatchers.IO) {
                                 val cacheFile = File(resizingPath, upload.hash)
                                 cacheFile.writeBytes(resizedBytes)
                             }
                             return ProcessedUpload(
                                 originalname = upload.originalname,
-                                mimetype = resizedMimetype,
+                                mimetype = getOutputMimeType(upload.mimetype),
                                 altText = upload.altText,
                                 width = scaled.width,
                                 height = scaled.height,
@@ -335,6 +331,11 @@ private constructor(
             "webp" -> "image/webp"
             else -> null
         }
+    }
+
+    /** Get the output MIME type after encoding. WebP is converted to JPEG. */
+    private fun getOutputMimeType(inputMimeType: String): String {
+        return if (inputMimeType.contains("webp")) "image/jpeg" else inputMimeType
     }
 
     private fun processImage(
