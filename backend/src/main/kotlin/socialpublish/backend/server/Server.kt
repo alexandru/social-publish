@@ -114,7 +114,7 @@ fun startServer(
                             subclass(NewTwitterPostResponse::class)
                             subclass(NewLinkedInPostResponse::class)
                         }
-                        // Explicitly register serializers
+                        // Explicitly register serializers to ensure availability in native image
                         contextual(
                             CompositeErrorResponse::class,
                             CompositeErrorResponse.serializer(),

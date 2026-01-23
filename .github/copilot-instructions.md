@@ -92,6 +92,11 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   make run-jvm
   ```
 
+- Build and run native Docker image locally:
+  ```bash
+  make run-native
+  ```
+
 ## Coding Style
 
 - Prefer idiomatic Kotlin constructs and direct style with `suspend` functions for effectful code, rather than monad chaining (`flatMap`).

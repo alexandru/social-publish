@@ -195,8 +195,11 @@ make format  # Auto-format code
 To build and test the Docker images locally:
 
 ```sh
-# Build and run JVM image
+# Build and run JVM image (smaller build time, larger image)
 make run-jvm
+
+# Or build and run native image (longer build time, smaller image)
+make run-native
 ```
 
 See the [Makefile](./Makefile) for all available commands.
