@@ -1,8 +1,10 @@
 package socialpublish.backend.db
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.Raise
+import arrow.core.raise.either
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -12,8 +14,6 @@ import kotlinx.coroutines.runInterruptible
 import org.jdbi.v3.core.Handle
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
-import socialpublish.backend.models.ApiError
-import socialpublish.backend.models.CaughtException
 
 private val logger = KotlinLogging.logger {}
 
@@ -29,14 +29,15 @@ object Database {
     fun resource(dbPath: String): Resource<Jdbi> = resource {
         logger.info { "Connecting to database at $dbPath" }
 
-        val jdbi = dbInterruptible {
-            val dbFile = File(dbPath)
-            dbFile.parentFile?.mkdirs()
-            Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-        }
+        val jdbi =
+            dbInterruptible {
+                    val dbFile = File(dbPath)
+                    dbFile.parentFile?.mkdirs()
+                    Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
+                }
+                .getOrElse { throw it }
 
-        migrate(jdbi)
-
+        migrate(jdbi).getOrElse { throw it }
         logger.info { "Database connected and migrated" }
         jdbi
     }
@@ -55,9 +56,8 @@ object Database {
     }
 
     /** Expose migrations so tests and other callers can reuse the same DDLs. */
-    suspend fun migrate(jdbi: Jdbi) {
-        dbInterruptible { jdbi.useHandle<Exception> { handle -> runMigrations(handle) } }
-    }
+    suspend fun migrate(jdbi: Jdbi): Either<DBException, Unit> =
+        jdbi.safeTransaction { handle -> runMigrations(handle) }
 
     private fun runMigrations(handle: Handle) {
         logger.info { "Running database migrations..." }
@@ -144,19 +144,23 @@ object Database {
     }
 }
 
-suspend fun <T> dbInterruptible(block: () -> T): T = runInterruptible(Dispatchers.IO) { block() }
-
-/** Execute a database operation safely with typed errors */
-suspend fun <T> safeDbOperation(block: suspend () -> T): Either<ApiError, T> {
-    return try {
-        block().right()
-    } catch (e: Exception) {
-        logger.error(e) { "Database operation failed" }
-        CaughtException(
-                status = 500,
-                module = "database",
-                errorMessage = "Database operation failed: ${e.message}",
-            )
-            .left()
+/** Execute a database operation safely with typed errors. */
+suspend fun <T> dbInterruptible(block: Raise<DBException>.() -> T): Either<DBException, T> =
+    runInterruptible(Dispatchers.IO) {
+        try {
+            either { block() }
+        } catch (e: Exception) {
+            DBException("Database operation failed", e).left()
+        }
     }
+
+suspend fun <T> Jdbi.safeHandle(block: Raise<DBException>.(Handle) -> T): Either<DBException, T> =
+    dbInterruptible {
+        this@safeHandle.withHandle<T, Exception> { block(it) }
+    }
+
+suspend fun <T> Jdbi.safeTransaction(
+    block: Raise<DBException>.(Handle) -> T
+): Either<DBException, T> = dbInterruptible {
+    this@safeTransaction.inTransaction<T, Exception> { block(it) }
 }

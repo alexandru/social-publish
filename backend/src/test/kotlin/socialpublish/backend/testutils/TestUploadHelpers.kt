@@ -1,5 +1,6 @@
 package socialpublish.backend.testutils
 
+import arrow.core.getOrElse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -11,12 +12,14 @@ import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveMultipart
 import io.ktor.utils.io.readRemaining
-import java.io.ByteArrayInputStream
+import java.io.File
 import java.nio.file.Path
-import javax.imageio.ImageIO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
 import org.jdbi.v3.core.Jdbi
 import org.jdbi.v3.core.kotlin.KotlinPlugin
+import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.modules.FileUploadResponse
@@ -42,7 +45,7 @@ internal data class MultipartRequest(
 internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
     val dbPath = tempDir.resolve("test.db").toString()
     val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-    Database.migrate(jdbi)
+    Database.migrate(jdbi).getOrElse { throw it }
     return jdbi
 }
 
@@ -59,9 +62,22 @@ internal fun loadTestResourceBytes(resourceName: String): ByteArray {
     return stream.use { it.readBytes() }
 }
 
-internal fun imageDimensions(bytes: ByteArray): ImageDimensions {
-    val image = ImageIO.read(ByteArrayInputStream(bytes)) ?: error("Unable to decode image")
-    return ImageDimensions(width = image.width, height = image.height)
+internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
+    val tempFile =
+        runInterruptible(Dispatchers.IO) {
+            File.createTempFile("test-", ".tmp").apply { writeBytes(bytes) }
+        }
+    try {
+        val imageMagick =
+            ImageMagick().getOrElse { error("ImageMagick not available: ${it.message}") }
+        val size =
+            imageMagick.identifyImageSize(tempFile).getOrElse {
+                error("Unable to identify image: ${it.message}")
+            }
+        return ImageDimensions(width = size.width, height = size.height)
+    } finally {
+        runInterruptible(Dispatchers.IO) { tempFile.delete() }
+    }
 }
 
 internal suspend fun uploadTestImage(

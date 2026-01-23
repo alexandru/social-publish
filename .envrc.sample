@@ -1,6 +1,6 @@
 # Environment for local development of backend
 # Only required values are set to reasonable local defaults.
-# Commented variables are optional integrations — uncomment and fill when needed.
+# Commented variables are optional clients — uncomment and fill when needed.
 
 # Database
 export DB_PATH="/tmp/social-publish.kt/socialpublish.db"

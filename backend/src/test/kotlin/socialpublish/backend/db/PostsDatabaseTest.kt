@@ -1,5 +1,6 @@
 package socialpublish.backend.db
 
+import arrow.core.getOrElse
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -56,8 +57,8 @@ class PostsDatabaseTest {
                 images = emptyList(),
             )
 
-        val created = postsDb.create(payload, listOf("mastodon", "bluesky"))
-        val retrieved = postsDb.searchByUuid(created.uuid)
+        val created = postsDb.create(payload, listOf("mastodon", "bluesky")).getOrElse { throw it }
+        val retrieved = postsDb.searchByUuid(created.uuid).getOrElse { throw it }
 
         // Verify
         assertNotNull(created.uuid)

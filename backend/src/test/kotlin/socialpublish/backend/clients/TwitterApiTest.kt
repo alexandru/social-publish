@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations
+package socialpublish.backend.clients
 
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
@@ -6,7 +6,6 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receiveStream
@@ -18,7 +17,6 @@ import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -27,8 +25,8 @@ import kotlinx.serialization.json.long
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import socialpublish.backend.integrations.twitter.TwitterApiModule
-import socialpublish.backend.integrations.twitter.TwitterConfig
+import socialpublish.backend.clients.twitter.TwitterApiModule
+import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
@@ -150,9 +148,8 @@ class TwitterApiTest {
                     kind = "twitter-oauth-token",
                     payload =
                         Json.encodeToString(
-                            socialpublish.backend.integrations.twitter.TwitterOAuthToken
-                                .serializer(),
-                            socialpublish.backend.integrations.twitter.TwitterOAuthToken(
+                            socialpublish.backend.clients.twitter.TwitterOAuthToken.serializer(),
+                            socialpublish.backend.clients.twitter.TwitterOAuthToken(
                                 key = "tok",
                                 secret = "sec",
                             ),
@@ -261,9 +258,8 @@ class TwitterApiTest {
                     kind = "twitter-oauth-token",
                     payload =
                         Json.encodeToString(
-                            socialpublish.backend.integrations.twitter.TwitterOAuthToken
-                                .serializer(),
-                            socialpublish.backend.integrations.twitter.TwitterOAuthToken(
+                            socialpublish.backend.clients.twitter.TwitterOAuthToken.serializer(),
+                            socialpublish.backend.clients.twitter.TwitterOAuthToken(
                                 key = "tok",
                                 secret = "sec",
                             ),
@@ -331,9 +327,9 @@ class TwitterApiTest {
                         kind = "twitter-oauth-token",
                         payload =
                             Json.encodeToString(
-                                socialpublish.backend.integrations.twitter.TwitterOAuthToken
+                                socialpublish.backend.clients.twitter.TwitterOAuthToken
                                     .serializer(),
-                                socialpublish.backend.integrations.twitter.TwitterOAuthToken(
+                                socialpublish.backend.clients.twitter.TwitterOAuthToken(
                                     key = "tok",
                                     secret = "sec",
                                 ),

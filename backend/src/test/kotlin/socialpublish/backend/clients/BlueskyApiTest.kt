@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations
+package socialpublish.backend.clients
 
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
@@ -18,9 +18,9 @@ import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
-import socialpublish.backend.integrations.bluesky.BlueskyApiModule
-import socialpublish.backend.integrations.bluesky.BlueskyConfig
-import socialpublish.backend.linkpreview.LinkPreviewParser
+import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.bluesky.BlueskyConfig
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.testutils.*
 

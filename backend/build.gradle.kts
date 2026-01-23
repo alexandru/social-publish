@@ -36,9 +36,6 @@ dependencies {
     // Clikt for CLI parsing
     implementation(libs.clikt)
 
-    // Scrimage for image processing
-    implementation(libs.bundles.scrimage)
-
     // Logging
     implementation(libs.bundles.logging)
 
@@ -54,6 +51,11 @@ dependencies {
     // BCrypt for password hashing
     implementation(libs.bcrypt)
     implementation(libs.jbcrypt)
+
+    // Apache Commons Text for string escaping (e.g., shell commands)
+    implementation(libs.apache.commons.text)
+    // Apache Tika for MIME type detection
+    implementation(libs.apache.tika.core)
 
     // Testing
     testImplementation(libs.kotlin.test)

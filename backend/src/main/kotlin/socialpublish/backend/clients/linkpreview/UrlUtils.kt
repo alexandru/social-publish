@@ -1,4 +1,4 @@
-package socialpublish.backend.linkpreview
+package socialpublish.backend.clients.linkpreview
 
 import java.net.URI
 

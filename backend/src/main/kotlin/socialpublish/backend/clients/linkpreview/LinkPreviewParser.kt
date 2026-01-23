@@ -1,4 +1,4 @@
-package socialpublish.backend.linkpreview
+package socialpublish.backend.clients.linkpreview
 
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource

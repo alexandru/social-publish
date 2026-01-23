@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import com.rometools.rome.feed.synd.SyndCategoryImpl
@@ -67,7 +68,8 @@ class RssModule(
                     images = request.images,
                 )
 
-            val post = postsDb.create(payload, request.targets ?: emptyList())
+            val post =
+                postsDb.create(payload, request.targets ?: emptyList()).getOrElse { throw it }
 
             NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
         } catch (e: Exception) {
@@ -87,7 +89,7 @@ class RssModule(
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAll().getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
@@ -122,7 +124,7 @@ class RssModule(
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
-                val upload = filesDb.getFileByUuid(imageUuid) ?: continue
+                val upload = filesDb.getFileByUuid(imageUuid).getOrElse { throw it } ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())
@@ -226,7 +228,7 @@ class RssModule(
                     return
                 }
 
-        val post = postsDb.searchByUuid(uuid)
+        val post = postsDb.searchByUuid(uuid).getOrElse { throw it }
         if (post == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
             return

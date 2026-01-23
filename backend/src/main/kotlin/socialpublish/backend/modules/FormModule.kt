@@ -11,20 +11,13 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import socialpublish.backend.integrations.bluesky.BlueskyApiModule
-import socialpublish.backend.integrations.linkedin.LinkedInApiModule
-import socialpublish.backend.integrations.mastodon.MastodonApiModule
-import socialpublish.backend.integrations.twitter.TwitterApiModule
-import socialpublish.backend.models.ApiError
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CompositeError
-import socialpublish.backend.models.CompositeErrorResponse
-import socialpublish.backend.models.CompositeErrorWithDetails
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.twitter.TwitterApiModule
+import socialpublish.backend.models.*
 
 /** Form module for broadcasting posts to multiple social media platforms */
 class FormModule(
@@ -92,7 +85,10 @@ class FormModule(
             }
         }
 
-        val results = coroutineScope { tasks.map { task -> async { task() } }.map { it.await() } }
+        val results = coroutineScope {
+            // Run all tasks concurrently
+            tasks.map { task -> async { task() } }.awaitAll()
+        }
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {

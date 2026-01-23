@@ -1,4 +1,4 @@
-package socialpublish.backend.integrations.linkedin
+package socialpublish.backend.clients.linkedin
 
 /**
  * Configuration for LinkedIn OAuth2 and API integration.

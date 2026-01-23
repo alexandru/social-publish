@@ -19,11 +19,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
+import socialpublish.backend.clients.bluesky.BlueskyConfig
+import socialpublish.backend.clients.linkedin.LinkedInConfig
+import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.Database
-import socialpublish.backend.integrations.bluesky.BlueskyConfig
-import socialpublish.backend.integrations.linkedin.LinkedInConfig
-import socialpublish.backend.integrations.mastodon.MastodonConfig
-import socialpublish.backend.integrations.twitter.TwitterConfig
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.server.ServerAuthConfig
