@@ -56,6 +56,7 @@ import socialpublish.backend.modules.RssModule
 import socialpublish.backend.modules.configureAuth
 import socialpublish.backend.modules.extractJwtToken
 import socialpublish.backend.utils.isPathWithinBase
+import socialpublish.backend.utils.parseUrl
 
 private val logger = KotlinLogging.logger {}
 
@@ -94,14 +95,12 @@ fun startServer(
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
-            // Allow localhost for development
-            allowHost("localhost:3000")
-            allowHost("localhost:3002") // Webpack development server
-            // Allow 127.0.0.1 for development
-            allowHost("127.0.0.1:3000")
-            allowHost("127.0.0.1:3002")
-            // Allow same origin (when frontend is served from same domain)
-            allowSameOrigin = true
+            val parsedUrl = parseUrl(config.server.baseUrl)
+            if (parsedUrl != null && !parsedUrl.isLocal()) {
+                allowHost(parsedUrl.host)
+                // Allow same origin (when frontend is served from same domain)
+                allowSameOrigin = true
+            }
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
             allowHeader(io.ktor.http.HttpHeaders.Authorization)
             allowCredentials = true
