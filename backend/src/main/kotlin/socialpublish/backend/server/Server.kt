@@ -10,6 +10,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngineFactory
+import io.ktor.server.http.HttpRequestLifecycle
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -17,6 +18,7 @@ import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
@@ -106,6 +108,9 @@ fun startServer(
             allowCredentials = true
         }
 
+        // Install HttpRequestLifecycle plugin to cancel requests when clients disconnect
+        install(HttpRequestLifecycle) { cancelCallOnClose = true }
+
         install(ContentNegotiation) {
             @OptIn(ExperimentalSerializationApi::class)
             json(
@@ -161,6 +166,9 @@ fun startServer(
         configureAuth(config.server.auth)
 
         routing {
+            // Swagger UI for API documentation
+            swaggerUI(path = "swagger", swaggerFile = "openapi.yaml") { version = "5.10.5" }
+
             // Health check endpoints
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
 
