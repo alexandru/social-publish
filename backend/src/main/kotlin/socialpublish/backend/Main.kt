@@ -72,7 +72,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 help = "Path to serve static content from (default: public)",
                 envvar = "STATIC_CONTENT_PATH",
             )
-            .file(mustExist = true, canBeDir = true, canBeFile = false, mustBeReadable = true)
+            .file(mustExist = false, canBeDir = true, canBeFile = false)
             .multiple()
 
     // Server authentication configuration
@@ -109,11 +109,9 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 envvar = "UPLOADED_FILES_PATH",
             )
             .file(
-                mustExist = true,
+                mustExist = false,
                 canBeDir = true,
                 canBeFile = false,
-                mustBeReadable = true,
-                mustBeWritable = true,
             )
             .required()
 
