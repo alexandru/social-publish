@@ -155,7 +155,7 @@ To run the development environment with live reload:
 make dev
 ```
 
-This starts both the backend server (port 3000) and frontend dev server (port 3001) with hot reload enabled.
+This starts both the backend server (port 3000) and frontend dev server (port 3002) with hot reload enabled.
 
 To run backend and frontend separately:
 
@@ -167,7 +167,7 @@ make dev-backend
 make dev-frontend
 ```
 
-You can navigate to <http://localhost:3001> for the frontend, while the backend is available at <http://localhost:3000>.
+You can navigate to <http://localhost:3002> for the frontend, while the backend is available at <http://localhost:3000>.
 
 ### Building
 

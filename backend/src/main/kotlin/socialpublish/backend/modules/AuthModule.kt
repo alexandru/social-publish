@@ -44,9 +44,7 @@ class AuthModule(
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
-            .withExpiresAt(
-                Date(System.currentTimeMillis() + 168 * 60 * 60 * 1000)
-            ) // 168 hours = 7 days
+            .withExpiresAt(Date(System.currentTimeMillis() + JWT_EXPIRATION_MILLIS))
             .sign(algorithm)
     }
 
@@ -136,6 +134,9 @@ class AuthModule(
     }
 
     companion object {
+        /** JWT token expiration duration in milliseconds (6 months = ~180 days) */
+        private const val JWT_EXPIRATION_MILLIS = 180L * 24 * 60 * 60 * 1000
+
         /**
          * Generate a BCrypt hash for a password. Use this to create hashed passwords for
          * SERVER_AUTH_PASSWORD.

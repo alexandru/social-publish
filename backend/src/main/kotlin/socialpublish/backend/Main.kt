@@ -279,7 +279,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
     }
 }
 
-/** Subcommand to generate BCrypt hash from a password. */
+/** Subcommand to generate a BCrypt hash for a password. */
 class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Generate a BCrypt hash for a password"

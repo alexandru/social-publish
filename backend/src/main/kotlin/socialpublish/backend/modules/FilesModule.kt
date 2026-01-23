@@ -30,6 +30,7 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
+import socialpublish.backend.utils.sanitizeFilename
 
 private val logger = KotlinLogging.logger {}
 
@@ -188,7 +189,7 @@ private constructor(
         call.response.header(HttpHeaders.ContentType, upload.mimetype)
         call.response.header(
             HttpHeaders.ContentDisposition,
-            "inline; filename=\"${upload.originalname}\"",
+            "inline; filename=\"${sanitizeFilename(upload.originalname)}\"",
         )
         call.respondFile(filePath)
     }

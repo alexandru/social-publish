@@ -15,7 +15,7 @@ This is a Kotlin multiplatform project with:
   - HTTP server: Ktor on port 3000
   
 - **Frontend**: Compose for Web (Kotlin/JS) (in `frontend/` directory)
-  - Development server runs on port 3001
+  - Development server runs on port 3002
   - Communicates with backend API
   
 - **Build**: Gradle with Kotlin DSL
@@ -40,7 +40,7 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   ./gradlew :backend:run --args="start-server"
   ```
 
-- Run frontend only (port 3001):
+- Run frontend only (port 3002):
   ```bash
   make dev-frontend
   # or
@@ -184,7 +184,7 @@ Key environment variables used by the application (see `.envrc.sample` and READM
 
 ### Development Server Issues
 
-- Check if ports 3000 (backend) or 3001 (frontend) are already in use
+- Check if ports 3000 (backend) or 3002 (frontend) are already in use
 - Verify environment variables are set (use `.envrc` with direnv)
 - Check logs for startup errors
 - Ensure database path is writable

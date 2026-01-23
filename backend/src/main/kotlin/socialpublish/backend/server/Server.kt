@@ -13,6 +13,9 @@ import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.plugins.ratelimit.RateLimit
+import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
@@ -21,6 +24,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import java.io.File
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -51,6 +55,7 @@ import socialpublish.backend.modules.FormModule
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.modules.configureAuth
 import socialpublish.backend.modules.extractJwtToken
+import socialpublish.backend.utils.isPathWithinBase
 
 private val logger = KotlinLogging.logger {}
 
@@ -89,7 +94,14 @@ fun startServer(
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
-            anyHost()
+            // Allow localhost for development
+            allowHost("localhost:3000")
+            allowHost("localhost:3002") // Webpack development server
+            // Allow 127.0.0.1 for development
+            allowHost("127.0.0.1:3000")
+            allowHost("127.0.0.1:3002")
+            // Allow same origin (when frontend is served from same domain)
+            allowSameOrigin = true
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
             allowHeader(io.ktor.http.HttpHeaders.Authorization)
             allowCredentials = true
@@ -130,11 +142,17 @@ fun startServer(
 
         install(CallLogging) { level = Level.INFO }
 
+        // Configure rate limiting for login endpoint
+        install(RateLimit) {
+            register(RateLimitName("login")) { rateLimiter(limit = 20, refillPeriod = 5.minutes) }
+        }
+
         install(StatusPages) {
             exception<Throwable> { call, cause ->
                 logger.error(cause) { "Unhandled exception" }
+                // Don't expose internal error details to clients for security
                 call.respondText(
-                    text = "500: ${cause.message}",
+                    text = "500: Internal Server Error",
                     status = HttpStatusCode.InternalServerError,
                 )
             }
@@ -148,7 +166,7 @@ fun startServer(
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
 
             // Authentication routes
-            post("/api/login") { authModule.login(call) }
+            rateLimit(RateLimitName("login")) { post("/api/login") { authModule.login(call) } }
 
             // Protected routes
             authenticate("auth-jwt") {
@@ -329,10 +347,9 @@ fun startServer(
                                 File(canonicalBaseDir, path)
                             }
 
+                        // Security: Check that the resolved file is within the allowed directory
                         if (
-                            file.exists() &&
-                                file.isFile &&
-                                file.canonicalPath.startsWith(canonicalBaseDir.path)
+                            file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)
                         ) {
                             call.respondFile(file)
                             return@get

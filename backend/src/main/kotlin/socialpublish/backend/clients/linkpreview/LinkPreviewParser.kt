@@ -9,19 +9,40 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
 private val logger = KotlinLogging.logger {}
 
-/** Parser for extracting link previews from HTML content. */
-class LinkPreviewParser(private val httpClient: HttpClient) {
-    companion object {
-        suspend fun <A> scoped(block: suspend (LinkPreviewParser) -> A): A = resourceScope {
-            LinkPreviewParser().bind().let { parser -> block(parser) }
-        }
+/**
+ * Configuration for LinkPreviewParser HTTP client timeouts.
+ *
+ * @param requestTimeout Total request timeout
+ * @param connectTimeout Connection establishment timeout
+ * @param socketTimeout Socket read/write timeout
+ */
+data class LinkPreviewConfig(
+    val requestTimeout: Duration = 30.seconds,
+    val connectTimeout: Duration = 10.seconds,
+    val socketTimeout: Duration = 20.seconds,
+)
 
-        operator fun invoke(): Resource<LinkPreviewParser> = resource {
+/** Parser for extracting link previews from HTML content. */
+class LinkPreviewParser(
+    private val httpClient: HttpClient,
+    private val config: LinkPreviewConfig = LinkPreviewConfig(),
+) {
+    companion object {
+        suspend fun <A> scoped(
+            config: LinkPreviewConfig = LinkPreviewConfig(),
+            block: suspend (LinkPreviewParser) -> A,
+        ): A = resourceScope { LinkPreviewParser(config).bind().let { parser -> block(parser) } }
+
+        operator fun invoke(
+            config: LinkPreviewConfig = LinkPreviewConfig()
+        ): Resource<LinkPreviewParser> = resource {
             val httpClient =
                 install(
                     {
@@ -29,11 +50,18 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
                             // Disable automatic redirects to detect bot blocking
                             followRedirects = false
                             expectSuccess = false
+
+                            // Configure timeouts to prevent hanging on unresponsive servers
+                            install(io.ktor.client.plugins.HttpTimeout) {
+                                requestTimeoutMillis = config.requestTimeout.inWholeMilliseconds
+                                connectTimeoutMillis = config.connectTimeout.inWholeMilliseconds
+                                socketTimeoutMillis = config.socketTimeout.inWholeMilliseconds
+                            }
                         }
                     },
                     { client, _ -> client.close() },
                 )
-            LinkPreviewParser(httpClient)
+            LinkPreviewParser(httpClient, config)
         }
     }
 
