@@ -46,9 +46,8 @@ dependencyResolutionManagement {
             library("ktor-server-call-logging", "io.ktor", "ktor-server-call-logging").versionRef("ktor")
             library("ktor-server-cors", "io.ktor", "ktor-server-cors").versionRef("ktor")
             library("ktor-server-rate-limit", "io.ktor", "ktor-server-rate-limit").versionRef("ktor")
-            library("ktor-server-openapi", "io.ktor", "ktor-server-openapi").versionRef("ktor")
+            library("ktor-server-routing-openapi", "io.ktor", "ktor-server-routing-openapi").versionRef("ktor")
             library("ktor-server-swagger", "io.ktor", "ktor-server-swagger").versionRef("ktor")
-            library("ktor-openapi-schema", "io.ktor", "ktor-openapi-schema").versionRef("ktor")
 
             // Ktor client libraries
             library("ktor-client-core", "io.ktor", "ktor-client-core").versionRef("ktor")
@@ -128,9 +127,8 @@ dependencyResolutionManagement {
                     "ktor-server-call-logging",
                     "ktor-server-cors",
                     "ktor-server-rate-limit",
-                    "ktor-server-openapi",
+                    "ktor-server-routing-openapi",
                     "ktor-server-swagger",
-                    "ktor-openapi-schema",
                 ),
             )
             bundle(

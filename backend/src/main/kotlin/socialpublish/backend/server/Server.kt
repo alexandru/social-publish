@@ -5,6 +5,8 @@ import arrow.core.Either
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
+import io.ktor.openapi.OpenApiDoc
+import io.ktor.openapi.OpenApiInfo
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
@@ -23,8 +25,14 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.openapi.describe
+import io.ktor.server.routing.openapi.hide
+import io.ktor.server.routing.openapi.mapToPathItemsAndSchema
+import io.ktor.server.routing.openapi.plus
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import io.ktor.server.routing.routingRoot
+import io.ktor.utils.io.ExperimentalKtorApi
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -166,80 +174,187 @@ fun startServer(
         configureAuth(config.server.auth)
 
         routing {
-            // Swagger UI for API documentation
-            swaggerUI(path = "swagger", swaggerFile = "openapi.yaml") { version = "5.10.5" }
+            // OpenAPI spec endpoint - generates spec from annotated routes
+            @OptIn(ExperimentalKtorApi::class)
+            get("/openapi.json") {
+                    val openApiDoc =
+                        OpenApiDoc(
+                            info =
+                                OpenApiInfo(
+                                    title = "Social Publish API",
+                                    version = "1.0.0",
+                                    description =
+                                        "API for publishing posts to social media platforms",
+                                )
+                        ) + call.application.routingRoot.descendants()
+                    call.respond<OpenApiDoc>(openApiDoc)
+                }
+                .hide()
+
+            // Swagger UI for API documentation - points to dynamically generated spec
+            swaggerUI(path = "swagger", swaggerFile = "openapi.json") {
+                version = "5.10.5"
+            }
 
             // Health check endpoints
+            @OptIn(ExperimentalKtorApi::class)
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
+                .describe {
+                    summary = "Health check"
+                    description = "Returns 'pong' to indicate the server is running"
+                    responses { HttpStatusCode.OK { description = "Server is healthy" } }
+                }
 
             // Authentication routes
-            rateLimit(RateLimitName("login")) { post("/api/login") { authModule.login(call) } }
+            @OptIn(ExperimentalKtorApi::class)
+            rateLimit(RateLimitName("login")) {
+                post("/api/login") { authModule.login(call) }
+                    .describe {
+                        summary = "User login"
+                        description = "Authenticate user and get JWT token"
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "Successful login, returns JWT token"
+                            }
+                            HttpStatusCode.Unauthorized { description = "Invalid credentials" }
+                        }
+                    }
+            }
 
             // Protected routes
+            @OptIn(ExperimentalKtorApi::class)
             authenticate("auth-jwt") {
                 get("/api/protected") { authModule.protectedRoute(call) }
+                    .describe {
+                        summary = "Protected route"
+                        description = "Test endpoint requiring authentication"
+                        responses {
+                            HttpStatusCode.OK { description = "Authenticated successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        }
+                    }
 
                 // RSS post creation
                 post("/api/rss/post") { rssModule.createPostRoute(call) }
+                    .describe {
+                        summary = "Create RSS post"
+                        description = "Create a new RSS feed post"
+                        responses {
+                            HttpStatusCode.OK { description = "Post created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        }
+                    }
 
                 // File upload
                 post("/api/files/upload") {
-                    when (val result = filesModule.uploadFile(call)) {
-                        is Either.Right -> call.respond(result.value)
-                        is Either.Left -> {
-                            val error = result.value
-                            call.respond(
-                                HttpStatusCode.fromValue(error.status),
-                                ErrorResponse(error = error.errorMessage),
-                            )
+                        when (val result = filesModule.uploadFile(call)) {
+                            is Either.Right -> call.respond(result.value)
+                            is Either.Left -> {
+                                val error = result.value
+                                call.respond(
+                                    HttpStatusCode.fromValue(error.status),
+                                    ErrorResponse(error = error.errorMessage),
+                                )
+                            }
                         }
                     }
-                }
+                    .describe {
+                        summary = "Upload file"
+                        description = "Upload a file for use in posts"
+                        responses {
+                            HttpStatusCode.OK { description = "File uploaded successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        }
+                    }
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                    if (blueskyModule != null) {
-                        blueskyModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Bluesky integration not configured"),
-                        )
+                        if (blueskyModule != null) {
+                            blueskyModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Bluesky integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Bluesky post"
+                        description = "Publish a post to Bluesky"
+                        responses {
+                            HttpStatusCode.OK { description = "Post created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                            HttpStatusCode.ServiceUnavailable {
+                                description = "Bluesky integration not configured"
+                            }
+                        }
+                    }
 
                 post("/api/mastodon/post") {
-                    if (mastodonModule != null) {
-                        mastodonModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Mastodon integration not configured"),
-                        )
+                        if (mastodonModule != null) {
+                            mastodonModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Mastodon integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Mastodon post"
+                        description = "Publish a post to Mastodon"
+                        responses {
+                            HttpStatusCode.OK { description = "Post created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                            HttpStatusCode.ServiceUnavailable {
+                                description = "Mastodon integration not configured"
+                            }
+                        }
+                    }
 
                 post("/api/twitter/post") {
-                    if (twitterModule != null) {
-                        twitterModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
+                        if (twitterModule != null) {
+                            twitterModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Twitter post"
+                        description = "Publish a post to Twitter/X"
+                        responses {
+                            HttpStatusCode.OK { description = "Post created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                            HttpStatusCode.ServiceUnavailable {
+                                description = "Twitter integration not configured"
+                            }
+                        }
+                    }
 
                 post("/api/linkedin/post") {
-                    if (linkedInModule != null) {
-                        linkedInModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
+                        if (linkedInModule != null) {
+                            linkedInModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create LinkedIn post"
+                        description = "Publish a post to LinkedIn"
+                        responses {
+                            HttpStatusCode.OK { description = "Post created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                            HttpStatusCode.ServiceUnavailable {
+                                description = "LinkedIn integration not configured"
+                            }
+                        }
+                    }
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
@@ -328,16 +443,54 @@ fun startServer(
                 }
 
                 post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
+                    .describe {
+                        summary = "Broadcast post to multiple platforms"
+                        description = "Publish a post to multiple social media platforms at once"
+                        responses {
+                            HttpStatusCode.OK { description = "Posts created successfully" }
+                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        }
+                    }
             }
 
             // Public RSS feed
+            @OptIn(ExperimentalKtorApi::class)
             get("/rss") { rssModule.generateRssRoute(call) }
+                .describe {
+                    summary = "Get RSS feed"
+                    description = "Generate and retrieve the RSS feed"
+                    responses { HttpStatusCode.OK { description = "RSS feed" } }
+                }
 
+            @OptIn(ExperimentalKtorApi::class)
             get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
+                .describe {
+                    summary = "Get RSS feed for specific target"
+                    description = "Generate and retrieve the RSS feed for a specific target"
+                    responses { HttpStatusCode.OK { description = "RSS feed for target" } }
+                }
 
+            @OptIn(ExperimentalKtorApi::class)
             get("/rss/{uuid}") { rssModule.getRssItem(call) }
+                .describe {
+                    summary = "Get RSS item"
+                    description = "Retrieve a specific RSS item by UUID"
+                    responses {
+                        HttpStatusCode.OK { description = "RSS item" }
+                        HttpStatusCode.NotFound { description = "Item not found" }
+                    }
+                }
 
+            @OptIn(ExperimentalKtorApi::class)
             get("/files/{uuid}") { filesModule.getFile(call) }
+                .describe {
+                    summary = "Get uploaded file"
+                    description = "Retrieve an uploaded file by UUID"
+                    responses {
+                        HttpStatusCode.OK { description = "File content" }
+                        HttpStatusCode.NotFound { description = "File not found" }
+                    }
+                }
 
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
