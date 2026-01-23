@@ -260,13 +260,17 @@ private constructor(
                             val newHeight = (height * scale).toInt()
                             val scaled = image.scaleTo(newWidth, newHeight)
                             val resizedBytes = encodeImage(scaled, upload.mimetype)
+                            // Update MIME type if we converted WebP to JPEG
+                            val resizedMimetype =
+                                if (upload.mimetype.contains("webp")) "image/jpeg"
+                                else upload.mimetype
                             runInterruptible(Dispatchers.IO) {
                                 val cacheFile = File(resizingPath, upload.hash)
                                 cacheFile.writeBytes(resizedBytes)
                             }
                             return ProcessedUpload(
                                 originalname = upload.originalname,
-                                mimetype = upload.mimetype,
+                                mimetype = resizedMimetype,
                                 altText = upload.altText,
                                 width = scaled.width,
                                 height = scaled.height,
