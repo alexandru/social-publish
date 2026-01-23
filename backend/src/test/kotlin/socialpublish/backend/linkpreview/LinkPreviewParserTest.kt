@@ -286,7 +286,7 @@ class LinkPreviewParserTest {
     fun `fetches YouTube video using oembed API for youtube com URL`() = runTest {
         val mockEngine = MockEngine { request ->
             when (request.url.toString()) {
-                "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=5l2wMgm7ZOk&format=json&maxwidth=1280&maxheight=720" ->
+                "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D5l2wMgm7ZOk&format=json&maxwidth=1280&maxheight=720" ->
                     respond(
                         content =
                             ByteReadChannel(
@@ -321,7 +321,7 @@ class LinkPreviewParserTest {
     fun `fetches YouTube video using oembed API for youtu be URL`() = runTest {
         val mockEngine = MockEngine { request ->
             when (request.url.toString()) {
-                "https://www.youtube.com/oembed?url=https://youtu.be/Y3N9qlPZBc0&format=json&maxwidth=1280&maxheight=720" ->
+                "https://www.youtube.com/oembed?url=https%3A%2F%2Fyoutu.be%2FY3N9qlPZBc0&format=json&maxwidth=1280&maxheight=720" ->
                     respond(
                         content =
                             ByteReadChannel(

@@ -8,6 +8,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.URLBuilder
 import io.ktor.http.isSuccess
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -135,10 +136,20 @@ class LinkPreviewParser(
      */
     private suspend fun fetchYouTubeOEmbed(url: String): LinkPreview? {
         return try {
-            // Request larger thumbnails by specifying maxwidth and maxheight
-            // This helps get better quality preview images (e.g., 1280x720 instead of 480x360)
+            // Build URL with proper encoding to prevent injection attacks
             val oembedUrl =
-                "https://www.youtube.com/oembed?url=$url&format=json&maxwidth=1280&maxheight=720"
+                URLBuilder("https://www.youtube.com/oembed")
+                    .apply {
+                        parameters.append("url", url)
+                        parameters.append("format", "json")
+                        // Request larger thumbnails for better quality preview images (e.g.,
+                        // 1280x720
+                        // instead of 480x360)
+                        parameters.append("maxwidth", "1280")
+                        parameters.append("maxheight", "720")
+                    }
+                    .buildString()
+
             val response = httpClient.get(oembedUrl)
 
             if (!response.status.isSuccess()) {
