@@ -10,6 +10,17 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasJwtToken()
     var navbarActive by remember { mutableStateOf(false) }
 
+    // Normalize currentPath to ignore trailing slashes and query strings so active checks are
+    // robust
+    val path =
+        currentPath.substringBefore('?').let {
+            when {
+                it.isEmpty() -> "/"
+                it != "/" && it.endsWith("/") -> it.removeSuffix("/")
+                else -> it
+            }
+        }
+
     Nav(
         attrs = {
             classes("navbar", "is-primary")
@@ -41,29 +52,39 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
             }
         ) {
             Div(attrs = { classes("navbar-start") }) {
-                A(
-                    href = "/",
-                    attrs = {
-                        classes("navbar-item")
-                        if (currentPath == "/") classes("is-active")
-                    },
-                ) {
-                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-home") }) }
-                    B { Text("Home") }
+                Div(attrs = { classes("navbar-item") }) {
+                    Div(attrs = { classes("buttons") }) {
+                        A(
+                            href = "/",
+                            attrs = {
+                                classes("button", "is-primary")
+                                if (currentPath == "/") classes("is-active")
+                            },
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fas", "fa-home") })
+                            }
+                            B { Text("Home") }
+                        }
+                    }
                 }
 
                 if (isLoggedIn) {
-                    A(
-                        href = "/form",
-                        attrs = {
-                            classes("navbar-item")
-                            if (currentPath == "/form") classes("is-active")
-                        },
-                    ) {
-                        Span(attrs = { classes("icon") }) {
-                            I(attrs = { classes("fas", "fa-paper-plane") })
+                    Div(attrs = { classes("navbar-item") }) {
+                        Div(attrs = { classes("buttons") }) {
+                            A(
+                                href = "/form",
+                                attrs = {
+                                    classes("button", "is-primary")
+                                    if (currentPath == "/form") classes("is-active")
+                                },
+                            ) {
+                                Span(attrs = { classes("icon") }) {
+                                    I(attrs = { classes("fas", "fa-paper-plane") })
+                                }
+                                B { Text("Publish") }
+                            }
                         }
-                        B { Text("Publish") }
                     }
                 }
 

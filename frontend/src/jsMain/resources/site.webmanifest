@@ -9,6 +9,18 @@
   "description": "Share to multiple social media platforms at the same time.",
   "icons": [
     {
+      "src": "assets/logos/cloud-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/logos/cloud-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
       "src": "assets/logos/cloud-256x256.png",
       "sizes": "256x256",
       "type": "image/png",
