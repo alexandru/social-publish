@@ -132,7 +132,7 @@ You can then configure `ifttt.com`. When adding an "action" to your applet, sear
 
 Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
 
-<img src="./docs/form-20240310.png" width="500" alt='Screenshot of "Post a New Social Message" form' />
+<img src="./docs/form-screenshot.png" width="500" alt='Screenshot of "Post a New Social Message" form' />
 <hr/>
 
 ### RSS feed
