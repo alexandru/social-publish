@@ -27,7 +27,6 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.openapi.hide
-import io.ktor.server.routing.openapi.mapToPathItemsAndSchema
 import io.ktor.server.routing.openapi.plus
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -192,9 +191,7 @@ fun startServer(
                 .hide()
 
             // Swagger UI for API documentation - points to dynamically generated spec
-            swaggerUI(path = "swagger", swaggerFile = "openapi.json") {
-                version = "5.10.5"
-            }
+            swaggerUI(path = "swagger", swaggerFile = "openapi.json") { version = "5.10.5" }
 
             // Health check endpoints
             @OptIn(ExperimentalKtorApi::class)
