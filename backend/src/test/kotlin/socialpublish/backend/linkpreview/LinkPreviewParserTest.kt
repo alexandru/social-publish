@@ -1,5 +1,12 @@
 package socialpublish.backend.linkpreview
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -273,5 +280,103 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("Malformed Base URL Test", preview.title)
         assertNull(preview.image) // Should be null due to malformed base URL
+    }
+
+    @Test
+    fun `fetches YouTube video using oembed API for youtube com URL`() = runTest {
+        val mockEngine = MockEngine { request ->
+            when (request.url.toString()) {
+                "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=5l2wMgm7ZOk&format=json" ->
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                    "title": "Why Black Boxes are so Hard to Reuse",
+                                    "author_name": "Computer History Museum",
+                                    "type": "video",
+                                    "thumbnail_url": "https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg"
+                                }
+                                """
+                                    .trimIndent()
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                else -> respond(content = "", status = HttpStatusCode.NotFound)
+            }
+        }
+
+        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=5l2wMgm7ZOk")
+
+        assertNotNull(preview)
+        assertEquals("Why Black Boxes are so Hard to Reuse", preview.title)
+        assertEquals("Computer History Museum", preview.description)
+        assertEquals("https://www.youtube.com/watch?v=5l2wMgm7ZOk", preview.url)
+        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
+    }
+
+    @Test
+    fun `fetches YouTube video using oembed API for youtu be URL`() = runTest {
+        val mockEngine = MockEngine { request ->
+            when (request.url.toString()) {
+                "https://www.youtube.com/oembed?url=https://youtu.be/Y3N9qlPZBc0&format=json" ->
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                    "title": "OpenAI is Broke",
+                                    "author_name": "Vanessa Wingårdh",
+                                    "type": "video",
+                                    "thumbnail_url": "https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg"
+                                }
+                                """
+                                    .trimIndent()
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                else -> respond(content = "", status = HttpStatusCode.NotFound)
+            }
+        }
+
+        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val preview = parser.fetchPreview("https://youtu.be/Y3N9qlPZBc0")
+
+        assertNotNull(preview)
+        assertEquals("OpenAI is Broke", preview.title)
+        assertEquals("Vanessa Wingårdh", preview.description)
+        assertEquals("https://youtu.be/Y3N9qlPZBc0", preview.url)
+        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
+    }
+
+    @Test
+    fun `returns null when YouTube oembed API returns error`() = runTest {
+        val mockEngine = MockEngine { request ->
+            respond(content = "", status = HttpStatusCode.NotFound)
+        }
+
+        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=invalid")
+
+        assertNull(preview)
+    }
+
+    @Test
+    fun `returns null when YouTube oembed API returns invalid JSON`() = runTest {
+        val mockEngine = MockEngine { request ->
+            respond(
+                content = ByteReadChannel("invalid json"),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+
+        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=123")
+
+        assertNull(preview)
     }
 }

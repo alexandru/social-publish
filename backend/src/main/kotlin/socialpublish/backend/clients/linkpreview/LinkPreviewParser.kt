@@ -92,14 +92,19 @@ class LinkPreviewParser(
     /**
      * Fetches a URL and extracts link preview metadata.
      *
-     * Prevents redirects to avoid bot detection (e.g., YouTube). If a redirect is detected, this
-     * function returns null.
+     * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For other URLs, fetches
+     * the HTML content directly. Prevents redirects to avoid bot detection. If a redirect is
+     * detected, this function returns null.
      *
      * @param url The URL to fetch
-     * @param httpClient Optional HTTP client (defaults to a client with redirects disabled)
      * @return A LinkPreview object if successful, null if redirect detected or fetch failed
      */
     suspend fun fetchPreview(url: String): LinkPreview? {
+        // Use YouTube OEmbed API for YouTube URLs to avoid bot blocking
+        if (isYouTubeUrl(url)) {
+            return fetchYouTubeOEmbed(url)
+        }
+
         return try {
             val response = httpClient.get(url)
 
@@ -112,6 +117,33 @@ class LinkPreviewParser(
             parseHtml(html, url)
         } catch (e: Exception) {
             logger.warn(e) { "Error fetching link preview for $url" }
+            null
+        }
+    }
+
+    /**
+     * Fetches YouTube video metadata using the YouTube OEmbed API.
+     *
+     * Does not fallback to HTML fetching if the OEmbed API fails, as YouTube blocks bots and
+     * servers.
+     *
+     * @param url The YouTube URL to fetch metadata for
+     * @return A LinkPreview if successful, null otherwise
+     */
+    private suspend fun fetchYouTubeOEmbed(url: String): LinkPreview? {
+        return try {
+            val oembedUrl = "https://www.youtube.com/oembed?url=$url&format=json"
+            val response = httpClient.get(oembedUrl)
+
+            if (!response.status.isSuccess()) {
+                logger.warn { "Failed to fetch YouTube OEmbed for $url: ${response.status}" }
+                return null
+            }
+
+            val json = response.bodyAsText()
+            parseYouTubeOEmbedResponse(json, url)
+        } catch (e: Exception) {
+            logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
             null
         }
     }
