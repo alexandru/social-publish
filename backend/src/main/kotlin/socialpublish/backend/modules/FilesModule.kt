@@ -335,7 +335,7 @@ private constructor(
 
     /** Get the output MIME type after encoding. WebP is converted to JPEG. */
     private fun getOutputMimeType(inputMimeType: String): String {
-        return if (inputMimeType.contains("webp")) "image/jpeg" else inputMimeType
+        return if (inputMimeType == "image/webp") "image/jpeg" else inputMimeType
     }
 
     private fun processImage(
@@ -370,18 +370,19 @@ private constructor(
     }
 
     private fun encodeImage(image: ImmutableImage, mimeType: String): ByteArray {
-        return when {
-            mimeType.contains("jpeg") || mimeType.contains("jpg") -> {
+        return when (mimeType) {
+            "image/jpeg" -> {
                 image.bytes(JpegWriter.Default.withCompression(80))
             }
-            mimeType.contains("png") -> {
+            "image/png" -> {
                 image.bytes(PngWriter.MaxCompression)
             }
-            mimeType.contains("webp") -> {
+            "image/webp" -> {
                 // Convert WebP to JPEG to avoid encoding issues and reduce file size
                 image.bytes(JpegWriter.Default.withCompression(80))
             }
             else -> {
+                // Default to JPEG for unknown types
                 image.bytes(JpegWriter.Default.withCompression(80))
             }
         }
