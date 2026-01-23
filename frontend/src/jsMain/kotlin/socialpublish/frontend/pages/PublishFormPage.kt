@@ -68,11 +68,12 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     val hasAuth = Storage.getAuthStatus()
     val scope = rememberCoroutineScope()
 
-    val charsLeft =
-        remember(content, link) {
-            val text = listOf(content, link).filter { it.isNotEmpty() }.joinToString("\n\n")
-            280 - text.length
-        }
+    val postText = remember(content, link) { buildPostText(content, link) }
+    val usedCharacters = remember(postText) { countCharactersWithLinks(postText) }
+    val blueskyRemaining = remember(usedCharacters) { 300 - usedCharacters }
+    val mastodonRemaining = remember(usedCharacters) { 500 - usedCharacters }
+    val twitterRemaining = remember(usedCharacters) { 280 - usedCharacters }
+    val linkedinRemaining = remember(usedCharacters) { 2000 - usedCharacters }
 
     val addImage: () -> Unit = {
         val ids = images.keys.sorted()
@@ -228,7 +229,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         }
                     )
                 }
-                P(attrs = { classes("help") }) { Text("Characters left: $charsLeft") }
             }
 
             Div(attrs = { classes("field") }) {
@@ -283,6 +283,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
                     Text(" Mastodon")
                 }
+                ServiceCharacterCounter("Mastodon", mastodonRemaining)
             }
 
             Div(attrs = { classes("field") }) {
@@ -306,6 +307,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
                     Text(" Bluesky")
                 }
+                ServiceCharacterCounter("Bluesky", blueskyRemaining)
             }
 
             Div(attrs = { classes("field") }) {
@@ -332,6 +334,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
                     Text(" Twitter")
                 }
+                ServiceCharacterCounter("X/Twitter", twitterRemaining)
             }
 
             Div(attrs = { classes("field") }) {
@@ -358,6 +361,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
                     Text(" LinkedIn")
                 }
+                ServiceCharacterCounter("LinkedIn", linkedinRemaining)
             }
 
             Div(attrs = { classes("field") }) {
