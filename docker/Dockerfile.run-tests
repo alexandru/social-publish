@@ -54,14 +54,18 @@ RUN apk add --no-cache \
     libpng \
     libwebp
 
+# Use Gradle cache from the dependency-resolution stage to speed up builds
+ENV GRADLE_USER_HOME=/root/.gradle
+COPY --from=base /home/gradle/.gradle /root/.gradle
+
 # Copy gradle wrapper and configuration
-COPY --from=build-test /app/gradle ./gradle
-COPY --from=build-test /app/gradlew ./
-COPY --from=build-test /app/gradle.properties ./
-COPY --from=build-test /app/settings.gradle.kts ./
-COPY --from=build-test /app/build.gradle.kts ./
-COPY --from=build-test /app/backend/build.gradle.kts ./backend/
-COPY --from=build-test /app/frontend/build.gradle.kts ./frontend/
+COPY --from=base /app/gradle ./gradle
+COPY --from=base /app/gradlew ./
+COPY --from=base /app/gradle.properties ./
+COPY --from=base /app/settings.gradle.kts ./
+COPY --from=base /app/build.gradle.kts ./
+COPY --from=base /app/backend/build.gradle.kts ./backend/
+COPY --from=base /app/frontend/build.gradle.kts ./frontend/
 
 # Copy source and test files
 COPY --from=build-test /app/backend/src ./backend/src
