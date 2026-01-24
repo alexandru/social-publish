@@ -199,6 +199,16 @@ To build and test the Docker images locally:
 make run-jvm
 ```
 
+To run tests in a Docker environment that matches production:
+
+```sh
+# Run all tests in Docker
+make test-docker
+
+# Run specific ImageMagick tests in Docker
+make test-imagemagick-docker
+```
+
 See the [Makefile](./Makefile) for all available commands.
 
 ## License
