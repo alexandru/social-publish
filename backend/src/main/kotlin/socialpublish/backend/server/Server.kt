@@ -8,8 +8,10 @@ import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.OpenApiDoc
+import io.ktor.openapi.JsonSchema
+import io.ktor.openapi.JsonType
 import io.ktor.openapi.OpenApiInfo
+import io.ktor.openapi.ReferenceOr
 import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
@@ -28,11 +30,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
-import io.ktor.server.routing.openapi.hide
-import io.ktor.server.routing.openapi.plus
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import io.ktor.server.routing.routingRoot
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -52,6 +51,13 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
+import socialpublish.backend.utils.configureOpenApiSecuritySchemes
+import socialpublish.backend.utils.describeSecurityRequirements
+import socialpublish.backend.utils.documentLinkedInCallbackSpec
+import socialpublish.backend.utils.documentNewPostResponses
+import socialpublish.backend.utils.documentOAuthAuthorizeSpec
+import socialpublish.backend.utils.documentOAuthStatusResponses
+import socialpublish.backend.utils.documentTwitterCallbackSpec
 import socialpublish.backend.utils.parseUrl
 
 private val logger = KotlinLogging.logger {}
@@ -156,26 +162,12 @@ fun startServer(
 
         // Configure JWT authentication
         configureAuth(config.server.auth)
+        // Configure OpenAPI / Swagger documentation
+        configureOpenApiSecuritySchemes()
 
         routing {
-            // OpenAPI spec endpoint - generates spec from annotated routes
-            get("/openapi.json") {
-                    val openApiDoc =
-                        OpenApiDoc(
-                            info =
-                                OpenApiInfo(
-                                    title = "Social Publish API",
-                                    version = "1.0.0",
-                                    description =
-                                        "API for publishing posts to social media platforms",
-                                )
-                        ) + call.application.routingRoot.descendants()
-                    call.respond<OpenApiDoc>(openApiDoc)
-                }
-                .hide()
-
             // Swagger UI for API documentation - points to dynamically generated spec
-            swaggerUI(path = "swagger", swaggerFile = "openapi.json") { version = "5.10.5" }
+            swaggerUI(path = "docs") { info = OpenApiInfo("Social Publish API", "1.0.0") }
 
             // Health check endpoints
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
@@ -196,6 +188,13 @@ fun startServer(
                     .describe {
                         summary = "User login"
                         description = "Authenticate user and get JWT token"
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<LoginRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<LoginRequest>()
+                            }
+                        }
                         responses {
                             HttpStatusCode.OK {
                                 description = "Successful login, returns JWT token"
@@ -219,20 +218,16 @@ fun startServer(
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
+                        describeSecurityRequirements()
                         responses {
-                            HttpStatusCode.OK { description = "Authenticated successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
-                        }
-                    }
-
-                // RSS post creation
-                post("/api/rss/post") { rssModule.createPostRoute(call) }
-                    .describe {
-                        summary = "Create RSS post"
-                        description = "Create a new RSS feed post"
-                        responses {
-                            HttpStatusCode.OK { description = "Post created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                            HttpStatusCode.OK {
+                                description = "Authenticated successfully"
+                                schema = jsonSchema<UserResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
                         }
                     }
 
@@ -252,10 +247,72 @@ fun startServer(
                     .describe {
                         summary = "Upload file"
                         description = "Upload a file for use in posts"
-                        responses {
-                            HttpStatusCode.OK { description = "File uploaded successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+
+                            ContentType.MultiPart.FormData {
+                                schema =
+                                    JsonSchema(
+                                        type = JsonType.OBJECT,
+                                        required = listOf("file"),
+                                        properties =
+                                            mapOf(
+                                                "altText" to
+                                                    ReferenceOr.Value(
+                                                        JsonSchema(
+                                                            type = JsonType.STRING,
+                                                            description =
+                                                                "Alt text for accessibility",
+                                                        )
+                                                    ),
+                                                "file" to
+                                                    ReferenceOr.Value(
+                                                        JsonSchema(
+                                                            type = JsonType.STRING,
+                                                            format = "binary", // <- file upload in
+                                                            // OpenAPI
+                                                            description = "Image file contents",
+                                                        )
+                                                    ),
+                                            ),
+                                    )
+                            }
                         }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "File uploaded successfully"
+                                schema = jsonSchema<FileUploadResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Invalid file upload"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.InternalServerError {
+                                description = "Internal server error (quite possible)"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
+                // RSS post creation
+                post("/api/rss/post") { rssModule.createPostRoute(call) }
+                    .describe {
+                        summary = "Create RSS post"
+                        description = "Create a new RSS feed post"
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewRssPostResponse>() }
                     }
 
                 // Social media posts
@@ -272,14 +329,15 @@ fun startServer(
                     .describe {
                         summary = "Create Bluesky post"
                         description = "Publish a post to Bluesky"
-                        responses {
-                            HttpStatusCode.OK { description = "Post created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
-                            HttpStatusCode.ServiceUnavailable {
-                                description = "Bluesky integration not configured"
-                                schema = jsonSchema<ErrorResponse>()
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
                             }
                         }
+                        responses { documentNewPostResponses<NewBlueSkyPostResponse>() }
                     }
 
                 post("/api/mastodon/post") {
@@ -295,13 +353,15 @@ fun startServer(
                     .describe {
                         summary = "Create Mastodon post"
                         description = "Publish a post to Mastodon"
-                        responses {
-                            HttpStatusCode.OK { description = "Post created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
-                            HttpStatusCode.ServiceUnavailable {
-                                description = "Mastodon integration not configured"
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
                             }
                         }
+                        responses { documentNewPostResponses<NewMastodonPostResponse>() }
                     }
 
                 post("/api/twitter/post") {
@@ -317,13 +377,15 @@ fun startServer(
                     .describe {
                         summary = "Create Twitter post"
                         description = "Publish a post to Twitter/X"
-                        responses {
-                            HttpStatusCode.OK { description = "Post created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
-                            HttpStatusCode.ServiceUnavailable {
-                                description = "Twitter integration not configured"
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
                             }
                         }
+                        responses { documentNewPostResponses<NewTwitterPostResponse>() }
                     }
 
                 post("/api/linkedin/post") {
@@ -339,113 +401,156 @@ fun startServer(
                     .describe {
                         summary = "Create LinkedIn post"
                         description = "Publish a post to LinkedIn"
-                        responses {
-                            HttpStatusCode.OK { description = "Post created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
-                            HttpStatusCode.ServiceUnavailable {
-                                description = "LinkedIn integration not configured"
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
                             }
                         }
+                        responses { documentNewPostResponses<NewLinkedInPostResponse>() }
                     }
 
-                // Twitter OAuth flow
-                get("/api/twitter/authorize") {
-                    if (twitterModule != null) {
-                        val token =
-                            extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        twitterModule.authorizeRoute(call, token)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
-                    }
-                }
-
-                get("/api/twitter/callback") {
-                    if (twitterModule != null) {
-                        twitterModule.callbackRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
-                    }
-                }
-
-                get("/api/twitter/status") {
-                    if (twitterModule != null) {
-                        twitterModule.statusRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
-                    }
-                }
-
-                // LinkedIn OAuth flow
-                get("/api/linkedin/authorize") {
-                    if (linkedInModule != null) {
-                        val token =
-                            extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        linkedInModule.authorizeRoute(call, token)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
-                    }
-                }
-
-                get("/api/linkedin/callback") {
-                    if (linkedInModule != null) {
-                        linkedInModule.callbackRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
-                    }
-                }
-
-                get("/api/linkedin/status") {
-                    if (linkedInModule != null) {
-                        linkedInModule.statusRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
-                    }
-                }
 
                 post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
                         description = "Publish a post to multiple social media platforms at once"
-                        responses {
-                            HttpStatusCode.OK { description = "Posts created successfully" }
-                            HttpStatusCode.Unauthorized { description = "Not authenticated" }
+                        describeSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                         }
+                        responses {
+                            documentNewPostResponses<Map<String, NewPostResponse>>()
+                        }
+                    }
+
+                // -----------------------------------------------------------
+                // OAuth authorization routes
+
+                // Twitter OAuth flow
+                get("/api/twitter/authorize") {
+                        if (twitterModule != null) {
+                            val token =
+                                extractJwtToken(call)
+                                    ?: run {
+                                        call.respond(
+                                            HttpStatusCode.Unauthorized,
+                                            ErrorResponse(error = "Unauthorized"),
+                                        )
+                                        return@get
+                                    }
+                            twitterModule.authorizeRoute(call, token)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Initiate Twitter OAuth authorization"
+                        documentOAuthAuthorizeSpec("OAuth 1.0a", "Twitter")
+                    }
+
+                get("/api/twitter/callback") {
+                        if (twitterModule != null) {
+                            twitterModule.callbackRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Twitter OAuth callback"
+                        documentTwitterCallbackSpec()
+                    }
+
+                get("/api/twitter/status") {
+                        if (twitterModule != null) {
+                            twitterModule.statusRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Check Twitter authorization status"
+                        description =
+                            "Check if the user has authorized the application to post to Twitter"
+                        responses { documentOAuthStatusResponses() }
+                    }
+
+                // LinkedIn OAuth flow
+                get("/api/linkedin/authorize") {
+                        if (linkedInModule != null) {
+                            val token =
+                                extractJwtToken(call)
+                                    ?: run {
+                                        call.respond(
+                                            HttpStatusCode.Unauthorized,
+                                            ErrorResponse(error = "Unauthorized"),
+                                        )
+                                        return@get
+                                    }
+                            linkedInModule.authorizeRoute(call, token)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Initiate LinkedIn OAuth authorization"
+                        documentOAuthAuthorizeSpec("OAuth 2.0", "LinkedIn")
+                    }
+
+                get("/api/linkedin/callback") {
+                        if (linkedInModule != null) {
+                            linkedInModule.callbackRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "LinkedIn OAuth callback"
+                        documentLinkedInCallbackSpec()
+                    }
+
+                get("/api/linkedin/status") {
+                        if (linkedInModule != null) {
+                            linkedInModule.statusRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Check LinkedIn authorization status"
+                        description =
+                            "Check if the user has authorized the application to post to LinkedIn"
+                        responses { documentOAuthStatusResponses() }
                     }
             }
 
+            // -----------------------------------------------------------
             // Public RSS feed
+
             get("/rss") { rssModule.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed"

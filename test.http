@@ -93,7 +93,7 @@ POST {{baseUrl}}/api/bluesky/post
 Authorization: Bearer {{$global.jwt}}
 Content-Type: application/x-www-form-urlencoded
 
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images[]={{$global.imageUuid}}
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
 
 ###
 # @name: Post to Mastodon with Image
@@ -101,7 +101,7 @@ POST {{baseUrl}}/api/mastodon/post
 Authorization: Bearer {{$global.jwt}}
 Content-Type: application/x-www-form-urlencoded
 
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images[]={{$global.imageUuid}}
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
 
 ###
 # @name: Post to RSS with Image
@@ -109,7 +109,7 @@ POST {{baseUrl}}/api/rss/post
 Authorization: Bearer {{$global.jwt}}
 Content-Type: application/x-www-form-urlencoded
 
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images[]={{$global.imageUuid}}
+content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
 
 ###
 # @name: Post Image to ALL
@@ -117,4 +117,4 @@ POST {{baseUrl}}/api/multiple/post
 Authorization: Bearer {{$global.jwt}}
 Content-Type: application/x-www-form-urlencoded
 
-targets[]=bluesky&targets[]=linkedin&content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images[]={{$global.imageUuid}}
+targets=bluesky&targets=linkedin&content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}

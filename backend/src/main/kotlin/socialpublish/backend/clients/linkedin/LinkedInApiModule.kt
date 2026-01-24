@@ -1062,11 +1062,11 @@ class LinkedInApiModule(
                     val params = call.receiveParameters()
                     NewPostRequest(
                         content = params["content"] ?: "",
-                        targets = params.getAll("targets[]"),
+                        targets = params.getAll("targets"),
                         link = params["link"],
                         language = params["language"],
                         cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images[]"),
+                        images = params.getAll("images"),
                     )
                 }
 
