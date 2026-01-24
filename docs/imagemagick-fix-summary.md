@@ -73,7 +73,7 @@ All packages are from official Alpine Linux repositories and are regularly updat
 
 ## Next Steps for Deployment
 1. Build new Docker image: `make build-jvm-local`
-2. Test locally: `make run-jvm`
+2. Test locally: `make docker-run-jvm`
 3. Upload a test image and verify it gets resized
 4. Deploy to production
 5. Monitor logs to confirm no more "no decode delegate" errors

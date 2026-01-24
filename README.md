@@ -196,7 +196,7 @@ To build and test the Docker images locally:
 
 ```sh
 # Build and run JVM image
-make run-jvm
+make docker-run-jvm
 ```
 
 To run tests in a Docker environment that matches production:
@@ -214,4 +214,3 @@ See the [Makefile](./Makefile) for all available commands.
 ## License
 
 This project is licensed under the GNU Affero General Public License v3 (AGPL-3.0). See [LICENSE.txt](./LICENSE.txt) for details.
-

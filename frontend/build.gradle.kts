@@ -53,6 +53,7 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(npm("bulma", "1.0.4"))
                 implementation(npm("@fortawesome/fontawesome-free", "7.1.0"))
+                implementation(npm("html-webpack-plugin", "5.6.3"))
             }
         }
         val jsTest by getting {
@@ -63,3 +64,7 @@ kotlin {
         }
     }
 }
+
+// Configure distribution task to prefer webpack output over processedResources
+// This prevents duplicate index.html issues
+tasks.named<Sync>("jsBrowserDistribution") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }

@@ -87,9 +87,9 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 
 ### Docker
 
-- Build and run JVM Docker image locally:
+ - Build and run JVM Docker image locally:
   ```bash
-  make run-jvm
+  make docker-run-jvm
   ```
 
 ## Coding Style
