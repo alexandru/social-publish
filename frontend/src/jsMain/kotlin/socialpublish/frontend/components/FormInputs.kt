@@ -1,6 +1,7 @@
 package socialpublish.frontend.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 
@@ -15,6 +16,7 @@ import org.jetbrains.compose.web.dom.*
  * @param required Whether the field is required
  * @param disabled Whether the field is disabled
  * @param pattern Optional regex pattern for validation
+ * @param id Optional HTML id for the input element (auto-generated if not provided)
  */
 @Composable
 fun TextInputField(
@@ -26,14 +28,25 @@ fun TextInputField(
     required: Boolean = false,
     disabled: Boolean = false,
     pattern: String? = null,
+    id: String? = null,
 ) {
+    val inputId = id ?: remember { "input-${kotlin.random.Random.nextLong()}" }
+
     Div(attrs = { classes("field") }) {
-        Label(attrs = { classes("label") }) { Text(label) }
+        Label(
+            attrs = {
+                classes("label")
+                attr("for", inputId)
+            }
+        ) {
+            Text(label)
+        }
         Div(attrs = { classes("control") }) {
             Input(
                 type = type,
                 attrs = {
                     classes("input")
+                    id(inputId)
                     value(value)
                     onInput { event -> onValueChange(event.value) }
                     if (placeholder != null) attr("placeholder", placeholder)
@@ -56,6 +69,7 @@ fun TextInputField(
  * @param placeholder Optional placeholder text
  * @param required Whether the field is required
  * @param disabled Whether the field is disabled
+ * @param id Optional HTML id for the textarea element (auto-generated if not provided)
  */
 @Composable
 fun TextAreaField(
@@ -66,13 +80,24 @@ fun TextAreaField(
     placeholder: String? = null,
     required: Boolean = false,
     disabled: Boolean = false,
+    id: String? = null,
 ) {
+    val textareaId = id ?: remember { "textarea-${kotlin.random.Random.nextLong()}" }
+
     Div(attrs = { classes("field") }) {
-        Label(attrs = { classes("label") }) { Text(label) }
+        Label(
+            attrs = {
+                classes("label")
+                attr("for", textareaId)
+            }
+        ) {
+            Text(label)
+        }
         Div(attrs = { classes("control") }) {
             TextArea(
                 attrs = {
                     classes("textarea")
+                    id(textareaId)
                     attr("rows", rows.toString())
                     value(value)
                     onInput { event ->

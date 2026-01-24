@@ -211,21 +211,21 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             ServiceCheckboxField(
                 serviceName = "Mastodon",
                 checked = formState.targets.contains("mastodon"),
-                onCheckedChange = { formState = formState.toggleTarget("mastodon") },
+                onCheckedChange = { _ -> formState = formState.toggleTarget("mastodon") },
                 charactersRemaining = formState.mastodonRemaining,
             )
 
             ServiceCheckboxField(
                 serviceName = "Bluesky",
                 checked = formState.targets.contains("bluesky"),
-                onCheckedChange = { formState = formState.toggleTarget("bluesky") },
+                onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
                 charactersRemaining = formState.blueskyRemaining,
             )
 
             ServiceCheckboxField(
                 serviceName = "Twitter",
                 checked = formState.targets.contains("twitter"),
-                onCheckedChange = { formState = formState.toggleTarget("twitter") },
+                onCheckedChange = { _ -> formState = formState.toggleTarget("twitter") },
                 charactersRemaining = formState.twitterRemaining,
                 disabled = !hasAuth.twitter,
             )
@@ -233,7 +233,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             ServiceCheckboxField(
                 serviceName = "LinkedIn",
                 checked = formState.targets.contains("linkedin"),
-                onCheckedChange = { formState = formState.toggleTarget("linkedin") },
+                onCheckedChange = { _ -> formState = formState.toggleTarget("linkedin") },
                 charactersRemaining = formState.linkedinRemaining,
                 disabled = !hasAuth.linkedin,
             )
@@ -241,7 +241,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             ServiceCheckboxField(
                 serviceName = "RSS feed",
                 checked = formState.targets.contains("rss"),
-                onCheckedChange = { formState = formState.toggleTarget("rss") },
+                onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
             ) {
                 P(attrs = { classes("help") }) {
                     A(href = "/rss", attrs = { attr("target", "_blank") }) { Text("View feed") }
