@@ -203,21 +203,26 @@ class FilesModuleTest {
         }
 
         // Create minimal JPEG header that Tika will recognize but ImageMagick can't process
-        // JPEG files start with FF D8 FF (SOI marker)
+        // JPEG structure: https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
         val corruptedJpeg =
             byteArrayOf(
+                // JPEG Start of Image (SOI) marker
                 0xFF.toByte(),
                 0xD8.toByte(),
+                // JPEG APP0 marker (JFIF header)
                 0xFF.toByte(),
-                0xE0.toByte(), // APP0 marker
+                0xE0.toByte(),
+                // Segment length (16 bytes)
                 0x00,
-                0x10, // Length
-                0x4A,
-                0x46,
-                0x49,
-                0x46,
-                0x00, // "JFIF\0"
-                // Rest is garbage
+                0x10,
+                // JFIF identifier
+                0x4A, // 'J'
+                0x46, // 'F'
+                0x49, // 'I'
+                0x46, // 'F'
+                0x00, // NULL terminator
+                // The rest is intentionally corrupt/incomplete to cause ImageMagick to fail
+                // while still having enough structure for Tika to detect it as JPEG
                 0x00,
                 0x00,
                 0x00,
