@@ -9,9 +9,8 @@ import io.ktor.server.application.Application
 import io.ktor.server.routing.openapi.registerApiKeySecurityScheme
 import io.ktor.server.routing.openapi.registerBearerAuthSecurityScheme
 import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostResponse
 
-fun Operation.Builder.describeSecurityRequirements() {
+fun Operation.Builder.documentSecurityRequirements() {
     security {
         // Each call = an OR alternative
         requirement("bearerAuth")
@@ -45,7 +44,7 @@ fun Application.configureOpenApiSecuritySchemes() {
     )
 }
 
-inline fun <reified T: Any> Responses.Builder.documentNewPostResponses() {
+inline fun <reified T : Any> Responses.Builder.documentNewPostResponses() {
     HttpStatusCode.OK {
         description = "Post created successfully"
         schema = jsonSchema<T>()
@@ -97,7 +96,7 @@ fun Responses.Builder.documentOAuthStatusResponses() {
 fun Operation.Builder.documentOAuthAuthorizeSpec(oauthVersion: String, platform: String) {
     description =
         "Starts the $oauthVersion authorization flow for $platform. Redirects to $platform's authorization page."
-    describeSecurityRequirements()
+    documentSecurityRequirements()
     responses {
         HttpStatusCode.Found { description = "Redirect to $platform authorization URL (302 Found)" }
         HttpStatusCode.Unauthorized {

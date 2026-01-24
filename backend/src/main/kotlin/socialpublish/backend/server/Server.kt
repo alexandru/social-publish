@@ -48,15 +48,16 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
 import socialpublish.backend.utils.configureOpenApiSecuritySchemes
-import socialpublish.backend.utils.describeSecurityRequirements
 import socialpublish.backend.utils.documentLinkedInCallbackSpec
 import socialpublish.backend.utils.documentNewPostResponses
 import socialpublish.backend.utils.documentOAuthAuthorizeSpec
 import socialpublish.backend.utils.documentOAuthStatusResponses
+import socialpublish.backend.utils.documentSecurityRequirements
 import socialpublish.backend.utils.documentTwitterCallbackSpec
 import socialpublish.backend.utils.parseUrl
 
@@ -218,7 +219,7 @@ fun startServer(
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         responses {
                             HttpStatusCode.OK {
                                 description = "Authenticated successfully"
@@ -247,7 +248,7 @@ fun startServer(
                     .describe {
                         summary = "Upload file"
                         description = "Upload a file for use in posts"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
 
@@ -304,7 +305,7 @@ fun startServer(
                     .describe {
                         summary = "Create RSS post"
                         description = "Create a new RSS feed post"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -329,7 +330,7 @@ fun startServer(
                     .describe {
                         summary = "Create Bluesky post"
                         description = "Publish a post to Bluesky"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -353,7 +354,7 @@ fun startServer(
                     .describe {
                         summary = "Create Mastodon post"
                         description = "Publish a post to Mastodon"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -377,7 +378,7 @@ fun startServer(
                     .describe {
                         summary = "Create Twitter post"
                         description = "Publish a post to Twitter/X"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -401,7 +402,7 @@ fun startServer(
                     .describe {
                         summary = "Create LinkedIn post"
                         description = "Publish a post to LinkedIn"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -412,12 +413,11 @@ fun startServer(
                         responses { documentNewPostResponses<NewLinkedInPostResponse>() }
                     }
 
-
                 post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
                         description = "Publish a post to multiple social media platforms at once"
-                        describeSecurityRequirements()
+                        documentSecurityRequirements()
                         requestBody {
                             required = true
                             ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
@@ -425,9 +425,7 @@ fun startServer(
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses {
-                            documentNewPostResponses<Map<String, NewPostResponse>>()
-                        }
+                        responses { documentNewPostResponses<Map<String, NewPostResponse>>() }
                     }
 
                 // -----------------------------------------------------------
@@ -487,6 +485,7 @@ fun startServer(
                         summary = "Check Twitter authorization status"
                         description =
                             "Check if the user has authorized the application to post to Twitter"
+                        documentSecurityRequirements()
                         responses { documentOAuthStatusResponses() }
                     }
 
@@ -544,6 +543,7 @@ fun startServer(
                         summary = "Check LinkedIn authorization status"
                         description =
                             "Check if the user has authorized the application to post to LinkedIn"
+                        documentSecurityRequirements()
                         responses { documentOAuthStatusResponses() }
                     }
             }
@@ -554,34 +554,132 @@ fun startServer(
             get("/rss") { rssModule.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed"
-                    description = "Generate and retrieve the RSS feed"
-                    responses { HttpStatusCode.OK { description = "RSS feed" } }
+                    description =
+                        "Generate and retrieve the RSS feed containing all published posts"
+                    parameters {
+                        query("filterByLinks") {
+                            required = false
+                            description = "Filter to only include posts with links (true/false)"
+                        }
+                        query("filterByImages") {
+                            required = false
+                            description = "Filter to only include posts with images (true/false)"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "RSS feed in XML format"
+                            ContentType.Application.Rss()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to generate RSS feed"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                    }
                 }
 
             get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed for specific target"
-                    description = "Generate and retrieve the RSS feed for a specific target"
-                    responses { HttpStatusCode.OK { description = "RSS feed for target" } }
+                    description =
+                        "Generate and retrieve the RSS feed filtered by target platform " +
+                            "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
+                    parameters {
+                        path("target") {
+                            required = true
+                            description =
+                                "Target platform to filter posts by (e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
+                        }
+                        query("filterByLinks") {
+                            required = false
+                            description = "Filter to only include posts with links (true/false)"
+                        }
+                        query("filterByImages") {
+                            required = false
+                            description = "Filter to only include posts with images (true/false)"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "RSS feed in XML format filtered by target"
+                            ContentType.Application.Rss()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to generate RSS feed"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                    }
                 }
 
             get("/rss/{uuid}") { rssModule.getRssItem(call) }
                 .describe {
-                    summary = "Get RSS item"
-                    description = "Retrieve a specific RSS item by UUID"
+                    summary = "Get RSS item by UUID"
+                    description = "Retrieve a specific RSS post/item by its UUID"
+                    parameters {
+                        path("uuid") {
+                            required = true
+                            description = "UUID of the post to retrieve"
+                        }
+                    }
                     responses {
-                        HttpStatusCode.OK { description = "RSS item" }
-                        HttpStatusCode.NotFound { description = "Item not found" }
+                        HttpStatusCode.OK {
+                            description = "Post retrieved successfully"
+                            schema = jsonSchema<Post>()
+                        }
+                        HttpStatusCode.BadRequest {
+                            description = "Missing UUID parameter"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.NotFound {
+                            description = "Post not found"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to retrieve post"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
                     }
                 }
 
             get("/files/{uuid}") { filesModule.getFile(call) }
                 .describe {
                     summary = "Get uploaded file"
-                    description = "Retrieve an uploaded file by UUID"
+                    description =
+                        "Retrieve an uploaded file by its UUID. Returns the file content with " +
+                            "appropriate Content-Type and Content-Disposition headers."
+                    parameters {
+                        path("uuid") {
+                            required = true
+                            description = "UUID of the file to retrieve"
+                        }
+                    }
                     responses {
-                        HttpStatusCode.OK { description = "File content" }
-                        HttpStatusCode.NotFound { description = "File not found" }
+                        HttpStatusCode.OK {
+                            description =
+                                "File content (image or other media type). " +
+                                    "Content-Type header will match the file's mimetype."
+                            ContentType.Application.OctetStream {
+                                schema =
+                                    JsonSchema(
+                                        type = JsonType.STRING,
+                                        format = "binary",
+                                        description = "Binary file content",
+                                    )
+                            }
+                        }
+                        HttpStatusCode.BadRequest {
+                            description = "Missing UUID parameter"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.NotFound {
+                            description =
+                                "File not found in database or file content not found on disk"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to retrieve file"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
                     }
                 }
 
