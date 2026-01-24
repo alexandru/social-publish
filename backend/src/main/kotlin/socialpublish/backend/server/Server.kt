@@ -7,13 +7,16 @@ import arrow.core.Either
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.CachingOptions
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngineFactory
+import io.ktor.server.plugins.cachingheaders.CachingHeaders
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -147,6 +150,22 @@ fun startServer(
                     text = "500: Internal Server Error",
                     status = HttpStatusCode.InternalServerError,
                 )
+            }
+        }
+
+        install(CachingHeaders) {
+            options { call, _ ->
+                val uri = call.request.local.uri
+                // Only handle dynamic routes; static files are handled in StaticFilesModule
+                when {
+                    // No caching for dynamic routes
+                    uri.startsWith("/api/") ||
+                        uri.startsWith("/rss") ||
+                        uri.startsWith("/files/") -> {
+                        CachingOptions(cacheControl = io.ktor.http.CacheControl.NoCache(null))
+                    }
+                    else -> null
+                }
             }
         }
 

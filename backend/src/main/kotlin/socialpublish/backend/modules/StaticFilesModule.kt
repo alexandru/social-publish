@@ -28,9 +28,10 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
 
             // Security: Check that the resolved file is within the allowed directory
             if (file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)) {
-                // Set appropriate caching headers based on file type
+                // The CachingHeaders plugin handles standard cache directives
+                // Here we only add custom directives it doesn't support
                 when {
-                    // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable, cache forever
+                    // immutable for hashed files
                     file.name.matches(
                         Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
                     ) -> {
@@ -39,25 +40,18 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
                             "public, max-age=31536000, immutable",
                         )
                     }
-                    // index.html - 2 hours with stale-while-revalidate
+                    // stale-while-revalidate for index.html
                     file.name == "index.html" -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
                             "public, max-age=7200, stale-while-revalidate=86400",
                         )
                     }
-                    // Images and other assets - 2 days with stale-while-revalidate
+                    // stale-while-revalidate for images and other assets
                     file.name.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
                             "public, max-age=172800, stale-while-revalidate=86400",
-                        )
-                    }
-                    // Other files - default caching for static assets
-                    else -> {
-                        call.response.headers.append(
-                            HttpHeaders.CacheControl,
-                            "public, max-age=3600",
                         )
                     }
                 }
