@@ -64,3 +64,9 @@ kotlin {
         }
     }
 }
+
+// Configure distribution task to prefer webpack output over processedResources
+// This prevents duplicate index.html issues
+tasks.named<Sync>("jsBrowserDistribution") {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
