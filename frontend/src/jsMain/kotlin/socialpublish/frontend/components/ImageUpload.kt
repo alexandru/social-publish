@@ -25,7 +25,16 @@ fun ImageUpload(
     LaunchedEffect(state.file) {
         if (state.file != null) {
             val reader = FileReader()
-            reader.onload = { event -> imagePreviewUrl = event.target.asDynamic().result as String }
+            reader.onload = { event ->
+                try {
+                    val result = event.target.asDynamic().result
+                    imagePreviewUrl = result as? String
+                } catch (e: Exception) {
+                    console.error("Failed to read image file", e)
+                    imagePreviewUrl = null
+                }
+            }
+            reader.onerror = { console.error("Error reading file") }
             reader.readAsDataURL(state.file)
         } else {
             imagePreviewUrl = null
@@ -137,8 +146,8 @@ fun ImageUpload(
 
 @Composable
 fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
-    // Hidden file input
-    val inputId = remember { "hidden-file-input-${kotlin.random.Random.nextInt()}" }
+    // Hidden file input - use Long for better uniqueness
+    val inputId = remember { "hidden-file-input-${kotlin.random.Random.nextLong()}" }
 
     Input(
         type = InputType.File,
@@ -151,7 +160,7 @@ fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
                 val file = target.files?.get(0)
                 if (file != null) {
                     onImageSelected(file)
-                    // Reset input so the same file can be selected again
+                    // Reset input to allow selecting the same file again if removed
                     target.value = ""
                 }
             }
@@ -169,7 +178,11 @@ fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
             onClick { event ->
                 event.preventDefault()
                 val input = document.getElementById(inputId) as? HTMLInputElement
-                input?.click()
+                if (input != null) {
+                    input.click()
+                } else {
+                    console.error("Could not find hidden file input with id: $inputId")
+                }
             }
         }
     ) {
