@@ -33,12 +33,9 @@ class DocumentsDatabase(private val db: Database) {
 
     private suspend fun SafeConnection.getDocumentTags(documentUuid: String): List<Tag> {
         return query("SELECT name, kind FROM document_tags WHERE document_uuid = ?") {
-                setString(1, documentUuid)
-                executeQuery().safe().toList { rs ->
-                    Tag(rs.getString("name"), rs.getString("kind"))
-                }
-            }
-            .toList()
+            setString(1, documentUuid)
+            executeQuery().safe().toList { rs -> Tag(rs.getString("name"), rs.getString("kind")) }
+        }
     }
 
     suspend fun createOrUpdate(

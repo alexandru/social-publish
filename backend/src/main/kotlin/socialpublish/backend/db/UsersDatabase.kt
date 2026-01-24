@@ -25,7 +25,7 @@ class UsersDatabase(private val db: Database) {
         db.query(
             "SELECT id, email, password_hash, created_at, updated_at FROM users WHERE id = ?"
         ) {
-            setObject(1, id)
+            setString(1, id.toString())
             executeQuery().safe().firstOrNull { rs ->
                 UserRow(
                     id = UUID.fromString(rs.getString("id")),
