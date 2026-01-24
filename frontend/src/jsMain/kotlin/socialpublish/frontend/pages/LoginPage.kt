@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
+import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.models.LoginRequest
 import socialpublish.frontend.models.LoginResponse
 import socialpublish.frontend.utils.ApiClient
@@ -76,37 +77,22 @@ fun LoginPage() {
                         }
                     }
                 ) {
-                    Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label") }) { Text("Username") }
-                        Div(attrs = { classes("control") }) {
-                            Input(
-                                type = InputType.Text,
-                                attrs = {
-                                    classes("input")
-                                    value(username)
-                                    onInput { username = it.value }
-                                    attr("required", "")
-                                    if (isLoading) attr("disabled", "")
-                                },
-                            )
-                        }
-                    }
+                    TextInputField(
+                        label = "Username",
+                        value = username,
+                        onValueChange = { username = it },
+                        required = true,
+                        disabled = isLoading,
+                    )
 
-                    Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label") }) { Text("Password") }
-                        Div(attrs = { classes("control") }) {
-                            Input(
-                                type = InputType.Password,
-                                attrs = {
-                                    classes("input")
-                                    value(password)
-                                    onInput { password = it.value }
-                                    attr("required", "")
-                                    if (isLoading) attr("disabled", "")
-                                },
-                            )
-                        }
-                    }
+                    TextInputField(
+                        label = "Password",
+                        value = password,
+                        onValueChange = { password = it },
+                        type = InputType.Password,
+                        required = true,
+                        disabled = isLoading,
+                    )
 
                     Button(
                         attrs = {
