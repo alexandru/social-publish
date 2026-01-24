@@ -32,9 +32,7 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
                 when {
                     // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable, cache forever
                     file.name.matches(
-                        Regex(
-                            "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)"
-                        )
+                        Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
                     ) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
