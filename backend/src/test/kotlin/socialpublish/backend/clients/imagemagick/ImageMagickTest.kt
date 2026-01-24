@@ -15,6 +15,7 @@ class ImageMagickTest {
     private lateinit var imageMagick: ImageMagick
     private lateinit var testFlower1: File
     private lateinit var testFlower2: File
+    private lateinit var testZuzi: File
 
     @BeforeEach
     fun setup() {
@@ -34,6 +35,11 @@ class ImageMagickTest {
             File(
                 javaClass.classLoader.getResource("flower2.jpeg")?.toURI()
                     ?: error("Test resource flower2.jpeg not found")
+            )
+        testZuzi =
+            File(
+                javaClass.classLoader.getResource("zuzi.jpg")?.toURI()
+                    ?: error("Test resource zuzi.jpg not found")
             )
     }
 
@@ -309,5 +315,36 @@ class ImageMagickTest {
 
             // Note: In a real scenario where magick is not installed,
             // ImageMagick() would return Either.Left(MagickException(...))
+        }
+
+    @Test
+    fun `optimizeImage should respect EXIF orientation and auto-rotate`(@TempDir tempDir: Path) =
+        runBlocking {
+            // zuzi.jpg has EXIF orientation 6 (Rotate 90 CW), making it 4000x3000
+            // When properly auto-oriented, it should become 3000x4000
+            val dest = tempDir.resolve("optimized-zuzi.jpg").toFile()
+
+            // Get original dimensions (without auto-orient, this would be 4000x3000)
+            val originalSize = imageMagick.identifyImageSize(testZuzi).getOrNull()!!
+
+            // Optimize the image
+            val result = imageMagick.optimizeImage(testZuzi, dest)
+
+            assertTrue(result.isRight(), "optimizeImage should succeed")
+            assertTrue(dest.exists(), "Destination file should be created")
+
+            // Get optimized dimensions
+            val optimizedSize = imageMagick.identifyImageSize(dest).getOrNull()!!
+
+            // After auto-orient, the image should be rotated:
+            // Original EXIF says width=4000, height=3000 with orientation=6
+            // After auto-orient, it should be physically rotated to width=3000, height=4000
+            // Then resized to fit within 1600x1600, maintaining aspect ratio
+            // Expected: height should be larger than width (portrait orientation)
+            assertTrue(
+                optimizedSize.height > optimizedSize.width,
+                "After auto-orient and resize, image should be portrait (height > width). " +
+                    "Got ${optimizedSize.width}x${optimizedSize.height}, original was ${originalSize.width}x${originalSize.height}",
+            )
         }
 }

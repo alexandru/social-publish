@@ -155,6 +155,7 @@ private constructor(
         val params =
             arrayOf(
                 source.absolutePath,
+                "-auto-orient",
                 "-resize",
                 "${options.maxWidth}x${options.maxHeight}>",
                 "-strip",
@@ -188,6 +189,7 @@ private constructor(
             val params =
                 arrayOf(
                     source.absolutePath,
+                    "-auto-orient",
                     "-resize",
                     "${options.maxWidth}x${options.maxHeight}>",
                     "-strip",
