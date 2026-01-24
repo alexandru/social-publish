@@ -2,7 +2,7 @@
 # Test Dockerfile
 # 
 # Runs tests in an environment that matches production:
-# - Uses jlink-based minimal JRE (same as production)
+# - Uses a full Temurin JDK on Alpine (simpler than a jlink runtime)
 # - Includes ImageMagick with all required delegates
 # - Same Alpine Linux base as production
 ############################
@@ -32,37 +32,11 @@ COPY backend/src ./backend/src
 COPY frontend/src ./frontend/src
 COPY frontend/webpack.config.d ./frontend/webpack.config.d
 
-############################
-# JRE build stage
-############################
-FROM eclipse-temurin:21-alpine AS jre-build
-
-# Create a custom minimal Java runtime with only required modules
-RUN apk add --no-cache binutils
-RUN $JAVA_HOME/bin/jlink \
-        --add-modules java.base \
-        --add-modules java.xml \
-        --add-modules java.naming \
-        --add-modules java.management \
-        --add-modules java.sql \
-        --add-modules jdk.crypto.ec \
-        --add-modules jdk.crypto.cryptoki \
-        --add-modules java.security.jgss \
-        --add-modules java.security.sasl \
-        --strip-debug \
-        --no-man-pages \
-        --no-header-files \
-        --compress=2 \
-        --output /javaruntime
 
 ############################
 # Test Runtime stage
 ############################
-FROM alpine:latest
-
-ENV JAVA_HOME=/opt/java
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
-COPY --from=jre-build /javaruntime $JAVA_HOME
+FROM eclipse-temurin:21-jdk-alpine
 
 WORKDIR /app
 
