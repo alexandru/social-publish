@@ -3,7 +3,6 @@ package socialpublish.frontend.pages
 import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.*
 import socialpublish.frontend.models.FileUploadResponse
@@ -204,44 +203,21 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
         ) {
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("label") }) { Text("Content") }
-                Div(attrs = { classes("control") }) {
-                    TextArea(
-                        attrs = {
-                            classes("textarea")
-                            id("content")
-                            attr("name", "content")
-                            attr("rows", "4")
-                            attr("cols", "50")
-                            attr("required", "")
-                            value(content)
-                            onInput { event ->
-                                val target = event.target
-                                content = target.value
-                            }
-                        }
-                    )
-                }
-            }
+            TextAreaField(
+                label = "Content",
+                value = content,
+                onValueChange = { content = it },
+                rows = 4,
+                required = true,
+            )
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("label") }) { Text("Highlighted link (optional)") }
-                Div(attrs = { classes("control") }) {
-                    Input(
-                        type = InputType.Text,
-                        attrs = {
-                            classes("input")
-                            id("link")
-                            attr("name", "link")
-                            attr("placeholder", "https://example.com/...")
-                            attr("pattern", "https?://.+")
-                            value(link)
-                            onInput { event -> link = event.value }
-                        },
-                    )
-                }
-            }
+            TextInputField(
+                label = "Highlighted link (optional)",
+                value = link,
+                onValueChange = { link = it },
+                placeholder = "https://example.com/...",
+                pattern = "https?://.+",
+            )
 
             images.values
                 .sortedBy { it.id }
@@ -256,151 +232,61 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     }
                 }
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("mastodon")
-                            attr("name", "mastodon")
-                            checked(targets.contains("mastodon"))
-                            onInput { event ->
-                                val target = event.target
-                                targets =
-                                    if (target.checked) {
-                                        targets + "mastodon"
-                                    } else {
-                                        targets - "mastodon"
-                                    }
-                            }
-                        },
-                    )
-                    Text(" Mastodon")
-                }
-                ServiceCharacterCounter("Mastodon", mastodonRemaining)
-            }
+            ServiceCheckboxField(
+                serviceName = "Mastodon",
+                checked = targets.contains("mastodon"),
+                onCheckedChange = { checked ->
+                    targets = if (checked) targets + "mastodon" else targets - "mastodon"
+                },
+                charactersRemaining = mastodonRemaining,
+            )
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("bluesky")
-                            attr("name", "bluesky")
-                            checked(targets.contains("bluesky"))
-                            onInput { event ->
-                                val target = event.target
-                                targets =
-                                    if (target.checked) {
-                                        targets + "bluesky"
-                                    } else {
-                                        targets - "bluesky"
-                                    }
-                            }
-                        },
-                    )
-                    Text(" Bluesky")
-                }
-                ServiceCharacterCounter("Bluesky", blueskyRemaining)
-            }
+            ServiceCheckboxField(
+                serviceName = "Bluesky",
+                checked = targets.contains("bluesky"),
+                onCheckedChange = { checked ->
+                    targets = if (checked) targets + "bluesky" else targets - "bluesky"
+                },
+                charactersRemaining = blueskyRemaining,
+            )
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("twitter")
-                            attr("name", "twitter")
-                            if (!hasAuth.twitter) {
-                                attr("disabled", "")
-                            }
-                            checked(targets.contains("twitter"))
-                            onInput { event ->
-                                val target = event.target
-                                targets =
-                                    if (target.checked) {
-                                        targets + "twitter"
-                                    } else {
-                                        targets - "twitter"
-                                    }
-                            }
-                        },
-                    )
-                    Text(" Twitter")
-                }
-                ServiceCharacterCounter("X/Twitter", twitterRemaining)
-            }
+            ServiceCheckboxField(
+                serviceName = "Twitter",
+                checked = targets.contains("twitter"),
+                onCheckedChange = { checked ->
+                    targets = if (checked) targets + "twitter" else targets - "twitter"
+                },
+                charactersRemaining = twitterRemaining,
+                disabled = !hasAuth.twitter,
+            )
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("linkedin")
-                            attr("name", "linkedin")
-                            if (!hasAuth.linkedin) {
-                                attr("disabled", "")
-                            }
-                            checked(targets.contains("linkedin"))
-                            onInput { event ->
-                                val target = event.target
-                                targets =
-                                    if (target.checked) {
-                                        targets + "linkedin"
-                                    } else {
-                                        targets - "linkedin"
-                                    }
-                            }
-                        },
-                    )
-                    Text(" LinkedIn")
-                }
-                ServiceCharacterCounter("LinkedIn", linkedinRemaining)
-            }
+            ServiceCheckboxField(
+                serviceName = "LinkedIn",
+                checked = targets.contains("linkedin"),
+                onCheckedChange = { checked ->
+                    targets = if (checked) targets + "linkedin" else targets - "linkedin"
+                },
+                charactersRemaining = linkedinRemaining,
+                disabled = !hasAuth.linkedin,
+            )
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("rss")
-                            attr("name", "rss")
-                            checked(targets.contains("rss"))
-                            onInput { event ->
-                                val target = event.target
-                                targets =
-                                    if (target.checked) {
-                                        targets + "rss"
-                                    } else {
-                                        targets - "rss"
-                                    }
-                            }
-                        },
-                    )
-                    Text(" RSS feed")
-                }
+            ServiceCheckboxField(
+                serviceName = "RSS feed",
+                checked = targets.contains("rss"),
+                onCheckedChange = { checked ->
+                    targets = if (checked) targets + "rss" else targets - "rss"
+                },
+            ) {
                 P(attrs = { classes("help") }) {
                     A(href = "/rss", attrs = { attr("target", "_blank") }) { Text("View feed") }
                 }
             }
 
-            Div(attrs = { classes("field") }) {
-                Label(attrs = { classes("checkbox") }) {
-                    Input(
-                        type = InputType.Checkbox,
-                        attrs = {
-                            id("cleanupHtml")
-                            attr("name", "cleanupHtml")
-                            checked(cleanupHtml)
-                            onInput { event ->
-                                val target = event.target
-                                cleanupHtml = target.checked
-                            }
-                        },
-                    )
-                    Text(" cleanup HTML")
-                }
-            }
+            CheckboxField(
+                label = "cleanup HTML",
+                checked = cleanupHtml,
+                onCheckedChange = { cleanupHtml = it },
+            )
 
             Div(attrs = { classes("field", "is-grouped") }) {
                 Div(attrs = { classes("control") }) {
