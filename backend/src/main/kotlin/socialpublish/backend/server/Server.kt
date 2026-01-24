@@ -6,6 +6,7 @@ import arrow.continuations.ktor.server
 import arrow.core.Either
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -162,7 +163,7 @@ fun startServer(
                     uri.startsWith("/api/") ||
                         uri.startsWith("/rss") ||
                         uri.startsWith("/files/") -> {
-                        CachingOptions(cacheControl = io.ktor.http.CacheControl.NoCache(null))
+                        CachingOptions(cacheControl = CacheControl.NoCache(null))
                     }
                     else -> null
                 }

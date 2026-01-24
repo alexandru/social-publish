@@ -1,6 +1,7 @@
 package socialpublish.backend.server
 
 import io.ktor.client.request.get
+import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.CachingOptions
@@ -160,7 +161,7 @@ class CacheHeadersTest {
                     uri.startsWith("/api/") ||
                         uri.startsWith("/rss") ||
                         uri.startsWith("/files/") -> {
-                        CachingOptions(cacheControl = io.ktor.http.CacheControl.NoCache(null))
+                        CachingOptions(cacheControl = CacheControl.NoCache(null))
                     }
                     else -> null
                 }
