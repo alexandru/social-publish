@@ -153,6 +153,33 @@ class CacheHeadersTest {
         }
     }
 
+    @Test
+    fun `test no-cache headers for ping route`() = testApplication {
+        application { configureDynamicRoutes() }
+
+        client.get("/ping").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val cacheControl = headers[HttpHeaders.CacheControl]!!
+            assertTrue(cacheControl.contains("no-cache"), "Expected no-cache for ping route")
+        }
+    }
+
+    @Test
+    fun `test cache headers for docs route`() = testApplication {
+        application { configureDynamicRoutes() }
+
+        client.get("/docs").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val cacheControl = headers[HttpHeaders.CacheControl]!!
+            assertTrue(
+                cacheControl.contains("max-age=7200"),
+                "Expected 2 hours cache for docs route",
+            )
+            // Note: stale-while-revalidate can't be easily tested here as it requires
+            // custom header manipulation not available in testApplication context
+        }
+    }
+
     private fun Application.configureDynamicRoutes() {
         install(CachingHeaders) {
             options { call, _ ->
@@ -160,8 +187,18 @@ class CacheHeadersTest {
                 when {
                     uri.startsWith("/api/") ||
                         uri.startsWith("/rss") ||
-                        uri.startsWith("/files/") -> {
+                        uri.startsWith("/files/") ||
+                        uri == "/ping" -> {
                         CachingOptions(cacheControl = CacheControl.NoCache(null))
+                    }
+                    uri.startsWith("/docs") -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 7200,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
                     }
                     else -> null
                 }
@@ -171,6 +208,8 @@ class CacheHeadersTest {
             get("/api/test") { call.respond(HttpStatusCode.OK, "API test") }
             get("/rss") { call.respond(HttpStatusCode.OK, "RSS feed") }
             get("/files/12345") { call.respond(HttpStatusCode.OK, "File content") }
+            get("/ping") { call.respond(HttpStatusCode.OK, "pong") }
+            get("/docs") { call.respond(HttpStatusCode.OK, "Documentation") }
         }
     }
 

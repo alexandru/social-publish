@@ -28,10 +28,11 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
 
             // Security: Check that the resolved file is within the allowed directory
             if (file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)) {
-                // The CachingHeaders plugin handles standard cache directives
-                // Here we only add custom directives it doesn't support
+                // Standard caching headers are handled by CachingHeaders plugin in Server.kt
+                // Here we only add custom directives (immutable, stale-while-revalidate) that
+                // the standard plugin doesn't support
                 when {
-                    // immutable for hashed files
+                    // Add immutable for hashed files
                     file.name.matches(
                         Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
                     ) -> {
@@ -40,14 +41,14 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
                             "public, max-age=31536000, immutable",
                         )
                     }
-                    // stale-while-revalidate for index.html
+                    // Add stale-while-revalidate for index.html
                     file.name == "index.html" -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
                             "public, max-age=7200, stale-while-revalidate=86400",
                         )
                     }
-                    // stale-while-revalidate for images and other assets
+                    // Add stale-while-revalidate for images and other assets
                     file.name.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,

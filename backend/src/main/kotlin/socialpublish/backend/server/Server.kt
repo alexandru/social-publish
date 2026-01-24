@@ -155,15 +155,81 @@ fun startServer(
         }
 
         install(CachingHeaders) {
-            options { call, _ ->
+            options { call, outgoingContent ->
                 val uri = call.request.local.uri
-                // Only handle dynamic routes; static files are handled in StaticFilesModule
+                // Caching policy for all routes (custom directives in StaticFilesModule):
+                // - /ping: no-cache
+                // - /api/*: no-cache
+                // - /rss*, /files/*: no-cache
+                // - /docs*: max-age=7200 (2 hours) + stale-while-revalidate=86400 (24 hours)
+                // - Static hashed files (*.12345678.js, *.woff2): max-age=31536000 (1 year) +
+                // immutable
+                // - index.html: max-age=7200 (2 hours) + stale-while-revalidate=86400 (24 hours)
+                // - Images/CSS: max-age=172800 (2 days) + stale-while-revalidate=86400 (24 hours)
+                // - Other static: max-age=3600 (1 hour)
                 when {
                     // No caching for dynamic routes
                     uri.startsWith("/api/") ||
                         uri.startsWith("/rss") ||
-                        uri.startsWith("/files/") -> {
+                        uri.startsWith("/files/") ||
+                        uri == "/ping" -> {
                         CachingOptions(cacheControl = CacheControl.NoCache(null))
+                    }
+                    // Cache documentation like index.html (2 hours)
+                    // Custom directive stale-while-revalidate=86400 added in StaticFilesModule
+                    uri.startsWith("/docs") -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 7200,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
+                    }
+                    // Static files with hash in filename - cache forever
+                    // Custom directive immutable added in StaticFilesModule
+                    uri.matches(
+                        Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
+                    ) -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 31536000,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
+                    }
+                    // index.html - 2 hours
+                    // Custom directive stale-while-revalidate=86400 added in StaticFilesModule
+                    uri.endsWith("index.html") || uri == "/" -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 7200,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
+                    }
+                    // Images and CSS - 2 days
+                    // Custom directive stale-while-revalidate=86400 added in StaticFilesModule
+                    uri.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)$")) -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 172800,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
+                    }
+                    // Default for other static content - 1 hour
+                    uri.matches(Regex("^/[^/]+\\.[^/]+$")) -> {
+                        CachingOptions(
+                            cacheControl =
+                                CacheControl.MaxAge(
+                                    maxAgeSeconds = 3600,
+                                    visibility = CacheControl.Visibility.Public,
+                                )
+                        )
                     }
                     else -> null
                 }
