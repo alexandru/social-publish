@@ -1,8 +1,8 @@
 package socialpublish.backend.modules
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
@@ -33,8 +33,7 @@ class StaticFilesModule(private val serverConfig: ServerConfig) {
                     // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable, cache forever
                     file.name.matches(
                         Regex(
-                            "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)" +
-                                "(?:js|woff2|woff|ttf|eot)"
+                            "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)"
                         )
                     ) -> {
                         call.response.headers.append(
