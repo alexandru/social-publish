@@ -76,7 +76,18 @@ RUN mkdir -p /var/lib/social-publish/uploads
 RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
 
 # Install minimal runtime dependencies
-RUN apk add --no-cache curl imagemagick
+# ImageMagick needs delegate libraries for image format support:
+# - imagemagick: Core ImageMagick tools
+# - libjpeg-turbo: JPEG image support (delegate library)
+# - libpng: PNG image support (delegate library)
+# - libwebp: WebP image support (delegate library)
+# Without these delegate libraries, ImageMagick will fail with "no decode delegate" errors
+RUN apk add --no-cache \
+    curl \
+    imagemagick \
+    libjpeg-turbo \
+    libpng \
+    libwebp
 
 # Copy application JAR from backend stage
 COPY --from=build-backend --chown=appuser:root /app/backend/build/libs/backend-1.0.0.jar /opt/app/app.jar

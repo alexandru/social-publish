@@ -56,6 +56,7 @@ dependency-updates:
 		open backend/build/dependencyUpdates/report.html &&
 		open frontend/build/dependencyUpdates/report.html
 
+
 # Docker setup
 docker-init:
 	docker buildx inspect mybuilder || docker buildx create --name mybuilder
@@ -63,7 +64,7 @@ docker-init:
 
 # JVM Docker targets
 docker-build-jvm: docker-init
-	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" ${DOCKER_EXTRA_ARGS} .
 
 docker-push-jvm:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-jvm
@@ -71,7 +72,7 @@ docker-push-jvm:
 # Build and push for a single platform (used in matrix builds)
 docker-build-jvm-platform: docker-init
 	$(eval PLATFORM_TAG := $(shell echo ${PLATFORM} | tr '/' '-'))
-	docker buildx build --platform ${PLATFORM} -f ./Dockerfile.jvm -t "${IMG_JVM}-${PLATFORM_TAG}" -t "${LATEST_JVM}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
+	docker buildx build --platform ${PLATFORM} -f ./docker/Dockerfile.jvm -t "${IMG_JVM}-${PLATFORM_TAG}" -t "${LATEST_JVM}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
 
 docker-push-jvm-platform:
 	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-jvm-platform
@@ -83,7 +84,7 @@ docker-push-jvm-manifest:
 		"${IMG_JVM}-linux-arm64"
 
 docker-build-jvm-local:
-	docker build -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" .
+	docker build -f ./docker/Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" .
 
 docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
@@ -95,3 +96,13 @@ lint:
 
 format:
 	./gradlew ktfmtFormat
+
+# Docker test targets
+docker-build-tests:
+	docker build -f ./docker/Dockerfile.run-tests -t social-publish-tests:latest .
+
+docker-run-tests: docker-build-tests
+	docker run --rm social-publish-tests:latest ./gradlew test --no-daemon
+
+docker-run-tests-imagemagick: docker-build-tests
+	docker run --rm social-publish-tests:latest ./gradlew :backend:test --tests "ImageMagickTest" --no-daemon

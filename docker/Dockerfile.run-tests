@@ -1,0 +1,80 @@
+############################
+# Test Dockerfile
+# 
+# Runs tests in an environment that matches production:
+# - Uses a full Temurin JDK on Alpine (simpler than a jlink runtime)
+# - Includes ImageMagick with all required delegates
+# - Same Alpine Linux base as production
+############################
+
+############################
+# Base stage (Dependency Resolution)
+############################
+FROM gradle:8.11-jdk21 AS base
+WORKDIR /app
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false"
+
+# Copy Gradle wrapper and configuration files
+COPY gradle ./gradle
+COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts ./
+COPY backend/build.gradle.kts ./backend/
+COPY frontend/build.gradle.kts ./frontend/
+
+# Resolve dependencies for both modules to leverage layer caching
+RUN gradle dependencies --no-daemon
+
+############################
+# Test Build stage
+############################
+FROM base AS build-test
+# Copy all source code (including tests)
+COPY backend/src ./backend/src
+COPY frontend/src ./frontend/src
+COPY frontend/webpack.config.d ./frontend/webpack.config.d
+
+
+############################
+# Test Runtime stage
+############################
+FROM eclipse-temurin:21-jdk-alpine
+
+WORKDIR /app
+
+# Install runtime dependencies needed for tests
+# ImageMagick needs delegate libraries for image format support:
+# - imagemagick: Core ImageMagick tools
+# - libjpeg-turbo: JPEG image support (delegate library)
+# - libpng: PNG image support (delegate library)
+# - libwebp: WebP image support (delegate library)
+# Without these delegate libraries, ImageMagick will fail with "no decode delegate" errors
+RUN apk add --no-cache \
+    curl \
+    imagemagick \
+    libjpeg-turbo \
+    libpng \
+    libwebp
+
+# Use Gradle cache from the dependency-resolution stage to speed up builds
+ENV GRADLE_USER_HOME=/root/.gradle
+COPY --from=base /home/gradle/.gradle /root/.gradle
+
+# Copy gradle wrapper and configuration
+COPY --from=base /app/gradle ./gradle
+COPY --from=base /app/gradlew ./
+COPY --from=base /app/gradle.properties ./
+COPY --from=base /app/settings.gradle.kts ./
+COPY --from=base /app/build.gradle.kts ./
+COPY --from=base /app/backend/build.gradle.kts ./backend/
+COPY --from=base /app/frontend/build.gradle.kts ./frontend/
+
+# Copy source and test files
+COPY --from=build-test /app/backend/src ./backend/src
+COPY --from=build-test /app/frontend/src ./frontend/src
+COPY --from=build-test /app/frontend/webpack.config.d ./frontend/webpack.config.d
+
+# Verify ImageMagick is working
+RUN magick -version && \
+    magick identify -list configure | grep DELEGATES
+
+# Run tests by default
+CMD ["./gradlew", "test", "--no-daemon"]
