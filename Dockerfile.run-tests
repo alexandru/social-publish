@@ -1,4 +1,13 @@
 ############################
+# Test Dockerfile
+# 
+# Runs tests in an environment that matches production:
+# - Uses jlink-based minimal JRE (same as production)
+# - Includes ImageMagick with all required delegates
+# - Same Alpine Linux base as production
+############################
+
+############################
 # Base stage (Dependency Resolution)
 ############################
 FROM gradle:8.11-jdk21 AS base
@@ -15,23 +24,13 @@ COPY frontend/build.gradle.kts ./frontend/
 RUN gradle dependencies --no-daemon
 
 ############################
-# Backend Build stage
+# Test Build stage
 ############################
-FROM base AS build-backend
-# Copy backend source
+FROM base AS build-test
+# Copy all source code (including tests)
 COPY backend/src ./backend/src
-# Build backend JAR
-RUN gradle :backend:jar --no-daemon -x test
-
-############################
-# Frontend Build stage
-############################
-FROM base AS build-frontend
-# Copy frontend source
 COPY frontend/src ./frontend/src
 COPY frontend/webpack.config.d ./frontend/webpack.config.d
-# Build frontend distribution
-RUN gradle :frontend:assemble --no-daemon -x test
 
 ############################
 # JRE build stage
@@ -57,7 +56,7 @@ RUN $JAVA_HOME/bin/jlink \
         --output /javaruntime
 
 ############################
-# Runtime stage
+# Test Runtime stage
 ############################
 FROM alpine:latest
 
@@ -65,17 +64,9 @@ ENV JAVA_HOME=/opt/java
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 COPY --from=jre-build /javaruntime $JAVA_HOME
 
-WORKDIR /opt/app
+WORKDIR /app
 
-# Create application user
-RUN adduser -u 1001 -h /opt/app -s /bin/sh -D appuser
-RUN chown -R appuser /opt/app && chmod -R "g+rwX" /opt/app
-
-# Create data directory and uploads subdirectory
-RUN mkdir -p /var/lib/social-publish/uploads
-RUN chown -R appuser /var/lib/social-publish && chmod -R "g+rwX" /var/lib/social-publish
-
-# Install minimal runtime dependencies
+# Install runtime dependencies needed for tests
 # ImageMagick needs delegate libraries for image format support:
 # - imagemagick-jpeg: JPEG image support
 # - imagemagick-png: PNG image support  
@@ -87,25 +78,23 @@ RUN apk add --no-cache \
     imagemagick-png \
     imagemagick-webp
 
-# Copy application JAR from backend stage
-COPY --from=build-backend --chown=appuser:root /app/backend/build/libs/backend-1.0.0.jar /opt/app/app.jar
+# Copy gradle wrapper and configuration
+COPY --from=build-test /app/gradle ./gradle
+COPY --from=build-test /app/gradlew ./
+COPY --from=build-test /app/gradle.properties ./
+COPY --from=build-test /app/settings.gradle.kts ./
+COPY --from=build-test /app/build.gradle.kts ./
+COPY --from=build-test /app/backend/build.gradle.kts ./backend/
+COPY --from=build-test /app/frontend/build.gradle.kts ./frontend/
 
-# Copy frontend assets from frontend stage
-COPY --from=build-frontend --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
+# Copy source and test files
+COPY --from=build-test /app/backend/src ./backend/src
+COPY --from=build-test /app/frontend/src ./frontend/src
+COPY --from=build-test /app/frontend/webpack.config.d ./frontend/webpack.config.d
 
-# Copy java-exec wrapper script
-COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
-RUN chmod +x /opt/app/java-exec
+# Verify ImageMagick is working
+RUN magick -version && \
+    magick identify -list configure | grep DELEGATES
 
-# Expose port 3000
-EXPOSE 3000
-USER appuser
-
-# Environment variables
-ENV DB_PATH=/var/lib/social-publish/sqlite3.db
-ENV UPLOADED_FILES_PATH=/var/lib/social-publish/uploads
-ENV HTTP_PORT=3000
-ENV STATIC_CONTENT_PATH=/opt/app/public
-
-# Run the application with optimized GC settings
-CMD ["/opt/app/java-exec", "-jar", "/opt/app/app.jar", "start-server"]
+# Run tests by default
+CMD ["./gradlew", "test", "--no-daemon"]
