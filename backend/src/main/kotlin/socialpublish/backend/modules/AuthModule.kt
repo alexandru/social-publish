@@ -99,7 +99,7 @@ class AuthModule(
                 )
             )
         } else {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
         }
     }
 

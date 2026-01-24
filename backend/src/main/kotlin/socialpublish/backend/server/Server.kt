@@ -1,18 +1,21 @@
+@file:OptIn(ExperimentalKtorApi::class)
+
 package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
 import arrow.core.Either
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.OpenApiDoc
 import io.ktor.openapi.OpenApiInfo
+import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngineFactory
-import io.ktor.server.http.HttpRequestLifecycle
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
@@ -22,7 +25,6 @@ import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
@@ -32,7 +34,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.routing.routingRoot
 import io.ktor.utils.io.ExperimentalKtorApi
-import java.io.File
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -49,22 +50,8 @@ import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.CompositeErrorResponse
-import socialpublish.backend.models.CompositeErrorWithDetails
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewLinkedInPostResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.modules.FormModule
-import socialpublish.backend.modules.RssModule
-import socialpublish.backend.modules.configureAuth
-import socialpublish.backend.modules.extractJwtToken
-import socialpublish.backend.utils.isPathWithinBase
+import socialpublish.backend.models.*
+import socialpublish.backend.modules.*
 import socialpublish.backend.utils.parseUrl
 
 private val logger = KotlinLogging.logger {}
@@ -78,6 +65,7 @@ fun startServer(
 ) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
+    val staticFilesModule = StaticFilesModule(config.server)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
@@ -114,9 +102,6 @@ fun startServer(
             allowHeader(io.ktor.http.HttpHeaders.Authorization)
             allowCredentials = true
         }
-
-        // Install HttpRequestLifecycle plugin to cancel requests when clients disconnect
-        install(HttpRequestLifecycle) { cancelCallOnClose = true }
 
         install(ContentNegotiation) {
             @OptIn(ExperimentalSerializationApi::class)
@@ -174,7 +159,6 @@ fun startServer(
 
         routing {
             // OpenAPI spec endpoint - generates spec from annotated routes
-            @OptIn(ExperimentalKtorApi::class)
             get("/openapi.json") {
                     val openApiDoc =
                         OpenApiDoc(
@@ -194,16 +178,19 @@ fun startServer(
             swaggerUI(path = "swagger", swaggerFile = "openapi.json") { version = "5.10.5" }
 
             // Health check endpoints
-            @OptIn(ExperimentalKtorApi::class)
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
                 .describe {
                     summary = "Health check"
                     description = "Returns 'pong' to indicate the server is running"
-                    responses { HttpStatusCode.OK { description = "Server is healthy" } }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "Server is healthy"
+                            ContentType.Text.Plain()
+                        }
+                    }
                 }
 
             // Authentication routes
-            @OptIn(ExperimentalKtorApi::class)
             rateLimit(RateLimitName("login")) {
                 post("/api/login") { authModule.login(call) }
                     .describe {
@@ -212,14 +199,21 @@ fun startServer(
                         responses {
                             HttpStatusCode.OK {
                                 description = "Successful login, returns JWT token"
+                                schema = jsonSchema<LoginResponse>()
                             }
-                            HttpStatusCode.Unauthorized { description = "Invalid credentials" }
+                            HttpStatusCode.BadRequest {
+                                description = "Missing username or password"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Invalid credentials"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
                         }
                     }
             }
 
             // Protected routes
-            @OptIn(ExperimentalKtorApi::class)
             authenticate("auth-jwt") {
                 get("/api/protected") { authModule.protectedRoute(call) }
                     .describe {
@@ -283,6 +277,7 @@ fun startServer(
                             HttpStatusCode.Unauthorized { description = "Not authenticated" }
                             HttpStatusCode.ServiceUnavailable {
                                 description = "Bluesky integration not configured"
+                                schema = jsonSchema<ErrorResponse>()
                             }
                         }
                     }
@@ -451,7 +446,6 @@ fun startServer(
             }
 
             // Public RSS feed
-            @OptIn(ExperimentalKtorApi::class)
             get("/rss") { rssModule.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed"
@@ -459,7 +453,6 @@ fun startServer(
                     responses { HttpStatusCode.OK { description = "RSS feed" } }
                 }
 
-            @OptIn(ExperimentalKtorApi::class)
             get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed for specific target"
@@ -467,7 +460,6 @@ fun startServer(
                     responses { HttpStatusCode.OK { description = "RSS feed for target" } }
                 }
 
-            @OptIn(ExperimentalKtorApi::class)
             get("/rss/{uuid}") { rssModule.getRssItem(call) }
                 .describe {
                     summary = "Get RSS item"
@@ -478,7 +470,6 @@ fun startServer(
                     }
                 }
 
-            @OptIn(ExperimentalKtorApi::class)
             get("/files/{uuid}") { filesModule.getFile(call) }
                 .describe {
                     summary = "Get uploaded file"
@@ -491,38 +482,7 @@ fun startServer(
 
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
-                get("/{path...}") {
-                    val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
-                    val triedPaths = mutableListOf<String>()
-                    for (baseDir in config.server.staticContentPaths) {
-                        val canonicalBaseDir = baseDir.canonicalFile
-
-                        val file =
-                            if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
-                                File(canonicalBaseDir, "index.html")
-                            } else {
-                                File(canonicalBaseDir, path)
-                            }
-
-                        // Security: Check that the resolved file is within the allowed directory
-                        if (
-                            file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)
-                        ) {
-                            call.respondFile(file)
-                            return@get
-                        }
-                        triedPaths.add(file.canonicalPath)
-                    }
-
-                    logger.warn {
-                        "Static file not found. Tried paths:\n${
-                            triedPaths.joinToString(
-                                ",\n"
-                            )
-                        }"
-                    }
-                    call.respond(HttpStatusCode.NotFound)
-                }
+                get("/{path...}") { staticFilesModule.serveStaticFile(call) }
             }
         }
     }
