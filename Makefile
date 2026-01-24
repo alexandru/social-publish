@@ -95,3 +95,13 @@ lint:
 
 format:
 	./gradlew ktfmtFormat
+
+# Docker test targets
+build-test-docker:
+	docker build -f ./Dockerfile.run-tests -t social-publish-tests:latest .
+
+test-docker: build-test-docker
+	docker run --rm social-publish-tests:latest ./gradlew test --no-daemon
+
+test-imagemagick-docker: build-test-docker
+	docker run --rm social-publish-tests:latest ./gradlew :backend:test --tests "ImageMagickTest" --no-daemon

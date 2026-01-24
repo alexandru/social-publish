@@ -68,15 +68,17 @@ WORKDIR /app
 
 # Install runtime dependencies needed for tests
 # ImageMagick needs delegate libraries for image format support:
-# - imagemagick-jpeg: JPEG image support
-# - imagemagick-png: PNG image support  
-# - imagemagick-webp: WebP image support
+# - imagemagick: Core ImageMagick tools
+# - libjpeg-turbo: JPEG image support (delegate library)
+# - libpng: PNG image support (delegate library)
+# - libwebp: WebP image support (delegate library)
+# Without these delegate libraries, ImageMagick will fail with "no decode delegate" errors
 RUN apk add --no-cache \
     curl \
     imagemagick \
-    imagemagick-jpeg \
-    imagemagick-png \
-    imagemagick-webp
+    libjpeg-turbo \
+    libpng \
+    libwebp
 
 # Copy gradle wrapper and configuration
 COPY --from=build-test /app/gradle ./gradle
