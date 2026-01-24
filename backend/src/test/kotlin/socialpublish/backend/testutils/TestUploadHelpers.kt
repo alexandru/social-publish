@@ -1,6 +1,7 @@
 package socialpublish.backend.testutils
 
 import arrow.core.getOrElse
+import arrow.fx.coroutines.resourceScope
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -17,8 +18,6 @@ import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
@@ -42,17 +41,15 @@ internal data class MultipartRequest(
     val fields: Map<String, List<String>>,
 )
 
-internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
+internal suspend fun createTestDatabase(tempDir: Path): Database = resourceScope {
     val dbPath = tempDir.resolve("test.db").toString()
-    val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-    Database.migrate(jdbi).getOrElse { throw it }
-    return jdbi
+    Database.connect(dbPath).bind()
 }
 
-internal suspend fun createFilesModule(tempDir: Path, jdbi: Jdbi): FilesModule {
+internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule {
     val uploadsDir = tempDir.resolve("uploads").toFile()
     val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir, baseUrl = "http://localhost")
-    return FilesModule.create(filesConfig, FilesDatabase(jdbi))
+    return FilesModule.create(filesConfig, FilesDatabase(db))
 }
 
 internal fun loadTestResourceBytes(resourceName: String): ByteArray {
