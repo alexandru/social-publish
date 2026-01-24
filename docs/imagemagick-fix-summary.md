@@ -8,7 +8,7 @@ The Docker container had ImageMagick installed but was missing delegate librarie
 
 ## Solution Implemented
 
-### 1. Updated Production Dockerfile (`Dockerfile.jvm`)
+### 1. Updated Production Dockerfile (`docker/Dockerfile.jvm`)
 Added required delegate libraries on line 85-90:
 ```dockerfile
 RUN apk add --no-cache \
@@ -19,7 +19,7 @@ RUN apk add --no-cache \
     libwebp
 ```
 
-### 2. Created Test Dockerfile (`Dockerfile.run-tests`)
+### 2. Created Test Dockerfile (`docker/Dockerfile.run-tests`)
 - Mirrors production environment with jlink-based minimal JRE
 - Includes same ImageMagick delegate libraries
 - Enables testing in Docker environment
@@ -57,8 +57,8 @@ Existing tests validate the fix:
 - `FilesModuleTest.kt` - Tests image upload and resizing workflow
 
 ## Files Changed
-- `Dockerfile.jvm` - Added delegate library packages
-- `Dockerfile.run-tests` - New test environment Dockerfile
+- `docker/Dockerfile.jvm` - Added delegate library packages
+- `docker/Dockerfile.run-tests` - New test environment Dockerfile
 - `Makefile` - Added Docker testing targets
 - `docs/imagemagick-fix.md` - Comprehensive documentation
 

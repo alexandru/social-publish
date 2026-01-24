@@ -20,12 +20,12 @@ The issue was that the Alpine Linux Docker image had ImageMagick installed but w
 
 ### Changes Made
 
-1. **Updated `Dockerfile.jvm`** (line 78-88):
+1. **Updated `docker/Dockerfile.jvm`** (line 78-88):
    - Added `libjpeg-turbo` - JPEG image format support
    - Added `libpng` - PNG image format support
    - Added `libwebp` - WebP image format support
 
-2. **Created `Dockerfile.run-tests`**:
+2. **Created `docker/Dockerfile.run-tests`**:
    - New Dockerfile for running tests in production-like environment
    - Uses same jlink-based minimal JRE as production
    - Includes all ImageMagick delegate libraries
@@ -58,7 +58,7 @@ The fix ensures:
 
 ```bash
 # Build test image
-docker build -f Dockerfile.run-tests -t social-publish-tests:latest .
+docker build -f docker/Dockerfile.run-tests -t social-publish-tests:latest .
 
 # Run tests
 docker run --rm social-publish-tests:latest
