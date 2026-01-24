@@ -321,6 +321,36 @@ private suspend fun SafeConnection.runMigrations() {
         }
     }
 
+    // Users table migration
+    if (!tableExists("users")) {
+        logger.info { "Creating users table" }
+        query(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """
+                .trimIndent()
+        ) {
+            execute()
+            Unit
+        }
+        query(
+            """
+            CREATE INDEX IF NOT EXISTS users_email
+                ON users(email)
+            """
+                .trimIndent()
+        ) {
+            execute()
+            Unit
+        }
+    }
+
     logger.info { "Database migrations completed" }
 }
 
