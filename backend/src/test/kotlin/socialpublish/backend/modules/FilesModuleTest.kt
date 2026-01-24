@@ -164,4 +164,95 @@ class FilesModuleTest {
 
         client.close()
     }
+
+    @Test
+    fun `fails when uploading invalid image data`(@TempDir tempDir: Path) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+
+        application {
+            routing {
+                post("/api/files/upload") {
+                    val result = filesModule.uploadFile(call)
+                    when (result) {
+                        is arrow.core.Either.Right ->
+                            call.respondText(
+                                Json.encodeToString(result.value),
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        is arrow.core.Either.Left ->
+                            call.respondText(
+                                Json.encodeToString(mapOf("error" to result.value.errorMessage)),
+                                io.ktor.http.ContentType.Application.Json,
+                                HttpStatusCode.fromValue(result.value.status),
+                            )
+                    }
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        // Create minimal JPEG header that Tika will recognize but ImageMagick can't process
+        // JPEG files start with FF D8 FF (SOI marker)
+        val corruptedJpeg =
+            byteArrayOf(
+                0xFF.toByte(),
+                0xD8.toByte(),
+                0xFF.toByte(),
+                0xE0.toByte(), // APP0 marker
+                0x00,
+                0x10, // Length
+                0x4A,
+                0x46,
+                0x49,
+                0x46,
+                0x00, // "JFIF\0"
+                // Rest is garbage
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            )
+
+        val response =
+            client.submitFormWithBinaryData(
+                url = "/api/files/upload",
+                formData =
+                    io.ktor.client.request.forms.formData {
+                        append("altText", "corrupted image")
+                        append(
+                            "file",
+                            corruptedJpeg,
+                            io.ktor.http.Headers.build {
+                                append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
+                                append(
+                                    io.ktor.http.HttpHeaders.ContentDisposition,
+                                    "filename=\"corrupted.jpeg\"",
+                                )
+                            },
+                        )
+                    },
+            )
+
+        // Should fail with an error status (500) since ImageMagick can't process the corrupted
+        // data
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        assertTrue(
+            response.bodyAsText().contains("Failed to upload file") ||
+                response.bodyAsText().contains("error")
+        )
+
+        client.close()
+    }
 }
