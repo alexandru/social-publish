@@ -135,7 +135,7 @@ class CacheHeadersTest {
     fun `test no-cache headers for RSS routes`() = testApplication {
         application { configureDynamicRoutes() }
 
-        client.get("/rss/feed").apply {
+        client.get("/rss").apply {
             assertEquals(HttpStatusCode.OK, status)
             val cacheControl = headers[HttpHeaders.CacheControl]!!
             assertTrue(cacheControl.contains("no-cache"), "Expected no-cache for RSS routes")
@@ -169,7 +169,7 @@ class CacheHeadersTest {
         }
         routing {
             get("/api/test") { call.respond(HttpStatusCode.OK, "API test") }
-            get("/rss/feed") { call.respond(HttpStatusCode.OK, "RSS feed") }
+            get("/rss") { call.respond(HttpStatusCode.OK, "RSS feed") }
             get("/files/12345") { call.respond(HttpStatusCode.OK, "File content") }
         }
     }
