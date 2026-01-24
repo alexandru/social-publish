@@ -4,6 +4,9 @@ const path = require('path');
 
 // Only apply cache busting in production mode
 if (config.mode === 'production') {
+    // Ensure config.output exists
+    config.output = config.output || {};
+    
     // Update output filename to include content hash
     config.output.filename = (chunkData) => {
         return chunkData.chunk.name === 'main'
@@ -11,6 +14,9 @@ if (config.mode === 'production') {
             : "app-[name].[contenthash:8].js";
     };
 
+    // Ensure plugins array exists
+    config.plugins = config.plugins || [];
+    
     // Add HtmlWebpackPlugin to generate index.html with proper script tags
     config.plugins.push(
         new HtmlWebpackPlugin({
