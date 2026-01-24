@@ -15,10 +15,13 @@ import socialpublish.frontend.utils.Storage
 @JsNonModule
 external val fontAwesomeStyles: dynamic
 
+@JsModule("./styles/custom.css") @JsNonModule external val customStyles: dynamic
+
 fun main() {
     // Load bundled CSS
     bulmaStyles
     fontAwesomeStyles
+    customStyles
 
     renderComposable(rootElementId = "root") { App() }
 }

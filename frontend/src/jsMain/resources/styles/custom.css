@@ -1,0 +1,27 @@
+/* Custom styles for social-publish frontend */
+
+/* Responsive checkbox grid layout */
+.social-checkboxes-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+/* On tablet screens and up, display in 2 columns */
+@media screen and (min-width: 769px) {
+    .social-checkboxes-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* On desktop screens and up, display in 3 columns */
+@media screen and (min-width: 1024px) {
+    .social-checkboxes-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Ensure checkbox fields don't have bottom margin when in grid */
+.social-checkboxes-container .field {
+    margin-bottom: 0;
+}
