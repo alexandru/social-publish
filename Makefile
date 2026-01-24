@@ -57,35 +57,35 @@ dependency-updates:
 		open frontend/build/dependencyUpdates/report.html
 
 # Docker setup
-init-docker:
+docker-init:
 	docker buildx inspect mybuilder || docker buildx create --name mybuilder
 	docker buildx use mybuilder
 
 # JVM Docker targets
-build-jvm: init-docker
+docker-build-jvm: docker-init
 	docker buildx build --platform linux/amd64,linux/arm64 -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" ${DOCKER_EXTRA_ARGS} .
 
-push-jvm:
-	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-jvm
+docker-push-jvm:
+	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-jvm
 
 # Build and push for a single platform (used in matrix builds)
-build-jvm-platform: init-docker
+docker-build-jvm-platform: docker-init
 	$(eval PLATFORM_TAG := $(shell echo ${PLATFORM} | tr '/' '-'))
 	docker buildx build --platform ${PLATFORM} -f ./Dockerfile.jvm -t "${IMG_JVM}-${PLATFORM_TAG}" -t "${LATEST_JVM}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
 
-push-jvm-platform:
-	DOCKER_EXTRA_ARGS="--push" $(MAKE) build-jvm-platform
+docker-push-jvm-platform:
+	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-jvm-platform
 
 # Create and push multi-platform manifest combining platform-specific images
-push-jvm-manifest:
+docker-push-jvm-manifest:
 	docker buildx imagetools create -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" \
 		"${IMG_JVM}-linux-amd64" \
 		"${IMG_JVM}-linux-arm64"
 
-build-jvm-local:
+docker-build-jvm-local:
 	docker build -f ./Dockerfile.jvm -t "${IMG_JVM}" -t "${LATEST_JVM}" -t "${LATEST}" .
 
-run-jvm: build-jvm-local
+docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
 	docker run -it -p 3000:3000 --rm --name social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
 

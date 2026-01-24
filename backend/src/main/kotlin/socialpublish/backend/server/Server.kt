@@ -8,11 +8,7 @@ import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.JsonSchema
-import io.ktor.openapi.JsonType
-import io.ktor.openapi.OpenApiInfo
-import io.ktor.openapi.ReferenceOr
-import io.ktor.openapi.jsonSchema
+import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
@@ -52,14 +48,7 @@ import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
-import socialpublish.backend.utils.configureOpenApiSecuritySchemes
-import socialpublish.backend.utils.documentLinkedInCallbackSpec
-import socialpublish.backend.utils.documentNewPostResponses
-import socialpublish.backend.utils.documentOAuthAuthorizeSpec
-import socialpublish.backend.utils.documentOAuthStatusResponses
-import socialpublish.backend.utils.documentSecurityRequirements
-import socialpublish.backend.utils.documentTwitterCallbackSpec
-import socialpublish.backend.utils.parseUrl
+import socialpublish.backend.utils.*
 
 private val logger = KotlinLogging.logger {}
 

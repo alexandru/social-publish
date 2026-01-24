@@ -30,7 +30,7 @@ jobs:
 
       - name: Build and Push JVM Docker image for ${{ matrix.platform }}
         run: |
-          make push-jvm-platform PLATFORM=${{ matrix.platform }}
+          make docker-push-jvm-platform PLATFORM=${{ matrix.platform }}
         env:
           GIT_TAG: ${{ github.ref }}
 
@@ -52,6 +52,6 @@ jobs:
 
       - name: Create and Push JVM multi-platform manifest
         run: |
-          make push-jvm-manifest
+          make docker-push-jvm-manifest
         env:
           GIT_TAG: ${{ github.ref }}
