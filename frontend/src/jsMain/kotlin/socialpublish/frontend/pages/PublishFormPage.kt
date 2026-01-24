@@ -57,54 +57,30 @@ fun PublishFormPage() {
 
 @Composable
 private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit) -> Unit) {
-    var content by remember { mutableStateOf("") }
-    var link by remember { mutableStateOf("") }
-    var targets by remember { mutableStateOf(setOf("rss")) }
-    var cleanupHtml by remember { mutableStateOf(false) }
-    var images by remember { mutableStateOf(mapOf<Int, SelectedImage>()) }
-    var isSubmitting by remember { mutableStateOf(false) }
+    var formState by remember { mutableStateOf(PublishFormState()) }
 
     val hasAuth = Storage.getAuthStatus()
     val scope = rememberCoroutineScope()
 
-    val postText = remember(content, link) { buildPostText(content, link) }
-    val usedCharacters = remember(postText) { countCharactersWithLinks(postText) }
-    val blueskyRemaining = remember(usedCharacters) { 300 - usedCharacters }
-    val mastodonRemaining = remember(usedCharacters) { 500 - usedCharacters }
-    val twitterRemaining = remember(usedCharacters) { 280 - usedCharacters }
-    val linkedinRemaining = remember(usedCharacters) { 2000 - usedCharacters }
-
-    val removeImage: (Int) -> Unit = { id -> images = images - id }
-
-    val updateImage: (SelectedImage) -> Unit = { image -> images = images + (image.id to image) }
-
-    val resetForm: () -> Unit = {
-        content = ""
-        link = ""
-        targets = setOf("rss")
-        cleanupHtml = false
-        images = emptyMap()
-    }
-
     val handleSubmit: () -> Unit = {
         scope.launch {
-            if (content.isEmpty()) {
+            if (formState.content.isEmpty()) {
                 onError("Content is required!")
                 return@launch
             }
 
-            if (targets.isEmpty()) {
+            if (formState.targets.isEmpty()) {
                 onError("At least one publication target is required!")
                 return@launch
             }
 
             // Disable fieldset
-            isSubmitting = true
+            formState = formState.setSubmitting(true)
 
             try {
                 // Upload images first
                 val imageUUIDs = mutableListOf<String>()
-                for (image in images.values) {
+                for (image in formState.images.values) {
                     if (image.file != null) {
                         when (
                             val response =
@@ -137,11 +113,11 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 // Submit the form
                 val publishRequest =
                     PublishRequest(
-                        content = content,
-                        link = link.ifEmpty { null },
-                        targets = targets.toList(),
+                        content = formState.content,
+                        link = formState.link.ifEmpty { null },
+                        targets = formState.targets.toList(),
                         images = imageUUIDs,
-                        cleanupHtml = cleanupHtml,
+                        cleanupHtml = formState.cleanupHtml,
                     )
 
                 when (
@@ -152,7 +128,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         )
                 ) {
                     is ApiResponse.Success -> {
-                        resetForm()
+                        formState = formState.reset()
                         onInfo {
                             Div {
                                 P { Text("New post created successfully!") }
@@ -181,7 +157,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 console.error("Exception while submitting form:", e)
                 onError("Unexpected exception while submitting form!")
             } finally {
-                isSubmitting = false
+                formState = formState.setSubmitting(false)
             }
         }
     }
@@ -198,84 +174,74 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         Fieldset(
             attrs = {
                 id("post-form-fieldset")
-                if (isSubmitting) {
+                if (formState.isSubmitting) {
                     attr("disabled", "")
                 }
             }
         ) {
             TextAreaField(
                 label = "Content",
-                value = content,
-                onValueChange = { content = it },
+                value = formState.content,
+                onValueChange = { formState = formState.updateContent(it) },
                 rows = 4,
                 required = true,
             )
 
             TextInputField(
                 label = "Highlighted link (optional)",
-                value = link,
-                onValueChange = { link = it },
+                value = formState.link,
+                onValueChange = { formState = formState.updateLink(it) },
                 placeholder = "https://example.com/...",
                 pattern = "https?://.+",
             )
 
-            images.values
+            formState.images.values
                 .sortedBy { it.id }
                 .forEach { image ->
                     key(image.id) {
                         ImageUpload(
                             id = image.id,
                             state = image,
-                            onSelect = updateImage,
-                            onRemove = removeImage,
+                            onSelect = { formState = formState.updateImage(it) },
+                            onRemove = { formState = formState.removeImage(it) },
                         )
                     }
                 }
 
             ServiceCheckboxField(
                 serviceName = "Mastodon",
-                checked = targets.contains("mastodon"),
-                onCheckedChange = { checked ->
-                    targets = if (checked) targets + "mastodon" else targets - "mastodon"
-                },
-                charactersRemaining = mastodonRemaining,
+                checked = formState.targets.contains("mastodon"),
+                onCheckedChange = { formState = formState.toggleTarget("mastodon") },
+                charactersRemaining = formState.mastodonRemaining,
             )
 
             ServiceCheckboxField(
                 serviceName = "Bluesky",
-                checked = targets.contains("bluesky"),
-                onCheckedChange = { checked ->
-                    targets = if (checked) targets + "bluesky" else targets - "bluesky"
-                },
-                charactersRemaining = blueskyRemaining,
+                checked = formState.targets.contains("bluesky"),
+                onCheckedChange = { formState = formState.toggleTarget("bluesky") },
+                charactersRemaining = formState.blueskyRemaining,
             )
 
             ServiceCheckboxField(
                 serviceName = "Twitter",
-                checked = targets.contains("twitter"),
-                onCheckedChange = { checked ->
-                    targets = if (checked) targets + "twitter" else targets - "twitter"
-                },
-                charactersRemaining = twitterRemaining,
+                checked = formState.targets.contains("twitter"),
+                onCheckedChange = { formState = formState.toggleTarget("twitter") },
+                charactersRemaining = formState.twitterRemaining,
                 disabled = !hasAuth.twitter,
             )
 
             ServiceCheckboxField(
                 serviceName = "LinkedIn",
-                checked = targets.contains("linkedin"),
-                onCheckedChange = { checked ->
-                    targets = if (checked) targets + "linkedin" else targets - "linkedin"
-                },
-                charactersRemaining = linkedinRemaining,
+                checked = formState.targets.contains("linkedin"),
+                onCheckedChange = { formState = formState.toggleTarget("linkedin") },
+                charactersRemaining = formState.linkedinRemaining,
                 disabled = !hasAuth.linkedin,
             )
 
             ServiceCheckboxField(
                 serviceName = "RSS feed",
-                checked = targets.contains("rss"),
-                onCheckedChange = { checked ->
-                    targets = if (checked) targets + "rss" else targets - "rss"
-                },
+                checked = formState.targets.contains("rss"),
+                onCheckedChange = { formState = formState.toggleTarget("rss") },
             ) {
                 P(attrs = { classes("help") }) {
                     A(href = "/rss", attrs = { attr("target", "_blank") }) { Text("View feed") }
@@ -284,19 +250,19 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
 
             CheckboxField(
                 label = "cleanup HTML",
-                checked = cleanupHtml,
-                onCheckedChange = { cleanupHtml = it },
+                checked = formState.cleanupHtml,
+                onCheckedChange = { formState = formState.updateCleanupHtml(it) },
             )
 
             Div(attrs = { classes("field", "is-grouped") }) {
                 Div(attrs = { classes("control") }) {
                     AddImageButton(
-                        disabled = images.size >= 4,
+                        disabled = formState.images.size >= 4,
                         onImageSelected = { file ->
-                            val ids = images.keys.sorted()
+                            val ids = formState.images.keys.sorted()
                             val newId = if (ids.isEmpty()) 1 else ids.last() + 1
                             val newImage = SelectedImage(newId, file = file)
-                            images = images + (newId to newImage)
+                            formState = formState.addImage(newImage)
                         },
                     )
                 }
