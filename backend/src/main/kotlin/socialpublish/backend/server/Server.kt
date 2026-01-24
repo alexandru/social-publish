@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalKtorApi::class)
+
 package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
@@ -5,7 +7,13 @@ import arrow.core.Either
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.openapi.JsonSchema
+import io.ktor.openapi.JsonType
+import io.ktor.openapi.OpenApiInfo
+import io.ktor.openapi.ReferenceOr
+import io.ktor.openapi.jsonSchema
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
@@ -18,13 +26,14 @@ import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import java.io.File
+import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -40,23 +49,17 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.CompositeErrorResponse
-import socialpublish.backend.models.CompositeErrorWithDetails
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewLinkedInPostResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.modules.FormModule
-import socialpublish.backend.modules.RssModule
-import socialpublish.backend.modules.configureAuth
-import socialpublish.backend.modules.extractJwtToken
-import socialpublish.backend.utils.isPathWithinBase
+import socialpublish.backend.models.*
+import socialpublish.backend.modules.*
+import socialpublish.backend.utils.configureOpenApiSecuritySchemes
+import socialpublish.backend.utils.documentLinkedInCallbackSpec
+import socialpublish.backend.utils.documentNewPostResponses
+import socialpublish.backend.utils.documentOAuthAuthorizeSpec
+import socialpublish.backend.utils.documentOAuthStatusResponses
+import socialpublish.backend.utils.documentSecurityRequirements
+import socialpublish.backend.utils.documentTwitterCallbackSpec
 import socialpublish.backend.utils.parseUrl
 
 private val logger = KotlinLogging.logger {}
@@ -70,6 +73,7 @@ fun startServer(
 ) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
+    val staticFilesModule = StaticFilesModule(config.server)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
@@ -160,252 +164,529 @@ fun startServer(
 
         // Configure JWT authentication
         configureAuth(config.server.auth)
+        // Configure OpenAPI / Swagger documentation
+        configureOpenApiSecuritySchemes()
 
         routing {
+            // Swagger UI for API documentation - points to dynamically generated spec
+            swaggerUI(path = "docs") { info = OpenApiInfo("Social Publish API", "1.0.0") }
+
             // Health check endpoints
             get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
+                .describe {
+                    summary = "Health check"
+                    description = "Returns 'pong' to indicate the server is running"
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "Server is healthy"
+                            ContentType.Text.Plain()
+                        }
+                    }
+                }
 
             // Authentication routes
-            rateLimit(RateLimitName("login")) { post("/api/login") { authModule.login(call) } }
+            rateLimit(RateLimitName("login")) {
+                post("/api/login") { authModule.login(call) }
+                    .describe {
+                        summary = "User login"
+                        description = "Authenticate user and get JWT token"
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<LoginRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<LoginRequest>()
+                            }
+                        }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "Successful login, returns JWT token"
+                                schema = jsonSchema<LoginResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Missing username or password"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Invalid credentials"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+            }
 
             // Protected routes
             authenticate("auth-jwt") {
                 get("/api/protected") { authModule.protectedRoute(call) }
-
-                // RSS post creation
-                post("/api/rss/post") { rssModule.createPostRoute(call) }
+                    .describe {
+                        summary = "Protected route"
+                        description = "Test endpoint requiring authentication"
+                        documentSecurityRequirements()
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "Authenticated successfully"
+                                schema = jsonSchema<UserResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
 
                 // File upload
                 post("/api/files/upload") {
-                    when (val result = filesModule.uploadFile(call)) {
-                        is Either.Right -> call.respond(result.value)
-                        is Either.Left -> {
-                            val error = result.value
-                            call.respond(
-                                HttpStatusCode.fromValue(error.status),
-                                ErrorResponse(error = error.errorMessage),
-                            )
+                        when (val result = filesModule.uploadFile(call)) {
+                            is Either.Right -> call.respond(result.value)
+                            is Either.Left -> {
+                                val error = result.value
+                                call.respond(
+                                    HttpStatusCode.fromValue(error.status),
+                                    ErrorResponse(error = error.errorMessage),
+                                )
+                            }
                         }
                     }
-                }
+                    .describe {
+                        summary = "Upload file"
+                        description = "Upload a file for use in posts"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+
+                            ContentType.MultiPart.FormData {
+                                schema =
+                                    JsonSchema(
+                                        type = JsonType.OBJECT,
+                                        required = listOf("file"),
+                                        properties =
+                                            mapOf(
+                                                "altText" to
+                                                    ReferenceOr.Value(
+                                                        JsonSchema(
+                                                            type = JsonType.STRING,
+                                                            description =
+                                                                "Alt text for accessibility",
+                                                        )
+                                                    ),
+                                                "file" to
+                                                    ReferenceOr.Value(
+                                                        JsonSchema(
+                                                            type = JsonType.STRING,
+                                                            format = "binary", // <- file upload in
+                                                            // OpenAPI
+                                                            description = "Image file contents",
+                                                        )
+                                                    ),
+                                            ),
+                                    )
+                            }
+                        }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "File uploaded successfully"
+                                schema = jsonSchema<FileUploadResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Invalid file upload"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.InternalServerError {
+                                description = "Internal server error (quite possible)"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
+                // RSS post creation
+                post("/api/rss/post") { rssModule.createPostRoute(call) }
+                    .describe {
+                        summary = "Create RSS post"
+                        description = "Create a new RSS feed post"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewRssPostResponse>() }
+                    }
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                    if (blueskyModule != null) {
-                        blueskyModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Bluesky integration not configured"),
-                        )
+                        if (blueskyModule != null) {
+                            blueskyModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Bluesky integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Bluesky post"
+                        description = "Publish a post to Bluesky"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewBlueSkyPostResponse>() }
+                    }
 
                 post("/api/mastodon/post") {
-                    if (mastodonModule != null) {
-                        mastodonModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Mastodon integration not configured"),
-                        )
+                        if (mastodonModule != null) {
+                            mastodonModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Mastodon integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Mastodon post"
+                        description = "Publish a post to Mastodon"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewMastodonPostResponse>() }
+                    }
 
                 post("/api/twitter/post") {
-                    if (twitterModule != null) {
-                        twitterModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
+                        if (twitterModule != null) {
+                            twitterModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create Twitter post"
+                        description = "Publish a post to Twitter/X"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewTwitterPostResponse>() }
+                    }
 
                 post("/api/linkedin/post") {
-                    if (linkedInModule != null) {
-                        linkedInModule.createPostRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
+                        if (linkedInModule != null) {
+                            linkedInModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Create LinkedIn post"
+                        description = "Publish a post to LinkedIn"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewLinkedInPostResponse>() }
+                    }
+
+                post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
+                    .describe {
+                        summary = "Broadcast post to multiple platforms"
+                        description = "Publish a post to multiple social media platforms at once"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<Map<String, NewPostResponse>>() }
+                    }
+
+                // -----------------------------------------------------------
+                // OAuth authorization routes
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
-                    if (twitterModule != null) {
-                        val token =
-                            extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        twitterModule.authorizeRoute(call, token)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
+                        if (twitterModule != null) {
+                            val token =
+                                extractJwtToken(call)
+                                    ?: run {
+                                        call.respond(
+                                            HttpStatusCode.Unauthorized,
+                                            ErrorResponse(error = "Unauthorized"),
+                                        )
+                                        return@get
+                                    }
+                            twitterModule.authorizeRoute(call, token)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Initiate Twitter OAuth authorization"
+                        documentOAuthAuthorizeSpec("OAuth 1.0a", "Twitter")
+                    }
 
                 get("/api/twitter/callback") {
-                    if (twitterModule != null) {
-                        twitterModule.callbackRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
+                        if (twitterModule != null) {
+                            twitterModule.callbackRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Twitter OAuth callback"
+                        documentTwitterCallbackSpec()
+                    }
 
                 get("/api/twitter/status") {
-                    if (twitterModule != null) {
-                        twitterModule.statusRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "Twitter integration not configured"),
-                        )
+                        if (twitterModule != null) {
+                            twitterModule.statusRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Twitter integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Check Twitter authorization status"
+                        description =
+                            "Check if the user has authorized the application to post to Twitter"
+                        documentSecurityRequirements()
+                        responses { documentOAuthStatusResponses() }
+                    }
 
                 // LinkedIn OAuth flow
                 get("/api/linkedin/authorize") {
-                    if (linkedInModule != null) {
-                        val token =
-                            extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        linkedInModule.authorizeRoute(call, token)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
+                        if (linkedInModule != null) {
+                            val token =
+                                extractJwtToken(call)
+                                    ?: run {
+                                        call.respond(
+                                            HttpStatusCode.Unauthorized,
+                                            ErrorResponse(error = "Unauthorized"),
+                                        )
+                                        return@get
+                                    }
+                            linkedInModule.authorizeRoute(call, token)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "Initiate LinkedIn OAuth authorization"
+                        documentOAuthAuthorizeSpec("OAuth 2.0", "LinkedIn")
+                    }
 
                 get("/api/linkedin/callback") {
-                    if (linkedInModule != null) {
-                        linkedInModule.callbackRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
+                        if (linkedInModule != null) {
+                            linkedInModule.callbackRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
                     }
-                }
+                    .describe {
+                        summary = "LinkedIn OAuth callback"
+                        documentLinkedInCallbackSpec()
+                    }
 
                 get("/api/linkedin/status") {
-                    if (linkedInModule != null) {
-                        linkedInModule.statusRoute(call)
-                    } else {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse(error = "LinkedIn integration not configured"),
-                        )
+                        if (linkedInModule != null) {
+                            linkedInModule.statusRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LinkedIn integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Check LinkedIn authorization status"
+                        description =
+                            "Check if the user has authorized the application to post to LinkedIn"
+                        documentSecurityRequirements()
+                        responses { documentOAuthStatusResponses() }
+                    }
+            }
+
+            // -----------------------------------------------------------
+            // Public RSS feed
+
+            get("/rss") { rssModule.generateRssRoute(call) }
+                .describe {
+                    summary = "Get RSS feed"
+                    description =
+                        "Generate and retrieve the RSS feed containing all published posts"
+                    parameters {
+                        query("filterByLinks") {
+                            required = false
+                            description = "Filter to only include posts with links (true/false)"
+                        }
+                        query("filterByImages") {
+                            required = false
+                            description = "Filter to only include posts with images (true/false)"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "RSS feed in XML format"
+                            ContentType.Application.Rss()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to generate RSS feed"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
                     }
                 }
 
-                post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
-            }
-
-            // Public RSS feed
-            get("/rss") { rssModule.generateRssRoute(call) }
-
             get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
+                .describe {
+                    summary = "Get RSS feed for specific target"
+                    description =
+                        "Generate and retrieve the RSS feed filtered by target platform " +
+                            "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
+                    parameters {
+                        path("target") {
+                            required = true
+                            description =
+                                "Target platform to filter posts by (e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
+                        }
+                        query("filterByLinks") {
+                            required = false
+                            description = "Filter to only include posts with links (true/false)"
+                        }
+                        query("filterByImages") {
+                            required = false
+                            description = "Filter to only include posts with images (true/false)"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "RSS feed in XML format filtered by target"
+                            ContentType.Application.Rss()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to generate RSS feed"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                    }
+                }
 
             get("/rss/{uuid}") { rssModule.getRssItem(call) }
+                .describe {
+                    summary = "Get RSS item by UUID"
+                    description = "Retrieve a specific RSS post/item by its UUID"
+                    parameters {
+                        path("uuid") {
+                            required = true
+                            description = "UUID of the post to retrieve"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "Post retrieved successfully"
+                            schema = jsonSchema<Post>()
+                        }
+                        HttpStatusCode.BadRequest {
+                            description = "Missing UUID parameter"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.NotFound {
+                            description = "Post not found"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to retrieve post"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                    }
+                }
 
             get("/files/{uuid}") { filesModule.getFile(call) }
+                .describe {
+                    summary = "Get uploaded file"
+                    description =
+                        "Retrieve an uploaded file by its UUID. Returns the file content with " +
+                            "appropriate Content-Type and Content-Disposition headers."
+                    parameters {
+                        path("uuid") {
+                            required = true
+                            description = "UUID of the file to retrieve"
+                        }
+                    }
+                    responses {
+                        HttpStatusCode.OK {
+                            description =
+                                "File content (image or other media type). " +
+                                    "Content-Type header will match the file's mimetype."
+                            ContentType.Application.OctetStream {
+                                schema =
+                                    JsonSchema(
+                                        type = JsonType.STRING,
+                                        format = "binary",
+                                        description = "Binary file content",
+                                    )
+                            }
+                        }
+                        HttpStatusCode.BadRequest {
+                            description = "Missing UUID parameter"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.NotFound {
+                            description =
+                                "File not found in database or file content not found on disk"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                        HttpStatusCode.InternalServerError {
+                            description = "Failed to retrieve file"
+                            schema = jsonSchema<ErrorResponse>()
+                        }
+                    }
+                }
 
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
-                get("/{path...}") {
-                    val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
-                    val triedPaths = mutableListOf<String>()
-                    for (baseDir in config.server.staticContentPaths) {
-                        val canonicalBaseDir = baseDir.canonicalFile
-
-                        val file =
-                            if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
-                                File(canonicalBaseDir, "index.html")
-                            } else {
-                                File(canonicalBaseDir, path)
-                            }
-
-                        // Security: Check that the resolved file is within the allowed directory
-                        if (
-                            file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)
-                        ) {
-                            // Set appropriate caching headers based on file type
-                            when {
-                                // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable,
-                                // cache forever
-                                file.name.matches(
-                                    Regex(
-                                        "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)" +
-                                            "(?:js|woff2|woff|ttf|eot)"
-                                    )
-                                ) -> {
-                                    call.response.headers.append(
-                                        HttpHeaders.CacheControl,
-                                        "public, max-age=31536000, immutable",
-                                    )
-                                }
-                                // index.html - 2 hours with stale-while-revalidate
-                                file.name == "index.html" -> {
-                                    call.response.headers.append(
-                                        HttpHeaders.CacheControl,
-                                        "public, max-age=7200, stale-while-revalidate=86400",
-                                    )
-                                }
-                                // Images and other assets - 2 days with stale-while-revalidate
-                                file.name.matches(
-                                    Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")
-                                ) -> {
-                                    call.response.headers.append(
-                                        HttpHeaders.CacheControl,
-                                        "public, max-age=172800, stale-while-revalidate=86400",
-                                    )
-                                }
-                                // Other files - default caching for static assets
-                                else -> {
-                                    call.response.headers.append(
-                                        HttpHeaders.CacheControl,
-                                        "public, max-age=3600",
-                                    )
-                                }
-                            }
-
-                            call.respondFile(file)
-                            return@get
-                        }
-                        triedPaths.add(file.canonicalPath)
-                    }
-
-                    logger.warn {
-                        "Static file not found. Tried paths:\n${
-                            triedPaths.joinToString(
-                                ",\n"
-                            )
-                        }"
-                    }
-                    call.respond(HttpStatusCode.NotFound)
-                }
+                get("/{path...}") { staticFilesModule.serveStaticFile(call) }
             }
         }
     }

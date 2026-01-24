@@ -1,7 +1,6 @@
 package socialpublish.frontend.components
 
 import androidx.compose.runtime.*
-import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.utils.Storage
 
@@ -12,14 +11,6 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
 
     // Normalize currentPath to ignore trailing slashes and query strings so active checks are
     // robust
-    val path =
-        currentPath.substringBefore('?').let {
-            when {
-                it.isEmpty() -> "/"
-                it != "/" && it.endsWith("/") -> it.removeSuffix("/")
-                else -> it
-            }
-        }
 
     Nav(
         attrs = {
@@ -54,98 +45,132 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
             Div(attrs = { classes("navbar-start") }) {
                 Div(attrs = { classes("navbar-item") }) {
                     Div(attrs = { classes("buttons") }) {
-                        A(
+                        // Home
+                        NavButton(
                             href = "/",
-                            attrs = {
-                                classes("button", "is-primary")
-                                if (currentPath == "/") classes("is-active")
-                            },
-                        ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fas", "fa-home") })
-                            }
-                            B { Text("Home") }
-                        }
+                            label = "Home",
+                            iconClasses = arrayOf("fas", "fa-home"),
+                            isActive = (currentPath == "/"),
+                        )
                     }
                 }
 
                 if (isLoggedIn) {
                     Div(attrs = { classes("navbar-item") }) {
                         Div(attrs = { classes("buttons") }) {
-                            A(
+                            // Publish
+                            NavButton(
                                 href = "/form",
-                                attrs = {
-                                    classes("button", "is-primary")
-                                    if (currentPath == "/form") classes("is-active")
-                                },
-                            ) {
-                                Span(attrs = { classes("icon") }) {
-                                    I(attrs = { classes("fas", "fa-paper-plane") })
-                                }
-                                B { Text("Publish") }
-                            }
+                                label = "Publish",
+                                iconClasses = arrayOf("fas", "fa-paper-plane"),
+                                isActive = (currentPath == "/form"),
+                            )
                         }
                     }
                 }
 
-                A(
+                // New API link (opens in new tab)
+                NavItemLink(
+                    href = "/docs",
+                    label = "API",
+                    iconClasses = arrayOf("fas", "fa-book"),
+                    openInNewTab = true,
+                )
+
+                // Help
+                NavItemLink(
                     href = "https://github.com/alexandru/social-publish",
-                    attrs = {
-                        classes("navbar-item")
-                        attr("target", "_blank")
-                        attr("rel", "noreferrer")
-                    },
-                ) {
-                    Span(attrs = { classes("icon") }) { I(attrs = { classes("fab", "fa-github") }) }
-                    B { Text("Help") }
-                }
+                    label = "Help",
+                    iconClasses = arrayOf("fab", "fa-github"),
+                    openInNewTab = true,
+                )
             }
 
             Div(attrs = { classes("navbar-end") }) {
                 Div(attrs = { classes("navbar-item") }) {
                     Div(attrs = { classes("buttons") }) {
                         if (isLoggedIn) {
-                            A(
+                            // Account
+                            NavButton(
                                 href = "/account",
-                                attrs = {
-                                    classes("button", "is-primary")
-                                    if (currentPath == "/account") classes("is-active")
-                                },
-                            ) {
-                                Span(attrs = { classes("icon") }) {
-                                    I(attrs = { classes("fas", "fa-user-circle") })
-                                }
-                                B { Text("Account") }
-                            }
+                                label = "Account",
+                                iconClasses = arrayOf("fas", "fa-user-circle"),
+                                isActive = (currentPath == "/account"),
+                            )
 
-                            A(
-                                attrs = {
-                                    classes("button", "is-primary")
-                                    onClick { onLogout() }
-                                }
-                            ) {
-                                Span(attrs = { classes("icon") }) {
-                                    I(attrs = { classes("fas", "fa-sign-out-alt") })
-                                }
-                                B { Text("Logout") }
-                            }
+                            // Logout (action)
+                            NavButton(
+                                label = "Logout",
+                                iconClasses = arrayOf("fas", "fa-sign-out-alt"),
+                                onClick = onLogout,
+                            )
                         } else {
-                            A(
+                            // Login
+                            NavButton(
                                 href = "/login",
-                                attrs = {
-                                    classes("button", "is-primary")
-                                    if (currentPath == "/login") classes("is-active")
-                                },
-                            ) {
-                                Span(attrs = { classes("icon") }) {
-                                    I(attrs = { classes("fas", "fa-key") })
-                                }
-                                B { Text("Login") }
-                            }
+                                label = "Login",
+                                iconClasses = arrayOf("fas", "fa-key"),
+                                isActive = (currentPath == "/login"),
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NavButton(
+    href: String? = null,
+    label: String,
+    iconClasses: Array<String> = emptyArray(),
+    isActive: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    if (href != null) {
+        A(
+            href = href,
+            attrs = {
+                classes("button", "is-primary")
+                if (isActive) classes("is-active")
+                if (onClick != null) onClick { onClick() }
+            },
+        ) {
+            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            B { Text(label) }
+        }
+    } else {
+        A(
+            attrs = {
+                classes("button", "is-primary")
+                if (onClick != null) onClick { onClick() }
+            }
+        ) {
+            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            B { Text(label) }
+        }
+    }
+}
+
+@Composable
+private fun NavItemLink(
+    href: String,
+    label: String,
+    iconClasses: Array<String> = emptyArray(),
+    openInNewTab: Boolean = false,
+) {
+    A(
+        href = href,
+        attrs = {
+            classes("navbar-item")
+            if (openInNewTab) {
+                attr("target", "_blank")
+                attr("rel", "noreferrer")
+            }
+        },
+    ) {
+        Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+        B { Text(label) }
     }
 }

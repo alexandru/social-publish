@@ -27,15 +27,15 @@ RUN_ENV_VARS := \
 # Development targets
 dev:
 	@trap 'kill 0' INT; \
-	./gradlew :backend:run --args="start-server" --continuous & \
-	./gradlew :frontend:jsBrowserDevelopmentRun --continuous & \
+	JAVA_TOOL_OPTIONS="-Dio.ktor.development=true" ./gradlew :backend:run --args="start-server" & \
+	./gradlew :frontend:jsBrowserDevelopmentRun & \
 	wait
 
 dev-backend:
-	./gradlew :backend:run --args="start-server"
+	JAVA_TOOL_OPTIONS="-Dio.ktor.development=true" ./gradlew :backend:run --args="start-server"
 
 dev-frontend:
-	./gradlew :frontend:jsBrowserDevelopmentRun --continuous
+	./gradlew :frontend:jsBrowserDevelopmentRun
 
 # Gradle build targets
 build:
