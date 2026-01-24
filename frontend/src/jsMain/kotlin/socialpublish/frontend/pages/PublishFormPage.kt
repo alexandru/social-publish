@@ -75,12 +75,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     val twitterRemaining = remember(usedCharacters) { 280 - usedCharacters }
     val linkedinRemaining = remember(usedCharacters) { 2000 - usedCharacters }
 
-    val addImage: () -> Unit = {
-        val ids = images.keys.sorted()
-        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
-        images = images + (newId to SelectedImage(newId))
-    }
-
     val removeImage: (Int) -> Unit = { id -> images = images - id }
 
     val updateImage: (SelectedImage) -> Unit = { image -> images = images + (image.id to image) }
@@ -410,20 +404,15 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
 
             Div(attrs = { classes("field", "is-grouped") }) {
                 Div(attrs = { classes("control") }) {
-                    if (images.size < 4) {
-                        Button(
-                            attrs = {
-                                classes("button")
-                                attr("type", "button")
-                                onClick { addImage() }
-                            }
-                        ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fas", "fa-plus") })
-                            }
-                            Span { Text("Add image") }
-                        }
-                    }
+                    AddImageButton(
+                        disabled = images.size >= 4,
+                        onImageSelected = { file ->
+                            val ids = images.keys.sorted()
+                            val newId = if (ids.isEmpty()) 1 else ids.last() + 1
+                            val newImage = SelectedImage(newId, file = file)
+                            images = images + (newId to newImage)
+                        },
+                    )
                 }
                 Div(attrs = { classes("control") }) {
                     Button(
