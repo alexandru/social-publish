@@ -1,8 +1,12 @@
 package socialpublish.backend.utils
 
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
 import java.io.File
 import java.text.Normalizer
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 
 /**
  * Sanitize filename to prevent header injection attacks and path traversal.
@@ -57,4 +61,21 @@ fun isPathWithinBase(file: File, baseDir: File): Boolean {
     // This prevents /app matching /app-malicious
     val allowedPath = canonicalBaseDir.path + File.separator
     return canonicalFile.path == canonicalBaseDir.path || canonicalFile.path.startsWith(allowedPath)
+}
+
+/**
+ * Create a temporary file as an Arrow Resource that will be automatically deleted when released.
+ *
+ * This ensures proper resource cleanup even in the presence of coroutine cancellation, unlike the
+ * anti-pattern of using runInterruptible with try-finally which can leak resources.
+ *
+ * @param prefix The prefix string to be used in generating the file's name
+ * @param suffix The suffix string to be used in generating the file's name (default: ".tmp")
+ * @return A Resource that provides access to the temporary file
+ */
+fun createTempFile(prefix: String, suffix: String = ".tmp"): Resource<File> = resource {
+    install(
+        { runInterruptible(Dispatchers.IO) { File.createTempFile(prefix, suffix) } },
+        { file, _ -> runInterruptible(Dispatchers.IO) { file.delete() } },
+    )
 }

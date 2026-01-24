@@ -3,6 +3,7 @@ package socialpublish.backend.modules
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -30,6 +31,7 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
+import socialpublish.backend.utils.createTempFile
 import socialpublish.backend.utils.sanitizeFilename
 
 private val logger = KotlinLogging.logger {}
@@ -230,15 +232,14 @@ private constructor(
                     }
 
                 if (cachedBytes != null) {
-                    // Verify cached file dimensions
-                    val tempFile =
-                        runInterruptible(Dispatchers.IO) {
-                            File.createTempFile("cached-", ".tmp").apply { writeBytes(cachedBytes) }
-                        }
-                    try {
+                    // Verify cached file dimensions using resourceScope
+                    return resourceScope {
+                        val tempFile = createTempFile("cached-", ".tmp").bind()
+                        runInterruptible(Dispatchers.IO) { tempFile.writeBytes(cachedBytes) }
+
                         val cachedSize = imageMagick.identifyImageSize(tempFile).getOrNull()
                         if (cachedSize != null) {
-                            return ProcessedUpload(
+                            ProcessedUpload(
                                 originalname = upload.originalname,
                                 mimetype = upload.mimetype,
                                 altText = upload.altText,
@@ -247,81 +248,31 @@ private constructor(
                                 size = cachedBytes.size.toLong(),
                                 bytes = cachedBytes,
                             )
+                        } else {
+                            null
                         }
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Failed to verify cached resized image" }
-                    } finally {
-                        runInterruptible(Dispatchers.IO) { tempFile.delete() }
                     }
+                        ?: resizeImage(
+                            upload,
+                            bytes,
+                            maxWidth,
+                            maxHeight,
+                            cachedFile,
+                            storedWidth,
+                            storedHeight,
+                        )
                 }
 
                 // Need to resize
-                val sourceFile =
-                    runInterruptible(Dispatchers.IO) {
-                        File.createTempFile("source-", ".tmp").apply { writeBytes(bytes) }
-                    }
-                try {
-                    val size = imageMagick.identifyImageSize(sourceFile).getOrElse { throw it }
-                    val width = size.width
-                    val height = size.height
-
-                    if (width > maxWidth || height > maxHeight) {
-                        // Create resized image using ImageMagick
-                        val resizedFile =
-                            runInterruptible(Dispatchers.IO) {
-                                File.createTempFile("resized-", ".tmp").apply {
-                                    delete() // Delete the file, we just want the path
-                                }
-                            }
-                        try {
-                            val resizeMagick =
-                                ImageMagick(
-                                        options =
-                                            MagickOptimizeOptions(
-                                                maxWidth = maxWidth,
-                                                maxHeight = maxHeight,
-                                                maxSizeBytes = Long.MAX_VALUE,
-                                                jpegQuality = 90,
-                                            )
-                                    )
-                                    .getOrElse { throw it }
-                            resizeMagick.optimizeImage(sourceFile, resizedFile).getOrElse {
-                                throw it
-                            }
-                            val resizedBytes =
-                                runInterruptible(Dispatchers.IO) { resizedFile.readBytes() }
-                            val resizedSize =
-                                imageMagick.identifyImageSize(resizedFile).getOrElse { throw it }
-
-                            // Cache the resized image
-                            runInterruptible(Dispatchers.IO) { cachedFile.writeBytes(resizedBytes) }
-
-                            return ProcessedUpload(
-                                originalname = upload.originalname,
-                                mimetype = upload.mimetype,
-                                altText = upload.altText,
-                                width = resizedSize.width,
-                                height = resizedSize.height,
-                                size = resizedBytes.size.toLong(),
-                                bytes = resizedBytes,
-                            )
-                        } finally {
-                            runInterruptible(Dispatchers.IO) { resizedFile.delete() }
-                        }
-                    }
-
-                    return ProcessedUpload(
-                        originalname = upload.originalname,
-                        mimetype = upload.mimetype,
-                        altText = upload.altText,
-                        width = if (storedWidth > 0) storedWidth else width,
-                        height = if (storedHeight > 0) storedHeight else height,
-                        size = bytes.size.toLong(),
-                        bytes = bytes,
-                    )
-                } finally {
-                    runInterruptible(Dispatchers.IO) { sourceFile.delete() }
-                }
+                return resizeImage(
+                    upload,
+                    bytes,
+                    maxWidth,
+                    maxHeight,
+                    cachedFile,
+                    storedWidth,
+                    storedHeight,
+                )
             }
         }
 
@@ -334,6 +285,77 @@ private constructor(
             size = bytes.size.toLong(),
             bytes = bytes,
         )
+    }
+
+    private suspend fun resizeImage(
+        upload: socialpublish.backend.db.Upload,
+        bytes: ByteArray,
+        maxWidth: Int,
+        maxHeight: Int,
+        cachedFile: File,
+        storedWidth: Int,
+        storedHeight: Int,
+    ): ProcessedUpload = resourceScope {
+        val sourceFile = createTempFile("source-", ".tmp").bind()
+        runInterruptible(Dispatchers.IO) { sourceFile.writeBytes(bytes) }
+
+        val size = imageMagick.identifyImageSize(sourceFile).getOrElse { throw it }
+        val width = size.width
+        val height = size.height
+
+        if (width > maxWidth || height > maxHeight) {
+            // Create path for resized image - ImageMagick will create the file
+            // We use a nested resourceScope to manage the lifecycle of the destination file
+            resourceScope {
+                val resizedFile =
+                    install(
+                        {
+                            runInterruptible(Dispatchers.IO) {
+                                File.createTempFile("resized-", ".tmp").apply { delete() }
+                            }
+                        },
+                        { file, _ -> runInterruptible(Dispatchers.IO) { file.delete() } },
+                    )
+
+                val resizeMagick =
+                    ImageMagick(
+                            options =
+                                MagickOptimizeOptions(
+                                    maxWidth = maxWidth,
+                                    maxHeight = maxHeight,
+                                    maxSizeBytes = Long.MAX_VALUE,
+                                    jpegQuality = 90,
+                                )
+                        )
+                        .getOrElse { throw it }
+                resizeMagick.optimizeImage(sourceFile, resizedFile).getOrElse { throw it }
+                val resizedBytes = runInterruptible(Dispatchers.IO) { resizedFile.readBytes() }
+                val resizedSize = imageMagick.identifyImageSize(resizedFile).getOrElse { throw it }
+
+                // Cache the resized image
+                runInterruptible(Dispatchers.IO) { cachedFile.writeBytes(resizedBytes) }
+
+                ProcessedUpload(
+                    originalname = upload.originalname,
+                    mimetype = upload.mimetype,
+                    altText = upload.altText,
+                    width = resizedSize.width,
+                    height = resizedSize.height,
+                    size = resizedBytes.size.toLong(),
+                    bytes = resizedBytes,
+                )
+            }
+        } else {
+            ProcessedUpload(
+                originalname = upload.originalname,
+                mimetype = upload.mimetype,
+                altText = upload.altText,
+                width = if (storedWidth > 0) storedWidth else width,
+                height = if (storedHeight > 0) storedHeight else height,
+                size = bytes.size.toLong(),
+                bytes = bytes,
+            )
+        }
     }
 
     private suspend fun detectImageFormat(bytes: ByteArray): String? {
@@ -366,26 +388,20 @@ private constructor(
         originalName: String,
         mimeType: String,
         altText: String?,
-    ): ProcessedUpload {
-        // Write bytes to temp file for ImageMagick processing
-        val tempFile =
-            runInterruptible(Dispatchers.IO) {
-                File.createTempFile("upload-", ".tmp").apply { writeBytes(bytes) }
-            }
-        try {
-            val size = imageMagick.identifyImageSize(tempFile).getOrElse { throw it }
-            return ProcessedUpload(
-                originalname = originalName,
-                mimetype = mimeType,
-                altText = altText,
-                width = size.width,
-                height = size.height,
-                size = bytes.size.toLong(),
-                bytes = bytes,
-            )
-        } finally {
-            runInterruptible(Dispatchers.IO) { tempFile.delete() }
-        }
+    ): ProcessedUpload = resourceScope {
+        val tempFile = createTempFile("upload-", ".tmp").bind()
+        runInterruptible(Dispatchers.IO) { tempFile.writeBytes(bytes) }
+
+        val size = imageMagick.identifyImageSize(tempFile).getOrElse { throw it }
+        ProcessedUpload(
+            originalname = originalName,
+            mimetype = mimeType,
+            altText = altText,
+            width = size.width,
+            height = size.height,
+            size = bytes.size.toLong(),
+            bytes = bytes,
+        )
     }
 
     private fun calculateHash(bytes: ByteArray): String {
