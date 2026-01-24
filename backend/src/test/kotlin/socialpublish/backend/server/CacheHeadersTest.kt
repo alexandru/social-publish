@@ -3,7 +3,10 @@ package socialpublish.backend.server
 import io.ktor.client.request.get
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.CachingOptions
 import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.plugins.cachingheaders.CachingHeaders
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.get
@@ -113,6 +116,60 @@ class CacheHeadersTest {
             }
         } finally {
             tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `test no-cache headers for API routes`() = testApplication {
+        application { configureDynamicRoutes() }
+
+        client.get("/api/test").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val cacheControl = headers[HttpHeaders.CacheControl]!!
+            assertTrue(cacheControl.contains("no-cache"), "Expected no-cache for API routes")
+        }
+    }
+
+    @Test
+    fun `test no-cache headers for RSS routes`() = testApplication {
+        application { configureDynamicRoutes() }
+
+        client.get("/rss/feed").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val cacheControl = headers[HttpHeaders.CacheControl]!!
+            assertTrue(cacheControl.contains("no-cache"), "Expected no-cache for RSS routes")
+        }
+    }
+
+    @Test
+    fun `test no-cache headers for files routes`() = testApplication {
+        application { configureDynamicRoutes() }
+
+        client.get("/files/12345").apply {
+            assertEquals(HttpStatusCode.OK, status)
+            val cacheControl = headers[HttpHeaders.CacheControl]!!
+            assertTrue(cacheControl.contains("no-cache"), "Expected no-cache for files routes")
+        }
+    }
+
+    private fun Application.configureDynamicRoutes() {
+        install(CachingHeaders) {
+            options { call, _ ->
+                val uri = call.request.local.uri
+                when {
+                    uri.startsWith("/api/") ||
+                        uri.startsWith("/rss") ||
+                        uri.startsWith("/files/") -> {
+                        CachingOptions(cacheControl = io.ktor.http.CacheControl.NoCache(null))
+                    }
+                    else -> null
+                }
+            }
+        }
+        routing {
+            get("/api/test") { call.respond(HttpStatusCode.OK, "API test") }
+            get("/rss/feed") { call.respond(HttpStatusCode.OK, "RSS feed") }
+            get("/files/12345") { call.respond(HttpStatusCode.OK, "File content") }
         }
     }
 
