@@ -145,7 +145,7 @@ class FormModule(
                             null
                         }
                     val targets = mutableListOf<String>()
-                    params?.getAll("targets[]")?.let { targets.addAll(it) }
+                    params?.getAll("targets")?.let { targets.addAll(it) }
 
                     if (params?.get("mastodon") == "1") targets.add("mastodon")
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
@@ -159,7 +159,7 @@ class FormModule(
                         link = params?.get("link"),
                         language = params?.get("language"),
                         cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
-                        images = params?.getAll("images[]"),
+                        images = params?.getAll("images"),
                     )
                 }
 

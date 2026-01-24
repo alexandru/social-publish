@@ -4,6 +4,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.auth.HttpAuthHeader
@@ -14,6 +15,7 @@ import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.auth.principal
+import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
@@ -60,21 +62,26 @@ class AuthModule(
         }
     }
 
-    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? {
-        val jsonRequest = runCatching { call.receive<LoginRequest>() }.getOrNull()
-        if (jsonRequest != null) {
-            return jsonRequest
+    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
+        when (val contentType = call.request.contentType()) {
+            ContentType.Application.Json -> {
+                runCatching { call.receive<LoginRequest>() }.getOrNull()
+            }
+            ContentType.Application.FormUrlEncoded -> {
+                val params = runCatching { call.receiveParameters() }.getOrNull()
+                val username = params?.get("username")
+                val password = params?.get("password")
+                if (username != null && password != null) {
+                    LoginRequest(username = username, password = password)
+                } else {
+                    null
+                }
+            }
+            else -> {
+                logger.warn { "Unsupported content type for login: $contentType" }
+                null
+            }
         }
-
-        val params = runCatching { call.receiveParameters() }.getOrNull()
-        val username = params?.get("username")
-        val password = params?.get("password")
-        return if (username != null && password != null) {
-            LoginRequest(username = username, password = password)
-        } else {
-            null
-        }
-    }
 
     /** Login route handler */
     suspend fun login(call: ApplicationCall) {
@@ -99,7 +106,7 @@ class AuthModule(
                 )
             )
         } else {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
         }
     }
 
