@@ -22,6 +22,7 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -41,6 +42,9 @@ import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.llm.GenerateAltTextRequest
+import socialpublish.backend.clients.llm.GenerateAltTextResponse
+import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.db.DocumentsDatabase
@@ -76,6 +80,7 @@ fun startServer(
         config.linkedin?.let {
             LinkedInApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
+    val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
     val authModule =
         AuthModule(
@@ -298,6 +303,76 @@ fun startServer(
                             }
                             HttpStatusCode.InternalServerError {
                                 description = "Internal server error (quite possible)"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
+                // LLM alt-text generation
+                post("/api/llm/generate-alt-text") {
+                        if (llmModule != null) {
+                            val request =
+                                runCatching { call.receive<GenerateAltTextRequest>() }.getOrNull()
+                                    ?: run {
+                                        call.respond(
+                                            HttpStatusCode.BadRequest,
+                                            ErrorResponse(error = "Invalid request body"),
+                                        )
+                                        return@post
+                                    }
+
+                            when (val result = llmModule.generateAltText(request.imageUuid)) {
+                                is Either.Right ->
+                                    call.respond(GenerateAltTextResponse(altText = result.value))
+                                is Either.Left -> {
+                                    val error = result.value
+                                    call.respond(
+                                        HttpStatusCode.fromValue(error.status),
+                                        ErrorResponse(error = error.errorMessage),
+                                    )
+                                }
+                            }
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "LLM integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Generate alt-text for image"
+                        description =
+                            "Generate alt-text for an uploaded image using LLM (OpenAI or Mistral)"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json {
+                                schema = jsonSchema<GenerateAltTextRequest>()
+                            }
+                        }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "Alt-text generated successfully"
+                                schema = jsonSchema<GenerateAltTextResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Invalid request"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.NotFound {
+                                description = "Image not found"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.ServiceUnavailable {
+                                description = "LLM integration not configured"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.InternalServerError {
+                                description = "Internal server error"
                                 schema = jsonSchema<ErrorResponse>()
                             }
                         }

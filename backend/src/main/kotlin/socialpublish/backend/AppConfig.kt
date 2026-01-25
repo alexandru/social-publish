@@ -2,6 +2,7 @@ package socialpublish.backend
 
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
+import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.modules.FilesConfig
@@ -14,4 +15,5 @@ data class AppConfig(
     val mastodon: MastodonConfig?,
     val twitter: TwitterConfig?,
     val linkedin: LinkedInConfig?,
+    val llm: LlmConfig?,
 )
