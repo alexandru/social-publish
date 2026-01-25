@@ -25,6 +25,7 @@ import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.head
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -171,6 +172,9 @@ fun startServer(
                         }
                     }
                 }
+
+            // HEAD support for /ping endpoint (used by health check services)
+            head("/ping") { call.respondText("", status = HttpStatusCode.OK) }
 
             // Authentication routes
             rateLimit(RateLimitName("login")) {
