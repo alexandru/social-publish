@@ -23,11 +23,13 @@ import org.junit.jupiter.api.Test
 import socialpublish.backend.server.ServerAuthConfig
 
 class EndpointSecurityTest {
+    // Use reduced BCrypt rounds for test performance (production uses 12)
     private val testPasswordHash = AuthModule.hashPassword("testpass", rounds = 10)
     private val config =
         ServerAuthConfig(
             username = "testuser",
             passwordHash = testPasswordHash,
+            // Test-only JWT secret (production secrets loaded from environment)
             jwtSecret = "test-secret-key-for-security-tests",
         )
 

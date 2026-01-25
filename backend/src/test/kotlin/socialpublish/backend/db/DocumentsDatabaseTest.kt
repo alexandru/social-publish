@@ -235,7 +235,7 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(kind = "test", payload = """{"order": 1}""")
                         .getOrElse { throw it }
-                // Small delay to ensure different timestamps
+                // Small delay to ensure different timestamps (DB stores millis precision)
                 @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
                 val second =
                     documentsDb
@@ -257,6 +257,10 @@ class DocumentsDatabaseTest {
                 assertEquals(third.uuid, all[0].uuid)
                 assertEquals(second.uuid, all[1].uuid)
                 assertEquals(first.uuid, all[2].uuid)
+
+                // Verify timestamps are actually in descending order
+                assert(all[0].createdAt >= all[1].createdAt)
+                assert(all[1].createdAt >= all[2].createdAt)
             }
         }
 
