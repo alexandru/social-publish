@@ -24,12 +24,13 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
+import socialpublish.backend.utils.LOOM
 
 private val logger = KotlinLogging.logger {}
 
 data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: String) {
     companion object {
-        val Dispatcher = Dispatchers.IO
+        val Dispatcher = Dispatchers.LOOM
 
         fun connect(dbPath: String): Resource<Database> = resource {
             logger.info { "Connecting to database at $dbPath" }

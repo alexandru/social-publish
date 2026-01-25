@@ -7,6 +7,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.apache.tika.Tika
+import socialpublish.backend.utils.LOOM
 
 private val logger = KotlinLogging.logger {}
 
@@ -87,7 +88,7 @@ private constructor(
                         )
                     )
             }
-            runInterruptible(Dispatchers.IO) {
+            runInterruptible(Dispatchers.LOOM) {
                 // Check file size
                 val fileLength = dest.length()
                 hasDestination = fileLength <= options.maxSizeBytes
@@ -118,7 +119,7 @@ private constructor(
     }
 
     private suspend fun detectMimeType(file: File): MimeType =
-        runInterruptible(Dispatchers.IO) {
+        runInterruptible(Dispatchers.LOOM) {
             try {
                 when (val mimeType = Tika().detect(file).lowercase()) {
                     "image/jpeg",

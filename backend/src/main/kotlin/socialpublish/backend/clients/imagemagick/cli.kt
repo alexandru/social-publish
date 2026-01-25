@@ -9,6 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import org.apache.commons.text.StringEscapeUtils
+import socialpublish.backend.utils.LOOM
 
 data class CommandResult(
     val command: String,
@@ -48,7 +49,7 @@ class CliCommandException(
  */
 suspend fun executeCommand(executable: Path, vararg args: String): CommandResult =
     // Blocking I/O should use threads designated for I/O
-    withContext(Dispatchers.IO) {
+    withContext(Dispatchers.LOOM) {
         val cmdArgs = listOf(executable.toAbsolutePath().toString()) + args
         val proc = Runtime.getRuntime().exec(cmdArgs.toTypedArray())
         try {

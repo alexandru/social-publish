@@ -43,6 +43,7 @@ import org.jsoup.Jsoup
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.utils.LOOM
 
 private val logger = KotlinLogging.logger {}
 
@@ -131,7 +132,7 @@ class TwitterApiModule(
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
             val service = createOAuthService(callbackUrl)
-            val token = withContext(Dispatchers.IO) { service.requestToken }
+            val token = withContext(Dispatchers.LOOM) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
             authUrl.right()
         } catch (e: Exception) {
@@ -153,7 +154,7 @@ class TwitterApiModule(
             val reqToken = OAuth1RequestToken(token, "")
             val service = createOAuthService()
             val accessToken =
-                withContext(Dispatchers.IO) { service.getAccessToken(reqToken, verifier) }
+                withContext(Dispatchers.LOOM) { service.getAccessToken(reqToken, verifier) }
 
             val authorizedToken =
                 TwitterOAuthToken(key = accessToken.token, secret = accessToken.tokenSecret)
@@ -184,7 +185,7 @@ class TwitterApiModule(
         token: TwitterOAuthToken,
         verb: Verb = Verb.POST,
     ): String =
-        withContext(Dispatchers.IO) {
+        withContext(Dispatchers.LOOM) {
             val service = createOAuthService()
             val accessToken = OAuth1AccessToken(token.key, token.secret)
             val request = OAuthRequest(verb, url)
