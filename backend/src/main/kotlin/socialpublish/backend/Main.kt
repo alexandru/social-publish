@@ -23,7 +23,7 @@ import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
-import socialpublish.backend.db.Database
+import socialpublish.backend.db.DatabaseBundle
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.server.ServerAuthConfig
@@ -255,7 +255,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                     "Serving static content from: ${config.server.staticContentPaths.joinToString(", ")}"
                 }
                 try {
-                    val resources = Database.resourceBundle(config.server.dbPath).bind()
+                    val resources = DatabaseBundle.resource(config.server.dbPath).bind()
 
                     logger.info { "Database initialized successfully" }
                     val _ =

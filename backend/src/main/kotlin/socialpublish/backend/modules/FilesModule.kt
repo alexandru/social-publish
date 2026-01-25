@@ -30,6 +30,7 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
+import socialpublish.backend.utils.LOOM
 import socialpublish.backend.utils.sanitizeFilename
 
 private val logger = KotlinLogging.logger {}
@@ -63,7 +64,7 @@ private constructor(
             val imageMagick =
                 ImageMagick().getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
             val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
-            runInterruptible(Dispatchers.IO) {
+            runInterruptible(Dispatchers.LOOM) {
                 ref.uploadedFilesPath.mkdirs()
                 ref.processedPath.mkdirs()
                 ref.resizingPath.mkdirs()
@@ -93,7 +94,7 @@ private constructor(
                             if (part.name == "file") {
                                 fileName = part.originalFileName ?: "unknown"
                                 fileBytes =
-                                    withContext(Dispatchers.IO) {
+                                    withContext(Dispatchers.LOOM) {
                                         part.provider().readRemaining().readByteArray()
                                     }
                             }
@@ -148,7 +149,7 @@ private constructor(
 
             // Save file to disk
             val filePath = File(processedPath, upload.hash)
-            runInterruptible(Dispatchers.IO) { filePath.writeBytes(processed.bytes) }
+            runInterruptible(Dispatchers.LOOM) { filePath.writeBytes(processed.bytes) }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
 
@@ -204,7 +205,7 @@ private constructor(
         val filePath = File(processedPath, upload.hash)
 
         val bytes =
-            runInterruptible(Dispatchers.IO) {
+            runInterruptible(Dispatchers.LOOM) {
                 if (!filePath.exists()) {
                     null
                 } else {
@@ -225,14 +226,14 @@ private constructor(
             if (!storedWithinBounds) {
                 val cachedFile = File(resizingPath, upload.hash)
                 val cachedBytes =
-                    runInterruptible(Dispatchers.IO) {
+                    runInterruptible(Dispatchers.LOOM) {
                         if (cachedFile.exists()) cachedFile.readBytes() else null
                     }
 
                 if (cachedBytes != null) {
                     // Verify cached file dimensions
                     val tempFile =
-                        runInterruptible(Dispatchers.IO) {
+                        runInterruptible(Dispatchers.LOOM) {
                             File.createTempFile("cached-", ".tmp").apply { writeBytes(cachedBytes) }
                         }
                     try {
@@ -251,7 +252,7 @@ private constructor(
                     } catch (e: Exception) {
                         logger.warn(e) { "Failed to verify cached resized image" }
                     } finally {
-                        runInterruptible(Dispatchers.IO) { tempFile.delete() }
+                        runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
                     }
                 }
 
@@ -259,7 +260,7 @@ private constructor(
                 val resized =
                     try {
                         val sourceFile =
-                            runInterruptible(Dispatchers.IO) {
+                            runInterruptible(Dispatchers.LOOM) {
                                 File.createTempFile("source-", ".tmp").apply { writeBytes(bytes) }
                             }
                         try {
@@ -271,7 +272,7 @@ private constructor(
                             if (width > maxWidth || height > maxHeight) {
                                 // Create resized image using ImageMagick
                                 val resizedFile =
-                                    runInterruptible(Dispatchers.IO) {
+                                    runInterruptible(Dispatchers.LOOM) {
                                         File.createTempFile("resized-", ".tmp").apply {
                                             delete() // Delete the file, we just want the path
                                         }
@@ -292,14 +293,16 @@ private constructor(
                                         throw it
                                     }
                                     val resizedBytes =
-                                        runInterruptible(Dispatchers.IO) { resizedFile.readBytes() }
+                                        runInterruptible(Dispatchers.LOOM) {
+                                            resizedFile.readBytes()
+                                        }
                                     val resizedSize =
                                         imageMagick.identifyImageSize(resizedFile).getOrElse {
                                             throw it
                                         }
 
                                     // Cache the resized image
-                                    runInterruptible(Dispatchers.IO) {
+                                    runInterruptible(Dispatchers.LOOM) {
                                         cachedFile.writeBytes(resizedBytes)
                                     }
 
@@ -313,7 +316,7 @@ private constructor(
                                         bytes = resizedBytes,
                                     )
                                 } finally {
-                                    runInterruptible(Dispatchers.IO) { resizedFile.delete() }
+                                    runInterruptible(Dispatchers.LOOM) { resizedFile.delete() }
                                 }
                             }
 
@@ -327,7 +330,7 @@ private constructor(
                                 bytes = bytes,
                             )
                         } finally {
-                            runInterruptible(Dispatchers.IO) { sourceFile.delete() }
+                            runInterruptible(Dispatchers.LOOM) { sourceFile.delete() }
                         }
                     } catch (e: Exception) {
                         logger.warn(e) { "Failed to resize image, using original" }
@@ -352,7 +355,7 @@ private constructor(
     }
 
     private suspend fun detectImageFormat(bytes: ByteArray): String? {
-        return runInterruptible(Dispatchers.IO) {
+        return runInterruptible(Dispatchers.LOOM) {
             try {
                 val mimeType = Tika().detect(bytes).lowercase()
                 when {
@@ -385,7 +388,7 @@ private constructor(
         return try {
             // Write bytes to temp file for ImageMagick processing
             val tempFile =
-                runInterruptible(Dispatchers.IO) {
+                runInterruptible(Dispatchers.LOOM) {
                     File.createTempFile("upload-", ".tmp").apply { writeBytes(bytes) }
                 }
             try {
@@ -404,7 +407,7 @@ private constructor(
                     bytes = bytes,
                 )
             } finally {
-                runInterruptible(Dispatchers.IO) { tempFile.delete() }
+                runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
             }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to read image metadata, using original" }

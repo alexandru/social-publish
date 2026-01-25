@@ -25,6 +25,7 @@ dependencyResolutionManagement {
             version("kotlinx-coroutines", "1.10.2")
             version("common-text", "1.15.0")
             version("apache-tika", "3.2.3")
+            version("hikaricp", "7.0.2")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -67,6 +68,9 @@ dependencyResolutionManagement {
             library("jdbi-kotlin", "org.jdbi", "jdbi3-kotlin").versionRef("jdbi")
             library("jdbi-kotlin-sqlobject", "org.jdbi", "jdbi3-kotlin-sqlobject").versionRef("jdbi")
             library("sqlite-jdbc", "org.xerial", "sqlite-jdbc").versionRef("sqlite-jdbc")
+
+            // HikariCP for connection pooling
+            library("hikaricp", "com.zaxxer", "HikariCP").versionRef("hikaricp")
 
             // Clikt for CLI
             library("clikt", "com.github.ajalt.clikt", "clikt").versionRef("clikt")

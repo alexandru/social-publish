@@ -17,14 +17,13 @@ import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
-import org.jdbi.v3.core.Jdbi
-import org.jdbi.v3.core.kotlin.KotlinPlugin
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.modules.FileUploadResponse
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.utils.LOOM
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
 
@@ -42,17 +41,17 @@ internal data class MultipartRequest(
     val fields: Map<String, List<String>>,
 )
 
-internal suspend fun createTestDatabase(tempDir: Path): Jdbi {
+internal suspend fun createTestDatabase(tempDir: Path): Database {
     val dbPath = tempDir.resolve("test.db").toString()
-    val jdbi = Jdbi.create("jdbc:sqlite:$dbPath").installPlugin(KotlinPlugin())
-    Database.migrate(jdbi).getOrElse { throw it }
-    return jdbi
+    // Use unmanaged connection for tests since the database needs to outlive
+    // the test setup scope and remain open for the duration of the test
+    return Database.connectUnmanaged(dbPath)
 }
 
-internal suspend fun createFilesModule(tempDir: Path, jdbi: Jdbi): FilesModule {
+internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule {
     val uploadsDir = tempDir.resolve("uploads").toFile()
     val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir, baseUrl = "http://localhost")
-    return FilesModule.create(filesConfig, FilesDatabase(jdbi))
+    return FilesModule.create(filesConfig, FilesDatabase(db))
 }
 
 internal fun loadTestResourceBytes(resourceName: String): ByteArray {
@@ -64,7 +63,7 @@ internal fun loadTestResourceBytes(resourceName: String): ByteArray {
 
 internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
     val tempFile =
-        runInterruptible(Dispatchers.IO) {
+        runInterruptible(Dispatchers.LOOM) {
             File.createTempFile("test-", ".tmp").apply { writeBytes(bytes) }
         }
     try {
@@ -76,7 +75,7 @@ internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
             }
         return ImageDimensions(width = size.width, height = size.height)
     } finally {
-        runInterruptible(Dispatchers.IO) { tempFile.delete() }
+        runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
     }
 }
 

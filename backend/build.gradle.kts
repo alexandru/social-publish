@@ -29,8 +29,8 @@ dependencies {
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
 
-    // JDBI for database access
-    implementation(libs.bundles.jdbi)
+    // HikariCP for database connection pooling
+    implementation(libs.hikaricp)
     implementation(libs.sqlite.jdbc)
 
     // Clikt for CLI parsing

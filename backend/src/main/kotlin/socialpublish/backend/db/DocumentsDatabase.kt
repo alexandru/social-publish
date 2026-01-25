@@ -1,24 +1,28 @@
 package socialpublish.backend.db
 
 import arrow.core.Either
+import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
 import java.util.UUID
-import org.jdbi.v3.core.Handle
-import org.jdbi.v3.core.Jdbi
 
 private val logger = KotlinLogging.logger {}
 
-class DocumentsDatabase(private val jdbi: Jdbi) {
-    private fun setDocumentTags(handle: Handle, documentUuid: String, tags: List<Tag>) {
-        handle.execute("DELETE FROM document_tags WHERE document_uuid = ?", documentUuid)
+class DocumentsDatabase(private val db: Database) {
+    private suspend fun SafeConnection.setDocumentTags(documentUuid: String, tags: List<Tag>) {
+        query("DELETE FROM document_tags WHERE document_uuid = ?") {
+            setString(1, documentUuid)
+            execute()
+            Unit
+        }
         tags.forEach { tag ->
-            handle.execute(
-                "INSERT INTO document_tags (document_uuid, name, kind) VALUES (?, ?, ?)",
-                documentUuid,
-                tag.name,
-                tag.kind,
-            )
+            query("INSERT INTO document_tags (document_uuid, name, kind) VALUES (?, ?, ?)") {
+                setString(1, documentUuid)
+                setString(2, tag.name)
+                setString(3, tag.kind)
+                execute()
+                Unit
+            }
         }
         if (tags.isNotEmpty()) {
             logger.info {
@@ -27,12 +31,11 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         }
     }
 
-    private fun getDocumentTags(handle: Handle, documentUuid: String): List<Tag> {
-        return handle
-            .createQuery("SELECT name, kind FROM document_tags WHERE document_uuid = ?")
-            .bind(0, documentUuid)
-            .map { rs, _ -> Tag(rs.getString("name"), rs.getString("kind")) }
-            .list()
+    private suspend fun SafeConnection.getDocumentTags(documentUuid: String): List<Tag> {
+        return query("SELECT name, kind FROM document_tags WHERE document_uuid = ?") {
+            setString(1, documentUuid)
+            executeQuery().safe().toList { rs -> Tag(rs.getString("name"), rs.getString("kind")) }
+        }
     }
 
     suspend fun createOrUpdate(
@@ -40,101 +43,118 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
         payload: String,
         searchKey: String? = null,
         tags: List<Tag> = emptyList(),
-    ): Either<DBException, Document> =
-        jdbi.safeTransaction { handle ->
+    ): Either<DBException, Document> = either {
+        db.transaction {
             val existing =
                 searchKey?.let { key ->
-                    handle
-                        .createQuery("SELECT * FROM documents WHERE search_key = ?")
-                        .bind(0, key)
-                        .mapToMap()
-                        .findOne()
-                        .orElse(null)
-                        ?.let { row ->
-                            val tagsForRow = getDocumentTags(handle, row["uuid"] as String)
-                            Document(
-                                uuid = row["uuid"] as String,
-                                kind = row["kind"] as String,
-                                payload = row["payload"] as String,
-                                searchKey = row["search_key"] as String,
-                                tags = tagsForRow,
-                                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                            )
+                    val docData =
+                        query("SELECT * FROM documents WHERE search_key = ?") {
+                            setString(1, key)
+                            executeQuery().safe().firstOrNull { rs ->
+                                Triple(
+                                    rs.getString("uuid"),
+                                    rs.getString("payload"),
+                                    Instant.ofEpochMilli(rs.getLong("created_at")),
+                                )
+                            }
                         }
+                    docData?.let { (uuid, existingPayload, createdAt) ->
+                        val tagsForRow = getDocumentTags(uuid)
+                        Document(
+                            uuid = uuid,
+                            kind = kind,
+                            payload = existingPayload,
+                            searchKey = key,
+                            tags = tagsForRow,
+                            createdAt = createdAt,
+                        )
+                    }
                 }
+
             if (existing != null) {
                 val updated =
-                    handle.execute(
-                        "UPDATE documents SET payload = ? WHERE search_key = ?",
-                        payload,
-                        searchKey,
-                    )
+                    query("UPDATE documents SET payload = ? WHERE search_key = ?") {
+                        setString(1, payload)
+                        setString(2, searchKey)
+                        executeUpdate()
+                    }
                 logger.info { "Updated document: $updated" }
-                setDocumentTags(handle, existing.uuid, tags)
+                setDocumentTags(existing.uuid, tags)
                 if (updated > 0) {
-                    return@safeTransaction existing.copy(payload = payload, tags = tags)
+                    return@transaction existing.copy(payload = payload, tags = tags)
                 }
                 logger.warn { "Failed to update document with search key $searchKey" }
             }
 
             val uuid = UUID.randomUUID().toString()
             val finalSearchKey = searchKey ?: "$kind:$uuid"
-            val now = Instant.now()
+            val now = db.clock.instant()
 
-            handle.execute(
-                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)",
-                uuid,
-                finalSearchKey,
-                kind,
-                payload,
-                now.toEpochMilli(),
-            )
-            setDocumentTags(handle, uuid, tags)
+            query(
+                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)"
+            ) {
+                setString(1, uuid)
+                setString(2, finalSearchKey)
+                setString(3, kind)
+                setString(4, payload)
+                setLong(5, now.toEpochMilli())
+                execute()
+                Unit
+            }
+            setDocumentTags(uuid, tags)
 
             Document(uuid, finalSearchKey, kind, tags, payload, now)
         }
+    }
 
-    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> =
-        jdbi.safeHandle { handle ->
-            val row =
-                handle
-                    .createQuery("SELECT * FROM documents WHERE search_key = ?")
-                    .bind(0, searchKey)
-                    .mapToMap()
-                    .findOne()
-                    .orElse(null) ?: return@safeHandle null
-
-            val tags = getDocumentTags(handle, row["uuid"] as String)
-            Document(
-                uuid = row["uuid"] as String,
-                kind = row["kind"] as String,
-                payload = row["payload"] as String,
-                searchKey = row["search_key"] as String,
-                tags = tags,
-                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-            )
+    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> = either {
+        db.transaction {
+            val docData =
+                query("SELECT * FROM documents WHERE search_key = ?") {
+                    setString(1, searchKey)
+                    executeQuery().safe().firstOrNull { rs ->
+                        Pair(
+                            rs.getString("uuid"),
+                            Document(
+                                uuid = rs.getString("uuid"),
+                                kind = rs.getString("kind"),
+                                payload = rs.getString("payload"),
+                                searchKey = rs.getString("search_key"),
+                                tags = emptyList(), // Fetch tags separately
+                                createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                            ),
+                        )
+                    }
+                }
+            docData?.let { (uuid, doc) ->
+                val tags = getDocumentTags(uuid)
+                doc.copy(tags = tags)
+            }
         }
+    }
 
-    suspend fun searchByUuid(uuid: String): Either<DBException, Document?> =
-        jdbi.safeHandle { handle ->
-            val row =
-                handle
-                    .createQuery("SELECT * FROM documents WHERE uuid = ?")
-                    .bind(0, uuid)
-                    .mapToMap()
-                    .findOne()
-                    .orElse(null) ?: return@safeHandle null
-
-            val tags = getDocumentTags(handle, row["uuid"] as String)
-            Document(
-                uuid = row["uuid"] as String,
-                kind = row["kind"] as String,
-                payload = row["payload"] as String,
-                searchKey = row["search_key"] as String,
-                tags = tags,
-                createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-            )
+    suspend fun searchByUuid(uuid: String): Either<DBException, Document?> = either {
+        db.transaction {
+            val doc =
+                query("SELECT * FROM documents WHERE uuid = ?") {
+                    setString(1, uuid)
+                    executeQuery().safe().firstOrNull { rs ->
+                        Document(
+                            uuid = rs.getString("uuid"),
+                            kind = rs.getString("kind"),
+                            payload = rs.getString("payload"),
+                            searchKey = rs.getString("search_key"),
+                            tags = emptyList(), // Fetch tags separately
+                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                        )
+                    }
+                }
+            doc?.let {
+                val tags = getDocumentTags(uuid)
+                it.copy(tags = tags)
+            }
         }
+    }
 
     enum class OrderBy(val sql: String) {
         CREATED_AT_DESC("created_at DESC")
@@ -144,25 +164,26 @@ class DocumentsDatabase(private val jdbi: Jdbi) {
     suspend fun getAll(
         kind: String,
         orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
-    ): Either<DBException, List<Document>> =
-        jdbi.safeHandle { handle ->
-            val rows =
-                handle
-                    .createQuery("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}")
-                    .bind(0, kind)
-                    .mapToMap()
-                    .list()
-
-            rows.map { row ->
-                val tags = getDocumentTags(handle, row["uuid"] as String)
-                Document(
-                    uuid = row["uuid"] as String,
-                    kind = row["kind"] as String,
-                    payload = row["payload"] as String,
-                    searchKey = row["search_key"] as String,
-                    tags = tags,
-                    createdAt = Instant.ofEpochMilli(row["created_at"] as Long),
-                )
+    ): Either<DBException, List<Document>> = either {
+        db.transaction {
+            val docs =
+                query("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}") {
+                    setString(1, kind)
+                    executeQuery().safe().toList { rs ->
+                        Document(
+                            uuid = rs.getString("uuid"),
+                            kind = rs.getString("kind"),
+                            payload = rs.getString("payload"),
+                            searchKey = rs.getString("search_key"),
+                            tags = emptyList(), // Fetch tags separately
+                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                        )
+                    }
+                }
+            docs.map { doc ->
+                val tags = getDocumentTags(doc.uuid)
+                doc.copy(tags = tags)
             }
         }
+    }
 }

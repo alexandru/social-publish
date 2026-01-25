@@ -9,6 +9,34 @@ import kotlinx.serialization.Serializable
  */
 class DBException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
+/** Sealed class for SQL update exceptions with constraint violation details. */
+sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
+    Exception(message, cause) {
+    data class UniqueViolation(
+        val table: String?,
+        val column: String?,
+        val constraint: String?,
+        override val cause: Throwable,
+    ) : SqlUpdateException("Unique constraint violation: $constraint", cause)
+
+    data class ForeignKeyViolation(
+        val table: String?,
+        val column: String?,
+        val constraint: String?,
+        override val cause: Throwable,
+    ) : SqlUpdateException("Foreign key constraint violation: $constraint", cause)
+
+    data class CheckViolation(
+        val table: String?,
+        val column: String?,
+        val constraint: String?,
+        override val cause: Throwable,
+    ) : SqlUpdateException("Check constraint violation: $constraint", cause)
+
+    data class Unknown(override val message: String, override val cause: Throwable) :
+        SqlUpdateException(message, cause)
+}
+
 @Serializable
 data class Tag(
     val name: String,

@@ -1,11 +1,11 @@
 package socialpublish.backend.db
 
 import arrow.core.Either
+import arrow.core.raise.either
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
-import org.jdbi.v3.core.Jdbi
 
 data class UploadPayload(
     val hash: String,
@@ -29,7 +29,7 @@ data class Upload(
     val createdAt: Instant,
 )
 
-class FilesDatabase(private val jdbi: Jdbi) {
+class FilesDatabase(private val db: Database) {
     companion object {
         private val UUID_NAMESPACE = UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac")
 
@@ -57,8 +57,8 @@ class FilesDatabase(private val jdbi: Jdbi) {
         }
     }
 
-    suspend fun createFile(payload: UploadPayload) =
-        jdbi.safeTransaction { handle ->
+    suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = either {
+        db.transaction {
             // Generate deterministic UUID
             val uuidInput =
                 listOf(
@@ -75,32 +75,28 @@ class FilesDatabase(private val jdbi: Jdbi) {
 
             // Check if already exists
             val existing =
-                handle
-                    .createQuery("SELECT * FROM uploads WHERE uuid = ?")
-                    .bind(0, uuid)
-                    .mapToMap()
-                    .findOne()
-                    .orElse(null)
+                query("SELECT * FROM uploads WHERE uuid = ?") {
+                    setString(1, uuid)
+                    executeQuery().safe().firstOrNull { rs ->
+                        Upload(
+                            uuid = rs.getString("uuid"),
+                            hash = rs.getString("hash"),
+                            originalname = rs.getString("originalname"),
+                            mimetype = rs.getString("mimetype"),
+                            size = rs.getLong("size"),
+                            altText = rs.getString("altText"),
+                            imageWidth = rs.getObject("imageWidth") as? Int,
+                            imageHeight = rs.getObject("imageHeight") as? Int,
+                            createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                        )
+                    }
+                }
 
             if (existing != null) {
-                val row = existing.normalizeKeys()
-                val sizeVal = requireNotNull(row["size"] as? Number).toLong()
-                val createdAtMillis = requireNotNull(row["createdat"] as? Number).toLong()
-
-                return@safeTransaction Upload(
-                    uuid = row["uuid"] as String,
-                    hash = row["hash"] as String,
-                    originalname = row["originalname"] as String,
-                    mimetype = row["mimetype"] as String,
-                    size = sizeVal,
-                    altText = row["alttext"] as String?,
-                    imageWidth = (row["imagewidth"] as? Number)?.toInt(),
-                    imageHeight = (row["imageheight"] as? Number)?.toInt(),
-                    createdAt = Instant.ofEpochMilli(createdAtMillis),
-                )
+                return@transaction existing
             }
 
-            val now = Instant.now()
+            val now = db.clock.instant()
             val upload =
                 Upload(
                     uuid = uuid,
@@ -114,55 +110,47 @@ class FilesDatabase(private val jdbi: Jdbi) {
                     createdAt = now,
                 )
 
-            handle.execute(
+            query(
                 """
                 INSERT INTO uploads
                     (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                    .trimIndent(),
-                upload.uuid,
-                upload.hash,
-                upload.originalname,
-                upload.mimetype,
-                upload.size,
-                upload.altText,
-                upload.imageWidth,
-                upload.imageHeight,
-                upload.createdAt.toEpochMilli(),
-            )
+                    .trimIndent()
+            ) {
+                setString(1, upload.uuid)
+                setString(2, upload.hash)
+                setString(3, upload.originalname)
+                setString(4, upload.mimetype)
+                setLong(5, upload.size)
+                setString(6, upload.altText)
+                upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, java.sql.Types.INTEGER)
+                upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
+                setLong(9, upload.createdAt.toEpochMilli())
+                execute()
+                Unit
+            }
 
             upload
         }
+    }
 
-    suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> =
-        jdbi.safeHandle { handle ->
-            // Some JDBC drivers / sqlite variants may normalize column names; fetch all rows
-            // and match by uuid string
-            val rows = handle.createQuery("SELECT * FROM uploads").mapToMap().list()
-            val normalizedRows = rows.map { it.normalizeKeys() }
-            val row = normalizedRows.firstOrNull { r -> r["uuid"]?.toString() == uuid }
-
-            if (row == null) {
-                return@safeHandle null
+    suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> = either {
+        db.query("SELECT * FROM uploads WHERE uuid = ?") {
+            setString(1, uuid)
+            executeQuery().safe().firstOrNull { rs ->
+                Upload(
+                    uuid = rs.getString("uuid"),
+                    hash = rs.getString("hash"),
+                    originalname = rs.getString("originalname"),
+                    mimetype = rs.getString("mimetype"),
+                    size = rs.getLong("size"),
+                    altText = rs.getString("altText"),
+                    imageWidth = rs.getObject("imageWidth") as? Int,
+                    imageHeight = rs.getObject("imageHeight") as? Int,
+                    createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                )
             }
-
-            val sizeVal = (row["size"] as? Number)?.toLong() ?: return@safeHandle null
-            val createdAtMillis = (row["createdat"] as? Number)?.toLong() ?: return@safeHandle null
-
-            Upload(
-                uuid = row["uuid"] as String,
-                hash = row["hash"] as String,
-                originalname = row["originalname"] as String,
-                mimetype = row["mimetype"] as String,
-                size = sizeVal,
-                altText = row["alttext"] as String?,
-                imageWidth = (row["imagewidth"] as? Number)?.toInt(),
-                imageHeight = (row["imageheight"] as? Number)?.toInt(),
-                createdAt = Instant.ofEpochMilli(createdAtMillis),
-            )
         }
+    }
 }
-
-private fun Map<String, Any?>.normalizeKeys(): Map<String, Any?> =
-    this.mapKeys { it.key.lowercase() }
