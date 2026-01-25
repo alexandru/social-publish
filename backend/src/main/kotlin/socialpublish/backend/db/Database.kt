@@ -235,101 +235,20 @@ suspend fun migrate(db: Database): Either<DBException, Unit> =
 private suspend fun SafeConnection.runMigrations() {
     logger.info { "Running database migrations..." }
 
-    // Documents table migration
-    if (!tableExists("documents")) {
-        logger.info { "Creating documents table" }
-        query("DROP TABLE IF EXISTS posts") {
-            execute()
-            Unit
-        }
-        query(
-            """
-            CREATE TABLE IF NOT EXISTS documents (
-                uuid VARCHAR(36) NOT NULL PRIMARY KEY,
-                search_key VARCHAR(255) UNIQUE NOT NULL,
-                kind VARCHAR(255) NOT NULL,
-                payload TEXT NOT NULL,
-                created_at INTEGER NOT NULL
-            )
-            """
-                .trimIndent()
-        ) {
-            execute()
-            Unit
-        }
-        query(
-            """
-            CREATE INDEX IF NOT EXISTS documents_created_at
-            ON documents(kind, created_at)
-            """
-                .trimIndent()
-        ) {
-            execute()
-            Unit
-        }
-    }
-
-    // Document tags table migration
-    if (!tableExists("document_tags")) {
-        logger.info { "Creating document_tags table" }
-        query(
-            """
-            CREATE TABLE IF NOT EXISTS document_tags (
-                document_uuid VARCHAR(36) NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                kind VARCHAR(255) NOT NULL,
-                PRIMARY KEY (document_uuid, name, kind)
-            )
-            """
-                .trimIndent()
-        ) {
-            execute()
-            Unit
-        }
-    }
-
-    // Uploads table migration
-    if (!tableExists("uploads")) {
-        logger.info { "Creating uploads table" }
-        query(
-            """
-            CREATE TABLE IF NOT EXISTS uploads (
-                uuid VARCHAR(36) NOT NULL PRIMARY KEY,
-                hash VARCHAR(64) NOT NULL,
-                originalname VARCHAR(255) NOT NULL,
-                mimetype VARCHAR(255),
-                size INTEGER,
-                altText TEXT,
-                imageWidth INTEGER,
-                imageHeight INTEGER,
-                createdAt INTEGER NOT NULL
-            )
-            """
-                .trimIndent()
-        ) {
-            execute()
-            Unit
-        }
-        query(
-            """
-            CREATE INDEX IF NOT EXISTS uploads_createdAt
-                ON uploads(createdAt)
-            """
-                .trimIndent()
-        ) {
-            execute()
-            Unit
+    // Apply all migrations in order
+    migrations.forEachIndexed { index, migration ->
+        if (!migration.testIfApplied(this)) {
+            logger.info { "Applying migration $index" }
+            migration.ddl.forEach { ddlStatement ->
+                query(ddlStatement) {
+                    execute()
+                    Unit
+                }
+            }
+        } else {
+            logger.debug { "Migration $index already applied, skipping" }
         }
     }
 
     logger.info { "Database migrations completed" }
-}
-
-private suspend fun SafeConnection.tableExists(tableName: String): Boolean {
-    return query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?") {
-            setString(1, tableName)
-            val rs = executeQuery()
-            rs.next()
-        }
-        .let { exists -> exists }
 }
