@@ -156,7 +156,7 @@ fun ImageUpload(
                                                 scope.launch {
                                                     try {
                                                         val response =
-                                                            ApiClient.postJson<
+                                                            ApiClient.post<
                                                                 GenerateAltTextResponse,
                                                                 GenerateAltTextRequest,
                                                             >(
@@ -170,7 +170,7 @@ fun ImageUpload(
                                                                 // Update alt-text in database
                                                                 val altText = response.data.altText
                                                                 val updateResponse =
-                                                                    ApiClient.postJson<
+                                                                    ApiClient.post<
                                                                         UpdateAltTextResponse,
                                                                         UpdateAltTextRequest,
                                                                     >(

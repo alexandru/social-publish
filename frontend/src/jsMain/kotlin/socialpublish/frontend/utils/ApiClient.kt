@@ -111,10 +111,6 @@ object ApiClient {
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
     }
-
-    suspend inline fun <reified T, reified B> postJson(url: String, body: B): ApiResponse<T> {
-        return post(url, body)
-    }
 }
 
 @Serializable data class ErrorResponse(val error: String)

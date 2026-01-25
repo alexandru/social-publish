@@ -78,16 +78,16 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             formState = formState.setSubmitting(true)
 
             try {
-                // Upload or update images
+                // Use already-uploaded images (uploaded when user selected them)
                 val imageUUIDs = mutableListOf<String>()
                 for (image in formState.images.values) {
                     if (image.uploadedUuid != null) {
-                        // Image already uploaded, just use the UUID
-                        // If alt-text was updated, we could update it here but the UUID is
-                        // already linked
+                        // Image already uploaded, use the UUID
+                        // Note: Alt-text is already saved in the database if user generated or
+                        // edited it
                         imageUUIDs.add(image.uploadedUuid)
                     } else if (image.file != null) {
-                        // Fallback: upload image if UUID is missing for some reason
+                        // Fallback: upload image if UUID is missing (shouldn't happen normally)
                         when (
                             val response =
                                 ApiClient.uploadFile<FileUploadResponse>(
