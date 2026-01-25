@@ -72,14 +72,8 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
             val dbFile = File(dbPath)
             dbFile.parentFile?.mkdirs()
 
-            val hikariConfig =
-                HikariConfig().apply {
-                    jdbcUrl = "jdbc:sqlite:$dbPath"
-                    driverClassName = "org.sqlite.JDBC"
-                    maximumPoolSize = 3
-                    initializationFailTimeout = 0
-                }
-            val dataSource = withContext(Dispatchers.LOOM) { HikariDataSource(hikariConfig) }
+            val hikariConfig = createHikariConfig(dbPath)
+            val dataSource = withContext(Database.Dispatcher) { HikariDataSource(hikariConfig) }
             val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
 
             // Run migrations
@@ -125,21 +119,24 @@ fun PreparedStatement.safe(): SafePreparedStatement = SafePreparedStatement(this
 
 fun ResultSet.safe(): SafeResultSet = SafeResultSet(this)
 
+/** Creates HikariConfig for SQLite database. */
+private fun createHikariConfig(dbPath: String): HikariConfig =
+    HikariConfig().apply {
+        jdbcUrl = "jdbc:sqlite:$dbPath"
+        driverClassName = "org.sqlite.JDBC"
+        // Keep pool size low for SQLite
+        maximumPoolSize = 3
+        minimumIdle = 1
+        // Instructs HikariCP to not throw if the pool cannot be seeded
+        // with an initial connection
+        initializationFailTimeout = 0
+    }
+
 /** Creates a HikariCP connection pool for SQLite. */
 fun createDataSource(dbPath: String): Resource<DataSource> = resource {
     install(
         {
-            val cfg =
-                HikariConfig().apply {
-                    jdbcUrl = "jdbc:sqlite:$dbPath"
-                    driverClassName = "org.sqlite.JDBC"
-                    // Keep pool size low for SQLite
-                    maximumPoolSize = 3
-                    minimumIdle = 1
-                    // Instructs HikariCP to not throw if the pool cannot be seeded
-                    // with an initial connection
-                    initializationFailTimeout = 0
-                }
+            val cfg = createHikariConfig(dbPath)
             withContext(Database.Dispatcher) { HikariDataSource(cfg) }
         },
         { p, _ -> withContext(Database.Dispatcher) { p.close() } },
