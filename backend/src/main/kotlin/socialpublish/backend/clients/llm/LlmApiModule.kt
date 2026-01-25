@@ -31,6 +31,8 @@ class LlmApiModule(
     private val config: LlmConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
+    private val openAiApiUrl: String = "https://api.openai.com/v1/chat/completions",
+    private val mistralApiUrl: String = "https://api.mistral.ai/v1/chat/completions",
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
@@ -56,9 +58,6 @@ class LlmApiModule(
                 LlmApiModule(config, filesModule, defaultHttpClient().bind())
             }
     }
-
-    private val openAiApiUrl = "https://api.openai.com/v1/chat/completions"
-    private val mistralApiUrl = "https://api.mistral.ai/v1/chat/completions"
 
     suspend fun generateAltText(imageUuid: String): ApiResult<String> {
         return try {

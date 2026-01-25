@@ -92,6 +92,8 @@ class LlmApiTest {
                     LlmConfig(provider = "openai", apiKey = "test-key", model = "gpt-4o-mini"),
                     filesModule,
                     client,
+                    openAiApiUrl = "http://localhost/v1/chat/completions",
+                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             // Generate alt-text
@@ -196,6 +198,8 @@ class LlmApiTest {
                     ),
                     filesModule,
                     client,
+                    openAiApiUrl = "http://localhost/v1/chat/completions",
+                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             // Generate alt-text
@@ -230,6 +234,8 @@ class LlmApiTest {
                     LlmConfig(provider = "openai", apiKey = "test-key"),
                     filesModule,
                     client,
+                    openAiApiUrl = "http://localhost/v1/chat/completions",
+                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             val result = llmModule.generateAltText("non-existent-uuid")
@@ -266,6 +272,8 @@ class LlmApiTest {
                     LlmConfig(provider = "unsupported-provider", apiKey = "test-key"),
                     filesModule,
                     client,
+                    openAiApiUrl = "http://localhost/v1/chat/completions",
+                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             val result = llmModule.generateAltText(upload.uuid)
