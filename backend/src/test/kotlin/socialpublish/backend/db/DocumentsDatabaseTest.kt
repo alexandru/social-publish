@@ -79,23 +79,24 @@ class DocumentsDatabaseTest {
         }
 
     @Test
-    fun `createOrUpdate should generate searchKey if not provided`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `createOrUpdate should generate searchKey if not provided`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val documentsDb = DocumentsDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val documentsDb = DocumentsDatabase(db)
 
-            val doc =
-                documentsDb
-                    .createOrUpdate(kind = "test", payload = """{"message": "Auto key"}""")
-                    .getOrElse { throw it }
+                val doc =
+                    documentsDb
+                        .createOrUpdate(kind = "test", payload = """{"message": "Auto key"}""")
+                        .getOrElse { throw it }
 
-            assertNotNull(doc.searchKey)
-            // Generated key should be in format "kind:uuid"
-            assert(doc.searchKey.startsWith("test:"))
+                assertNotNull(doc.searchKey)
+                // Generated key should be in format "kind:uuid"
+                assert(doc.searchKey.startsWith("test:"))
+            }
         }
-    }
 
     @Test
     fun `searchByKey should find document by searchKey`(@TempDir tempDir: Path) = runTest {
@@ -221,42 +222,43 @@ class DocumentsDatabaseTest {
     }
 
     @Test
-    fun `getAll should return documents in CREATED_AT_DESC order`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `getAll should return documents in CREATED_AT_DESC order`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val documentsDb = DocumentsDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val documentsDb = DocumentsDatabase(db)
 
-            // Create documents in sequence
-            val first =
-                documentsDb.createOrUpdate(kind = "test", payload = """{"order": 1}""").getOrElse {
-                    throw it
-                }
-            // Small delay to ensure different timestamps
-            @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
-            val second =
-                documentsDb.createOrUpdate(kind = "test", payload = """{"order": 2}""").getOrElse {
-                    throw it
-                }
-            @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
-            val third =
-                documentsDb.createOrUpdate(kind = "test", payload = """{"order": 3}""").getOrElse {
-                    throw it
-                }
+                // Create documents in sequence
+                val first =
+                    documentsDb
+                        .createOrUpdate(kind = "test", payload = """{"order": 1}""")
+                        .getOrElse { throw it }
+                // Small delay to ensure different timestamps
+                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
+                val second =
+                    documentsDb
+                        .createOrUpdate(kind = "test", payload = """{"order": 2}""")
+                        .getOrElse { throw it }
+                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
+                val third =
+                    documentsDb
+                        .createOrUpdate(kind = "test", payload = """{"order": 3}""")
+                        .getOrElse { throw it }
 
-            val all =
-                documentsDb.getAll("test", DocumentsDatabase.OrderBy.CREATED_AT_DESC).getOrElse {
-                    throw it
-                }
+                val all =
+                    documentsDb
+                        .getAll("test", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
+                        .getOrElse { throw it }
 
-            assertEquals(3, all.size)
-            // Should be in reverse chronological order (newest first)
-            assertEquals(third.uuid, all[0].uuid)
-            assertEquals(second.uuid, all[1].uuid)
-            assertEquals(first.uuid, all[2].uuid)
+                assertEquals(3, all.size)
+                // Should be in reverse chronological order (newest first)
+                assertEquals(third.uuid, all[0].uuid)
+                assertEquals(second.uuid, all[1].uuid)
+                assertEquals(first.uuid, all[2].uuid)
+            }
         }
-    }
 
     @Test
     fun `getAll should return empty list for non-existent kind`(@TempDir tempDir: Path) = runTest {
@@ -280,8 +282,7 @@ class DocumentsDatabaseTest {
             val db = Database.connect(dbPath).bind()
             val documentsDb = DocumentsDatabase(db)
 
-            val tags =
-                listOf(Tag("tag1", "type1"), Tag("tag2", "type2"), Tag("tag3", "type3"))
+            val tags = listOf(Tag("tag1", "type1"), Tag("tag2", "type2"), Tag("tag3", "type3"))
 
             val created =
                 documentsDb

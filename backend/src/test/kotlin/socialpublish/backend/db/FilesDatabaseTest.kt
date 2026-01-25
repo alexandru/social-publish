@@ -46,34 +46,35 @@ class FilesDatabaseTest {
     }
 
     @Test
-    fun `createFile should return existing file if already exists`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `createFile should return existing file if already exists`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val filesDb = FilesDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val filesDb = FilesDatabase(db)
 
-            val payload =
-                UploadPayload(
-                    hash = "duplicate123",
-                    originalname = "duplicate.png",
-                    mimetype = "image/png",
-                    size = 2048L,
-                )
+                val payload =
+                    UploadPayload(
+                        hash = "duplicate123",
+                        originalname = "duplicate.png",
+                        mimetype = "image/png",
+                        size = 2048L,
+                    )
 
-            // Create first time
-            val first = filesDb.createFile(payload).getOrElse { throw it }
+                // Create first time
+                val first = filesDb.createFile(payload).getOrElse { throw it }
 
-            // Try to create again with same data
-            val second = filesDb.createFile(payload).getOrElse { throw it }
+                // Try to create again with same data
+                val second = filesDb.createFile(payload).getOrElse { throw it }
 
-            // Should return the same record
-            assertEquals(first.uuid, second.uuid)
-            assertEquals(first.hash, second.hash)
-            // Note: createdAt might have different precision in memory vs DB
-            assertEquals(first.createdAt.toEpochMilli(), second.createdAt.toEpochMilli())
+                // Should return the same record
+                assertEquals(first.uuid, second.uuid)
+                assertEquals(first.hash, second.hash)
+                // Note: createdAt might have different precision in memory vs DB
+                assertEquals(first.createdAt.toEpochMilli(), second.createdAt.toEpochMilli())
+            }
         }
-    }
 
     @Test
     fun `createFile should handle null optional fields`(@TempDir tempDir: Path) = runTest {
@@ -143,9 +144,7 @@ class FilesDatabaseTest {
             val filesDb = FilesDatabase(db)
 
             val notFound =
-                filesDb.getFileByUuid("00000000-0000-0000-0000-000000000000").getOrElse {
-                    throw it
-                }
+                filesDb.getFileByUuid("00000000-0000-0000-0000-000000000000").getOrElse { throw it }
 
             assertNull(notFound)
         }
@@ -196,43 +195,44 @@ class FilesDatabaseTest {
     }
 
     @Test
-    fun `createFile UUID should be deterministic based on payload`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `createFile UUID should be deterministic based on payload`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val filesDb = FilesDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val filesDb = FilesDatabase(db)
 
-            val payload1 =
-                UploadPayload(
-                    hash = "same-hash",
-                    originalname = "same.jpg",
-                    mimetype = "image/jpeg",
-                    size = 1000L,
-                    altText = "Same",
-                    imageWidth = 100,
-                    imageHeight = 100,
-                )
+                val payload1 =
+                    UploadPayload(
+                        hash = "same-hash",
+                        originalname = "same.jpg",
+                        mimetype = "image/jpeg",
+                        size = 1000L,
+                        altText = "Same",
+                        imageWidth = 100,
+                        imageHeight = 100,
+                    )
 
-            val payload2 =
-                UploadPayload(
-                    hash = "same-hash",
-                    originalname = "same.jpg",
-                    mimetype = "image/jpeg",
-                    size = 1000L,
-                    altText = "Same",
-                    imageWidth = 100,
-                    imageHeight = 100,
-                )
+                val payload2 =
+                    UploadPayload(
+                        hash = "same-hash",
+                        originalname = "same.jpg",
+                        mimetype = "image/jpeg",
+                        size = 1000L,
+                        altText = "Same",
+                        imageWidth = 100,
+                        imageHeight = 100,
+                    )
 
-            val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
-            // Create in a different database instance to verify determinism
-            val upload2 = filesDb.createFile(payload2).getOrElse { throw it }
+                val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
+                // Create in a different database instance to verify determinism
+                val upload2 = filesDb.createFile(payload2).getOrElse { throw it }
 
-            // Should have same UUID because payload is identical
-            assertEquals(upload1.uuid, upload2.uuid)
+                // Should have same UUID because payload is identical
+                assertEquals(upload1.uuid, upload2.uuid)
+            }
         }
-    }
 
     @Test
     fun `createFile UUID should differ for different payloads`(@TempDir tempDir: Path) = runTest {

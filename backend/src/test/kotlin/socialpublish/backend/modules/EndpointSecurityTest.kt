@@ -89,9 +89,7 @@ class EndpointSecurityTest {
 
             val token = authModule.generateToken("testuser")
             val response =
-                client.get("/api/protected") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                }
+                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
@@ -185,9 +183,7 @@ class EndpointSecurityTest {
 
             val token = authModule.generateToken("testuser")
             val response =
-                client.get("/api/protected") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                }
+                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
 
             assertEquals(HttpStatusCode.OK, response.status)
             val body = response.bodyAsText()
