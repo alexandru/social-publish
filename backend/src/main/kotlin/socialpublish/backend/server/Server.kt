@@ -175,6 +175,16 @@ fun startServer(
 
             // HEAD support for /ping endpoint (used by health check services)
             head("/ping") { call.respondText("", status = HttpStatusCode.OK) }
+                .describe {
+                    summary = "Health check (HEAD)"
+                    description = "HEAD method for health checks, returns only headers without body"
+                    responses {
+                        HttpStatusCode.OK {
+                            description = "Server is healthy"
+                            ContentType.Text.Plain()
+                        }
+                    }
+                }
 
             // Authentication routes
             rateLimit(RateLimitName("login")) {
