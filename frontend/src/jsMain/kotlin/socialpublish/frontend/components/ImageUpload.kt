@@ -2,6 +2,7 @@ package socialpublish.frontend.components
 
 import androidx.compose.runtime.*
 import kotlinx.browser.document
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
@@ -9,8 +10,19 @@ import org.w3c.dom.HTMLInputElement
 import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
+import socialpublish.frontend.models.GenerateAltTextRequest
+import socialpublish.frontend.models.GenerateAltTextResponse
+import socialpublish.frontend.models.UpdateAltTextRequest
+import socialpublish.frontend.models.UpdateAltTextResponse
+import socialpublish.frontend.utils.ApiClient
+import socialpublish.frontend.utils.ApiResponse
 
-data class SelectedImage(val id: Int, val file: File? = null, val altText: String? = null)
+data class SelectedImage(
+    val id: Int,
+    val file: File? = null,
+    val altText: String? = null,
+    val uploadedUuid: String? = null,
+)
 
 @Composable
 fun ImageUpload(
@@ -20,6 +32,9 @@ fun ImageUpload(
     onRemove: (Int) -> Unit,
 ) {
     var imagePreviewUrl by remember { mutableStateOf<String?>(null) }
+    var isGeneratingAltText by remember { mutableStateOf(false) }
+    var altTextError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     // Generate image preview URL when file is selected
     LaunchedEffect(state.file) {
@@ -111,12 +126,128 @@ fun ImageUpload(
                                     attr("rows", "2")
                                     attr("placeholder", "Describe this image for accessibility...")
                                     value(state.altText ?: "")
+                                    if (isGeneratingAltText) {
+                                        attr("disabled", "")
+                                    }
                                     onInput { event ->
                                         val target = event.target
                                         onSelect(state.copy(altText = target.value))
+                                        altTextError = null
                                     }
                                 }
                             )
+                        }
+                        // Generate Alt-Text button
+                        if (state.uploadedUuid != null) {
+                            Div(attrs = { classes("control", "mt-2") }) {
+                                Button(
+                                    attrs = {
+                                        classes("button", "is-small", "is-info", "is-outlined")
+                                        attr("type", "button")
+                                        if (isGeneratingAltText) {
+                                            attr("disabled", "")
+                                            classes("is-loading")
+                                        }
+                                        onClick { event ->
+                                            event.preventDefault()
+                                            if (!isGeneratingAltText) {
+                                                isGeneratingAltText = true
+                                                altTextError = null
+                                                scope.launch {
+                                                    try {
+                                                        val response =
+                                                            ApiClient.postJson<
+                                                                GenerateAltTextResponse,
+                                                                GenerateAltTextRequest,
+                                                            >(
+                                                                "/api/llm/generate-alt-text",
+                                                                GenerateAltTextRequest(
+                                                                    imageUuid = state.uploadedUuid
+                                                                ),
+                                                            )
+                                                        when (response) {
+                                                            is ApiResponse.Success -> {
+                                                                // Update alt-text in database
+                                                                val altText = response.data.altText
+                                                                val updateResponse =
+                                                                    ApiClient.postJson<
+                                                                        UpdateAltTextResponse,
+                                                                        UpdateAltTextRequest,
+                                                                    >(
+                                                                        "/api/files/${state.uploadedUuid}/alt-text",
+                                                                        UpdateAltTextRequest(
+                                                                            altText = altText
+                                                                        ),
+                                                                    )
+                                                                when (updateResponse) {
+                                                                    is ApiResponse.Success -> {
+                                                                        // Successfully updated,
+                                                                        // update local state
+                                                                        onSelect(
+                                                                            state.copy(
+                                                                                altText = altText
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                    is ApiResponse.Error -> {
+                                                                        altTextError =
+                                                                            "Failed to save alt-text: ${updateResponse.message}"
+                                                                        console.error(
+                                                                            "Failed to save alt-text:",
+                                                                            updateResponse.message,
+                                                                        )
+                                                                    }
+                                                                    is ApiResponse.Exception -> {
+                                                                        altTextError =
+                                                                            "Failed to save alt-text: ${updateResponse.message}"
+                                                                        console.error(
+                                                                            "Failed to save alt-text:",
+                                                                            updateResponse.message,
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                            is ApiResponse.Error -> {
+                                                                altTextError = response.message
+                                                                console.error(
+                                                                    "Alt-text generation failed:",
+                                                                    response.message,
+                                                                )
+                                                            }
+                                                            is ApiResponse.Exception -> {
+                                                                altTextError = response.message
+                                                                console.error(
+                                                                    "Alt-text generation exception:",
+                                                                    response.message,
+                                                                )
+                                                            }
+                                                        }
+                                                    } finally {
+                                                        isGeneratingAltText = false
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Span(attrs = { classes("icon", "is-small") }) {
+                                        I(
+                                            attrs = {
+                                                classes(
+                                                    "fas",
+                                                    if (isGeneratingAltText) "fa-spinner"
+                                                    else "fa-wand-magic-sparkles",
+                                                )
+                                            }
+                                        )
+                                    }
+                                    Span { Text("Generate Alt-Text") }
+                                }
+                            }
+                        }
+                        // Show error message if generation failed
+                        if (altTextError != null) {
+                            Div(attrs = { classes("help", "is-danger") }) { Text(altTextError!!) }
                         }
                     }
                 }

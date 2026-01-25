@@ -153,4 +153,15 @@ class FilesDatabase(private val db: Database) {
             }
         }
     }
+
+    suspend fun updateAltText(uuid: String, altText: String?): Either<DBException, Boolean> =
+        either {
+            val updated =
+                db.update("UPDATE uploads SET altText = ? WHERE uuid = ?") {
+                    setString(1, altText)
+                    setString(2, uuid)
+                    executeUpdate().safe()
+                }
+            updated > 0
+        }
 }
