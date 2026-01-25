@@ -57,6 +57,36 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
             logger.info { "Database connected and migrated" }
             db
         }
+
+        /**
+         * Creates an unmanaged database connection for testing.
+         *
+         * Unlike [connect], this does not use Arrow Resource management and returns the Database
+         * directly. The caller is responsible for closing the connection pool when done, though in
+         * practice test JVMs exit quickly so this is rarely necessary.
+         *
+         * This is intended for test scenarios where the database needs to outlive a single scope.
+         */
+        suspend fun connectUnmanaged(dbPath: String): Database {
+            logger.info { "Connecting to database (unmanaged) at $dbPath" }
+            val dbFile = File(dbPath)
+            dbFile.parentFile?.mkdirs()
+
+            val hikariConfig =
+                HikariConfig().apply {
+                    jdbcUrl = "jdbc:sqlite:$dbPath"
+                    driverClassName = "org.sqlite.JDBC"
+                    maximumPoolSize = 3
+                    initializationFailTimeout = 0
+                }
+            val dataSource = withContext(Dispatchers.LOOM) { HikariDataSource(hikariConfig) }
+            val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
+
+            // Run migrations
+            migrate(db).getOrElse { throw it }
+            logger.info { "Database connected and migrated (unmanaged)" }
+            return db
+        }
     }
 }
 

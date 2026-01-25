@@ -1,7 +1,6 @@
 package socialpublish.backend.testutils
 
 import arrow.core.getOrElse
-import arrow.fx.coroutines.resourceScope
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitFormWithBinaryData
@@ -42,9 +41,11 @@ internal data class MultipartRequest(
     val fields: Map<String, List<String>>,
 )
 
-internal suspend fun createTestDatabase(tempDir: Path): Database = resourceScope {
+internal suspend fun createTestDatabase(tempDir: Path): Database {
     val dbPath = tempDir.resolve("test.db").toString()
-    Database.connect(dbPath).bind()
+    // Use unmanaged connection for tests since the database needs to outlive
+    // the test setup scope and remain open for the duration of the test
+    return Database.connectUnmanaged(dbPath)
 }
 
 internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule {
