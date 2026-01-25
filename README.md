@@ -8,6 +8,7 @@ This project is a simple tool to publish content to multiple social networks.
 
 - [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), [Bluesky](https://bsky.app/), and [LinkedIn](https://linkedin.com) support is implemented
 - Image upload is supported, with alt-text included 😊
+- **NEW**: LLM integration for automatic alt-text generation using OpenAI or Mistral AI 🤖✨
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
 **Table of Contents**
@@ -17,6 +18,7 @@ This project is a simple tool to publish content to multiple social networks.
   - [Mastodon credentials](#mastodon-credentials)
   - [Twitter setup](#twitter-setup)
   - [LinkedIn setup](#linkedin-setup)
+  - [LLM setup (Optional)](#llm-setup-optional)
 - [Usage](#usage)
   - [RSS feed](#rss-feed)
 - [Developing](#developing)
@@ -72,6 +74,12 @@ TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
 LINKEDIN_CLIENT_ID="your-client-id"
 LINKEDIN_CLIENT_SECRET="your-client-secret"
 
+# LLM for alt-text generation (optional)
+# Supported providers: "openai" or "mistral"
+LLM_PROVIDER="openai"  # or "mistral"
+LLM_API_KEY="your-api-key"
+LLM_MODEL="gpt-4o-mini"  # Optional: defaults to gpt-4o-mini (OpenAI) or pixtral-12b-2409 (Mistral)
+
 # Used for authentication (https://jwt.io)
 JWT_SECRET="random string"
 ```
@@ -123,6 +131,27 @@ For LinkedIn, we're working with OAuth2.
 - Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect LinkedIn_"
 
 **Note:** LinkedIn access tokens expire after 60 days. The system automatically refreshes tokens using the refresh token, which is valid for 1 year. You'll need to reconnect if the refresh token expires.
+
+### LLM setup (Optional)
+
+The application can integrate with LLM providers to automatically generate alt-text descriptions for images. This feature is optional and supports OpenAI and Mistral AI.
+
+**Supported providers:**
+
+- **OpenAI** (e.g., GPT-4o-mini): <https://platform.openai.com/api-keys>
+- **Mistral AI** (e.g., Pixtral): <https://console.mistral.ai/api-keys/>
+
+**Configuration:**
+
+1. Get an API key from your chosen provider
+2. Set the environment variables:
+   - `LLM_PROVIDER`: Set to `"openai"` or `"mistral"`
+   - `LLM_API_KEY`: Your API key
+   - `LLM_MODEL` (optional): Model name (defaults: `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
+
+**Usage:**
+
+When uploading an image in the web UI, a "Generate Alt-Text" button will appear. Click it to automatically generate a description of the image using AI. The generated text can be edited manually before posting.
 
 ## Usage
 

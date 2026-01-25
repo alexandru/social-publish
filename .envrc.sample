@@ -32,3 +32,9 @@ export BSKY_SERVICE="https://bsky.social"
 # export TWITTER_OAUTH1_CONSUMER_KEY=""
 # export TWITTER_OAUTH1_CONSUMER_SECRET=""
 
+# LLM for alt-text generation (optional)
+# Supported providers: "openai" or "mistral"
+# export LLM_PROVIDER="openai"
+# export LLM_API_KEY=""
+# export LLM_MODEL=""  # Optional: defaults to gpt-4o-mini (OpenAI) or pixtral-12b-2409 (Mistral)
+
