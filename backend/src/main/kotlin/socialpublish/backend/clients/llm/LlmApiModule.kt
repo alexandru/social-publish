@@ -8,6 +8,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
@@ -18,6 +19,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
@@ -47,10 +49,8 @@ class LlmApiModule(
                             )
                         }
                         install(HttpTimeout) {
-                            // Set timeout for LLM requests (30 seconds for request, 60 for
-                            // connection)
-                            requestTimeoutMillis = 30_000
-                            connectTimeoutMillis = 60_000
+                            requestTimeoutMillis = 20.seconds.inWholeMilliseconds
+                            connectTimeoutMillis = 40.seconds.inWholeMilliseconds
                         }
                     }
                 },
@@ -82,8 +82,8 @@ class LlmApiModule(
 
             // Generate alt-text using the LLM API
             generateAltTextFromApi(dataUrl, userContext)
-        } catch (e: io.ktor.client.plugins.HttpRequestTimeoutException) {
-            logger.warn { "LLM request timed out for image $imageUuid" }
+        } catch (e: HttpRequestTimeoutException) {
+            logger.warn(e) { "LLM request timed out for image $imageUuid" }
             CaughtException(
                     status = 504,
                     module = "llm",
@@ -108,21 +108,23 @@ class LlmApiModule(
     ): ApiResult<String> {
         return try {
             // Build the prompt text, including user context/instructions if available
-            val promptText =
-                """
-                Please provide a concise and descriptive alt text for this image.
-                The alt text should be suitable for accessibility purposes and describe the key visual elements.
-                Keep it under 100 words and focus on what's important in the image.
-                ${if (!extraContextOrInstructions.isNullOrBlank()) {
+            val promptText = run {
+                val basePrompt =
                     """
-                    
-                    More user context and instructions (write the final text in the user's language):
-                    $extraContextOrInstructions
-                    """.trimIndent()
-                } else ""}
-                """
-                    .trimIndent()
+                    Please provide a concise and descriptive alt text for this image.
+                    The alt text should be suitable for accessibility purposes. 
+                    Keep it under 100 words and focus on what's important in the image.
+                    """
+                        .trimIndent()
 
+                if (!extraContextOrInstructions.isNullOrBlank()) {
+                    "$basePrompt\n\nFollow user's context/instructions (important!):\n$extraContextOrInstructions"
+                } else {
+                    basePrompt
+                }
+            }
+
+            logger.info { "Prompt for alt-text generation:\n$promptText" }
             val request =
                 OpenAiChatRequest(
                     model = config.model,
