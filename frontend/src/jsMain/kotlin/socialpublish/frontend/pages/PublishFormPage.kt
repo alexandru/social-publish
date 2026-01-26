@@ -261,6 +261,10 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         disabled = formState.images.size >= 4,
                         onImageSelected = { file ->
                             scope.launch {
+                                // Compute new ID once before upload to avoid race conditions
+                                val ids = formState.images.keys.sorted()
+                                val newId = if (ids.isEmpty()) 1 else ids.last() + 1
+
                                 // Upload image immediately to get UUID for alt-text generation
                                 when (
                                     val response =
@@ -271,8 +275,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         )
                                 ) {
                                     is ApiResponse.Success -> {
-                                        val ids = formState.images.keys.sorted()
-                                        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
                                         val newImage =
                                             SelectedImage(
                                                 newId,
@@ -289,16 +291,12 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         }
                                         console.error("Error uploading image:", response.message)
                                         // Still add image locally for user to see the error
-                                        val ids = formState.images.keys.sorted()
-                                        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
                                         val newImage = SelectedImage(newId, file = file)
                                         formState = formState.addImage(newImage)
                                     }
                                     is ApiResponse.Exception -> {
                                         console.error("Error uploading image:", response.message)
                                         // Still add image locally
-                                        val ids = formState.images.keys.sorted()
-                                        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
                                         val newImage = SelectedImage(newId, file = file)
                                         formState = formState.addImage(newImage)
                                     }

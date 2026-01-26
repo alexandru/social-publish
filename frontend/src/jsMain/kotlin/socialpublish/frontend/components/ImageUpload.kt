@@ -231,9 +231,14 @@ fun ImageUpload(
                             classes("button", "is-danger", "is-small")
                             attr("type", "button")
                             attr("title", "Remove image")
+                            if (isGeneratingAltText) {
+                                attr("disabled", "")
+                            }
                             onClick { event ->
                                 event.preventDefault()
-                                onRemove(id)
+                                if (!isGeneratingAltText) {
+                                    onRemove(id)
+                                }
                             }
                         }
                     ) {

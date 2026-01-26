@@ -8,6 +8,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -45,6 +46,12 @@ class LlmApiModule(
                                 }
                             )
                         }
+                        install(HttpTimeout) {
+                            // Set timeout for LLM requests (30 seconds for request, 60 for
+                            // connection)
+                            requestTimeoutMillis = 30_000
+                            connectTimeoutMillis = 60_000
+                        }
                     }
                 },
                 { client, _ -> client.close() },
@@ -75,6 +82,15 @@ class LlmApiModule(
 
             // Generate alt-text using the LLM API
             generateAltTextFromApi(dataUrl, userContext)
+        } catch (e: io.ktor.client.plugins.HttpRequestTimeoutException) {
+            logger.warn { "LLM request timed out for image $imageUuid" }
+            CaughtException(
+                    status = 504,
+                    module = "llm",
+                    errorMessage =
+                        "Request timed out. The LLM took too long to respond. Please try again.",
+                )
+                .left()
         } catch (e: Exception) {
             logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
             CaughtException(
@@ -150,7 +166,7 @@ class LlmApiModule(
                                 )
                                 .left()
 
-                    logger.info { "Generated alt-text: $altText" }
+                    logger.debug { "Generated alt-text (length: ${altText.length})" }
                     altText.right()
                 }
                 else -> {
