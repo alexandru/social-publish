@@ -86,14 +86,16 @@ class LlmApiTest {
             // Upload a test image
             val upload = uploadTestImage(client, "flower1.jpeg", null)
 
-            // Create LLM module with OpenAI config pointing to mock server
+            // Create LLM module with config pointing to mock server
             val llmModule =
                 LlmApiModule(
-                    LlmConfig(provider = "openai", apiKey = "test-key", model = "gpt-4o-mini"),
+                    LlmConfig(
+                        apiUrl = "http://localhost/v1/chat/completions",
+                        apiKey = "test-key",
+                        model = "gpt-4o-mini",
+                    ),
                     filesModule,
                     client,
-                    openAiApiUrl = "http://localhost/v1/chat/completions",
-                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             // Generate alt-text
@@ -192,14 +194,12 @@ class LlmApiTest {
             val llmModule =
                 LlmApiModule(
                     LlmConfig(
-                        provider = "mistral",
+                        apiUrl = "http://localhost/v1/chat/completions",
                         apiKey = "test-key",
                         model = "pixtral-12b-2409",
                     ),
                     filesModule,
                     client,
-                    openAiApiUrl = "http://localhost/v1/chat/completions",
-                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             // Generate alt-text
@@ -231,11 +231,13 @@ class LlmApiTest {
 
             val llmModule =
                 LlmApiModule(
-                    LlmConfig(provider = "openai", apiKey = "test-key"),
+                    LlmConfig(
+                        apiUrl = "http://localhost/v1/chat/completions",
+                        apiKey = "test-key",
+                        model = "gpt-4o-mini",
+                    ),
                     filesModule,
                     client,
-                    openAiApiUrl = "http://localhost/v1/chat/completions",
-                    mistralApiUrl = "http://localhost/v1/chat/completions",
                 )
 
             val result = llmModule.generateAltText("non-existent-uuid")
@@ -244,44 +246,6 @@ class LlmApiTest {
             val error = (result as Either.Left).value
             assertEquals(404, error.status)
             assertTrue(error.errorMessage.contains("not found", ignoreCase = true))
-        }
-    }
-
-    @Test
-    fun `returns error for unsupported provider`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-
-            val client = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-
-            // Upload a test image
-            val upload = uploadTestImage(client, "flower1.jpeg", null)
-
-            val llmModule =
-                LlmApiModule(
-                    LlmConfig(provider = "unsupported-provider", apiKey = "test-key"),
-                    filesModule,
-                    client,
-                    openAiApiUrl = "http://localhost/v1/chat/completions",
-                    mistralApiUrl = "http://localhost/v1/chat/completions",
-                )
-
-            val result = llmModule.generateAltText(upload.uuid)
-
-            assertTrue(result is Either.Left, "Expected error result")
-            val error = (result as Either.Left).value
-            assertEquals(400, error.status)
-            assertTrue(error.errorMessage.contains("Unsupported LLM provider"))
         }
     }
 }

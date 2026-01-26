@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class GenerateAltTextResponse(val altText: String)
 
-// OpenAI API models
+// OpenAI-compatible API models (works with OpenAI, Mistral, and other compatible providers)
 @Serializable
 data class OpenAiChatRequest(
     val model: String,
@@ -31,26 +31,3 @@ data class OpenAiContent(
 @Serializable data class OpenAiChoice(val message: OpenAiResponseMessage)
 
 @Serializable data class OpenAiResponseMessage(val content: String)
-
-// Mistral API models (similar structure to OpenAI)
-@Serializable
-data class MistralChatRequest(
-    val model: String,
-    val messages: List<MistralMessage>,
-    @SerialName("max_tokens") val maxTokens: Int = 300,
-)
-
-@Serializable data class MistralMessage(val role: String, val content: List<MistralContent>)
-
-@Serializable
-data class MistralContent(
-    val type: String,
-    val text: String? = null,
-    @SerialName("image_url") val imageUrl: String? = null,
-)
-
-@Serializable data class MistralChatResponse(val choices: List<MistralChoice>)
-
-@Serializable data class MistralChoice(val message: MistralResponseMessage)
-
-@Serializable data class MistralResponseMessage(val content: String)

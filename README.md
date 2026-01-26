@@ -75,10 +75,15 @@ LINKEDIN_CLIENT_ID="your-client-id"
 LINKEDIN_CLIENT_SECRET="your-client-secret"
 
 # LLM for alt-text generation (optional)
-# Supported providers: "openai" or "mistral"
-LLM_PROVIDER="openai"  # or "mistral"
-LLM_API_KEY="your-api-key"
-LLM_MODEL="gpt-4o-mini"  # Optional: defaults to gpt-4o-mini (OpenAI) or pixtral-12b-2409 (Mistral)
+# Configure the API endpoint, key, and model for your LLM provider
+# For OpenAI:
+LLM_API_URL="https://api.openai.com/v1/chat/completions"
+LLM_API_KEY="your-openai-api-key"
+LLM_MODEL="gpt-4o-mini"
+# For Mistral:
+# LLM_API_URL="https://api.mistral.ai/v1/chat/completions"
+# LLM_API_KEY="your-mistral-api-key"
+# LLM_MODEL="pixtral-12b-2409"
 
 # Used for authentication (https://jwt.io)
 JWT_SECRET="random string"
@@ -134,24 +139,27 @@ For LinkedIn, we're working with OAuth2.
 
 ### LLM setup (Optional)
 
-The application can integrate with LLM providers to automatically generate alt-text descriptions for images. This feature is optional and supports OpenAI and Mistral AI.
+The application can integrate with LLM providers to automatically generate alt-text descriptions for images. This feature is optional and supports any OpenAI-compatible API (including OpenAI, Mistral AI, and other providers).
 
 **Supported providers:**
 
 - **OpenAI** (e.g., GPT-4o-mini): <https://platform.openai.com/api-keys>
 - **Mistral AI** (e.g., Pixtral): <https://console.mistral.ai/api-keys/>
+- Any OpenAI-compatible API endpoint
 
 **Configuration:**
 
 1. Get an API key from your chosen provider
 2. Set the environment variables:
-   - `LLM_PROVIDER`: Set to `"openai"` or `"mistral"`
+   - `LLM_API_URL`: The API endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
    - `LLM_API_KEY`: Your API key
-   - `LLM_MODEL` (optional): Model name (defaults: `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
+   - `LLM_MODEL`: Model name (e.g., `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
 
 **Usage:**
 
 When uploading an image in the web UI, a "Generate Alt-Text" button will appear. Click it to automatically generate a description of the image using AI. The generated text can be edited manually before posting.
+
+**Note:** If an image already has alt-text when you click "Generate Alt-Text", that text will be sent as additional context to the LLM. This is useful for providing instructions like "Must be written in Romanian and focus on the cat's expression".
 
 ## Usage
 

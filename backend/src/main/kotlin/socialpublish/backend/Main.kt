@@ -181,12 +181,12 @@ class StartServerCommand : CliktCommand(name = "start-server") {
         )
 
     // LLM integration for alt-text generation (optional)
-    private val llmProvider: String? by
+    private val llmApiUrl: String? by
         option(
-            "--llm-provider",
+            "--llm-api-url",
             help =
-                "LLM provider for alt-text generation: 'openai' or 'mistral' (env: LLM_PROVIDER)",
-            envvar = "LLM_PROVIDER",
+                "LLM API endpoint URL (e.g., 'https://api.openai.com/v1/chat/completions') (env: LLM_API_URL)",
+            envvar = "LLM_API_URL",
         )
 
     private val llmApiKey: String? by
@@ -199,7 +199,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
     private val llmModel: String? by
         option(
             "--llm-model",
-            help = "LLM model to use (optional, defaults vary by provider) (env: LLM_MODEL)",
+            help = "LLM model to use (e.g., 'gpt-4o-mini', 'pixtral-12b-2409') (env: LLM_MODEL)",
             envvar = "LLM_MODEL",
         )
 
@@ -259,8 +259,8 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             }
 
         val llmConfig =
-            if (llmProvider != null && llmApiKey != null) {
-                LlmConfig(provider = llmProvider!!, apiKey = llmApiKey!!, model = llmModel)
+            if (llmApiUrl != null && llmApiKey != null && llmModel != null) {
+                LlmConfig(apiUrl = llmApiUrl!!, apiKey = llmApiKey!!, model = llmModel!!)
             } else {
                 null
             }
