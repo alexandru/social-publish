@@ -131,8 +131,55 @@ fun ImageUpload(
                                     }
                                     onInput { event ->
                                         val target = event.target
-                                        onSelect(state.copy(altText = target.value))
+                                        val newAltText = target.value
+                                        onSelect(state.copy(altText = newAltText))
                                         altTextError = null
+
+                                        // Persist manual alt-text edits for already-uploaded images
+                                        val uploadedUuid = state.uploadedUuid
+                                        if (uploadedUuid != null) {
+                                            scope.launch {
+                                                when (
+                                                    val updateResponse =
+                                                        ApiClient.post<
+                                                            UpdateAltTextResponse,
+                                                            UpdateAltTextRequest,
+                                                        >(
+                                                            "/api/files/$uploadedUuid/alt-text",
+                                                            UpdateAltTextRequest(
+                                                                altText = newAltText
+                                                            ),
+                                                        )
+                                                ) {
+                                                    is ApiResponse.Success -> {
+                                                        // Alt-text successfully saved; local state
+                                                        // is
+                                                        // already updated
+                                                    }
+                                                    is ApiResponse.Error -> {
+                                                        if (updateResponse.code == 401) {
+                                                            kotlinx.browser.window.location.href =
+                                                                "/login?error=${updateResponse.code}&redirect=/form"
+                                                            return@launch
+                                                        }
+                                                        altTextError =
+                                                            "Failed to save alt-text: ${updateResponse.message}"
+                                                        console.error(
+                                                            "Failed to save alt-text:",
+                                                            updateResponse.message,
+                                                        )
+                                                    }
+                                                    is ApiResponse.Exception -> {
+                                                        altTextError =
+                                                            "Failed to save alt-text: ${updateResponse.message}"
+                                                        console.error(
+                                                            "Failed to save alt-text:",
+                                                            updateResponse.message,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             )
@@ -190,6 +237,16 @@ fun ImageUpload(
                                                                         )
                                                                     }
                                                                     is ApiResponse.Error -> {
+                                                                        if (
+                                                                            updateResponse.code ==
+                                                                                401
+                                                                        ) {
+                                                                            kotlinx.browser.window
+                                                                                .location
+                                                                                .href =
+                                                                                "/login?error=${updateResponse.code}&redirect=/form"
+                                                                            return@launch
+                                                                        }
                                                                         altTextError =
                                                                             "Failed to save alt-text: ${updateResponse.message}"
                                                                         console.error(
@@ -208,6 +265,12 @@ fun ImageUpload(
                                                                 }
                                                             }
                                                             is ApiResponse.Error -> {
+                                                                if (response.code == 401) {
+                                                                    kotlinx.browser.window.location
+                                                                        .href =
+                                                                        "/login?error=${response.code}&redirect=/form"
+                                                                    return@launch
+                                                                }
                                                                 altTextError = response.message
                                                                 console.error(
                                                                     "Alt-text generation failed:",

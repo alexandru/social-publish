@@ -68,7 +68,8 @@ dependencies {
 tasks.test { useJUnitPlatform() }
 
 kotlin {
-    // Use the default JVM from the environment/container instead of requiring a specific toolchain
+    // Require Java 21 toolchain
+    jvmToolchain(21)
 }
 
 java {

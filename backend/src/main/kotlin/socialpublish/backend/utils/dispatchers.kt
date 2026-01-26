@@ -7,38 +7,30 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 
 /**
- * A coroutine dispatcher based on Java Virtual Threads (Project Loom) when available (Java 21+).
+ * A coroutine dispatcher based on Java Virtual Threads (Project Loom).
  *
  * Creates a new virtual thread for each dispatched coroutine, providing lightweight concurrency
  * without the overhead of platform threads.
  *
- * Falls back to Dispatchers.IO for Java versions < 21.
+ * Requires Java 21 or later.
  */
 val Dispatchers.LOOM: CoroutineDispatcher
     get() =
-        try {
-            // Try to use virtual threads if available (Java 21+)
-            val startVirtualThread =
-                Thread::class.java.getMethod("startVirtualThread", Runnable::class.java)
-            object : ExecutorCoroutineDispatcher(), Executor {
-                override val executor: Executor
-                    get() = this
+        object : ExecutorCoroutineDispatcher(), Executor {
+            override val executor: Executor
+                get() = this
 
-                override fun close() {
-                    error("Cannot be invoked on Dispatchers.LOOM")
-                }
-
-                override fun dispatch(context: CoroutineContext, block: Runnable) {
-                    startVirtualThread.invoke(null, block)
-                }
-
-                override fun execute(command: Runnable) {
-                    startVirtualThread.invoke(null, command)
-                }
-
-                override fun toString() = "Dispatchers.LOOM"
+            override fun close() {
+                error("Cannot be invoked on Dispatchers.LOOM")
             }
-        } catch (e: NoSuchMethodException) {
-            // Virtual threads not available, fall back to IO dispatcher
-            Dispatchers.IO
+
+            override fun dispatch(context: CoroutineContext, block: Runnable) {
+                Thread.startVirtualThread(block)
+            }
+
+            override fun execute(command: Runnable) {
+                Thread.startVirtualThread(command)
+            }
+
+            override fun toString() = "Dispatchers.LOOM"
         }

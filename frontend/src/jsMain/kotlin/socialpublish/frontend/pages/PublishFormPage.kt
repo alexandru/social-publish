@@ -82,9 +82,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 val imageUUIDs = mutableListOf<String>()
                 for (image in formState.images.values) {
                     if (image.uploadedUuid != null) {
-                        // Image already uploaded, use the UUID
-                        // Note: Alt-text is already saved in the database if user generated or
-                        // edited it
+                        // Image already uploaded, use the UUID.
+                        // Alt-text is persisted to the database when the user edits it or generates
+                        // it via LLM.
                         imageUUIDs.add(image.uploadedUuid)
                     } else if (image.file != null) {
                         // Fallback: upload image if UUID is missing (shouldn't happen normally)
