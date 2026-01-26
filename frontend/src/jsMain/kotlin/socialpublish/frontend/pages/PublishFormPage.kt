@@ -290,14 +290,25 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                             return@launch
                                         }
                                         console.error("Error uploading image:", response.message)
-                                        // Still add image locally for user to see the error
-                                        val newImage = SelectedImage(newId, file = file)
+                                        // Add image locally with error message
+                                        val newImage =
+                                            SelectedImage(
+                                                newId,
+                                                file = file,
+                                                uploadError = response.message,
+                                            )
                                         formState = formState.addImage(newImage)
                                     }
                                     is ApiResponse.Exception -> {
                                         console.error("Error uploading image:", response.message)
-                                        // Still add image locally
-                                        val newImage = SelectedImage(newId, file = file)
+                                        // Add image locally with connection error message
+                                        val newImage =
+                                            SelectedImage(
+                                                newId,
+                                                file = file,
+                                                uploadError =
+                                                    "Connection error: Could not reach the server. Please check your connection and try again.",
+                                            )
                                         formState = formState.addImage(newImage)
                                     }
                                 }

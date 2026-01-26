@@ -20,6 +20,7 @@ data class SelectedImage(
     val file: File? = null,
     val altText: String? = null,
     val uploadedUuid: String? = null,
+    val uploadError: String? = null,
 )
 
 @Composable
@@ -111,6 +112,12 @@ fun ImageUpload(
                         Label(attrs = { classes("label", "is-small") }) {
                             Text("File: ${state.file?.name ?: "No file selected"}")
                         }
+                        // Show upload error if initial upload failed
+                        if (state.uploadError != null) {
+                            Div(attrs = { classes("help", "is-danger") }) {
+                                Text("Upload failed: ${state.uploadError}")
+                            }
+                        }
                     }
 
                     Div(attrs = { classes("field") }) {
@@ -187,7 +194,10 @@ fun ImageUpload(
                                                                 )
                                                             }
                                                             is ApiResponse.Exception -> {
-                                                                altTextError = response.message
+                                                                // Connection errors (e.g.,
+                                                                // ERR_CONNECTION_REFUSED)
+                                                                altTextError =
+                                                                    "Connection error: Could not reach the server. Please check your connection and try again."
                                                                 console.error(
                                                                     "Alt-text generation exception:",
                                                                     response.message,
