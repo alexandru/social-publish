@@ -1,6 +1,7 @@
 package socialpublish.backend.db
 
 import java.time.Instant
+import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
@@ -72,4 +73,40 @@ data class Post(
     val tags: List<String>? = null,
     val language: String? = null,
     val images: List<String>? = null,
+)
+
+/** User account for authentication. */
+data class User(
+    val uuid: UUID,
+    val username: String,
+    val passwordHash: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+/** Generic result for create operations that may have duplicates. */
+sealed interface CreateResult<out T> {
+    /** Value was created successfully. */
+    data class Created<out T>(val value: T) : CreateResult<T>
+
+    /** Value already exists (duplicate). */
+    data object Duplicate : CreateResult<Nothing>
+
+    /** Convert to nullable, returning the value if Created, null if Duplicate. */
+    val toNullable: T?
+        get() =
+            when (this) {
+                is Created -> value
+                is Duplicate -> null
+            }
+}
+
+/** User session for JWT authentication with optional refresh token support. */
+data class UserSession(
+    val uuid: UUID,
+    val userUuid: UUID,
+    val tokenHash: String,
+    val refreshTokenHash: String?,
+    val expiresAt: Instant,
+    val createdAt: Instant,
 )
