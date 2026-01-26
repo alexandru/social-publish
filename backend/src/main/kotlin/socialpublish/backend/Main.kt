@@ -35,7 +35,12 @@ private val logger = KotlinLogging.logger {}
 /** Main CLI command that delegates to subcommands. */
 class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
     init {
-        subcommands(StartServerCommand(), GenBcryptHashCommand(), CheckPasswordCommand())
+        subcommands(
+            StartServerCommand(),
+            GenBcryptHashCommand(),
+            CheckPasswordCommand(),
+            CreateUserCommand(),
+        )
     }
 }
 
@@ -350,6 +355,56 @@ class CheckPasswordCommand : CliktCommand(name = "check-password") {
             echo("✗ Password does NOT match the hash")
             throw ProgramResult(1)
         }
+    }
+}
+
+/** Subcommand to create a new user. */
+class CreateUserCommand : CliktCommand(name = "create-user") {
+    override fun help(context: com.github.ajalt.clikt.core.Context) = "Create a new user account"
+
+    private val dbPath: String by
+        option(
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
+            )
+            .required()
+
+    private val username by
+        option("--username", "-u", help = "Username for the new user").prompt("Enter username")
+
+    private val password by
+        option("--password", "-p", help = "Password for the new user (will prompt if not provided)")
+            .prompt("Enter password", hideInput = true, requireConfirmation = true)
+
+    override fun run() {
+        runBlocking {
+            resourceScope {
+                val db = socialpublish.backend.db.Database.connect(dbPath).bind()
+                val usersDb = socialpublish.backend.db.UsersDatabase(db)
+
+                val result = usersDb.createUser(username = username, password = password)
+
+                result.fold(
+                    { error ->
+                        echo("Error creating user: ${error.message}", err = true)
+                        throw ProgramResult(1)
+                    },
+                    { user ->
+                        echo()
+                        echo("✓ User created successfully!")
+                        echo("  Username: ${user.username}")
+                        echo("  User ID:  ${user.id}")
+                        echo("  Created:  ${user.createdAt}")
+                        echo()
+                    },
+                )
+            }
+        }
+    }
+
+    private fun <T> runBlocking(block: suspend () -> T): T {
+        return kotlinx.coroutines.runBlocking { block() }
     }
 }
 

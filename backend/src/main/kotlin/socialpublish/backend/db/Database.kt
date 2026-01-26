@@ -90,6 +90,7 @@ data class DatabaseResources(
     val documentsDb: DocumentsDatabase,
     val postsDb: PostsDatabase,
     val filesDb: FilesDatabase,
+    val usersDb: UsersDatabase,
 )
 
 /** Factory for creating database resource bundles. */
@@ -100,7 +101,14 @@ object DatabaseBundle {
         val documentsDb = DocumentsDatabase(db)
         val postsDb = PostsDatabase(documentsDb)
         val filesDb = FilesDatabase(db)
-        DatabaseResources(db = db, documentsDb = documentsDb, postsDb = postsDb, filesDb = filesDb)
+        val usersDb = UsersDatabase(db)
+        DatabaseResources(
+            db = db,
+            documentsDb = documentsDb,
+            postsDb = postsDb,
+            filesDb = filesDb,
+            usersDb = usersDb,
+        )
     }
 }
 

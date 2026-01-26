@@ -73,3 +73,22 @@ data class Post(
     val language: String? = null,
     val images: List<String>? = null,
 )
+
+/** User account for authentication. */
+data class User(
+    val id: String,
+    val username: String,
+    val passwordHash: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+/** User session for JWT authentication with optional refresh token support. */
+data class UserSession(
+    val id: String,
+    val userId: String,
+    val tokenHash: String,
+    val refreshTokenHash: String?,
+    val expiresAt: Instant,
+    val createdAt: Instant,
+)
