@@ -9,7 +9,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -432,54 +431,5 @@ private constructor(
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(bytes)
         return hashBytes.joinToString("") { "%02x".format(it) }
-    }
-
-    /** Update alt-text for an uploaded file */
-    suspend fun updateAltText(call: ApplicationCall): ApiResult<UpdateAltTextResponse> {
-        return try {
-            val uuid =
-                call.parameters["uuid"]
-                    ?: return ValidationError(
-                            status = 400,
-                            errorMessage = "Missing UUID parameter",
-                            module = "files",
-                        )
-                        .left()
-
-            val request =
-                runCatching { call.receive<UpdateAltTextRequest>() }.getOrNull()
-                    ?: return ValidationError(
-                            status = 400,
-                            errorMessage = "Invalid request body",
-                            module = "files",
-                        )
-                        .left()
-
-            val updated =
-                db.updateAltText(uuid, request.altText).getOrElse {
-                    return CaughtException(
-                            status = 500,
-                            errorMessage = "Failed to update alt-text: ${it.message}",
-                            module = "files",
-                        )
-                        .left()
-                }
-
-            if (updated) {
-                logger.info { "Updated alt-text for file: $uuid" }
-                UpdateAltTextResponse(success = true).right()
-            } else {
-                ValidationError(status = 404, errorMessage = "File not found", module = "files")
-                    .left()
-            }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to update alt-text" }
-            CaughtException(
-                    status = 500,
-                    module = "files",
-                    errorMessage = "Failed to update alt-text: ${e.message}",
-                )
-                .left()
-        }
     }
 }

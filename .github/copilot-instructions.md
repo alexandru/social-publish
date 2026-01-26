@@ -105,6 +105,13 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 - Avoid project-wide MVC-style grouping; instead, group by feature/component.
 - Components should be modular enough to be extracted into their own sub-projects or libraries.
 
+### Frontend (Compose for Web)
+
+- **State Hoisting**: Follow the State Hoisting best practice where state is kept by a component's caller, while the component remains stateless, communicating back and forth with the caller via events. Model state with clean and immutable data structures.
+  - Components should receive state as parameters and communicate changes via callback functions
+  - Avoid internal mutable state in components when that state needs to be shared or persisted
+  - See https://developer.android.com/develop/ui/compose/state for guidance
+
 ## Development Strategy
 
 - Practice TDD: always write or update a failing unit test before implementing or refactoring code.

@@ -308,53 +308,6 @@ fun startServer(
                         }
                     }
 
-                // Update file alt-text
-                post("/api/files/{uuid}/alt-text") {
-                        when (val result = filesModule.updateAltText(call)) {
-                            is Either.Right -> call.respond(result.value)
-                            is Either.Left -> {
-                                val error = result.value
-                                call.respond(
-                                    HttpStatusCode.fromValue(error.status),
-                                    ErrorResponse(error = error.errorMessage),
-                                )
-                            }
-                        }
-                    }
-                    .describe {
-                        summary = "Update file alt-text"
-                        description = "Update the alt-text description for an uploaded file"
-                        documentSecurityRequirements()
-                        requestBody {
-                            required = true
-                            ContentType.Application.Json {
-                                schema = jsonSchema<UpdateAltTextRequest>()
-                            }
-                        }
-                        responses {
-                            HttpStatusCode.OK {
-                                description = "Alt-text updated successfully"
-                                schema = jsonSchema<UpdateAltTextResponse>()
-                            }
-                            HttpStatusCode.Unauthorized {
-                                description = "Not authenticated"
-                                schema = jsonSchema<ErrorResponse>()
-                            }
-                            HttpStatusCode.NotFound {
-                                description = "File not found"
-                                schema = jsonSchema<ErrorResponse>()
-                            }
-                            HttpStatusCode.BadRequest {
-                                description = "Invalid request"
-                                schema = jsonSchema<ErrorResponse>()
-                            }
-                            HttpStatusCode.InternalServerError {
-                                description = "Internal server error"
-                                schema = jsonSchema<ErrorResponse>()
-                            }
-                        }
-                    }
-
                 // LLM alt-text generation
                 post("/api/llm/generate-alt-text") {
                         if (llmModule != null) {
@@ -368,7 +321,13 @@ fun startServer(
                                         return@post
                                     }
 
-                            when (val result = llmModule.generateAltText(request.imageUuid)) {
+                            when (
+                                val result =
+                                    llmModule.generateAltText(
+                                        request.imageUuid,
+                                        request.userContext,
+                                    )
+                            ) {
                                 is Either.Right ->
                                     call.respond(GenerateAltTextResponse(altText = result.value))
                                 is Either.Left -> {

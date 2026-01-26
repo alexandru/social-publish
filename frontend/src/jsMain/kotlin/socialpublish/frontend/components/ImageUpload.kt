@@ -12,8 +12,6 @@ import org.w3c.files.FileReader
 import org.w3c.files.get
 import socialpublish.frontend.models.GenerateAltTextRequest
 import socialpublish.frontend.models.GenerateAltTextResponse
-import socialpublish.frontend.models.UpdateAltTextRequest
-import socialpublish.frontend.models.UpdateAltTextResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 
@@ -131,55 +129,8 @@ fun ImageUpload(
                                     }
                                     onInput { event ->
                                         val target = event.target
-                                        val newAltText = target.value
-                                        onSelect(state.copy(altText = newAltText))
+                                        onSelect(state.copy(altText = target.value))
                                         altTextError = null
-
-                                        // Persist manual alt-text edits for already-uploaded images
-                                        val uploadedUuid = state.uploadedUuid
-                                        if (uploadedUuid != null) {
-                                            scope.launch {
-                                                when (
-                                                    val updateResponse =
-                                                        ApiClient.post<
-                                                            UpdateAltTextResponse,
-                                                            UpdateAltTextRequest,
-                                                        >(
-                                                            "/api/files/$uploadedUuid/alt-text",
-                                                            UpdateAltTextRequest(
-                                                                altText = newAltText
-                                                            ),
-                                                        )
-                                                ) {
-                                                    is ApiResponse.Success -> {
-                                                        // Alt-text successfully saved; local state
-                                                        // is
-                                                        // already updated
-                                                    }
-                                                    is ApiResponse.Error -> {
-                                                        if (updateResponse.code == 401) {
-                                                            kotlinx.browser.window.location.href =
-                                                                "/login?error=${updateResponse.code}&redirect=/form"
-                                                            return@launch
-                                                        }
-                                                        altTextError =
-                                                            "Failed to save alt-text: ${updateResponse.message}"
-                                                        console.error(
-                                                            "Failed to save alt-text:",
-                                                            updateResponse.message,
-                                                        )
-                                                    }
-                                                    is ApiResponse.Exception -> {
-                                                        altTextError =
-                                                            "Failed to save alt-text: ${updateResponse.message}"
-                                                        console.error(
-                                                            "Failed to save alt-text:",
-                                                            updateResponse.message,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
                                     }
                                 }
                             )
@@ -209,60 +160,18 @@ fun ImageUpload(
                                                             >(
                                                                 "/api/llm/generate-alt-text",
                                                                 GenerateAltTextRequest(
-                                                                    imageUuid = state.uploadedUuid
+                                                                    imageUuid = state.uploadedUuid,
+                                                                    userContext = state.altText,
                                                                 ),
                                                             )
                                                         when (response) {
                                                             is ApiResponse.Success -> {
-                                                                // Update alt-text in database
+                                                                // Update local state with generated
+                                                                // alt-text
                                                                 val altText = response.data.altText
-                                                                val updateResponse =
-                                                                    ApiClient.post<
-                                                                        UpdateAltTextResponse,
-                                                                        UpdateAltTextRequest,
-                                                                    >(
-                                                                        "/api/files/${state.uploadedUuid}/alt-text",
-                                                                        UpdateAltTextRequest(
-                                                                            altText = altText
-                                                                        ),
-                                                                    )
-                                                                when (updateResponse) {
-                                                                    is ApiResponse.Success -> {
-                                                                        // Successfully updated,
-                                                                        // update local state
-                                                                        onSelect(
-                                                                            state.copy(
-                                                                                altText = altText
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                    is ApiResponse.Error -> {
-                                                                        if (
-                                                                            updateResponse.code ==
-                                                                                401
-                                                                        ) {
-                                                                            kotlinx.browser.window
-                                                                                .location
-                                                                                .href =
-                                                                                "/login?error=${updateResponse.code}&redirect=/form"
-                                                                            return@launch
-                                                                        }
-                                                                        altTextError =
-                                                                            "Failed to save alt-text: ${updateResponse.message}"
-                                                                        console.error(
-                                                                            "Failed to save alt-text:",
-                                                                            updateResponse.message,
-                                                                        )
-                                                                    }
-                                                                    is ApiResponse.Exception -> {
-                                                                        altTextError =
-                                                                            "Failed to save alt-text: ${updateResponse.message}"
-                                                                        console.error(
-                                                                            "Failed to save alt-text:",
-                                                                            updateResponse.message,
-                                                                        )
-                                                                    }
-                                                                }
+                                                                onSelect(
+                                                                    state.copy(altText = altText)
+                                                                )
                                                             }
                                                             is ApiResponse.Error -> {
                                                                 if (response.code == 401) {

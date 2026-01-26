@@ -57,7 +57,7 @@ class LlmApiModule(
             }
     }
 
-    suspend fun generateAltText(imageUuid: String): ApiResult<String> {
+    suspend fun generateAltText(imageUuid: String, userContext: String? = null): ApiResult<String> {
         return try {
             // Read the image file
             val file =
@@ -74,7 +74,7 @@ class LlmApiModule(
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
-            generateAltTextFromApi(dataUrl, file.altText)
+            generateAltTextFromApi(dataUrl, userContext)
         } catch (e: Exception) {
             logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
             CaughtException(
@@ -88,20 +88,24 @@ class LlmApiModule(
 
     private suspend fun generateAltTextFromApi(
         dataUrl: String,
-        existingAltText: String?,
+        extraContextOrInstructions: String?,
     ): ApiResult<String> {
         return try {
-            // Build the prompt text, including existing alt-text as context if available
-            val promptText = buildString {
-                append(
-                    "Please provide a concise and descriptive alt text for this image. " +
-                        "The alt text should be suitable for accessibility purposes and describe the key visual elements. " +
-                        "Keep it under 100 words and focus on what's important in the image."
-                )
-                if (!existingAltText.isNullOrBlank()) {
-                    append("\n\nExisting context/instructions: $existingAltText")
-                }
-            }
+            // Build the prompt text, including user context/instructions if available
+            val promptText =
+                """
+                Please provide a concise and descriptive alt text for this image.
+                The alt text should be suitable for accessibility purposes and describe the key visual elements.
+                Keep it under 100 words and focus on what's important in the image.
+                ${if (!extraContextOrInstructions.isNullOrBlank()) {
+                    """
+                    
+                    More user context and instructions (write the final text in the user's language):
+                    $extraContextOrInstructions
+                    """.trimIndent()
+                } else ""}
+                """
+                    .trimIndent()
 
             val request =
                 OpenAiChatRequest(

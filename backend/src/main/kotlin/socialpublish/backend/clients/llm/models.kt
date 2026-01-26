@@ -3,7 +3,8 @@ package socialpublish.backend.clients.llm
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable data class GenerateAltTextRequest(val imageUuid: String)
+@Serializable
+data class GenerateAltTextRequest(val imageUuid: String, val userContext: String? = null)
 
 @Serializable data class GenerateAltTextResponse(val altText: String)
 

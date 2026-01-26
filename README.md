@@ -8,7 +8,7 @@ This project is a simple tool to publish content to multiple social networks.
 
 - [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), [Bluesky](https://bsky.app/), and [LinkedIn](https://linkedin.com) support is implemented
 - Image upload is supported, with alt-text included 😊
-- **NEW**: LLM integration for automatic alt-text generation using OpenAI or Mistral AI 🤖✨
+- **NEW**: LLM integration for automatic alt-text generation using any OpenAI-compatible API (OpenAI, Mistral, etc.) 🤖✨
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
 **Table of Contents**
@@ -19,8 +19,7 @@ This project is a simple tool to publish content to multiple social networks.
   - [Twitter setup](#twitter-setup)
   - [LinkedIn setup](#linkedin-setup)
   - [LLM setup (Optional)](#llm-setup-optional)
-- [Usage](#usage)
-  - [RSS feed](#rss-feed)
+- [RSS feed](#rss-feed)
 - [Developing](#developing)
 - [License](#license)
 
@@ -155,24 +154,7 @@ The application can integrate with LLM providers to automatically generate alt-t
    - `LLM_API_KEY`: Your API key
    - `LLM_MODEL`: Model name (e.g., `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
 
-**Usage:**
-
-When uploading an image in the web UI, a "Generate Alt-Text" button will appear. Click it to automatically generate a description of the image using AI. The generated text can be edited manually before posting.
-
-**Note:** If an image already has alt-text when you click "Generate Alt-Text", that text will be sent as additional context to the LLM. This is useful for providing instructions like "Must be written in Romanian and focus on the cat's expression".
-
-## Usage
-
-The available requests for creating a new post are exemplified in [test.http](./test.http).
-
-You can then configure `ifttt.com`. When adding an "action" to your applet, search for "_make a web request_".
-
-Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
-
-<img src="./docs/form-screenshot.png" width="500" alt='Screenshot of "Post a New Social Message" form' />
-<hr/>
-
-### RSS feed
+## RSS feed
 
 While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
 
