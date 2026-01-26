@@ -59,6 +59,7 @@ private constructor(
     private val uploadedFilesPath: File,
     private val imageMagick: ImageMagick,
 ) {
+    private val originalPath = File(uploadedFilesPath, "original")
     private val processedPath = File(uploadedFilesPath, "processed")
 
     companion object {
@@ -68,6 +69,7 @@ private constructor(
             val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
             runInterruptible(Dispatchers.LOOM) {
                 ref.uploadedFilesPath.mkdirs()
+                ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
             }
             logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
@@ -148,9 +150,16 @@ private constructor(
                     )
                     .getOrElse { throw it }
 
-            // Save file to disk
-            val filePath = File(processedPath, upload.hash)
-            runInterruptible(Dispatchers.LOOM) { filePath.writeBytes(processed.bytes) }
+            // Save both original and processed files to disk
+            runInterruptible(Dispatchers.LOOM) {
+                // Save original unprocessed file
+                val originalFilePath = File(originalPath, upload.hash)
+                originalFilePath.writeBytes(fileBytes)
+
+                // Save processed/optimized file
+                val processedFilePath = File(processedPath, upload.hash)
+                processedFilePath.writeBytes(processed.bytes)
+            }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
 
