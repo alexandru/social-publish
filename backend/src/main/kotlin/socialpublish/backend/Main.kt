@@ -378,7 +378,7 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
             .prompt("Enter password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
-        runBlocking {
+        kotlinx.coroutines.runBlocking {
             resourceScope {
                 val db = socialpublish.backend.db.Database.connect(dbPath).bind()
                 val usersDb = socialpublish.backend.db.UsersDatabase(db)
@@ -401,10 +401,6 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
                 )
             }
         }
-    }
-
-    private fun <T> runBlocking(block: suspend () -> T): T {
-        return kotlinx.coroutines.runBlocking { block() }
     }
 }
 
