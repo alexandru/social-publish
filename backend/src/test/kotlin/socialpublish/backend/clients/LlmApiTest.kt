@@ -84,7 +84,7 @@ class LlmApiTest {
             }
 
             // Upload a test image
-            val upload = uploadTestImage(client, "flower1.jpeg", null)
+            val upload = uploadTestImage(client, "flower1.jpeg", "")
 
             // Create LLM module with config pointing to mock server
             val llmModule =
@@ -188,7 +188,7 @@ class LlmApiTest {
             }
 
             // Upload a test image
-            val upload = uploadTestImage(client, "flower2.jpeg", null)
+            val upload = uploadTestImage(client, "flower2.jpeg", "")
 
             // Create LLM module with Mistral config pointing to mock server
             val llmModule =
