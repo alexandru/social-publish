@@ -37,13 +37,11 @@ val migrations: List<Migration> =
                         payload TEXT NOT NULL,
                         created_at INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS documents_created_at
                     ON documents(kind, created_at)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("documents") },
         ),
@@ -59,7 +57,6 @@ val migrations: List<Migration> =
                         PRIMARY KEY (document_uuid, name, kind)
                     )
                     """
-                        .trimIndent()
                 ),
             testIfApplied = { conn -> conn.tableExists("document_tags") },
         ),
@@ -79,15 +76,51 @@ val migrations: List<Migration> =
                         imageHeight INTEGER,
                         createdAt INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS uploads_createdAt
                         ON uploads(createdAt)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("uploads") },
+        ),
+        // Migration 3: Users table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255) NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """
+                ),
+            testIfApplied = { conn -> conn.tableExists("users") },
+        ),
+        // Migration 4: User sessions table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_sessions (
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        user_uuid VARCHAR(36) NOT NULL,
+                        token_hash VARCHAR(255) UNIQUE NOT NULL,
+                        refresh_token_hash VARCHAR(255),
+                        expires_at INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
+                    )
+                    """,
+                    """
+                    CREATE INDEX IF NOT EXISTS user_sessions_expires_at
+                        ON user_sessions(expires_at)
+                    """,
+                ),
+            testIfApplied = { conn -> conn.tableExists("user_sessions") },
         ),
     )
 

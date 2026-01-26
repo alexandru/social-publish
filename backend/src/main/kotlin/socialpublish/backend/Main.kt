@@ -19,11 +19,15 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
+import socialpublish.backend.db.CreateResult
+import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.server.ServerAuthConfig
@@ -35,7 +39,12 @@ private val logger = KotlinLogging.logger {}
 /** Main CLI command that delegates to subcommands. */
 class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
     init {
-        subcommands(StartServerCommand(), GenBcryptHashCommand(), CheckPasswordCommand())
+        subcommands(
+            StartServerCommand(),
+            GenBcryptHashCommand(),
+            CheckPasswordCommand(),
+            CreateUserCommand(),
+        )
     }
 }
 
@@ -349,6 +358,61 @@ class CheckPasswordCommand : CliktCommand(name = "check-password") {
         } else {
             echo("✗ Password does NOT match the hash")
             throw ProgramResult(1)
+        }
+    }
+}
+
+/** Subcommand to create a new user. */
+class CreateUserCommand : CliktCommand(name = "create-user") {
+    override fun help(context: com.github.ajalt.clikt.core.Context) = "Create a new user account"
+
+    private val dbPath: String by
+        option(
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
+            )
+            .required()
+
+    private val username by
+        option("--username", "-u", help = "Username for the new user").prompt("Enter username")
+
+    private val password by
+        option("--password", "-p", help = "Password for the new user (will prompt if not provided)")
+            .prompt("Enter password", hideInput = true, requireConfirmation = true)
+
+    override fun run() {
+        runBlocking {
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
+
+                when (val result = usersDb.createUser(username = username, password = password)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error creating user: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        when (val createResult = result.value) {
+                            is CreateResult.Created -> {
+                                echo()
+                                echo("✓ User created successfully!")
+                                echo("  Username: ${createResult.value.username}")
+                                echo("  User ID:  ${createResult.value.uuid}")
+                                echo("  Created:  ${createResult.value.createdAt}")
+                                echo()
+                            }
+                            is CreateResult.Duplicate -> {
+                                echo(
+                                    "Error creating user: User with username '$username' already exists",
+                                    err = true,
+                                )
+                                throw ProgramResult(1)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
