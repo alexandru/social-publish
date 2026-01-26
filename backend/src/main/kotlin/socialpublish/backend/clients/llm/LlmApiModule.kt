@@ -30,17 +30,6 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Maximum image size (width or height) when sending to LLM for alt-text generation. Images are
- * resized to this dimension to:
- * - Reduce API costs
- * - Prevent API abuse
- * - Maintain sufficient detail for accurate alt-text generation
- */
-private const val MAX_IMAGE_SIZE_FOR_LLM = 1024
-
-private val logger = KotlinLogging.logger {}
-
 class LlmApiModule(
     private val config: LlmConfig,
     private val filesModule: FilesModule,
@@ -77,15 +66,11 @@ class LlmApiModule(
 
     suspend fun generateAltText(imageUuid: String, userContext: String? = null): ApiResult<String> {
         return try {
-            // Read the image file, resized to max 1024px for LLM processing
-            // This optimizes costs and reduces API abuse while maintaining enough detail for
-            // alt-text generation
+            // Read the already-optimized image file
+            // Images are optimized during upload to max 1600x1600, which is sufficient for
+            // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(
-                    uuid = imageUuid,
-                    maxWidth = MAX_IMAGE_SIZE_FOR_LLM,
-                    maxHeight = MAX_IMAGE_SIZE_FOR_LLM,
-                )
+                filesModule.readImageFile(uuid = imageUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",

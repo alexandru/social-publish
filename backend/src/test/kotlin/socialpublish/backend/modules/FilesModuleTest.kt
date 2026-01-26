@@ -71,34 +71,27 @@ class FilesModuleTest {
         val stored1 = imageDimensions(processed1.bytes)
         val stored2 = imageDimensions(processed2.bytes)
 
-        assertEquals(original1.width, stored1.width)
-        assertEquals(original1.height, stored1.height)
-        assertEquals(original2.width, stored2.width)
-        assertEquals(original2.height, stored2.height)
+        // Images should be optimized on upload (max 1600x1600)
+        assertTrue(stored1.width <= 1600)
+        assertTrue(stored1.height <= 1600)
+        assertTrue(stored2.width <= 1600)
+        assertTrue(stored2.height <= 1600)
 
-        assertEquals(original1.width, processed1.width)
-        assertEquals(original1.height, processed1.height)
-        assertEquals(original2.width, processed2.width)
-        assertEquals(original2.height, processed2.height)
+        // Dimensions should match what's stored in the database
+        assertEquals(stored1.width, processed1.width)
+        assertEquals(stored1.height, processed1.height)
+        assertEquals(stored2.width, processed2.width)
+        assertEquals(stored2.height, processed2.height)
 
+        // Verify readImageFile returns the same optimized image
         val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid).getOrElse { throw it })
-        val resized =
-            requireNotNull(
-                filesModule.readImageFile(upload1.uuid, maxWidth = 1920, maxHeight = 1080)
-            )
-        val resizedDimensions = imageDimensions(resized.bytes)
+        val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid))
+        val retrievedDimensions = imageDimensions(retrieved.bytes)
 
-        assertTrue(resizedDimensions.width <= 1920)
-        assertTrue(resizedDimensions.height <= 1080)
-        assertTrue(
-            resizedDimensions.width < original1.width || resizedDimensions.height < original1.height
-        )
-        assertEquals(resizedDimensions.width, resized.width)
-        assertEquals(resizedDimensions.height, resized.height)
-
-        val resizedFile =
-            tempDir.resolve("uploads").resolve("resizing").resolve(uploadRow.hash).toFile()
-        assertTrue(resizedFile.exists())
+        assertEquals(stored1.width, retrievedDimensions.width)
+        assertEquals(stored1.height, retrievedDimensions.height)
+        assertEquals(retrievedDimensions.width, retrieved.width)
+        assertEquals(retrievedDimensions.height, retrieved.height)
 
         client.close()
     }

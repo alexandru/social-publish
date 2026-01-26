@@ -175,18 +175,11 @@ class TwitterApiTest {
 
             val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
             val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
-            assertTrue(uploadedImages[0].width <= 1920)
-            assertTrue(uploadedImages[0].height <= 1080)
-            assertTrue(uploadedImages[1].width <= 1920)
-            assertTrue(uploadedImages[1].height <= 1080)
-            assertTrue(
-                uploadedImages[0].width < original1.width ||
-                    uploadedImages[0].height < original1.height
-            )
-            assertTrue(
-                uploadedImages[1].width < original2.width ||
-                    uploadedImages[1].height < original2.height
-            )
+            // Images are optimized on upload to max 1600x1600
+            assertTrue(uploadedImages[0].width <= 1600)
+            assertTrue(uploadedImages[0].height <= 1600)
+            assertTrue(uploadedImages[1].width <= 1600)
+            assertTrue(uploadedImages[1].height <= 1600)
 
             twitterClient.close()
         }

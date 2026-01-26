@@ -580,7 +580,7 @@ class LinkedInApiModule(
     ): ApiResult<UploadedAsset> =
         try {
             val file =
-                filesModule.readImageFile(uuid, maxWidth = 5000, maxHeight = 5000)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",

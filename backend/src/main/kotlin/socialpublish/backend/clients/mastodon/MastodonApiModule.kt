@@ -72,7 +72,7 @@ class MastodonApiModule(
     private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> {
         return try {
             val file =
-                filesModule.readImageFile(uuid, maxWidth = 1920, maxHeight = 1080)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
