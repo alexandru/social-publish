@@ -2,6 +2,7 @@ package socialpublish.frontend.components
 
 import androidx.compose.runtime.*
 import kotlinx.browser.document
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
@@ -9,8 +10,21 @@ import org.w3c.dom.HTMLInputElement
 import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
+import socialpublish.frontend.models.GenerateAltTextRequest
+import socialpublish.frontend.models.GenerateAltTextResponse
+import socialpublish.frontend.utils.ApiClient
+import socialpublish.frontend.utils.ApiResponse
 
-data class SelectedImage(val id: Int, val file: File? = null, val altText: String? = null)
+data class SelectedImage(
+    val id: Int,
+    val file: File? = null,
+    val altText: String? = null,
+    val uploadedUuid: String? = null,
+    val uploadError: String? = null,
+    val imagePreviewUrl: String? = null,
+    val isGeneratingAltText: Boolean = false,
+    val altTextError: String? = null,
+)
 
 @Composable
 fun ImageUpload(
@@ -19,25 +33,26 @@ fun ImageUpload(
     onSelect: (SelectedImage) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
-    var imagePreviewUrl by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     // Generate image preview URL when file is selected
     LaunchedEffect(state.file) {
-        if (state.file != null) {
+        if (state.file != null && state.imagePreviewUrl == null) {
             val reader = FileReader()
             reader.onload = { event ->
                 try {
                     val result = event.target.asDynamic().result
-                    imagePreviewUrl = result as? String
+                    val previewUrl = result as? String
+                    onSelect(state.copy(imagePreviewUrl = previewUrl))
                 } catch (e: Exception) {
                     console.error("Failed to read image file", e)
-                    imagePreviewUrl = null
+                    onSelect(state.copy(imagePreviewUrl = null))
                 }
             }
             reader.onerror = { console.error("Error reading file") }
             reader.readAsDataURL(state.file)
-        } else {
-            imagePreviewUrl = null
+        } else if (state.file == null && state.imagePreviewUrl != null) {
+            onSelect(state.copy(imagePreviewUrl = null))
         }
     }
 
@@ -60,7 +75,7 @@ fun ImageUpload(
                 }
             ) {
                 // Image preview column
-                if (imagePreviewUrl != null) {
+                if (state.imagePreviewUrl != null) {
                     Div(attrs = { classes("column", "is-narrow") }) {
                         Div(
                             attrs = {
@@ -78,7 +93,7 @@ fun ImageUpload(
                             }
                         ) {
                             Img(
-                                src = imagePreviewUrl ?: "",
+                                src = state.imagePreviewUrl,
                                 attrs = {
                                     style {
                                         property("max-width", "100%")
@@ -98,6 +113,12 @@ fun ImageUpload(
                         Label(attrs = { classes("label", "is-small") }) {
                             Text("File: ${state.file?.name ?: "No file selected"}")
                         }
+                        // Show upload error if initial upload failed
+                        if (state.uploadError != null) {
+                            Div(attrs = { classes("help", "is-danger") }) {
+                                Text("Upload failed: ${state.uploadError}")
+                            }
+                        }
                     }
 
                     Div(attrs = { classes("field") }) {
@@ -111,12 +132,133 @@ fun ImageUpload(
                                     attr("rows", "2")
                                     attr("placeholder", "Describe this image for accessibility...")
                                     value(state.altText ?: "")
+                                    if (state.isGeneratingAltText) {
+                                        attr("disabled", "")
+                                    }
                                     onInput { event ->
                                         val target = event.target
-                                        onSelect(state.copy(altText = target.value))
+                                        onSelect(
+                                            state.copy(altText = target.value, altTextError = null)
+                                        )
                                     }
                                 }
                             )
+                        }
+                        // Generate Alt-Text button
+                        if (state.uploadedUuid != null) {
+                            Div(attrs = { classes("control", "mt-2") }) {
+                                Button(
+                                    attrs = {
+                                        classes("button", "is-small", "is-info", "is-outlined")
+                                        attr("type", "button")
+                                        if (state.isGeneratingAltText) {
+                                            attr("disabled", "")
+                                            classes("is-loading")
+                                        }
+                                        onClick { event ->
+                                            event.preventDefault()
+                                            if (!state.isGeneratingAltText) {
+                                                onSelect(
+                                                    state.copy(
+                                                        isGeneratingAltText = true,
+                                                        altTextError = null,
+                                                    )
+                                                )
+                                                scope.launch {
+                                                    try {
+                                                        val response =
+                                                            ApiClient.post<
+                                                                GenerateAltTextResponse,
+                                                                GenerateAltTextRequest,
+                                                            >(
+                                                                "/api/llm/generate-alt-text",
+                                                                GenerateAltTextRequest(
+                                                                    imageUuid = state.uploadedUuid,
+                                                                    userContext = state.altText,
+                                                                ),
+                                                            )
+                                                        when (response) {
+                                                            is ApiResponse.Success -> {
+                                                                // Update local state with generated
+                                                                // alt-text
+                                                                val altText = response.data.altText
+                                                                onSelect(
+                                                                    state.copy(
+                                                                        altText = altText,
+                                                                        isGeneratingAltText = false,
+                                                                    )
+                                                                )
+                                                            }
+                                                            is ApiResponse.Error -> {
+                                                                if (response.code == 401) {
+                                                                    kotlinx.browser.window.location
+                                                                        .href =
+                                                                        "/login?error=${response.code}&redirect=/form"
+                                                                    return@launch
+                                                                }
+                                                                onSelect(
+                                                                    state.copy(
+                                                                        altTextError =
+                                                                            response.message,
+                                                                        isGeneratingAltText = false,
+                                                                    )
+                                                                )
+                                                                console.error(
+                                                                    "Alt-text generation failed:",
+                                                                    response.message,
+                                                                )
+                                                            }
+                                                            is ApiResponse.Exception -> {
+                                                                // Connection errors (e.g.,
+                                                                // ERR_CONNECTION_REFUSED)
+                                                                onSelect(
+                                                                    state.copy(
+                                                                        altTextError =
+                                                                            "Connection error: Could not reach the server. Please check your connection and try again.",
+                                                                        isGeneratingAltText = false,
+                                                                    )
+                                                                )
+                                                                console.error(
+                                                                    "Alt-text generation exception:",
+                                                                    response.message,
+                                                                )
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        onSelect(
+                                                            state.copy(
+                                                                altTextError =
+                                                                    "An unexpected error occurred",
+                                                                isGeneratingAltText = false,
+                                                            )
+                                                        )
+                                                        console.error("Unexpected error:", e)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Span(attrs = { classes("icon", "is-small") }) {
+                                        I(
+                                            attrs = {
+                                                classes(
+                                                    "fas",
+                                                    if (state.isGeneratingAltText) "fa-spinner"
+                                                    else "fa-wand-magic-sparkles",
+                                                )
+                                            }
+                                        )
+                                    }
+                                    Span { Text("Generate Alt-Text") }
+                                }
+                            }
+                        }
+                        // Show error message if generation failed
+                        if (state.altTextError != null) {
+                            Div(attrs = { classes("help", "is-danger") }) {
+                                Text(state.altTextError)
+                            }
                         }
                     }
                 }
@@ -128,9 +270,14 @@ fun ImageUpload(
                             classes("button", "is-danger", "is-small")
                             attr("type", "button")
                             attr("title", "Remove image")
+                            if (state.isGeneratingAltText) {
+                                attr("disabled", "")
+                            }
                             onClick { event ->
                                 event.preventDefault()
-                                onRemove(id)
+                                if (!state.isGeneratingAltText) {
+                                    onRemove(id)
+                                }
                             }
                         }
                     ) {

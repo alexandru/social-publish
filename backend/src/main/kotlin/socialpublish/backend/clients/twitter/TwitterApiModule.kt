@@ -198,7 +198,7 @@ class TwitterApiModule(
     private suspend fun uploadMedia(token: TwitterOAuthToken, uuid: String): ApiResult<String> {
         return try {
             val file =
-                filesModule.readImageFile(uuid, maxWidth = 1920, maxHeight = 1080)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",

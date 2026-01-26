@@ -23,7 +23,6 @@ import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
-import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.UploadPayload
 import socialpublish.backend.models.ApiResult
@@ -36,6 +35,10 @@ import socialpublish.backend.utils.sanitizeFilename
 private val logger = KotlinLogging.logger {}
 
 @Serializable data class FileUploadResponse(val uuid: String, val url: String)
+
+@Serializable data class UpdateAltTextRequest(val altText: String)
+
+@Serializable data class UpdateAltTextResponse(val success: Boolean)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -56,8 +59,8 @@ private constructor(
     private val uploadedFilesPath: File,
     private val imageMagick: ImageMagick,
 ) {
+    private val originalPath = File(uploadedFilesPath, "original")
     private val processedPath = File(uploadedFilesPath, "processed")
-    private val resizingPath = File(uploadedFilesPath, "resizing")
 
     companion object {
         suspend fun create(config: FilesConfig, db: FilesDatabase): FilesModule {
@@ -66,8 +69,8 @@ private constructor(
             val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
             runInterruptible(Dispatchers.LOOM) {
                 ref.uploadedFilesPath.mkdirs()
+                ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
-                ref.resizingPath.mkdirs()
             }
             logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
             return ref
@@ -147,9 +150,16 @@ private constructor(
                     )
                     .getOrElse { throw it }
 
-            // Save file to disk
-            val filePath = File(processedPath, upload.hash)
-            runInterruptible(Dispatchers.LOOM) { filePath.writeBytes(processed.bytes) }
+            // Save both original and processed files to disk
+            runInterruptible(Dispatchers.LOOM) {
+                // Save original unprocessed file
+                val originalFilePath = File(originalPath, upload.hash)
+                originalFilePath.writeBytes(fileBytes)
+
+                // Save processed/optimized file
+                val processedFilePath = File(processedPath, upload.hash)
+                processedFilePath.writeBytes(processed.bytes)
+            }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
 
@@ -196,11 +206,7 @@ private constructor(
     }
 
     /** Read image file for API posting */
-    suspend fun readImageFile(
-        uuid: String,
-        maxWidth: Int? = null,
-        maxHeight: Int? = null,
-    ): ProcessedUpload? {
+    suspend fun readImageFile(uuid: String): ProcessedUpload? {
         val upload = db.getFileByUuid(uuid).getOrElse { throw it } ?: return null
         val filePath = File(processedPath, upload.hash)
 
@@ -213,142 +219,12 @@ private constructor(
                 }
             } ?: return null
 
-        val storedWidth = upload.imageWidth ?: 0
-        val storedHeight = upload.imageHeight ?: 0
-
-        if (maxWidth != null && maxHeight != null) {
-            val storedWithinBounds =
-                storedWidth > 0 &&
-                    storedHeight > 0 &&
-                    storedWidth <= maxWidth &&
-                    storedHeight <= maxHeight
-
-            if (!storedWithinBounds) {
-                val cachedFile = File(resizingPath, upload.hash)
-                val cachedBytes =
-                    runInterruptible(Dispatchers.LOOM) {
-                        if (cachedFile.exists()) cachedFile.readBytes() else null
-                    }
-
-                if (cachedBytes != null) {
-                    // Verify cached file dimensions
-                    val tempFile =
-                        runInterruptible(Dispatchers.LOOM) {
-                            File.createTempFile("cached-", ".tmp").apply { writeBytes(cachedBytes) }
-                        }
-                    try {
-                        val cachedSize = imageMagick.identifyImageSize(tempFile).getOrNull()
-                        if (cachedSize != null) {
-                            return ProcessedUpload(
-                                originalname = upload.originalname,
-                                mimetype = upload.mimetype,
-                                altText = upload.altText,
-                                width = cachedSize.width,
-                                height = cachedSize.height,
-                                size = cachedBytes.size.toLong(),
-                                bytes = cachedBytes,
-                            )
-                        }
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Failed to verify cached resized image" }
-                    } finally {
-                        runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
-                    }
-                }
-
-                // Need to resize
-                val resized =
-                    try {
-                        val sourceFile =
-                            runInterruptible(Dispatchers.LOOM) {
-                                File.createTempFile("source-", ".tmp").apply { writeBytes(bytes) }
-                            }
-                        try {
-                            val size =
-                                imageMagick.identifyImageSize(sourceFile).getOrElse { throw it }
-                            val width = size.width
-                            val height = size.height
-
-                            if (width > maxWidth || height > maxHeight) {
-                                // Create resized image using ImageMagick
-                                val resizedFile =
-                                    runInterruptible(Dispatchers.LOOM) {
-                                        File.createTempFile("resized-", ".tmp").apply {
-                                            delete() // Delete the file, we just want the path
-                                        }
-                                    }
-                                try {
-                                    val resizeMagick =
-                                        ImageMagick(
-                                                options =
-                                                    MagickOptimizeOptions(
-                                                        maxWidth = maxWidth,
-                                                        maxHeight = maxHeight,
-                                                        maxSizeBytes = Long.MAX_VALUE,
-                                                        jpegQuality = 90,
-                                                    )
-                                            )
-                                            .getOrElse { throw it }
-                                    resizeMagick.optimizeImage(sourceFile, resizedFile).getOrElse {
-                                        throw it
-                                    }
-                                    val resizedBytes =
-                                        runInterruptible(Dispatchers.LOOM) {
-                                            resizedFile.readBytes()
-                                        }
-                                    val resizedSize =
-                                        imageMagick.identifyImageSize(resizedFile).getOrElse {
-                                            throw it
-                                        }
-
-                                    // Cache the resized image
-                                    runInterruptible(Dispatchers.LOOM) {
-                                        cachedFile.writeBytes(resizedBytes)
-                                    }
-
-                                    return ProcessedUpload(
-                                        originalname = upload.originalname,
-                                        mimetype = upload.mimetype,
-                                        altText = upload.altText,
-                                        width = resizedSize.width,
-                                        height = resizedSize.height,
-                                        size = resizedBytes.size.toLong(),
-                                        bytes = resizedBytes,
-                                    )
-                                } finally {
-                                    runInterruptible(Dispatchers.LOOM) { resizedFile.delete() }
-                                }
-                            }
-
-                            ProcessedUpload(
-                                originalname = upload.originalname,
-                                mimetype = upload.mimetype,
-                                altText = upload.altText,
-                                width = if (storedWidth > 0) storedWidth else width,
-                                height = if (storedHeight > 0) storedHeight else height,
-                                size = bytes.size.toLong(),
-                                bytes = bytes,
-                            )
-                        } finally {
-                            runInterruptible(Dispatchers.LOOM) { sourceFile.delete() }
-                        }
-                    } catch (e: Exception) {
-                        logger.warn(e) { "Failed to resize image, using original" }
-                        null
-                    }
-
-                if (resized != null) {
-                    return resized
-                }
-            }
-        }
-
         return ProcessedUpload(
             originalname = upload.originalname,
             mimetype = upload.mimetype,
             altText = upload.altText,
-            width = storedWidth,
-            height = storedHeight,
+            width = upload.imageWidth ?: 0,
+            height = upload.imageHeight ?: 0,
             size = bytes.size.toLong(),
             bytes = bytes,
         )
@@ -387,9 +263,51 @@ private constructor(
     ): ProcessedUpload {
         return try {
             // Write bytes to temp file for ImageMagick processing
+            val sourceFile =
+                runInterruptible(Dispatchers.LOOM) {
+                    File.createTempFile("upload-source-", ".tmp").apply { writeBytes(bytes) }
+                }
+            try {
+                // Optimize image using ImageMagick (resizes to max 1600x1600, compresses)
+                val optimizedFile =
+                    runInterruptible(Dispatchers.LOOM) {
+                        File.createTempFile("upload-optimized-", ".tmp").apply {
+                            delete() // Delete the file, we just want the path
+                        }
+                    }
+                try {
+                    imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse { throw it }
+
+                    val optimizedBytes =
+                        runInterruptible(Dispatchers.LOOM) { optimizedFile.readBytes() }
+
+                    val size =
+                        imageMagick.identifyImageSize(optimizedFile).getOrElse {
+                            logger.warn(it) { "Failed to identify optimized image size" }
+                            null
+                        }
+
+                    ProcessedUpload(
+                        originalname = originalName,
+                        mimetype = mimeType,
+                        altText = altText,
+                        width = size?.width ?: 0,
+                        height = size?.height ?: 0,
+                        size = optimizedBytes.size.toLong(),
+                        bytes = optimizedBytes,
+                    )
+                } finally {
+                    runInterruptible(Dispatchers.LOOM) { optimizedFile.delete() }
+                }
+            } finally {
+                runInterruptible(Dispatchers.LOOM) { sourceFile.delete() }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to optimize image, using original" }
+            // Fallback to using original if optimization fails
             val tempFile =
                 runInterruptible(Dispatchers.LOOM) {
-                    File.createTempFile("upload-", ".tmp").apply { writeBytes(bytes) }
+                    File.createTempFile("upload-fallback-", ".tmp").apply { writeBytes(bytes) }
                 }
             try {
                 val size =
@@ -409,17 +327,6 @@ private constructor(
             } finally {
                 runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
             }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to read image metadata, using original" }
-            ProcessedUpload(
-                originalname = originalName,
-                mimetype = mimeType,
-                altText = altText,
-                width = 0,
-                height = 0,
-                size = bytes.size.toLong(),
-                bytes = bytes,
-            )
         }
     }
 

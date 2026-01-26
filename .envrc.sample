@@ -32,3 +32,14 @@ export BSKY_SERVICE="https://bsky.social"
 # export TWITTER_OAUTH1_CONSUMER_KEY=""
 # export TWITTER_OAUTH1_CONSUMER_SECRET=""
 
+# LLM for alt-text generation (optional)
+# Configure the API endpoint, key, and model for your LLM provider
+# For OpenAI:
+# export LLM_API_URL="https://api.openai.com/v1/chat/completions"
+# export LLM_API_KEY="your-openai-api-key"
+# export LLM_MODEL="gpt-4o-mini"
+# For Mistral:
+# export LLM_API_URL="https://api.mistral.ai/v1/chat/completions"
+# export LLM_API_KEY="your-mistral-api-key"
+# export LLM_MODEL="pixtral-12b-2409"
+

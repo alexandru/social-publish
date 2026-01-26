@@ -20,3 +20,8 @@ data class ModulePostResponse(
     val id: String? = null,
     val cid: String? = null,
 )
+
+@Serializable
+data class GenerateAltTextRequest(val imageUuid: String, val userContext: String? = null)
+
+@Serializable data class GenerateAltTextResponse(val altText: String)

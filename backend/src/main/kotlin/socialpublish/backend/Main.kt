@@ -22,6 +22,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
+import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.CreateResult
@@ -188,6 +189,29 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             envvar = "LINKEDIN_CLIENT_SECRET",
         )
 
+    // LLM integration for alt-text generation (optional)
+    private val llmApiUrl: String? by
+        option(
+            "--llm-api-url",
+            help =
+                "LLM API endpoint URL (e.g., 'https://api.openai.com/v1/chat/completions') (env: LLM_API_URL)",
+            envvar = "LLM_API_URL",
+        )
+
+    private val llmApiKey: String? by
+        option(
+            "--llm-api-key",
+            help = "API key for LLM provider (env: LLM_API_KEY)",
+            envvar = "LLM_API_KEY",
+        )
+
+    private val llmModel: String? by
+        option(
+            "--llm-model",
+            help = "LLM model to use (e.g., 'gpt-4o-mini', 'pixtral-12b-2409') (env: LLM_MODEL)",
+            envvar = "LLM_MODEL",
+        )
+
     override fun run() {
         val serverAuthConfig =
             ServerAuthConfig(
@@ -243,6 +267,13 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 null
             }
 
+        val llmConfig =
+            if (llmApiUrl != null && llmApiKey != null && llmModel != null) {
+                LlmConfig(apiUrl = llmApiUrl!!, apiKey = llmApiKey!!, model = llmModel!!)
+            } else {
+                null
+            }
+
         val config =
             AppConfig(
                 server = serverConfig,
@@ -251,6 +282,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
                 linkedin = linkedinConfig,
+                llm = llmConfig,
             )
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot

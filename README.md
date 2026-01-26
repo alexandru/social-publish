@@ -8,6 +8,7 @@ This project is a simple tool to publish content to multiple social networks.
 
 - [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), [Bluesky](https://bsky.app/), and [LinkedIn](https://linkedin.com) support is implemented
 - Image upload is supported, with alt-text included 😊
+- **NEW**: LLM integration for automatic alt-text generation using any OpenAI-compatible API (OpenAI, Mistral, etc.) 🤖✨
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
 **Table of Contents**
@@ -17,8 +18,8 @@ This project is a simple tool to publish content to multiple social networks.
   - [Mastodon credentials](#mastodon-credentials)
   - [Twitter setup](#twitter-setup)
   - [LinkedIn setup](#linkedin-setup)
-- [Usage](#usage)
-  - [RSS feed](#rss-feed)
+  - [LLM setup (Optional)](#llm-setup-optional)
+- [RSS feed](#rss-feed)
 - [Developing](#developing)
 - [License](#license)
 
@@ -72,6 +73,17 @@ TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
 LINKEDIN_CLIENT_ID="your-client-id"
 LINKEDIN_CLIENT_SECRET="your-client-secret"
 
+# LLM for alt-text generation (optional)
+# Configure the API endpoint, key, and model for your LLM provider
+# For OpenAI:
+LLM_API_URL="https://api.openai.com/v1/chat/completions"
+LLM_API_KEY="your-openai-api-key"
+LLM_MODEL="gpt-4o-mini"
+# For Mistral:
+# LLM_API_URL="https://api.mistral.ai/v1/chat/completions"
+# LLM_API_KEY="your-mistral-api-key"
+# LLM_MODEL="pixtral-12b-2409"
+
 # Used for authentication (https://jwt.io)
 JWT_SECRET="random string"
 ```
@@ -124,18 +136,25 @@ For LinkedIn, we're working with OAuth2.
 
 **Note:** LinkedIn access tokens expire after 60 days. The system automatically refreshes tokens using the refresh token, which is valid for 1 year. You'll need to reconnect if the refresh token expires.
 
-## Usage
+### LLM setup (Optional)
 
-The available requests for creating a new post are exemplified in [test.http](./test.http).
+The application can integrate with LLM providers to automatically generate alt-text descriptions for images. This feature is optional and supports any OpenAI-compatible API (including OpenAI, Mistral AI, and other providers).
 
-You can then configure `ifttt.com`. When adding an "action" to your applet, search for "_make a web request_".
+**Supported providers:**
 
-Or, if you open the webpage in a browser (e.g., `http://localhost:3000/`), you can use this form:
+- **OpenAI** (e.g., GPT-4o-mini): <https://platform.openai.com/api-keys>
+- **Mistral AI** (e.g., Pixtral): <https://console.mistral.ai/api-keys/>
+- Any OpenAI-compatible API endpoint
 
-<img src="./docs/form-screenshot.png" width="500" alt='Screenshot of "Post a New Social Message" form' />
-<hr/>
+**Configuration:**
 
-### RSS feed
+1. Get an API key from your chosen provider
+2. Set the environment variables:
+   - `LLM_API_URL`: The API endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
+   - `LLM_API_KEY`: Your API key
+   - `LLM_MODEL`: Model name (e.g., `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
+
+## RSS feed
 
 While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
 
