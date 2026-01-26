@@ -37,13 +37,11 @@ val migrations: List<Migration> =
                         payload TEXT NOT NULL,
                         created_at INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS documents_created_at
                     ON documents(kind, created_at)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("documents") },
         ),
@@ -59,7 +57,6 @@ val migrations: List<Migration> =
                         PRIMARY KEY (document_uuid, name, kind)
                     )
                     """
-                        .trimIndent()
                 ),
             testIfApplied = { conn -> conn.tableExists("document_tags") },
         ),
@@ -79,13 +76,11 @@ val migrations: List<Migration> =
                         imageHeight INTEGER,
                         createdAt INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS uploads_createdAt
                         ON uploads(createdAt)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("uploads") },
         ),
@@ -95,19 +90,17 @@ val migrations: List<Migration> =
                 listOf(
                     """
                     CREATE TABLE IF NOT EXISTS users (
-                        id VARCHAR(36) NOT NULL PRIMARY KEY,
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
                         username VARCHAR(255) UNIQUE NOT NULL,
                         password_hash VARCHAR(255) NOT NULL,
                         created_at INTEGER NOT NULL,
                         updated_at INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS users_username
                         ON users(username)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("users") },
         ),
@@ -117,31 +110,19 @@ val migrations: List<Migration> =
                 listOf(
                     """
                     CREATE TABLE IF NOT EXISTS user_sessions (
-                        id VARCHAR(36) NOT NULL PRIMARY KEY,
-                        user_id VARCHAR(36) NOT NULL,
-                        token_hash VARCHAR(255) NOT NULL,
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        user_uuid VARCHAR(36) NOT NULL,
+                        token_hash VARCHAR(255) UNIQUE NOT NULL,
                         refresh_token_hash VARCHAR(255),
                         expires_at INTEGER NOT NULL,
                         created_at INTEGER NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                        FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
                     )
-                    """
-                        .trimIndent(),
-                    """
-                    CREATE INDEX IF NOT EXISTS user_sessions_token_hash
-                        ON user_sessions(token_hash)
-                    """
-                        .trimIndent(),
-                    """
-                    CREATE INDEX IF NOT EXISTS user_sessions_user_id
-                        ON user_sessions(user_id)
-                    """
-                        .trimIndent(),
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS user_sessions_expires_at
                         ON user_sessions(expires_at)
-                    """
-                        .trimIndent(),
+                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("user_sessions") },
         ),

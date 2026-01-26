@@ -277,7 +277,7 @@ suspend fun <A> SafeConnection.query(
 ): A =
     withContext(Database.Dispatcher) {
         @Suppress("SqlSourceToSinkFlow")
-        connection.prepareStatement(sql).safe().useWithInterruption(block)
+        connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
     }
 
 /**

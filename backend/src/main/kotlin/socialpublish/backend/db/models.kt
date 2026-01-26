@@ -1,6 +1,8 @@
 package socialpublish.backend.db
 
 import java.time.Instant
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 import kotlinx.serialization.Serializable
 
 /**
@@ -75,20 +77,40 @@ data class Post(
 )
 
 /** User account for authentication. */
+@OptIn(ExperimentalUuidApi::class)
 data class User(
-    val id: String,
+    val uuid: Uuid,
     val username: String,
     val passwordHash: String,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
 
+/** Result of creating a user. */
+sealed interface CreateUserResult {
+    /** User was created successfully. */
+    data class Created(val user: User) : CreateUserResult
+
+    /** User with this username already exists. */
+    data class DuplicateUsername(val username: String) : CreateUserResult
+}
+
 /** User session for JWT authentication with optional refresh token support. */
+@OptIn(ExperimentalUuidApi::class)
 data class UserSession(
-    val id: String,
-    val userId: String,
+    val uuid: Uuid,
+    val userUuid: Uuid,
     val tokenHash: String,
     val refreshTokenHash: String?,
     val expiresAt: Instant,
     val createdAt: Instant,
 )
+
+/** Result of creating a user session. */
+sealed interface CreateSessionResult {
+    /** Session was created successfully. */
+    data class Created(val session: UserSession) : CreateSessionResult
+
+    /** Session with this token hash already exists. */
+    data object DuplicateToken : CreateSessionResult
+}
