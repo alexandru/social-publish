@@ -3,6 +3,8 @@ package socialpublish.backend.clients
 import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
@@ -33,6 +35,14 @@ class LlmApiTest {
             var receivedRequest: OpenAiChatRequest? = null
 
             application {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
                 routing {
                     post("/api/files/upload") {
                         val result = filesModule.uploadFile(call)
@@ -90,7 +100,7 @@ class LlmApiTest {
             val llmModule =
                 LlmApiModule(
                     LlmConfig(
-                        apiUrl = "http://localhost/v1/chat/completions",
+                        apiUrl = "/v1/chat/completions",
                         apiKey = "test-key",
                         model = "gpt-4o-mini",
                     ),
@@ -102,7 +112,7 @@ class LlmApiTest {
             val result = llmModule.generateAltText(upload.uuid)
 
             // Verify result
-            assertTrue(result is Either.Right, "Expected successful result")
+            assertTrue(result is Either.Right, "Expected successful result but got: $result")
             val altText = (result as Either.Right).value
             assertEquals("A beautiful red rose in bloom", altText)
 
@@ -138,6 +148,14 @@ class LlmApiTest {
             val filesModule = createFilesModule(tempDir, jdbi)
 
             application {
+                install(ContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
                 routing {
                     post("/api/files/upload") {
                         val result = filesModule.uploadFile(call)
@@ -194,7 +212,7 @@ class LlmApiTest {
             val llmModule =
                 LlmApiModule(
                     LlmConfig(
-                        apiUrl = "http://localhost/v1/chat/completions",
+                        apiUrl = "/v1/chat/completions",
                         apiKey = "test-key",
                         model = "pixtral-12b-2409",
                     ),
@@ -232,7 +250,7 @@ class LlmApiTest {
             val llmModule =
                 LlmApiModule(
                     LlmConfig(
-                        apiUrl = "http://localhost/v1/chat/completions",
+                        apiUrl = "/v1/chat/completions",
                         apiKey = "test-key",
                         model = "gpt-4o-mini",
                     ),
