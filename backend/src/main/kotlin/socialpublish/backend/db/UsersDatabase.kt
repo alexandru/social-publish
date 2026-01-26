@@ -5,11 +5,20 @@ import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
+import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import kotlin.uuid.Uuid as KotlinUuid
 import socialpublish.backend.modules.AuthModule
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Generate a UUID v7 (time-based) for better sorting.
+ *
+ * Uses Kotlin's experimental UUID v7 generator but returns java.util.UUID for compatibility.
+ */
+@OptIn(ExperimentalUuidApi::class)
+private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
 
 /**
  * Database access layer for users and user sessions.
@@ -17,7 +26,6 @@ private val logger = KotlinLogging.logger {}
  * Handles user authentication data and JWT session management. Note: Future support for refresh
  * tokens is planned.
  */
-@OptIn(ExperimentalUuidApi::class)
 class UsersDatabase(private val db: Database) {
 
     /**
@@ -25,54 +33,52 @@ class UsersDatabase(private val db: Database) {
      *
      * @param username Unique username for the user
      * @param password Plain text password that will be hashed with BCrypt
-     * @return Either a DBException or the CreateUserResult
+     * @return Either a DBException or the CreateResult<User>
      */
     suspend fun createUser(
         username: String,
         password: String,
-    ): Either<DBException, CreateUserResult> = either {
-        val result =
-            db.transaction {
-                // Check if user already exists
-                val existing =
-                    query("SELECT uuid FROM users WHERE username = ?") {
-                        setString(1, username)
-                        executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
-                    }
-
-                if (existing != null) {
-                    CreateUserResult.DuplicateUsername(username)
-                } else {
-                    val uuid = Uuid.generateV7()
-                    val passwordHash = AuthModule.hashPassword(password)
-                    val now = db.clock.instant()
-
-                    query(
-                        "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-                    ) {
-                        setString(1, uuid.toString())
-                        setString(2, username)
-                        setString(3, passwordHash)
-                        setLong(4, now.toEpochMilli())
-                        setLong(5, now.toEpochMilli())
-                        execute()
-                        Unit
-                    }
-
-                    logger.info { "Created user: $username (uuid: $uuid)" }
-
-                    val user =
-                        User(
-                            uuid = uuid,
-                            username = username,
-                            passwordHash = passwordHash,
-                            createdAt = now,
-                            updatedAt = now,
-                        )
-                    CreateUserResult.Created(user)
+    ): Either<DBException, CreateResult<User>> = either {
+        db.transaction {
+            // Check if user already exists
+            val existing =
+                query("SELECT uuid FROM users WHERE username = ?") {
+                    setString(1, username)
+                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
                 }
+
+            if (existing != null) {
+                CreateResult.Duplicate
+            } else {
+                val uuid = generateUuidV7()
+                val passwordHash = AuthModule.hashPassword(password)
+                val now = db.clock.instant()
+
+                query(
+                    "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+                ) {
+                    setString(1, uuid.toString())
+                    setString(2, username)
+                    setString(3, passwordHash)
+                    setLong(4, now.toEpochMilli())
+                    setLong(5, now.toEpochMilli())
+                    execute()
+                    Unit
+                }
+
+                logger.info { "Created user: $username (uuid: $uuid)" }
+
+                val user =
+                    User(
+                        uuid = uuid,
+                        username = username,
+                        passwordHash = passwordHash,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                CreateResult.Created(user)
             }
-        result
+        }
     }
 
     /**
@@ -87,7 +93,7 @@ class UsersDatabase(private val db: Database) {
                 setString(1, username)
                 executeQuery().safe().firstOrNull { rs ->
                     User(
-                        uuid = Uuid.parse(rs.getString("uuid")),
+                        uuid = UUID.fromString(rs.getString("uuid")),
                         username = rs.getString("username"),
                         passwordHash = rs.getString("password_hash"),
                         createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
@@ -125,65 +131,63 @@ class UsersDatabase(private val db: Database) {
      * @param tokenHash Hash of the JWT token (for revocation support)
      * @param expiresAt When the session expires
      * @param refreshTokenHash Optional hash of refresh token (for future refresh token support)
-     * @return Either a DBException or the CreateSessionResult
+     * @return Either a DBException or the CreateResult<UserSession>
      */
     suspend fun createSession(
-        userUuid: Uuid,
+        userUuid: UUID,
         tokenHash: String,
         expiresAt: Instant,
         refreshTokenHash: String? = null,
-    ): Either<DBException, CreateSessionResult> = either {
-        val result =
-            db.transaction {
-                // Check if session with this token already exists
-                val existing =
-                    query("SELECT uuid FROM user_sessions WHERE token_hash = ?") {
-                        setString(1, tokenHash)
-                        executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
-                    }
+    ): Either<DBException, CreateResult<UserSession>> = either {
+        db.transaction {
+            // Check if session with this token already exists
+            val existing =
+                query("SELECT uuid FROM user_sessions WHERE token_hash = ?") {
+                    setString(1, tokenHash)
+                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                }
 
-                if (existing != null) {
-                    CreateSessionResult.DuplicateToken
-                } else {
-                    val uuid = Uuid.generateV7()
-                    val now = db.clock.instant()
+            if (existing != null) {
+                CreateResult.Duplicate
+            } else {
+                val uuid = generateUuidV7()
+                val now = db.clock.instant()
 
-                    query(
-                        """
+                query(
+                    """
                     INSERT INTO user_sessions 
                     (uuid, user_uuid, token_hash, refresh_token_hash, expires_at, created_at) 
                     VALUES (?, ?, ?, ?, ?, ?)
                     """
-                    ) {
-                        setString(1, uuid.toString())
-                        setString(2, userUuid.toString())
-                        setString(3, tokenHash)
-                        if (refreshTokenHash != null) {
-                            setString(4, refreshTokenHash)
-                        } else {
-                            setNull(4, java.sql.Types.VARCHAR)
-                        }
-                        setLong(5, expiresAt.toEpochMilli())
-                        setLong(6, now.toEpochMilli())
-                        execute()
-                        Unit
+                ) {
+                    setString(1, uuid.toString())
+                    setString(2, userUuid.toString())
+                    setString(3, tokenHash)
+                    if (refreshTokenHash != null) {
+                        setString(4, refreshTokenHash)
+                    } else {
+                        setNull(4, java.sql.Types.VARCHAR)
                     }
-
-                    logger.info { "Created session for user: $userUuid (session uuid: $uuid)" }
-
-                    val session =
-                        UserSession(
-                            uuid = uuid,
-                            userUuid = userUuid,
-                            tokenHash = tokenHash,
-                            refreshTokenHash = refreshTokenHash,
-                            expiresAt = expiresAt,
-                            createdAt = now,
-                        )
-                    CreateSessionResult.Created(session)
+                    setLong(5, expiresAt.toEpochMilli())
+                    setLong(6, now.toEpochMilli())
+                    execute()
+                    Unit
                 }
+
+                logger.info { "Created session for user: $userUuid (session uuid: $uuid)" }
+
+                val session =
+                    UserSession(
+                        uuid = uuid,
+                        userUuid = userUuid,
+                        tokenHash = tokenHash,
+                        refreshTokenHash = refreshTokenHash,
+                        expiresAt = expiresAt,
+                        createdAt = now,
+                    )
+                CreateResult.Created(session)
             }
-        result
+        }
     }
 
     /**
@@ -199,8 +203,8 @@ class UsersDatabase(private val db: Database) {
                     setString(1, tokenHash)
                     executeQuery().safe().firstOrNull { rs ->
                         UserSession(
-                            uuid = Uuid.parse(rs.getString("uuid")),
-                            userUuid = Uuid.parse(rs.getString("user_uuid")),
+                            uuid = UUID.fromString(rs.getString("uuid")),
+                            userUuid = UUID.fromString(rs.getString("user_uuid")),
                             tokenHash = rs.getString("token_hash"),
                             refreshTokenHash = rs.getString("refresh_token_hash"),
                             expiresAt = Instant.ofEpochMilli(rs.getLong("expires_at")),

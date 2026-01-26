@@ -1,8 +1,7 @@
 package socialpublish.backend.db
 
 import java.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
@@ -77,40 +76,37 @@ data class Post(
 )
 
 /** User account for authentication. */
-@OptIn(ExperimentalUuidApi::class)
 data class User(
-    val uuid: Uuid,
+    val uuid: UUID,
     val username: String,
     val passwordHash: String,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
 
-/** Result of creating a user. */
-sealed interface CreateUserResult {
-    /** User was created successfully. */
-    data class Created(val user: User) : CreateUserResult
+/** Generic result for create operations that may have duplicates. */
+sealed interface CreateResult<out T> {
+    /** Value was created successfully. */
+    data class Created<out T>(val value: T) : CreateResult<T>
 
-    /** User with this username already exists. */
-    data class DuplicateUsername(val username: String) : CreateUserResult
+    /** Value already exists (duplicate). */
+    data object Duplicate : CreateResult<Nothing>
+
+    /** Convert to nullable, returning the value if Created, null if Duplicate. */
+    val toNullable: T?
+        get() =
+            when (this) {
+                is Created -> value
+                is Duplicate -> null
+            }
 }
 
 /** User session for JWT authentication with optional refresh token support. */
-@OptIn(ExperimentalUuidApi::class)
 data class UserSession(
-    val uuid: Uuid,
-    val userUuid: Uuid,
+    val uuid: UUID,
+    val userUuid: UUID,
     val tokenHash: String,
     val refreshTokenHash: String?,
     val expiresAt: Instant,
     val createdAt: Instant,
 )
-
-/** Result of creating a user session. */
-sealed interface CreateSessionResult {
-    /** Session was created successfully. */
-    data class Created(val session: UserSession) : CreateSessionResult
-
-    /** Session with this token hash already exists. */
-    data object DuplicateToken : CreateSessionResult
-}

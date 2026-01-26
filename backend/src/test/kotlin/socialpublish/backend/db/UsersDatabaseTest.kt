@@ -4,17 +4,16 @@ import arrow.core.getOrElse
 import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
 import java.time.Instant
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
-@OptIn(ExperimentalUuidApi::class)
 class UsersDatabaseTest {
     @Test
     fun `createUser should create new user with hashed password`(@TempDir tempDir: Path) = runTest {
@@ -29,8 +28,8 @@ class UsersDatabaseTest {
                     throw it
                 }
 
-            assertTrue(result is CreateUserResult.Created)
-            val user = result.user
+            assertTrue(result is CreateResult.Created)
+            val user = result.value
             assertNotNull(user.uuid)
             assertEquals("testuser", user.username)
             assertNotNull(user.passwordHash)
@@ -47,32 +46,30 @@ class UsersDatabaseTest {
     }
 
     @Test
-    fun `createUser should return DuplicateUsername for duplicate username`(
-        @TempDir tempDir: Path
-    ) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `createUser should return Duplicate for duplicate username`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val usersDb = UsersDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
 
-            // Create first user
-            @Suppress("UNUSED_VARIABLE")
-            val created =
-                usersDb.createUser(username = "duplicate", password = "password1").getOrElse {
-                    throw it
-                }
+                // Create first user
+                @Suppress("UNUSED_VARIABLE")
+                val created =
+                    usersDb.createUser(username = "duplicate", password = "password1").getOrElse {
+                        throw it
+                    }
 
-            // Try to create second user with same username
-            val result =
-                usersDb.createUser(username = "duplicate", password = "password2").getOrElse {
-                    throw it
-                }
+                // Try to create second user with same username
+                val result =
+                    usersDb.createUser(username = "duplicate", password = "password2").getOrElse {
+                        throw it
+                    }
 
-            assertTrue(result is CreateUserResult.DuplicateUsername)
-            assertEquals("duplicate", result.username)
+                assertTrue(result is CreateResult.Duplicate)
+            }
         }
-    }
 
     @Test
     fun `findByUsername should find existing user`(@TempDir tempDir: Path) = runTest {
@@ -87,7 +84,8 @@ class UsersDatabaseTest {
                 usersDb.createUser(username = "findme", password = "findpassword").getOrElse {
                     throw it
                 }
-            val created = (createResult as CreateUserResult.Created).user
+            assertTrue(createResult is CreateResult.Created)
+            val created = createResult.value
 
             // Find user
             val found = usersDb.findByUsername("findme").getOrElse { throw it }
@@ -191,7 +189,8 @@ class UsersDatabaseTest {
                 usersDb.createUser(username = "sessionuser", password = "password").getOrElse {
                     throw it
                 }
-            val user = (createResult as CreateUserResult.Created).user
+            assertTrue(createResult is CreateResult.Created)
+            val user = createResult.value
 
             // Create session
             val expiresAt = Instant.now().plusSeconds(3600)
@@ -204,8 +203,8 @@ class UsersDatabaseTest {
                     )
                     .getOrElse { throw it }
 
-            assertTrue(sessionResult is CreateSessionResult.Created)
-            val session = sessionResult.session
+            assertTrue(sessionResult is CreateResult.Created)
+            val session = sessionResult.value
             assertNotNull(session.uuid)
             assertEquals(user.uuid, session.userUuid)
             assertEquals("token-hash-123", session.tokenHash)
@@ -228,7 +227,8 @@ class UsersDatabaseTest {
                 usersDb.createUser(username = "refreshuser", password = "password").getOrElse {
                     throw it
                 }
-            val user = (createResult as CreateUserResult.Created).user
+            assertTrue(createResult is CreateResult.Created)
+            val user = createResult.value
 
             // Create session with refresh token
             val expiresAt = Instant.now().plusSeconds(3600)
@@ -242,55 +242,55 @@ class UsersDatabaseTest {
                     )
                     .getOrElse { throw it }
 
-            assertTrue(sessionResult is CreateSessionResult.Created)
-            val session = sessionResult.session
+            assertTrue(sessionResult is CreateResult.Created)
+            val session = sessionResult.value
             assertNotNull(session.refreshTokenHash)
             assertEquals("refresh-hash-789", session.refreshTokenHash)
         }
     }
 
     @Test
-    fun `createSession should return DuplicateToken for duplicate token hash`(
-        @TempDir tempDir: Path
-    ) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `createSession should return Duplicate for duplicate token hash`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val usersDb = UsersDatabase(db)
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
 
-            // Create user
-            val createResult =
-                usersDb.createUser(username = "duptoken", password = "password").getOrElse {
-                    throw it
-                }
-            val user = (createResult as CreateUserResult.Created).user
+                // Create user
+                val createResult =
+                    usersDb.createUser(username = "duptoken", password = "password").getOrElse {
+                        throw it
+                    }
+                assertTrue(createResult is CreateResult.Created)
+                val user = createResult.value
 
-            // Create first session
-            val expiresAt = Instant.now().plusSeconds(3600)
-            @Suppress("UNUSED_VARIABLE")
-            val firstResult =
-                usersDb
-                    .createSession(
-                        userUuid = user.uuid,
-                        tokenHash = "duplicate-token",
-                        expiresAt = expiresAt,
-                    )
-                    .getOrElse { throw it }
+                // Create first session
+                val expiresAt = Instant.now().plusSeconds(3600)
+                @Suppress("UNUSED_VARIABLE")
+                val firstResult =
+                    usersDb
+                        .createSession(
+                            userUuid = user.uuid,
+                            tokenHash = "duplicate-token",
+                            expiresAt = expiresAt,
+                        )
+                        .getOrElse { throw it }
 
-            // Try to create second session with same token hash
-            val secondResult =
-                usersDb
-                    .createSession(
-                        userUuid = user.uuid,
-                        tokenHash = "duplicate-token",
-                        expiresAt = expiresAt,
-                    )
-                    .getOrElse { throw it }
+                // Try to create second session with same token hash
+                val secondResult =
+                    usersDb
+                        .createSession(
+                            userUuid = user.uuid,
+                            tokenHash = "duplicate-token",
+                            expiresAt = expiresAt,
+                        )
+                        .getOrElse { throw it }
 
-            assertTrue(secondResult is CreateSessionResult.DuplicateToken)
+                assertTrue(secondResult is CreateResult.Duplicate)
+            }
         }
-    }
 
     @Test
     fun `findSessionByTokenHash should find existing session`(@TempDir tempDir: Path) = runTest {
@@ -305,7 +305,9 @@ class UsersDatabaseTest {
                 usersDb.createUser(username = "finduser", password = "password").getOrElse {
                     throw it
                 }
-            val user = (createResult as CreateUserResult.Created).user
+            assertTrue(createResult is CreateResult.Created)
+            val user = createResult.value
+
             val sessionResult =
                 usersDb
                     .createSession(
@@ -314,8 +316,8 @@ class UsersDatabaseTest {
                         expiresAt = Instant.now().plusSeconds(3600),
                     )
                     .getOrElse { throw it }
-            assertTrue(sessionResult is CreateSessionResult.Created)
-            val created = sessionResult.session
+            assertTrue(sessionResult is CreateResult.Created)
+            val created = sessionResult.value
 
             // Find session
             val found = usersDb.findSessionByTokenHash("find-token-hash").getOrElse { throw it }
@@ -356,7 +358,9 @@ class UsersDatabaseTest {
                 usersDb.createUser(username = "deleteuser", password = "password").getOrElse {
                     throw it
                 }
-            val user = (createResult as CreateUserResult.Created).user
+            assertTrue(createResult is CreateResult.Created)
+            val user = createResult.value
+
             @Suppress("UNUSED_VARIABLE")
             val sessionResult =
                 usersDb
@@ -408,7 +412,8 @@ class UsersDatabaseTest {
                     usersDb.createUser(username = "expireuser", password = "password").getOrElse {
                         throw it
                     }
-                val user = (createResult as CreateUserResult.Created).user
+                assertTrue(createResult is CreateResult.Created)
+                val user = createResult.value
 
                 // Create expired session (expires in the past)
                 @Suppress("UNUSED_VARIABLE")
@@ -448,4 +453,21 @@ class UsersDatabaseTest {
                 assertNotNull(validFound)
             }
         }
+
+    @Test
+    fun `CreateResult toNullable should work correctly`() {
+        val user =
+            User(
+                uuid = UUID.randomUUID(),
+                username = "test",
+                passwordHash = "hash",
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        val created: CreateResult<User> = CreateResult.Created(user)
+        val duplicate: CreateResult<User> = CreateResult.Duplicate
+
+        assertEquals(user, created.toNullable)
+        assertNull(duplicate.toNullable)
+    }
 }

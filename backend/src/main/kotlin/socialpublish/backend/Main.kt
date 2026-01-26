@@ -18,14 +18,13 @@ import com.github.ajalt.clikt.parameters.types.int
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
-import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
-import socialpublish.backend.db.CreateUserResult
+import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
 import socialpublish.backend.db.UsersDatabase
@@ -364,7 +363,6 @@ class CheckPasswordCommand : CliktCommand(name = "check-password") {
 }
 
 /** Subcommand to create a new user. */
-@OptIn(ExperimentalUuidApi::class)
 class CreateUserCommand : CliktCommand(name = "create-user") {
     override fun help(context: com.github.ajalt.clikt.core.Context) = "Create a new user account"
 
@@ -389,33 +387,31 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
                 val db = Database.connect(dbPath).bind()
                 val usersDb = UsersDatabase(db)
 
-                usersDb
-                    .createUser(username = username, password = password)
-                    .fold(
-                        { error ->
-                            echo("Error creating user: ${error.message}", err = true)
-                            throw ProgramResult(1)
-                        },
-                        { result ->
-                            when (result) {
-                                is CreateUserResult.Created -> {
-                                    echo()
-                                    echo("✓ User created successfully!")
-                                    echo("  Username: ${result.user.username}")
-                                    echo("  User ID:  ${result.user.uuid}")
-                                    echo("  Created:  ${result.user.createdAt}")
-                                    echo()
-                                }
-                                is CreateUserResult.DuplicateUsername -> {
-                                    echo(
-                                        "Error creating user: User with username '${result.username}' already exists",
-                                        err = true,
-                                    )
-                                    throw ProgramResult(1)
-                                }
+                when (val result = usersDb.createUser(username = username, password = password)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error creating user: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        when (val createResult = result.value) {
+                            is CreateResult.Created -> {
+                                echo()
+                                echo("✓ User created successfully!")
+                                echo("  Username: ${createResult.value.username}")
+                                echo("  User ID:  ${createResult.value.uuid}")
+                                echo("  Created:  ${createResult.value.createdAt}")
+                                echo()
                             }
-                        },
-                    )
+                            is CreateResult.Duplicate -> {
+                                echo(
+                                    "Error creating user: User with username '$username' already exists",
+                                    err = true,
+                                )
+                                throw ProgramResult(1)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -96,11 +96,7 @@ val migrations: List<Migration> =
                         created_at INTEGER NOT NULL,
                         updated_at INTEGER NOT NULL
                     )
-                    """,
                     """
-                    CREATE INDEX IF NOT EXISTS users_username
-                        ON users(username)
-                    """,
                 ),
             testIfApplied = { conn -> conn.tableExists("users") },
         ),
