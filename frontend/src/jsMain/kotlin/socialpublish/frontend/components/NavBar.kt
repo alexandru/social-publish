@@ -21,6 +21,39 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
     ) {
         Div(attrs = { classes("navbar-brand") }) {
             A(
+                href = "/",
+                attrs = {
+                    classes("navbar-item")
+                    style {
+                        property("display", "flex")
+                        property("align-items", "center")
+                        property("gap", "0.5rem")
+                    }
+                },
+            ) {
+                Img(
+                    src = "/assets/logos/cloud-48x48.png",
+                    attrs = {
+                        attr("alt", "Social Publish Logo")
+                        style {
+                            property("height", "32px")
+                            property("width", "32px")
+                        }
+                    },
+                )
+                Span(
+                    attrs = {
+                        style {
+                            property("font-weight", "bold")
+                            property("font-size", "1.25rem")
+                        }
+                    }
+                ) {
+                    Text("Social Publish")
+                }
+            }
+
+            A(
                 attrs = {
                     classes("navbar-burger")
                     if (navbarActive) classes("is-active")
