@@ -22,6 +22,10 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.configureAuth
+import socialpublish.backend.server.routes.loginRoute
+import socialpublish.backend.server.routes.protectedRoute
 
 class AuthModuleTest {
     // Use a BCrypt hash for "testpass" for all tests
@@ -66,7 +70,7 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
+                routing { post("/api/login") { loginRoute(authModule, call) } }
             }
 
             val response =
@@ -95,7 +99,7 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
+                routing { post("/api/login") { loginRoute(authModule, call) } }
             }
 
             val response =
@@ -124,7 +128,7 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
+                routing { post("/api/login") { loginRoute(authModule, call) } }
             }
 
             val response =
@@ -140,11 +144,11 @@ class AuthModuleTest {
     @Test
     fun `login should return twitter auth status`() {
         testApplication {
-            val authModule = AuthModule(config, twitterAuthProvider = { true })
+            val authModule = AuthModule(config)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
+                routing { post("/api/login") { loginRoute(authModule, call, { true }, null) } }
             }
 
             val response =
@@ -162,6 +166,50 @@ class AuthModuleTest {
     }
 
     @Test
+    fun `login should return linkedin auth status`() {
+        testApplication {
+            val authModule = AuthModule(config)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { loginRoute(authModule, call, null, { true }) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"testpass"}""")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+
+            val json = Json { ignoreUnknownKeys = true }
+            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            assertTrue(body.hasAuth.linkedin)
+        }
+    }
+
+    @Test
+    fun `login should work with form-urlencoded data`() {
+        testApplication {
+            val authModule = AuthModule(config)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { loginRoute(authModule, call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    setBody("username=testuser&password=testpass")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
     fun `should accept access token query param`() {
         testApplication {
             val authModule = AuthModule(config)
@@ -170,9 +218,7 @@ class AuthModuleTest {
                 install(ContentNegotiation) { json() }
                 configureAuth(config)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authModule.protectedRoute(call) }
-                    }
+                    authenticate("auth-jwt") { get("/api/protected") { protectedRoute(call) } }
                 }
             }
 
@@ -200,7 +246,7 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
+                routing { post("/api/login") { loginRoute(authModule, call) } }
             }
 
             val response =

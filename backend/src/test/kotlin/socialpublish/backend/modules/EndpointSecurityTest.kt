@@ -21,6 +21,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.routes.configureAuth
+import socialpublish.backend.server.routes.protectedRoute
 
 class EndpointSecurityTest {
     // Use reduced BCrypt rounds for test performance (production uses 12)
@@ -177,9 +179,7 @@ class EndpointSecurityTest {
                 install(ContentNegotiation) { json() }
                 configureAuth(config)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authModule.protectedRoute(call) }
-                    }
+                    authenticate("auth-jwt") { get("/api/protected") { protectedRoute(call) } }
                 }
             }
 

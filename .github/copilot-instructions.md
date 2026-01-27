@@ -96,14 +96,22 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 
 - Prefer idiomatic Kotlin constructs and direct style with `suspend` functions for effectful code, rather than monad chaining (`flatMap`).
 - Use Arrow's `Resource` for resource management and `Either` for error modeling where appropriate.
+- Avoid `runBlocking` (except for `main`). Coroutines (suspended functions) should be used idiomatically.
 - For error handling, custom sealed classes (union types) are encouraged for domain-specific errors.
 - Avoid public inner classes unless they are part of a sealed class hierarchy (for union types). Prefer top-level classes and functions.
 - Use packages for namespacing; avoid unnecessary nesting of classes.
 - Prefer data classes and other FP techniques for modeling data over ad-hoc OOP wrappers.
 - Avoid side-effectful APIs in production code unless wrapped in a `suspend` function or managed by Arrow's `Resource`.
 - Prefer encapsulated, self-contained components (e.g., each social integration in its own package).
-- Avoid project-wide MVC-style grouping; instead, group by feature/component.
+- Avoid project-wide MVC-style grouping; instead, group by feature/component. Prefer colocating types with the feature that uses them.
+  - Don't introduce silly `models/` or `views/` packages
 - Components should be modular enough to be extracted into their own sub-projects or libraries.
+- Use good imports (no fully qualified names).
+- Write comments, but keep them meaningful:
+  - No comments on what the Agent did.
+  - No comments on what function signatures already say.
+  - No comments on configuration that can always change.
+  - Document invariants and non-obvious decisions that aren't clear from signatures.
 
 ### Frontend (Compose for Web)
 

@@ -53,6 +53,13 @@ import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
+import socialpublish.backend.server.routes.LoginRequest
+import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.UserResponse
+import socialpublish.backend.server.routes.configureAuth
+import socialpublish.backend.server.routes.extractJwtToken
+import socialpublish.backend.server.routes.loginRoute
+import socialpublish.backend.server.routes.protectedRoute
 import socialpublish.backend.utils.*
 
 private val logger = KotlinLogging.logger {}
@@ -82,12 +89,7 @@ fun startServer(
         }
     val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
-    val authModule =
-        AuthModule(
-            config.server.auth,
-            twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
-            linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
-        )
+    val authModule = AuthModule(config.server.auth)
 
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
@@ -193,7 +195,14 @@ fun startServer(
 
             // Authentication routes
             rateLimit(RateLimitName("login")) {
-                post("/api/login") { authModule.login(call) }
+                post("/api/login") {
+                        loginRoute(
+                            authModule,
+                            call,
+                            twitterModule?.let { { it.hasTwitterAuth() } },
+                            linkedInModule?.let { { it.hasLinkedInAuth() } },
+                        )
+                    }
                     .describe {
                         summary = "User login"
                         description = "Authenticate user and get JWT token"
@@ -223,7 +232,7 @@ fun startServer(
 
             // Protected routes
             authenticate("auth-jwt") {
-                get("/api/protected") { authModule.protectedRoute(call) }
+                get("/api/protected") { protectedRoute(call) }
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
