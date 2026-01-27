@@ -42,11 +42,6 @@ private val LOOM_DISPATCHER: CoroutineDispatcher
         }
 
 suspend fun <T> blockingIO(block: suspend () -> T): T =
-    withContext(NonCancellable + LOOM_DISPATCHER) {
-        block()
-    }
+    withContext(NonCancellable + LOOM_DISPATCHER) { block() }
 
-suspend fun <T> interruptibleIO(block: () -> T): T =
-    runInterruptible(LOOM_DISPATCHER) {
-        block()
-    }
+suspend fun <T> interruptibleIO(block: () -> T): T = runInterruptible(LOOM_DISPATCHER) { block() }
