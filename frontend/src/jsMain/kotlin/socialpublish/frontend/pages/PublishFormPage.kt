@@ -40,13 +40,6 @@ fun PublishFormPage() {
 
         Div(attrs = { classes("publish-form") }) {
             Section(attrs = { classes("section") }) {
-                Div(attrs = { classes("container", "block") }) {
-                    H1(attrs = { classes("title") }) { Text("Social Publish") }
-                    P(attrs = { classes("subtitle") }) {
-                        Text("Spam all your social media accounts at once!")
-                    }
-                }
-
                 Div(attrs = { classes("container") }) {
                     PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
                 }
