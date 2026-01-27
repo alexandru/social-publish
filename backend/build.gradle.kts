@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     application
+    id("org.jetbrains.kotlinx.kover")
 }
 
 group = "socialpublish.backend"
@@ -98,6 +99,16 @@ tasks.withType<Test> {
     useJUnitPlatform()
     // Ensure tests run with Java 21
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    // Generate coverage even if tests fail
+    ignoreFailures = true
+}
+
+// Ensure coverage reports are generated after tests
+tasks.named("koverXmlReport") {
+    mustRunAfter(tasks.withType<Test>())
+}
+tasks.named("koverHtmlReport") {
+    mustRunAfter(tasks.withType<Test>())
 }
 
 application { mainClass.set("socialpublish.backend.MainKt") }

@@ -4,6 +4,7 @@ plugins {
     kotlin("plugin.serialization") version "2.3.0" apply false
     id("com.github.ben-manes.versions") version "0.53.0" apply false
     id("com.ncorti.ktfmt.gradle") version "0.25.0" apply false
+    id("org.jetbrains.kotlinx.kover") version "0.9.1" apply false
 }
 
 allprojects {
