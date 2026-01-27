@@ -33,7 +33,13 @@ private val logger = KotlinLogging.logger {}
 
 @Serializable data class UserResponse(val username: String)
 
-class AuthRoutes(val config: ServerAuthConfig) {
+class AuthRoutes(
+    private val config: ServerAuthConfig,
+    private val twitterAuthProvider: (suspend () -> Boolean)? = null,
+    private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
+) {
+    private val authModule = AuthModule(config.jwtSecret)
+
     suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
         when (call.request.contentType()) {
             ContentType.Application.Json -> {
@@ -55,12 +61,7 @@ class AuthRoutes(val config: ServerAuthConfig) {
             }
         }
 
-    suspend fun loginRoute(
-        authModule: AuthModule,
-        call: ApplicationCall,
-        twitterAuthProvider: (suspend () -> Boolean)? = null,
-        linkedInAuthProvider: (suspend () -> Boolean)? = null,
-    ) {
+    suspend fun loginRoute(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid credentials"))

@@ -87,9 +87,12 @@ fun startServer(
         }
     val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
-    val authModule = AuthModule(config.server.auth.jwtSecret)
-    val authRoutes = AuthRoutes(config.server.auth)
-
+    val authRoutes =
+        AuthRoutes(
+            config = config.server.auth,
+            twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
+            linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
+        )
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
 
@@ -194,14 +197,7 @@ fun startServer(
 
             // Authentication routes
             rateLimit(RateLimitName("login")) {
-                post("/api/login") {
-                        authRoutes.loginRoute(
-                            authModule,
-                            call,
-                            twitterModule?.let { { it.hasTwitterAuth() } },
-                            linkedInModule?.let { { it.hasLinkedInAuth() } },
-                        )
-                    }
+                post("/api/login") { authRoutes.loginRoute(call) }
                     .describe {
                         summary = "User login"
                         description = "Authenticate user and get JWT token"

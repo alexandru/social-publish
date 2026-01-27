@@ -8,7 +8,7 @@ import java.util.Date
 
 private val logger = KotlinLogging.logger {}
 
-class AuthModule(val jwtSecret: String) {
+class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
 
     /** Generate JWT token for authenticated user */
