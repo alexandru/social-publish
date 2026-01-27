@@ -49,3 +49,19 @@ jobs:
           min-coverage-changed-files: 0
           title: Code Coverage Report
           update-comment: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/build/reports/tests/test/
+          retention-days: 30
+
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/build/reports/kover/html/
+          retention-days: 30
