@@ -5,12 +5,11 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
-import socialpublish.backend.server.ServerAuthConfig
 
 private val logger = KotlinLogging.logger {}
 
-class AuthModule(val config: ServerAuthConfig) {
-    private val algorithm = Algorithm.HMAC256(config.jwtSecret)
+class AuthModule(val jwtSecret: String) {
+    private val algorithm = Algorithm.HMAC256(jwtSecret)
 
     /** Generate JWT token for authenticated user */
     fun generateToken(username: String): String {

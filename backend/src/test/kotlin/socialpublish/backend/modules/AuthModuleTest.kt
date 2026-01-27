@@ -22,10 +22,9 @@ import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.configureAuth
-import socialpublish.backend.server.routes.loginRoute
-import socialpublish.backend.server.routes.protectedRoute
 
 class AuthModuleTest {
     // Use a BCrypt hash for "testpass" for all tests
@@ -39,7 +38,7 @@ class AuthModuleTest {
 
     @Test
     fun `should generate valid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
         val token = authModule.generateToken("testuser")
 
         assertNotNull(token)
@@ -48,7 +47,7 @@ class AuthModuleTest {
 
     @Test
     fun `should verify valid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
         val token = authModule.generateToken("testuser")
         val username = authModule.verifyToken(token)
 
@@ -57,7 +56,7 @@ class AuthModuleTest {
 
     @Test
     fun `should reject invalid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
         val username = authModule.verifyToken("invalid-token")
 
         assertEquals(null, username)
@@ -66,11 +65,12 @@ class AuthModuleTest {
     @Test
     fun `login should work with correct password`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
+            val authRoute = AuthRoutes(config)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call) } }
+                routing { post("/api/login") { authRoute.loginRoute(authModule, call) } }
             }
 
             val response =
@@ -95,11 +95,12 @@ class AuthModuleTest {
             )
 
         testApplication {
-            val authModule = AuthModule(testConfig)
+            val authModule = AuthModule(testConfig.jwtSecret)
+            val authRoute = AuthRoutes(testConfig)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call) } }
+                routing { post("/api/login") { authRoute.loginRoute(authModule, call) } }
             }
 
             val response =
@@ -124,11 +125,12 @@ class AuthModuleTest {
             )
 
         testApplication {
-            val authModule = AuthModule(testConfig)
+            val authModule = AuthModule(testConfig.jwtSecret)
+            val authRoute = AuthRoutes(testConfig)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call) } }
+                routing { post("/api/login") { authRoute.loginRoute(authModule, call) } }
             }
 
             val response =
@@ -144,11 +146,14 @@ class AuthModuleTest {
     @Test
     fun `login should return twitter auth status`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
+            val authRoute = AuthRoutes(config)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call, { true }, null) } }
+                routing {
+                    post("/api/login") { authRoute.loginRoute(authModule, call, { true }, null) }
+                }
             }
 
             val response =
@@ -168,11 +173,14 @@ class AuthModuleTest {
     @Test
     fun `login should return linkedin auth status`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
+            val authRoute = AuthRoutes(config)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call, null, { true }) } }
+                routing {
+                    post("/api/login") { authRoute.loginRoute(authModule, call, null, { true }) }
+                }
             }
 
             val response =
@@ -192,11 +200,12 @@ class AuthModuleTest {
     @Test
     fun `login should work with form-urlencoded data`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
+            val authRoute = AuthRoutes(config)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call) } }
+                routing { post("/api/login") { authRoute.loginRoute(authModule, call) } }
             }
 
             val response =
@@ -212,13 +221,16 @@ class AuthModuleTest {
     @Test
     fun `should accept access token query param`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
 
             application {
                 install(ContentNegotiation) { json() }
                 configureAuth(config)
+                val authRoutes = AuthRoutes(config)
                 routing {
-                    authenticate("auth-jwt") { get("/api/protected") { protectedRoute(call) } }
+                    authenticate("auth-jwt") {
+                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    }
                 }
             }
 
@@ -233,20 +245,22 @@ class AuthModuleTest {
     fun `hashPassword should generate valid BCrypt hash`() {
         val password = "mySecurePassword123"
         val hash = AuthModule.hashPassword(password)
+        println("Hash: $hash")
 
         // Verify it's a valid BCrypt hash format
-        assertTrue(hash.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+")))
+        assertTrue(hash.matches(Regex("^\\$2[ayb]\\$\\d{2}\$.+")))
 
         // Verify the hash can be used to authenticate
         val testConfig =
             ServerAuthConfig(username = "user", passwordHash = hash, jwtSecret = "secret")
 
         testApplication {
-            val authModule = AuthModule(testConfig)
+            val authModule = AuthModule(testConfig.jwtSecret)
+            val authRoute = AuthRoutes(testConfig)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { loginRoute(authModule, call) } }
+                routing { post("/api/login") { authRoute.loginRoute(authModule, call) } }
             }
 
             val response =
