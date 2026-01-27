@@ -27,6 +27,17 @@ fun LoginPage() {
 
     val scope = rememberCoroutineScope()
 
+    // Check for redirect query param and validate it's a safe internal path
+    val redirectParam = remember {
+        val redirect = URLSearchParams(window.location.search).get("redirect")
+        // Only allow internal paths that start with '/' and don't contain '..'
+        if (redirect != null && redirect.startsWith("/") && !redirect.contains("..")) {
+            redirect
+        } else {
+            null
+        }
+    }
+
     val handleSubmit: () -> Unit = {
         scope.launch {
             isLoading = true
@@ -67,6 +78,13 @@ fun LoginPage() {
         Section(attrs = { classes("section") }) {
             Div(attrs = { classes("container") }) {
                 H1(attrs = { classes("title") }) { Text("Login") }
+
+                // Show info notification if redirected from a protected page
+                if (redirectParam != null) {
+                    Div(attrs = { classes("notification", "is-info", "is-light") }) {
+                        Text("You need to log in to access this page.")
+                    }
+                }
 
                 Form(
                     attrs = {
