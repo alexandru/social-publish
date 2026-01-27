@@ -57,17 +57,16 @@ object Storage {
     }
 
     fun setJwtToken(token: String) {
-        // No expiration - cookie persists indefinitely (session cookie that survives browser
-        // restart)
         // Using SameSite=Lax for better compatibility with redirects while maintaining good
         // security
         // Secure flag is optional to allow development over HTTP (will work over HTTPS in
         // production)
         val isHttps = kotlinx.browser.window.location.protocol == "https:"
+        val expirationMillis = 1L * 365 * 24 * 60 * 60 * 1000 // 1 year
         setCookie(
             ACCESS_TOKEN_COOKIE,
             token,
-            expirationMillis = null,
+            expirationMillis = expirationMillis,
             secure = isHttps,
             sameSite = "Lax",
         )
