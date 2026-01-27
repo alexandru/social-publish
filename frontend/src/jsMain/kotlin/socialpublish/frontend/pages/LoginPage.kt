@@ -27,9 +27,16 @@ fun LoginPage() {
 
     val scope = rememberCoroutineScope()
 
-    // Check for redirect query param
-    val searchParams = URLSearchParams(window.location.search)
-    val redirectParam = searchParams.get("redirect")
+    // Check for redirect query param and validate it's a safe internal path
+    val redirectParam = remember {
+        val redirect = URLSearchParams(window.location.search).get("redirect")
+        // Only allow internal paths that start with '/' and don't contain '..'
+        if (redirect != null && redirect.startsWith("/") && !redirect.contains("..")) {
+            redirect
+        } else {
+            null
+        }
+    }
 
     val handleSubmit: () -> Unit = {
         scope.launch {
