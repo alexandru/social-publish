@@ -28,5 +28,8 @@ kotlin-js-store/
 *.nar
 hs_err_pid*
 
+# Kover coverage reports
+.kover/
+
 # Local development junk
 var/

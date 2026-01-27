@@ -27,5 +27,41 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build and run tests
-        run: ./gradlew check --no-daemon
+      - name: Build and run tests with coverage
+        run: ./gradlew check koverXmlReport koverHtmlReport --no-daemon
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./backend/build/reports/kover/report.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Add coverage comment to PR
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jacoco-report@v1.7.1
+        with:
+          paths: ./backend/build/reports/kover/report.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+          title: Code Coverage Report
+          update-comment: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/build/reports/tests/test/
+          retention-days: 30
+
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/build/reports/kover/html/
+          retention-days: 30
