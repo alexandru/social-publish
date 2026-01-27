@@ -28,9 +28,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build and run tests with coverage
-        run: |
-          ./gradlew check --no-daemon || true
-          ./gradlew koverXmlReport koverHtmlReport --continue --no-daemon || true
+        run: ./gradlew check koverXmlReport koverHtmlReport --no-daemon
+        continue-on-error: true
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5

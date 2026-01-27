@@ -104,12 +104,9 @@ tasks.withType<Test> {
 }
 
 // Ensure coverage reports are generated after tests
-tasks.named("koverXmlReport") {
-    mustRunAfter(tasks.withType<Test>())
-}
-tasks.named("koverHtmlReport") {
-    mustRunAfter(tasks.withType<Test>())
-}
+tasks.named("koverXmlReport") { mustRunAfter(tasks.withType<Test>()) }
+
+tasks.named("koverHtmlReport") { mustRunAfter(tasks.withType<Test>()) }
 
 application { mainClass.set("socialpublish.backend.MainKt") }
 
