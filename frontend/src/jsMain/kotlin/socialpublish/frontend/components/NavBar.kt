@@ -32,7 +32,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                 },
             ) {
                 Img(
-                    src = "/assets/logos/cloud-48x48.png",
+                    src = "/assets/logos/cloud-192x192.png",
                     attrs = {
                         attr("alt", "Social Publish Logo")
                         style {
