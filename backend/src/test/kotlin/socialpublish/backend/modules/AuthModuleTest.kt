@@ -328,6 +328,9 @@ class AuthModuleTest {
     @Test
     fun `hashPassword with different rounds should produce different hashes`() {
         val password = "testPassword"
+        // Use lower rounds (4, 8) for faster test execution
+        // This test verifies that different rounds produce different hashes,
+        // not password strength. Production code uses rounds = 12 by default.
         val hash1 = AuthModule.hashPassword(password, rounds = 4)
         val hash2 = AuthModule.hashPassword(password, rounds = 8)
 
