@@ -9,16 +9,16 @@
   "description": "Share to multiple social media platforms at the same time.",
   "icons": [
     {
+      "src": "assets/logos/cloud-48x48.webp",
+      "sizes": "48x48",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
       "src": "assets/logos/cloud-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/logos/cloud-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "assets/logos/cloud-256x256.png",
@@ -27,16 +27,34 @@
       "purpose": "any"
     },
     {
-      "src": "assets/logos/cloud-48x48.webp",
-      "sizes": "48x48",
-      "type": "image/webp",
+      "src": "assets/logos/cloud-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "assets/logos/cloud-192x192m.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/logos/cloud-256x256m.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/logos/cloud-512x512m.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "assets/logos/cloud.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "maskable any"
+      "purpose": "any"
     }
   ]
 }
