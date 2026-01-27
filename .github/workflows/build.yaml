@@ -29,7 +29,6 @@ jobs:
 
       - name: Build and run tests with coverage
         run: ./gradlew check koverXmlReport koverHtmlReport --no-daemon
-        continue-on-error: true
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5

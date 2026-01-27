@@ -99,7 +99,8 @@ tasks.withType<Test> {
     useJUnitPlatform()
     // Ensure tests run with Java 21
     javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
-    // Generate coverage even if tests fail
+    // Allow coverage to be generated even if tests fail
+    // This ensures kover tasks can run and generate reports for CI
     ignoreFailures = true
 }
 
