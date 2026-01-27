@@ -5,9 +5,6 @@ import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withContext
 
 /**
  * A coroutine dispatcher based on Java Virtual Threads (Project Loom).
@@ -40,8 +37,3 @@ private val LOOM_DISPATCHER: CoroutineDispatcher
 
             override fun toString() = "Dispatchers.LOOM"
         }
-
-suspend fun <T> blockingIO(block: suspend () -> T): T =
-    withContext(NonCancellable + LOOM_DISPATCHER) { block() }
-
-suspend fun <T> interruptibleIO(block: () -> T): T = runInterruptible(LOOM_DISPATCHER) { block() }
