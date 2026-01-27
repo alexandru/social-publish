@@ -27,6 +27,10 @@ fun LoginPage() {
 
     val scope = rememberCoroutineScope()
 
+    // Check for redirect query param
+    val searchParams = URLSearchParams(window.location.search)
+    val redirectParam = searchParams.get("redirect")
+
     val handleSubmit: () -> Unit = {
         scope.launch {
             isLoading = true
@@ -67,6 +71,13 @@ fun LoginPage() {
         Section(attrs = { classes("section") }) {
             Div(attrs = { classes("container") }) {
                 H1(attrs = { classes("title") }) { Text("Login") }
+
+                // Show info notification if redirected from a protected page
+                if (redirectParam != null) {
+                    Div(attrs = { classes("notification", "is-info", "is-light") }) {
+                        Text("You need to log in to access this page.")
+                    }
+                }
 
                 Form(
                     attrs = {
