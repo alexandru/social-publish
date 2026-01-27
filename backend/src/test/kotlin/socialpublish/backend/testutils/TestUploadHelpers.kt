@@ -23,7 +23,7 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.modules.FileUploadResponse
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.utils.LOOM
+import socialpublish.backend.utils.LoomIO
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
 
@@ -63,7 +63,7 @@ internal fun loadTestResourceBytes(resourceName: String): ByteArray {
 
 internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
     val tempFile =
-        runInterruptible(Dispatchers.LOOM) {
+        runInterruptible(Dispatchers.LoomIO) {
             File.createTempFile("test-", ".tmp").apply { writeBytes(bytes) }
         }
     try {
@@ -75,7 +75,7 @@ internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
             }
         return ImageDimensions(width = size.width, height = size.height)
     } finally {
-        runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
+        runInterruptible(Dispatchers.LoomIO) { tempFile.delete() }
     }
 }
 

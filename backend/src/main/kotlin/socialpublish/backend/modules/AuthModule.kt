@@ -50,10 +50,6 @@ class AuthModule(jwtSecret: String) {
         }
     }
 
-    // AuthModule is framework-agnostic and contains core utilities only.
-    // Any integration-specific checks (e.g. Twitter/LinkedIn auth status) should
-    // be provided by the server routes or integration modules.
-
     companion object {
         /** JWT token expiration duration in milliseconds (6 months = ~180 days) */
         private const val JWT_EXPIRATION_MILLIS = 180L * 24 * 60 * 60 * 1000

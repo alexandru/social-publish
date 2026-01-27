@@ -24,7 +24,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
-import socialpublish.backend.utils.LOOM
+import socialpublish.backend.utils.LoomIO
 
 private val logger = KotlinLogging.logger {}
 
@@ -36,7 +36,7 @@ private val logger = KotlinLogging.logger {}
 data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: String) {
     companion object {
         /** Dispatcher used for all database operations (virtual threads). */
-        val Dispatcher = Dispatchers.LOOM
+        val Dispatcher = Dispatchers.LoomIO
 
         /**
          * Creates a database connection and runs migrations.
