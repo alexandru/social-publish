@@ -47,7 +47,10 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                             property("font-weight", "bold")
                             property("font-size", "1.25rem")
                             property("color", "#224e72")
-                            property("text-shadow", "1px 1px 2px rgba(0, 0, 0, 0.2), -0.5px -0.5px 1px rgba(255, 255, 255, 0.3)")
+                            property(
+                                "text-shadow",
+                                "1px 1px 2px rgba(0, 0, 0, 0.2), -0.5px -0.5px 1px rgba(255, 255, 255, 0.3)",
+                            )
                         }
                     }
                 ) {
