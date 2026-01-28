@@ -120,7 +120,6 @@ fun TextAreaField(
  * @param checked Whether the checkbox is checked
  * @param onCheckedChange Callback when checked state changes
  * @param disabled Whether the checkbox is disabled
- * @param helpContent Optional help content displayed below the checkbox
  */
 @Composable
 fun CheckboxField(

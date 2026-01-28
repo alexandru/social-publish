@@ -7,6 +7,7 @@ import org.jetbrains.compose.web.dom.Text
 
 private val UrlRegex = Regex("(https?://\\S+)")
 
+@Suppress("unused")
 private fun codePointLength(text: String): Int = js("Array.from(text).length") as Int
 
 fun buildPostText(content: String, link: String): String {
@@ -19,14 +20,6 @@ fun countCharactersWithLinks(text: String, linkLength: Int = 25): Int {
     val textWithoutLinks = UrlRegex.replace(text, "")
     val baseCount = codePointLength(textWithoutLinks)
     return baseCount + (matches.size * linkLength)
-}
-
-@Composable
-fun ServiceCharacterCounter(label: String, remaining: Int) {
-    val classNames = if (remaining < 0) listOf("help", "is-danger") else listOf("help")
-    P(attrs = { classes(*classNames.toTypedArray()) }) {
-        Text("$label characters left: $remaining")
-    }
 }
 
 @Composable

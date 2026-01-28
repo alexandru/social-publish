@@ -2,8 +2,8 @@ package socialpublish.frontend
 
 import androidx.compose.runtime.*
 import kotlinx.browser.window
-import org.jetbrains.compose.web.css.*
-import org.jetbrains.compose.web.dom.*
+import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Main
 import org.jetbrains.compose.web.renderComposable
 import socialpublish.frontend.components.NavBar
 import socialpublish.frontend.pages.*
