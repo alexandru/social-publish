@@ -237,9 +237,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         .sortedBy { it.id }
                         .forEach { image ->
                             Div(
-                                attrs = {
-                                    classes("column", "is-half-tablet", "is-half-desktop")
-                                }
+                                attrs = { classes("column", "is-half-tablet", "is-half-desktop") }
                             ) {
                                 key(image.id) {
                                     ImageUpload(
