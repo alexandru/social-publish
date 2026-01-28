@@ -238,7 +238,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         .forEach { image ->
                             Div(
                                 attrs = {
-                                    classes("column", "is-half-tablet", "is-one-third-desktop")
+                                    classes("column", "is-half-tablet", "is-half-desktop")
                                 }
                             ) {
                                 key(image.id) {
