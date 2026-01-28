@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
+import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
@@ -118,53 +119,40 @@ fun AccountPage() {
             }
         }
 
-        Div(
-            attrs = {
-                classes("account")
-                id("account")
+        PageContainer("account") {
+            Div(attrs = { classes("block") }) {
+                H1(attrs = { classes("title") }) { Text("Account Settings") }
             }
-        ) {
-            Section(attrs = { classes("section") }) {
-                Div(attrs = { classes("container", "is-max-desktop") }) {
-                    Div(attrs = { classes("block") }) {
-                        H1(attrs = { classes("title") }) { Text("Account Settings") }
+
+            Div(attrs = { classes("box") }) {
+                H2(attrs = { classes("subtitle") }) { Text("Social Accounts") }
+                Button(
+                    attrs = {
+                        classes("button", "is-link")
+                        onClick { authorizeTwitter() }
                     }
-
-                    Div(attrs = { classes("box") }) {
-                        H2(attrs = { classes("subtitle") }) { Text("Social Accounts") }
-                        Button(
-                            attrs = {
-                                classes("button", "is-link")
-                                onClick { authorizeTwitter() }
-                            }
-                        ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fab", "fa-x-twitter") })
-                            }
-                            Span(attrs = { style { fontWeight("bold") } }) {
-                                Text("Connect X (Twitter)")
-                            }
-                        }
-                        P(attrs = { classes("help") }) { Text(twitterStatus) }
-
-                        Br()
-
-                        Button(
-                            attrs = {
-                                classes("button", "is-info")
-                                onClick { authorizeLinkedIn() }
-                            }
-                        ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fa-brands", "fa-square-linkedin") })
-                            }
-                            Span(attrs = { style { fontWeight("bold") } }) {
-                                Text("Connect LinkedIn")
-                            }
-                        }
-                        P(attrs = { classes("help") }) { Text(linkedInStatus) }
+                ) {
+                    Span(attrs = { classes("icon") }) {
+                        I(attrs = { classes("fab", "fa-x-twitter") })
                     }
+                    Span(attrs = { style { fontWeight("bold") } }) { Text("Connect X (Twitter)") }
                 }
+                P(attrs = { classes("help") }) { Text(twitterStatus) }
+
+                Br()
+
+                Button(
+                    attrs = {
+                        classes("button", "is-info")
+                        onClick { authorizeLinkedIn() }
+                    }
+                ) {
+                    Span(attrs = { classes("icon") }) {
+                        I(attrs = { classes("fa-brands", "fa-square-linkedin") })
+                    }
+                    Span(attrs = { style { fontWeight("bold") } }) { Text("Connect LinkedIn") }
+                }
+                P(attrs = { classes("help") }) { Text(linkedInStatus) }
             }
         }
     }
