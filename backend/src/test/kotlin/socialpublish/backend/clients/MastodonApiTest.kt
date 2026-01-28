@@ -25,7 +25,6 @@ import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
@@ -100,7 +99,6 @@ class MastodonApiTest {
             assertEquals(listOf("media-1", "media-2"), statusMediaIds)
             assertEquals(2, uploadedImages.size)
 
-            
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)

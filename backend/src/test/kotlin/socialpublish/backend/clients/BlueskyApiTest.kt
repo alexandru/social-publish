@@ -153,7 +153,6 @@ class BlueskyApiTest {
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
 
-            
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)
