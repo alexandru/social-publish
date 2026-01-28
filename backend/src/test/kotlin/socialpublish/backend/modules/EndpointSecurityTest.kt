@@ -21,6 +21,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.configureAuth
 
 class EndpointSecurityTest {
     // Use reduced BCrypt rounds for test performance (production uses 12)
@@ -38,7 +40,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -57,7 +60,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -77,11 +81,12 @@ class EndpointSecurityTest {
     @Test
     fun `protected endpoint should accept requests with valid token`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -102,7 +107,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         post("/api/files/upload") { call.respondText("Uploaded") }
@@ -122,11 +128,12 @@ class EndpointSecurityTest {
     @Test
     fun `protected POST endpoint should accept requests with valid token`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         post("/api/submit") { call.respondText("Submitted") }
@@ -149,11 +156,12 @@ class EndpointSecurityTest {
     @Test
     fun `token should be accepted via query parameter`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -171,14 +179,15 @@ class EndpointSecurityTest {
     @Test
     fun `JWT token should contain username claim`() {
         testApplication {
-            val authModule = AuthModule(config)
+            val authModule = AuthModule(config.jwtSecret)
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
+                val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
-                        get("/api/protected") { authModule.protectedRoute(call) }
+                        get("/api/protected") { authRoutes.protectedRoute(call) }
                     }
                 }
             }
@@ -195,7 +204,7 @@ class EndpointSecurityTest {
 
     @Test
     fun `different users should have different tokens`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
 
         val token1 = authModule.generateToken("user1")
         val token2 = authModule.generateToken("user2")
@@ -216,7 +225,7 @@ class EndpointSecurityTest {
         // This test verifies that tokens with expiration are created properly
         // In a real scenario, we'd need to mock time or wait, but we can at least verify
         // that the token contains an expiration claim
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
         val token = authModule.generateToken("testuser")
 
         // Token should verify immediately
@@ -230,7 +239,7 @@ class EndpointSecurityTest {
 
     @Test
     fun `tampered token should be rejected`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(config.jwtSecret)
         val validToken = authModule.generateToken("testuser")
 
         // Tamper with the token by changing one character

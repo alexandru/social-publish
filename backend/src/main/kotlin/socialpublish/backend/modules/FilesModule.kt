@@ -29,16 +29,12 @@ import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
 import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
-import socialpublish.backend.utils.LOOM
+import socialpublish.backend.utils.LoomIO
 import socialpublish.backend.utils.sanitizeFilename
 
 private val logger = KotlinLogging.logger {}
 
 @Serializable data class FileUploadResponse(val uuid: String, val url: String)
-
-@Serializable data class UpdateAltTextRequest(val altText: String)
-
-@Serializable data class UpdateAltTextResponse(val success: Boolean)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -67,7 +63,7 @@ private constructor(
             val imageMagick =
                 ImageMagick().getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
             val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
-            runInterruptible(Dispatchers.LOOM) {
+            runInterruptible(Dispatchers.LoomIO) {
                 ref.uploadedFilesPath.mkdirs()
                 ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
@@ -97,7 +93,7 @@ private constructor(
                             if (part.name == "file") {
                                 fileName = part.originalFileName ?: "unknown"
                                 fileBytes =
-                                    withContext(Dispatchers.LOOM) {
+                                    withContext(Dispatchers.LoomIO) {
                                         part.provider().readRemaining().readByteArray()
                                     }
                             }
@@ -151,7 +147,7 @@ private constructor(
                     .getOrElse { throw it }
 
             // Save both original and processed files to disk
-            runInterruptible(Dispatchers.LOOM) {
+            runInterruptible(Dispatchers.LoomIO) {
                 // Save original unprocessed file
                 val originalFilePath = File(originalPath, upload.hash)
                 originalFilePath.writeBytes(fileBytes)
@@ -211,7 +207,7 @@ private constructor(
         val filePath = File(processedPath, upload.hash)
 
         val bytes =
-            runInterruptible(Dispatchers.LOOM) {
+            runInterruptible(Dispatchers.LoomIO) {
                 if (!filePath.exists()) {
                     null
                 } else {
@@ -231,7 +227,7 @@ private constructor(
     }
 
     private suspend fun detectImageFormat(bytes: ByteArray): String? {
-        return runInterruptible(Dispatchers.LOOM) {
+        return runInterruptible(Dispatchers.LoomIO) {
             try {
                 val mimeType = Tika().detect(bytes).lowercase()
                 when {
@@ -264,13 +260,13 @@ private constructor(
         return try {
             // Write bytes to temp file for ImageMagick processing
             val sourceFile =
-                runInterruptible(Dispatchers.LOOM) {
+                runInterruptible(Dispatchers.LoomIO) {
                     File.createTempFile("upload-source-", ".tmp").apply { writeBytes(bytes) }
                 }
             try {
                 // Optimize image using ImageMagick (resizes to max 1600x1600, compresses)
                 val optimizedFile =
-                    runInterruptible(Dispatchers.LOOM) {
+                    runInterruptible(Dispatchers.LoomIO) {
                         File.createTempFile("upload-optimized-", ".tmp").apply {
                             delete() // Delete the file, we just want the path
                         }
@@ -279,7 +275,7 @@ private constructor(
                     imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse { throw it }
 
                     val optimizedBytes =
-                        runInterruptible(Dispatchers.LOOM) { optimizedFile.readBytes() }
+                        runInterruptible(Dispatchers.LoomIO) { optimizedFile.readBytes() }
 
                     val size =
                         imageMagick.identifyImageSize(optimizedFile).getOrElse {
@@ -297,16 +293,16 @@ private constructor(
                         bytes = optimizedBytes,
                     )
                 } finally {
-                    runInterruptible(Dispatchers.LOOM) { optimizedFile.delete() }
+                    runInterruptible(Dispatchers.LoomIO) { optimizedFile.delete() }
                 }
             } finally {
-                runInterruptible(Dispatchers.LOOM) { sourceFile.delete() }
+                runInterruptible(Dispatchers.LoomIO) { sourceFile.delete() }
             }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to optimize image, using original" }
             // Fallback to using original if optimization fails
             val tempFile =
-                runInterruptible(Dispatchers.LOOM) {
+                runInterruptible(Dispatchers.LoomIO) {
                     File.createTempFile("upload-fallback-", ".tmp").apply { writeBytes(bytes) }
                 }
             try {
@@ -325,7 +321,7 @@ private constructor(
                     bytes = bytes,
                 )
             } finally {
-                runInterruptible(Dispatchers.LOOM) { tempFile.delete() }
+                runInterruptible(Dispatchers.LoomIO) { tempFile.delete() }
             }
         }
     }

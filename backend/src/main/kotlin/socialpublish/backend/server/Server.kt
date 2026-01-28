@@ -53,6 +53,11 @@ import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
+import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.LoginRequest
+import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.UserResponse
+import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.utils.*
 
 private val logger = KotlinLogging.logger {}
@@ -82,13 +87,12 @@ fun startServer(
         }
     val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
-    val authModule =
-        AuthModule(
-            config.server.auth,
+    val authRoutes =
+        AuthRoutes(
+            config = config.server.auth,
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
             linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
-
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
 
@@ -157,7 +161,7 @@ fun startServer(
         }
 
         // Configure JWT authentication
-        configureAuth(config.server.auth)
+        configureAuth(authRoutes)
         // Configure OpenAPI / Swagger documentation
         configureOpenApiSecuritySchemes()
 
@@ -193,7 +197,7 @@ fun startServer(
 
             // Authentication routes
             rateLimit(RateLimitName("login")) {
-                post("/api/login") { authModule.login(call) }
+                post("/api/login") { authRoutes.loginRoute(call) }
                     .describe {
                         summary = "User login"
                         description = "Authenticate user and get JWT token"
@@ -223,7 +227,7 @@ fun startServer(
 
             // Protected routes
             authenticate("auth-jwt") {
-                get("/api/protected") { authModule.protectedRoute(call) }
+                get("/api/protected") { authRoutes.protectedRoute(call) }
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
@@ -519,7 +523,7 @@ fun startServer(
                 get("/api/twitter/authorize") {
                         if (twitterModule != null) {
                             val token =
-                                extractJwtToken(call)
+                                authRoutes.extractJwtToken(call)
                                     ?: run {
                                         call.respond(
                                             HttpStatusCode.Unauthorized,
@@ -577,7 +581,7 @@ fun startServer(
                 get("/api/linkedin/authorize") {
                         if (linkedInModule != null) {
                             val token =
-                                extractJwtToken(call)
+                                authRoutes.extractJwtToken(call)
                                     ?: run {
                                         call.respond(
                                             HttpStatusCode.Unauthorized,

@@ -367,14 +367,7 @@ class CheckPasswordCommand : CliktCommand(name = "check-password") {
             .prompt("Enter password to check", hideInput = true, requireConfirmation = false)
 
     override fun run() {
-        val authModule =
-            AuthModule(
-                ServerAuthConfig(
-                    username = "dummy",
-                    passwordHash = serverAuthPassword.trim(),
-                    jwtSecret = "dummy",
-                )
-            )
+        val authModule = AuthModule("dummy")
 
         // Use reflection to access the private verifyPassword method
         val verifyMethod =

@@ -2,13 +2,6 @@ package socialpublish.backend.models
 
 import kotlinx.serialization.Serializable
 
-enum class Target {
-    MASTODON,
-    BLUESKY,
-    TWITTER,
-    LINKEDIN,
-}
-
 @Serializable
 data class NewPostRequest(
     val content: String,

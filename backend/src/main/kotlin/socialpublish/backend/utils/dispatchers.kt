@@ -14,7 +14,10 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
  *
  * Requires Java 21 or later.
  */
-val Dispatchers.LOOM: CoroutineDispatcher
+val Dispatchers.LoomIO: CoroutineDispatcher
+    get() = LOOM_DISPATCHER
+
+private val LOOM_DISPATCHER: CoroutineDispatcher
     get() =
         object : ExecutorCoroutineDispatcher(), Executor {
             override val executor: Executor

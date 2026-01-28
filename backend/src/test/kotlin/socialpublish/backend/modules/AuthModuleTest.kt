@@ -1,41 +1,16 @@
 package socialpublish.backend.modules
 
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.install
-import io.ktor.server.auth.authenticate
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.routing
-import io.ktor.server.testing.testApplication
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import socialpublish.backend.server.ServerAuthConfig
 
 class AuthModuleTest {
-    // Use a BCrypt hash for "testpass" for all tests
-    private val testPasswordHash = AuthModule.hashPassword("testpass", rounds = 10)
-    private val config =
-        ServerAuthConfig(
-            username = "testuser",
-            passwordHash = testPasswordHash,
-            jwtSecret = "test-secret",
-        )
+    private val jwtSecret = "test-secret"
 
     @Test
     fun `should generate valid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(jwtSecret)
         val token = authModule.generateToken("testuser")
 
         assertNotNull(token)
@@ -44,7 +19,7 @@ class AuthModuleTest {
 
     @Test
     fun `should verify valid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(jwtSecret)
         val token = authModule.generateToken("testuser")
         val username = authModule.verifyToken(token)
 
@@ -53,134 +28,37 @@ class AuthModuleTest {
 
     @Test
     fun `should reject invalid JWT token`() {
-        val authModule = AuthModule(config)
+        val authModule = AuthModule(jwtSecret)
         val username = authModule.verifyToken("invalid-token")
 
         assertEquals(null, username)
     }
 
     @Test
-    fun `login should work with correct password`() {
-        testApplication {
-            val authModule = AuthModule(config)
+    fun `verifyToken should reject token signed with different secret`() {
+        val authModule1 = AuthModule("secret1")
+        val authModule2 = AuthModule("secret2")
 
-            application {
-                install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
-            }
+        val token = authModule1.generateToken("testuser")
+        val username = authModule2.verifyToken(token)
 
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"testpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
+        assertEquals(null, username)
     }
 
     @Test
-    fun `login should work with BCrypt hashed password`() {
-        // Generate a fresh BCrypt hash for this test
-        val bcryptHash = AuthModule.hashPassword("testpass", rounds = 10)
-        val testConfig =
-            ServerAuthConfig(
-                username = "testuser",
-                passwordHash = bcryptHash,
-                jwtSecret = "test-secret",
-            )
+    fun `verifyToken should reject malformed token`() {
+        val authModule = AuthModule(jwtSecret)
+        val username = authModule.verifyToken("not.a.valid.jwt.token")
 
-        testApplication {
-            val authModule = AuthModule(testConfig)
-
-            application {
-                install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
-            }
-
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"testpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
+        assertEquals(null, username)
     }
 
     @Test
-    fun `login should reject wrong password with BCrypt`() {
-        // Generate a fresh BCrypt hash for this test
-        val bcryptHash = AuthModule.hashPassword("testpass", rounds = 10)
-        val testConfig =
-            ServerAuthConfig(
-                username = "testuser",
-                passwordHash = bcryptHash,
-                jwtSecret = "test-secret",
-            )
+    fun `verifyToken should reject empty token`() {
+        val authModule = AuthModule(jwtSecret)
+        val username = authModule.verifyToken("")
 
-        testApplication {
-            val authModule = AuthModule(testConfig)
-
-            application {
-                install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
-            }
-
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"wrongpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.Unauthorized, response.status)
-        }
-    }
-
-    @Test
-    fun `login should return twitter auth status`() {
-        testApplication {
-            val authModule = AuthModule(config, twitterAuthProvider = { true })
-
-            application {
-                install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
-            }
-
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"testpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-
-            val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.hasAuth.twitter)
-        }
-    }
-
-    @Test
-    fun `should accept access token query param`() {
-        testApplication {
-            val authModule = AuthModule(config)
-
-            application {
-                install(ContentNegotiation) { json() }
-                configureAuth(config)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authModule.protectedRoute(call) }
-                    }
-                }
-            }
-
-            val token = authModule.generateToken("testuser")
-            val response = client.get("/api/protected?access_token=$token")
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
+        assertEquals(null, username)
     }
 
     @Test
@@ -188,28 +66,60 @@ class AuthModuleTest {
         val password = "mySecurePassword123"
         val hash = AuthModule.hashPassword(password)
 
-        // Verify it's a valid BCrypt hash format
-        assertTrue(hash.matches(Regex("^\\$2[ayb]\\$\\d{2}\\$.+")))
+        assertNotNull(hash)
+        assertTrue(hash.startsWith("\$2"))
 
-        // Verify the hash can be used to authenticate
-        val testConfig =
-            ServerAuthConfig(username = "user", passwordHash = hash, jwtSecret = "secret")
+        val authModule = AuthModule(jwtSecret)
+        assertTrue(authModule.verifyPassword(password, hash))
+    }
 
-        testApplication {
-            val authModule = AuthModule(testConfig)
+    @Test
+    fun `hashPassword with different rounds should produce different hashes`() {
+        val password = "testPassword"
+        val hash1 = AuthModule.hashPassword(password, rounds = 4)
+        val hash2 = AuthModule.hashPassword(password, rounds = 8)
 
-            application {
-                install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authModule.login(call) } }
-            }
+        assertNotNull(hash1)
+        assertNotNull(hash2)
+        assertTrue(hash1 != hash2)
 
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"user","password":"mySecurePassword123"}""")
-                }
+        val authModule = AuthModule(jwtSecret)
+        assertTrue(authModule.verifyPassword(password, hash1))
+        assertTrue(authModule.verifyPassword(password, hash2))
+    }
 
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
+    @Test
+    fun `verifyPassword should handle trimmed stored passwords`() {
+        val authModule = AuthModule(jwtSecret)
+        val password = "myPassword"
+        val hash = AuthModule.hashPassword(password)
+
+        val verified = authModule.verifyPassword(password, "  $hash  ")
+        assertTrue(verified)
+    }
+
+    @Test
+    fun `verifyPassword should return false for incorrect password`() {
+        val authModule = AuthModule(jwtSecret)
+        val hash = AuthModule.hashPassword("correctPassword")
+
+        val verified = authModule.verifyPassword("wrongPassword", hash)
+        assertEquals(false, verified)
+    }
+
+    @Test
+    fun `verifyPassword should return false for malformed hash`() {
+        val authModule = AuthModule(jwtSecret)
+
+        val verified = authModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
+        assertEquals(false, verified)
+    }
+
+    @Test
+    fun `verifyPassword should return false for empty hash`() {
+        val authModule = AuthModule(jwtSecret)
+
+        val verified = authModule.verifyPassword("password", "")
+        assertEquals(false, verified)
     }
 }
