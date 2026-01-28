@@ -116,6 +116,20 @@ class CacheHeadersTest {
         }
     }
 
+    @Test
+    fun `missing static file returns not found`() = testApplication {
+        val tempDir = createTempDirectory("test-static").toFile()
+        try {
+            application { configureStaticFileServing(tempDir) }
+
+            val response = client.get("/missing.txt")
+
+            assertEquals(HttpStatusCode.NotFound, response.status)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
     private fun Application.configureStaticFileServing(staticDir: File) {
         routing {
             get("/{path...}") {

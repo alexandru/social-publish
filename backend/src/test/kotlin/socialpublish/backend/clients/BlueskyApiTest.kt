@@ -22,6 +22,7 @@ import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
@@ -85,27 +86,13 @@ class BlueskyApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val uploadedImages = mutableListOf<ImageDimensions>()
             var createRecordBody: JsonObject? = null
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    io.ktor.http.HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     post("/xrpc/com.atproto.server.createSession") {
                         call.respondText(
                             "{" +
@@ -166,8 +153,6 @@ class BlueskyApiTest {
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
 
-            val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
-            val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)

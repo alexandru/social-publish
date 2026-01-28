@@ -33,11 +33,6 @@ import io.ktor.server.routing.routing
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
@@ -54,6 +49,7 @@ import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.UserResponse
@@ -95,6 +91,7 @@ fun startServer(
         )
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
+    val filesRoutes = FilesRoutes(filesModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -109,38 +106,7 @@ fun startServer(
             allowCredentials = true
         }
 
-        install(ContentNegotiation) {
-            @OptIn(ExperimentalSerializationApi::class)
-            json(
-                Json {
-                    prettyPrint = true
-                    isLenient = true
-                    ignoreUnknownKeys = true
-                    encodeDefaults = true
-                    // Disable class discriminator to avoid adding "type" field
-                    classDiscriminator = "#type"
-                    classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
-                    serializersModule = SerializersModule {
-                        polymorphic(NewPostResponse::class) {
-                            subclass(NewRssPostResponse::class)
-                            subclass(NewMastodonPostResponse::class)
-                            subclass(NewBlueSkyPostResponse::class)
-                            subclass(NewTwitterPostResponse::class)
-                            subclass(NewLinkedInPostResponse::class)
-                        }
-                        // Explicitly register serializers
-                        contextual(
-                            CompositeErrorResponse::class,
-                            CompositeErrorResponse.serializer(),
-                        )
-                        contextual(
-                            CompositeErrorWithDetails::class,
-                            CompositeErrorWithDetails.serializer(),
-                        )
-                    }
-                }
-            )
-        }
+        install(ContentNegotiation) { json(serverJson()) }
 
         install(CallLogging) { level = Level.INFO }
 
@@ -245,18 +211,7 @@ fun startServer(
                     }
 
                 // File upload
-                post("/api/files/upload") {
-                        when (val result = filesModule.uploadFile(call)) {
-                            is Either.Right -> call.respond(result.value)
-                            is Either.Left -> {
-                                val error = result.value
-                                call.respond(
-                                    HttpStatusCode.fromValue(error.status),
-                                    ErrorResponse(error = error.errorMessage),
-                                )
-                            }
-                        }
-                    }
+                post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     .describe {
                         summary = "Upload file"
                         description = "Upload a file for use in posts"
@@ -729,7 +684,7 @@ fun startServer(
                     }
                 }
 
-            get("/files/{uuid}") { filesModule.getFile(call) }
+            get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
                 .describe {
                     summary = "Get uploaded file"
                     description =

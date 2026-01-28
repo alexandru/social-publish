@@ -1,64 +1,41 @@
 package socialpublish.backend.modules
 
+import arrow.core.Either
 import arrow.core.getOrElse
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
-import io.ktor.client.request.forms.submitFormWithBinaryData
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.post
-import io.ktor.server.routing.routing
-import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.models.ValidationError
 import socialpublish.backend.testutils.*
 
 class FilesModuleTest {
     @Test
-    fun `uploads images and stores originals`(@TempDir tempDir: Path) = testApplication {
+    fun `uploads images and stores originals`(@TempDir tempDir: Path) = runTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-
-        application {
-            routing {
-                post("/api/files/upload") {
-                    val result = filesModule.uploadFile(call)
-                    when (result) {
-                        is arrow.core.Either.Right ->
-                            call.respondText(
-                                Json.encodeToString(result.value),
-                                io.ktor.http.ContentType.Application.Json,
-                            )
-                        is arrow.core.Either.Left ->
-                            call.respondText(
-                                Json.encodeToString(mapOf("error" to result.value.errorMessage)),
-                                io.ktor.http.ContentType.Application.Json,
-                                HttpStatusCode.fromValue(result.value.status),
-                            )
-                    }
-                }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
+        val upload1 =
+            filesModule
+                .uploadFile(
+                    UploadedFile(
+                        fileName = "flower1.jpeg",
+                        fileBytes = loadTestResourceBytes("flower1.jpeg"),
+                        altText = "rose",
+                    )
                 )
-            }
-        }
-
-        val upload1 = uploadTestImage(client, "flower1.jpeg", "rose")
-        val upload2 = uploadTestImage(client, "flower2.jpeg", "tulip")
+                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+        val upload2 =
+            filesModule
+                .uploadFile(
+                    UploadedFile(
+                        fileName = "flower2.jpeg",
+                        fileBytes = loadTestResourceBytes("flower2.jpeg"),
+                        altText = "tulip",
+                    )
+                )
+                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
         val processed1 = requireNotNull(filesModule.readImageFile(upload1.uuid))
         val processed2 = requireNotNull(filesModule.readImageFile(upload2.uuid))
@@ -66,8 +43,6 @@ class FilesModuleTest {
         assertEquals("rose", processed1.altText)
         assertEquals("tulip", processed2.altText)
 
-        val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
-        val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
         val stored1 = imageDimensions(processed1.bytes)
         val stored2 = imageDimensions(processed2.bytes)
 
@@ -84,7 +59,6 @@ class FilesModuleTest {
         assertEquals(stored2.height, processed2.height)
 
         // Verify readImageFile returns the same optimized image
-        val uploadRow = requireNotNull(filesDb.getFileByUuid(upload1.uuid).getOrElse { throw it })
         val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid))
         val retrievedDimensions = imageDimensions(retrieved.bytes)
 
@@ -92,69 +66,63 @@ class FilesModuleTest {
         assertEquals(stored1.height, retrievedDimensions.height)
         assertEquals(retrievedDimensions.width, retrieved.width)
         assertEquals(retrievedDimensions.height, retrieved.height)
-
-        client.close()
     }
 
     @Test
-    fun `fails when file part name is incorrect`(@TempDir tempDir: Path) = testApplication {
+    fun `getFile returns stored file metadata`(@TempDir tempDir: Path) = runTest {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val upload =
+            filesModule
+                .uploadFile(
+                    UploadedFile(
+                        fileName = "flower1.jpeg",
+                        fileBytes = loadTestResourceBytes("flower1.jpeg"),
+                        altText = "rose",
+                    )
+                )
+                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+
+        val result = filesModule.getFile(upload.uuid)
+
+        assertTrue(result is Either.Right)
+        val storedFile = (result as Either.Right).value
+        assertTrue(storedFile.file.exists())
+        assertEquals("image/jpeg", storedFile.mimeType)
+        assertEquals("flower1.jpeg", storedFile.originalName)
+    }
+
+    @Test
+    fun `getFile returns not found for unknown uuid`(@TempDir tempDir: Path) = runTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
 
-        application {
-            routing {
-                post("/api/files/upload") {
-                    val result = filesModule.uploadFile(call)
-                    when (result) {
-                        is arrow.core.Either.Right ->
-                            call.respondText(
-                                Json.encodeToString(result.value),
-                                io.ktor.http.ContentType.Application.Json,
-                            )
-                        is arrow.core.Either.Left ->
-                            call.respondText(
-                                Json.encodeToString(mapOf("error" to result.value.errorMessage)),
-                                io.ktor.http.ContentType.Application.Json,
-                                HttpStatusCode.fromValue(result.value.status),
-                            )
-                    }
-                }
-            }
-        }
+        val result = filesModule.getFile("missing-uuid")
 
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
+        assertTrue(result is Either.Left)
+        val error = (result as Either.Left).value
+        assertTrue(error is ValidationError)
+        assertEquals(404, error.status)
+    }
+
+    @Test
+    fun `uploadFile rejects unsupported content`(@TempDir tempDir: Path) = runTest {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+
+        val result =
+            filesModule.uploadFile(
+                UploadedFile(
+                    fileName = "notes.txt",
+                    fileBytes = "not-an-image".toByteArray(),
+                    altText = null,
                 )
-            }
-        }
-
-        val response =
-            client.submitFormWithBinaryData(
-                url = "/api/files/upload",
-                formData =
-                    io.ktor.client.request.forms.formData {
-                        append(
-                            "wrongName",
-                            loadTestResourceBytes("flower1.jpeg"),
-                            io.ktor.http.Headers.build {
-                                append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
-                                append(
-                                    io.ktor.http.HttpHeaders.ContentDisposition,
-                                    "filename=\"flower1.jpeg\"",
-                                )
-                            },
-                        )
-                    },
             )
 
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        assertTrue(response.bodyAsText().contains("Missing file in upload"))
-
-        client.close()
+        assertTrue(result is Either.Left)
+        val error = (result as Either.Left).value
+        assertTrue(error is ValidationError)
+        assertEquals(400, error.status)
+        assertTrue(error.errorMessage.contains("Only PNG and JPEG images are supported"))
     }
 }

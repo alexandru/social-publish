@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.llm.OpenAiChatRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
@@ -31,6 +32,7 @@ class LlmApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             var receivedRequest: OpenAiChatRequest? = null
 
             application {
@@ -43,22 +45,7 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    io.ktor.http.HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     // Mock OpenAI API
                     post("/v1/chat/completions") {
                         receivedRequest = call.receive<OpenAiChatRequest>()
@@ -145,6 +132,7 @@ class LlmApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
 
             application {
                 install(ContentNegotiation) {
@@ -156,22 +144,7 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    io.ktor.http.HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     // Mock Mistral API
                     post("/v1/chat/completions") {
                         call.respondText(

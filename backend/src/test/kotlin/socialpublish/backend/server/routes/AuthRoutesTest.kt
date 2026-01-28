@@ -53,6 +53,10 @@ class AuthRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
+
+            val json = Json { ignoreUnknownKeys = true }
+            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            assertTrue(body.token.isNotBlank())
         }
     }
 

@@ -20,11 +20,11 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.models.NewMastodonPostResponse
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
@@ -34,6 +34,7 @@ class MastodonApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val uploadedImages = mutableListOf<ImageDimensions>()
             val descriptions = mutableListOf<String?>()
             var statusMediaIds: List<String>? = null
@@ -41,22 +42,7 @@ class MastodonApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    io.ktor.http.HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     post("/api/v2/media") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
@@ -113,8 +99,6 @@ class MastodonApiTest {
             assertEquals(listOf("media-1", "media-2"), statusMediaIds)
             assertEquals(2, uploadedImages.size)
 
-            val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
-            val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)

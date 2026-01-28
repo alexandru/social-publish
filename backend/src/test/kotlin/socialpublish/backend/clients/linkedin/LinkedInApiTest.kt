@@ -28,6 +28,7 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
@@ -354,22 +355,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -665,22 +651,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -766,8 +737,7 @@ class LinkedInApiTest {
                 val jdbi = createTestDatabase(tempDir)
                 val filesModule = createFilesModule(tempDir, jdbi)
                 val documentsDb = DocumentsDatabase(jdbi)
-                var thumbnailDownloaded = false
-                var thumbnailUploaded = false
+
                 var postCreated = false
                 var postBody: String? = null
 
@@ -813,7 +783,7 @@ class LinkedInApiTest {
                         }
                         // Mock preview image download
                         get("/preview-image.jpg") {
-                            thumbnailDownloaded = true
+
                             // Return a minimal JPEG byte array
                             call.respondBytes(
                                 byteArrayOf(
@@ -827,7 +797,6 @@ class LinkedInApiTest {
                         }
                         // Mock asset registration for thumbnail
                         post("/v2/assets") {
-                            thumbnailUploaded = true
                             call.respondText(
                                 """{"value":{"asset":"urn:li:digitalmediaAsset:thumbnail123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-thumbnail"}}}}""",
                                 ContentType.Application.Json,
@@ -1419,22 +1388,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -1548,22 +1502,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
