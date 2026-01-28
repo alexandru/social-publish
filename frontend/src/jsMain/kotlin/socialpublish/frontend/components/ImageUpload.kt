@@ -37,6 +37,7 @@ fun ImageUpload(
     state: SelectedImage,
     onSelect: (SelectedImage) -> Unit,
     onRemove: (Int) -> Unit,
+    onError: (String) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
 
@@ -118,12 +119,6 @@ fun ImageUpload(
                         Label(attrs = { classes("label", "is-small") }) {
                             Text("File: ${state.file?.name ?: "No file selected"}")
                         }
-                        // Show upload error if initial upload failed
-                        if (state.uploadError != null) {
-                            Div(attrs = { classes("help", "is-danger") }) {
-                                Text("Upload failed: ${state.uploadError}")
-                            }
-                        }
                     }
 
                     Div(attrs = { classes("field") }) {
@@ -142,9 +137,7 @@ fun ImageUpload(
                                     }
                                     onInput { event ->
                                         val target = event.target
-                                        onSelect(
-                                            state.copy(altText = target.value, altTextError = null)
-                                        )
+                                        onSelect(state.copy(altText = target.value))
                                     }
                                 }
                             )
@@ -163,12 +156,7 @@ fun ImageUpload(
                                         onClick { event ->
                                             event.preventDefault()
                                             if (!state.isGeneratingAltText) {
-                                                onSelect(
-                                                    state.copy(
-                                                        isGeneratingAltText = true,
-                                                        altTextError = null,
-                                                    )
-                                                )
+                                                onSelect(state.copy(isGeneratingAltText = true))
                                                 scope.launch {
                                                     try {
                                                         val response =
@@ -202,10 +190,11 @@ fun ImageUpload(
                                                                 }
                                                                 onSelect(
                                                                     state.copy(
-                                                                        altTextError =
-                                                                            response.message,
-                                                                        isGeneratingAltText = false,
+                                                                        isGeneratingAltText = false
                                                                     )
+                                                                )
+                                                                onError(
+                                                                    "Alt-text generation failed: ${response.message}"
                                                                 )
                                                                 console.error(
                                                                     "Alt-text generation failed:",
@@ -215,10 +204,11 @@ fun ImageUpload(
                                                             is ApiResponse.Exception -> {
                                                                 onSelect(
                                                                     state.copy(
-                                                                        altTextError =
-                                                                            "Connection error: Could not reach the server. Please check your connection and try again.",
-                                                                        isGeneratingAltText = false,
+                                                                        isGeneratingAltText = false
                                                                     )
+                                                                )
+                                                                onError(
+                                                                    "Connection error: Could not reach the server. Please check your connection and try again."
                                                                 )
                                                                 console.error(
                                                                     "Alt-text generation exception:",
@@ -228,12 +218,9 @@ fun ImageUpload(
                                                         }
                                                     } catch (e: Exception) {
                                                         onSelect(
-                                                            state.copy(
-                                                                altTextError =
-                                                                    "An unexpected error occurred",
-                                                                isGeneratingAltText = false,
-                                                            )
+                                                            state.copy(isGeneratingAltText = false)
                                                         )
+                                                        onError("An unexpected error occurred")
                                                         console.error("Unexpected error:", e)
                                                     }
                                                 }
@@ -256,16 +243,9 @@ fun ImageUpload(
                                 }
                             }
                         }
-                        // Show error message if generation failed
-                        if (state.altTextError != null) {
-                            Div(attrs = { classes("help", "is-danger") }) {
-                                Text(state.altTextError)
-                            }
-                        }
                     }
                 }
 
-                // Remove button column
                 Div(attrs = { classes("column", "is-narrow") }) {
                     Button(
                         attrs = {
