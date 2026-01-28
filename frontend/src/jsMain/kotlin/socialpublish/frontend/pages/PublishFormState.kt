@@ -31,6 +31,19 @@ data class PublishFormState(
     val linkedinRemaining: Int
         get() = 2000 - usedCharacters
 
+    val maxCharacters: Int
+        get() {
+            val limits = mutableListOf<Int>()
+            if (targets.contains("bluesky")) limits.add(300)
+            if (targets.contains("mastodon")) limits.add(500)
+            if (targets.contains("twitter")) limits.add(280)
+            if (targets.contains("linkedin")) limits.add(2000)
+            return limits.minOrNull() ?: 2000
+        }
+
+    val charactersRemaining: Int
+        get() = maxCharacters - usedCharacters
+
     fun reset(): PublishFormState = PublishFormState()
 
     fun updateContent(value: String): PublishFormState = copy(content = value)

@@ -27,3 +27,11 @@ fun ServiceCharacterCounter(label: String, remaining: Int) {
         Text("$label characters left: $remaining")
     }
 }
+
+@Composable
+fun CharacterCounter(remaining: Int, maximum: Int) {
+    val classNames = if (remaining < 0) listOf("help", "is-danger") else listOf("help")
+    P(attrs = { classes(*classNames.toTypedArray()) }) {
+        Text("Characters left: $remaining / $maximum")
+    }
+}

@@ -157,7 +157,6 @@ fun CheckboxField(
  * @param serviceName The name of the service
  * @param checked Whether the checkbox is checked
  * @param onCheckedChange Callback when checked state changes
- * @param charactersRemaining Number of characters remaining (null to hide counter)
  * @param disabled Whether the checkbox is disabled
  * @param helpContent Optional additional help content
  */
@@ -166,7 +165,6 @@ fun ServiceCheckboxField(
     serviceName: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    charactersRemaining: Int? = null,
     disabled: Boolean = false,
     helpContent: (@Composable () -> Unit)? = null,
 ) {
@@ -176,9 +174,6 @@ fun ServiceCheckboxField(
         onCheckedChange = onCheckedChange,
         disabled = disabled,
     ) {
-        if (charactersRemaining != null) {
-            ServiceCharacterCounter(serviceName, charactersRemaining)
-        }
         helpContent?.invoke()
     }
 }
