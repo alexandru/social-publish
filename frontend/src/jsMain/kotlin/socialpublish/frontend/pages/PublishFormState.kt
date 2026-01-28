@@ -13,6 +13,13 @@ data class PublishFormState(
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
 ) {
+    companion object {
+        const val BLUESKY_LIMIT = 300
+        const val MASTODON_LIMIT = 500
+        const val TWITTER_LIMIT = 280
+        const val LINKEDIN_LIMIT = 2000
+    }
+
     val postText: String
         get() = buildPostText(content, link)
 
@@ -20,26 +27,27 @@ data class PublishFormState(
         get() = countCharactersWithLinks(postText)
 
     val blueskyRemaining: Int
-        get() = 300 - usedCharacters
+        get() = BLUESKY_LIMIT - usedCharacters
 
     val mastodonRemaining: Int
-        get() = 500 - usedCharacters
+        get() = MASTODON_LIMIT - usedCharacters
 
     val twitterRemaining: Int
-        get() = 280 - usedCharacters
+        get() = TWITTER_LIMIT - usedCharacters
 
     val linkedinRemaining: Int
-        get() = 2000 - usedCharacters
+        get() = LINKEDIN_LIMIT - usedCharacters
 
     val maxCharacters: Int
-        get() {
-            val limits = mutableListOf<Int>()
-            if (targets.contains("bluesky")) limits.add(300)
-            if (targets.contains("mastodon")) limits.add(500)
-            if (targets.contains("twitter")) limits.add(280)
-            if (targets.contains("linkedin")) limits.add(2000)
-            return limits.minOrNull() ?: 2000
-        }
+        get() =
+            sequenceOf(
+                    if (targets.contains("bluesky")) BLUESKY_LIMIT else null,
+                    if (targets.contains("mastodon")) MASTODON_LIMIT else null,
+                    if (targets.contains("twitter")) TWITTER_LIMIT else null,
+                    if (targets.contains("linkedin")) LINKEDIN_LIMIT else null,
+                )
+                .filterNotNull()
+                .minOrNull() ?: LINKEDIN_LIMIT
 
     val charactersRemaining: Int
         get() = maxCharacters - usedCharacters

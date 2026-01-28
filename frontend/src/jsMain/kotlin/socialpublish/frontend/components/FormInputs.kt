@@ -152,7 +152,7 @@ fun CheckboxField(
 }
 
 /**
- * Stateless service checkbox with character counter.
+ * Stateless service checkbox.
  *
  * @param serviceName The name of the service
  * @param checked Whether the checkbox is checked

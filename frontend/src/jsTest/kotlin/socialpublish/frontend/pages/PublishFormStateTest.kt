@@ -167,9 +167,8 @@ class PublishFormStateTest {
     }
 
     @Test
-    fun testMaxCharactersWithMultipleTargets() {
-        val state =
-            PublishFormState().toggleTarget("mastodon").toggleTarget("bluesky").toggleTarget("rss")
+    fun testMaxCharactersWithMastodonAndBluesky() {
+        val state = PublishFormState().toggleTarget("mastodon").toggleTarget("bluesky")
         assertEquals(300, state.maxCharacters) // Minimum of 500 and 300
     }
 
