@@ -40,7 +40,7 @@ fun PublishFormPage() {
 
         Div(attrs = { classes("publish-form") }) {
             Section(attrs = { classes("section") }) {
-                Div(attrs = { classes("container") }) {
+                Div(attrs = { classes("container", "is-max-desktop") }) {
                     PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
                 }
             }
@@ -173,7 +173,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         ) {
             // Distribution channels box
             Div(attrs = { classes("box") }) {
-                Div(attrs = { classes("checkboxes") }) {
+                Div(attrs = { classes("field", "is-grouped", "is-grouped-multiline") }) {
                     ServiceCheckboxField(
                         serviceName = "Mastodon",
                         checked = formState.targets.contains("mastodon"),
@@ -232,18 +232,22 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     maximum = formState.maxCharacters,
                 )
 
-                formState.images.values
-                    .sortedBy { it.id }
-                    .forEach { image ->
-                        key(image.id) {
-                            ImageUpload(
-                                id = image.id,
-                                state = image,
-                                onSelect = { formState = formState.updateImage(it) },
-                                onRemove = { formState = formState.removeImage(it) },
-                            )
+                Div(attrs = { classes("columns", "is-multiline") }) {
+                    formState.images.values
+                        .sortedBy { it.id }
+                        .forEach { image ->
+                            Div(attrs = { classes("column", "is-half-tablet", "is-one-third-desktop") }) {
+                                key(image.id) {
+                                    ImageUpload(
+                                        id = image.id,
+                                        state = image,
+                                        onSelect = { formState = formState.updateImage(it) },
+                                        onRemove = { formState = formState.removeImage(it) },
+                                    )
+                                }
+                            }
                         }
-                    }
+                }
 
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
