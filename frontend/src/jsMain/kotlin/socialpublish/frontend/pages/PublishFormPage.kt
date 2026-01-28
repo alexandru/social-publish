@@ -3,7 +3,6 @@ package socialpublish.frontend.pages
 import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.*
 import socialpublish.frontend.models.FileUploadResponse
@@ -265,22 +264,11 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         val newId = if (ids.isEmpty()) 1 else ids.last() + 1
 
                                         val response =
-                                            try {
-                                                withTimeout(60000L) {
-                                                    ApiClient.uploadFile<FileUploadResponse>(
-                                                        "/api/files/upload",
-                                                        file,
-                                                        null,
-                                                    )
-                                                }
-                                            } catch (
-                                                e:
-                                                    kotlinx.coroutines.TimeoutCancellationException) {
-                                                onError(
-                                                    "Image upload timed out after 60 seconds. Please try again."
-                                                )
-                                                null
-                                            }
+                                            ApiClient.uploadFile<FileUploadResponse>(
+                                                "/api/files/upload",
+                                                file,
+                                                null,
+                                            )
 
                                         when (response) {
                                             is ApiResponse.Success -> {
@@ -323,9 +311,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                             "Connection error: Could not reach the server. Please check your connection and try again.",
                                                     )
                                                 formState = formState.addImage(newImage)
-                                            }
-                                            null -> {
-                                                // Timeout case - error already shown
                                             }
                                         }
                                     } finally {

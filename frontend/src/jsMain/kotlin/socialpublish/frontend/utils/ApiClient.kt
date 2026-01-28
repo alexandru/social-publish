@@ -47,7 +47,7 @@ object ApiClient {
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             console.error("ApiClient.post exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
@@ -72,7 +72,7 @@ object ApiClient {
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             console.error("ApiClient.get exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }
@@ -106,7 +106,7 @@ object ApiClient {
             } else {
                 ApiResponse.Error("HTTP ${response.status}: $text", response.status.toInt())
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             console.error("ApiClient.uploadFile exception:", e)
             ApiResponse.Exception(e.message ?: "Unknown error")
         }

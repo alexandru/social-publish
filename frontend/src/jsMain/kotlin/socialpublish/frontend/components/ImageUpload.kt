@@ -1,11 +1,15 @@
 package socialpublish.frontend.components
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.browser.document
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.css.*
+import org.jetbrains.compose.web.css.height
+import org.jetbrains.compose.web.css.px
+import org.jetbrains.compose.web.css.width
 import org.jetbrains.compose.web.dom.*
 import org.w3c.dom.HTMLInputElement
 import org.w3c.files.File
@@ -168,33 +172,17 @@ fun ImageUpload(
                                                 scope.launch {
                                                     try {
                                                         val response =
-                                                            try {
-                                                                withTimeout(60000L) {
-                                                                    ApiClient.post<
-                                                                        GenerateAltTextResponse,
-                                                                        GenerateAltTextRequest,
-                                                                    >(
-                                                                        "/api/llm/generate-alt-text",
-                                                                        GenerateAltTextRequest(
-                                                                            imageUuid =
-                                                                                state.uploadedUuid,
-                                                                            userContext =
-                                                                                state.altText,
-                                                                        ),
-                                                                    )
-                                                                }
-                                                            } catch (
-                                                                e:
-                                                                    kotlinx.coroutines.TimeoutCancellationException) {
-                                                                onSelect(
-                                                                    state.copy(
-                                                                        altTextError =
-                                                                            "Alt-text generation timed out after 60 seconds. Please try again.",
-                                                                        isGeneratingAltText = false,
-                                                                    )
-                                                                )
-                                                                null
-                                                            }
+                                                            ApiClient.post<
+                                                                GenerateAltTextResponse,
+                                                                GenerateAltTextRequest,
+                                                            >(
+                                                                "/api/llm/generate-alt-text",
+                                                                GenerateAltTextRequest(
+                                                                    imageUuid = state.uploadedUuid,
+                                                                    userContext = state.altText,
+                                                                ),
+                                                            )
+
                                                         when (response) {
                                                             is ApiResponse.Success -> {
                                                                 val altText = response.data.altText
@@ -236,10 +224,6 @@ fun ImageUpload(
                                                                     "Alt-text generation exception:",
                                                                     response.message,
                                                                 )
-                                                            }
-                                                            null -> {
-                                                                // Timeout case already handled
-                                                                // above
                                                             }
                                                         }
                                                     } catch (e: Exception) {
