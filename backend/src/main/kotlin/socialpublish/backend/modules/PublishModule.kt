@@ -36,7 +36,7 @@ class PublishModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Mastodon integration not configured",
-                            module = "form",
+                            module = "publish",
                         )
                         .left()
             }
@@ -48,7 +48,7 @@ class PublishModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Bluesky integration not configured",
-                            module = "form",
+                            module = "publish",
                         )
                         .left()
             }
@@ -60,7 +60,7 @@ class PublishModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Twitter integration not configured",
-                            module = "form",
+                            module = "publish",
                         )
                         .left()
             }
@@ -72,7 +72,7 @@ class PublishModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "LinkedIn integration not configured",
-                            module = "form",
+                            module = "publish",
                         )
                         .left()
             }
@@ -102,7 +102,7 @@ class PublishModule(
                 }
             return CompositeError(
                     status = status,
-                    module = "form",
+                    module = "publish",
                     errorMessage =
                         "Failed to create post via ${errors.joinToString(", ") { it.value.module ?: "unknown" }}.",
                     responses = responsePayloads,

@@ -62,11 +62,11 @@ class PublishModuleTest {
         val error = errorResult.value
         val compositeError = assertIs<CompositeError>(error)
         assertEquals(503, compositeError.status)
-        assertTrue(compositeError.errorMessage.contains("form"))
+        assertTrue(compositeError.errorMessage.contains("publish"))
         assertEquals(1, compositeError.responses.size)
         val response = compositeError.responses[0]
         assertEquals("error", response.type)
-        assertEquals("form", response.module)
+        assertEquals("publish", response.module)
         assertTrue(response.error?.contains("Mastodon") == true)
         assertTrue(response.error.contains("not configured"))
     }
@@ -95,7 +95,7 @@ class PublishModuleTest {
         // Mastodon should fail
         val mastodonResponse =
             compositeError.responses.find {
-                it.module == "form" && it.error?.contains("Mastodon") == true
+                it.module == "publish" && it.error?.contains("Mastodon") == true
             }
         assertNotNull(mastodonResponse)
         assertEquals("error", mastodonResponse.type)
@@ -103,7 +103,7 @@ class PublishModuleTest {
         // Twitter should fail
         val twitterResponse =
             compositeError.responses.find {
-                it.module == "form" && it.error?.contains("Twitter") == true
+                it.module == "publish" && it.error?.contains("Twitter") == true
             }
         assertNotNull(twitterResponse)
         assertEquals("error", twitterResponse.type)
