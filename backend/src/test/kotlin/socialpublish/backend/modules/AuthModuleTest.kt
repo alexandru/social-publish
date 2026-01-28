@@ -219,8 +219,8 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
                 val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { authRoutes.protectedRoute(call) }
@@ -450,8 +450,8 @@ class AuthModuleTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
                 val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { authRoutes.protectedRoute(call) }
@@ -470,8 +470,8 @@ class AuthModuleTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
                 val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { authRoutes.protectedRoute(call) }
@@ -495,8 +495,8 @@ class AuthModuleTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                configureAuth(config)
                 val authRoutes = AuthRoutes(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { authRoutes.protectedRoute(call) }
@@ -515,9 +515,7 @@ class AuthModuleTest {
     @Test
     fun `extractJwtToken should extract token from Bearer header`() {
         testApplication {
-            val authModule = AuthModule(config.jwtSecret)
             val authRoutes = AuthRoutes(config)
-
             application {
                 install(ContentNegotiation) { json() }
                 routing {

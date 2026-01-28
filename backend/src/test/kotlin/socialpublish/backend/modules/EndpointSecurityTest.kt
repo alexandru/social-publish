@@ -41,7 +41,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -61,7 +61,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -86,7 +86,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -108,7 +108,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         post("/api/files/upload") { call.respondText("Uploaded") }
@@ -133,7 +133,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         post("/api/submit") { call.respondText("Submitted") }
@@ -161,7 +161,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { call.respondText("Success") }
@@ -184,7 +184,7 @@ class EndpointSecurityTest {
             application {
                 install(ContentNegotiation) { json() }
                 val authRoutes = AuthRoutes(config)
-                configureAuth(config)
+                configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/protected") { authRoutes.protectedRoute(call) }

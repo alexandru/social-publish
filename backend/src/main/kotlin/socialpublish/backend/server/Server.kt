@@ -161,7 +161,7 @@ fun startServer(
         }
 
         // Configure JWT authentication
-        configureAuth(config.server.auth)
+        configureAuth(authRoutes)
         // Configure OpenAPI / Swagger documentation
         configureOpenApiSecuritySchemes()
 

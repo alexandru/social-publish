@@ -121,30 +121,31 @@ class AuthRoutes(
         }
         return null
     }
-}
 
-fun Application.configureAuth(config: ServerAuthConfig) {
-    val authRoutes = AuthRoutes(config)
-    install(Authentication) {
-        jwt("auth-jwt") {
-            realm = "social-publish"
-            authHeader { call ->
-                authRoutes.extractJwtToken(call)?.let { token ->
-                    HttpAuthHeader.Single("Bearer", token)
+    fun configureAuth(app: Application) {
+        app.install(Authentication) {
+            jwt("auth-jwt") {
+                realm = "social-publish"
+                authHeader { call ->
+                    extractJwtToken(call)?.let { token -> HttpAuthHeader.Single("Bearer", token) }
                 }
-            }
-            verifier(JWT.require(Algorithm.HMAC256(config.jwtSecret)).build())
-            validate { credential ->
-                val username = credential.payload.getClaim("username").asString()
-                if (username != null) {
-                    JWTPrincipal(credential.payload)
-                } else {
-                    null
+                verifier(JWT.require(Algorithm.HMAC256(config.jwtSecret)).build())
+                validate { credential ->
+                    val username = credential.payload.getClaim("username").asString()
+                    if (username != null) {
+                        JWTPrincipal(credential.payload)
+                    } else {
+                        null
+                    }
                 }
-            }
-            challenge { _, _ ->
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                challenge { _, _ ->
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                }
             }
         }
     }
+}
+
+fun Application.configureAuth(authRoutes: AuthRoutes) {
+    authRoutes.configureAuth(this)
 }
