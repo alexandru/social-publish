@@ -173,7 +173,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         ) {
             // Distribution channels box
             Div(attrs = { classes("box") }) {
-                Div(attrs = { classes("field", "is-grouped", "is-grouped-multiline") }) {
+                Div(attrs = { classes("checkboxes") }) {
                     ServiceCheckboxField(
                         serviceName = "Mastodon",
                         checked = formState.targets.contains("mastodon"),
