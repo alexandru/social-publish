@@ -16,6 +16,7 @@ import socialpublish.frontend.components.CharacterCounter
 import socialpublish.frontend.components.ImageUpload
 import socialpublish.frontend.components.MessageType
 import socialpublish.frontend.components.ModalMessage
+import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.SelectedImage
 import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
