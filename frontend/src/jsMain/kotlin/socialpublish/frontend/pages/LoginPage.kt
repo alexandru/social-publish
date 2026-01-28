@@ -55,7 +55,7 @@ fun LoginPage() {
                         // Check for redirect query param using URLSearchParams
                         val searchParams = URLSearchParams(window.location.search)
                         val redirect = searchParams.get("redirect")
-                        window.location.href = redirect ?: "/"
+                        window.location.href = redirect ?: "/form"
                     }
                     is ApiResponse.Error -> {
                         error = response.message
