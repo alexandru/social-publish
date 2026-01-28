@@ -330,7 +330,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             }
 
             // Submit button box
-            Div(attrs = { classes("box") }) {
+            Div(attrs = { classes("box", "mb-4") }) {
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
                         Button(
