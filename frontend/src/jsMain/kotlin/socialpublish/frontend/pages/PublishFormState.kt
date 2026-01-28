@@ -9,7 +9,6 @@ data class PublishFormState(
     val content: String = "",
     val link: String = "",
     val targets: Set<String> = setOf("rss"),
-    val cleanupHtml: Boolean = false,
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
 ) {
@@ -60,8 +59,6 @@ data class PublishFormState(
 
     fun toggleTarget(target: String): PublishFormState =
         copy(targets = if (targets.contains(target)) targets - target else targets + target)
-
-    fun updateCleanupHtml(value: Boolean): PublishFormState = copy(cleanupHtml = value)
 
     fun addImage(image: SelectedImage): PublishFormState =
         copy(images = images + (image.id to image))

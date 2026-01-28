@@ -111,7 +111,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         link = formState.link.ifEmpty { null },
                         targets = formState.targets.toList(),
                         images = imageUUIDs,
-                        cleanupHtml = formState.cleanupHtml,
                     )
 
                 when (
@@ -217,7 +216,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     onValueChange = { formState = formState.updateContent(it) },
                     rows = 4,
                     required = true,
-                    placeholder = "Write here..."
+                    placeholder = "Write here...",
                 )
 
                 TextInputField(
@@ -314,11 +313,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         )
                     }
                 }
-                CheckboxField(
-                    label = "cleanup HTML",
-                    checked = formState.cleanupHtml,
-                    onCheckedChange = { formState = formState.updateCleanupHtml(it) },
-                )
             }
 
             // Submit button box

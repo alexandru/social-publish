@@ -129,20 +129,20 @@ fun CheckboxField(
     onCheckedChange: (Boolean) -> Unit,
     disabled: Boolean = false,
 ) {
-        Label(attrs = { classes("checkbox") }) {
-            Input(
-                type = InputType.Checkbox,
-                attrs = {
-                    checked(checked)
-                    onInput { event ->
-                        val target = event.target
-                        onCheckedChange(target.checked)
-                    }
-                    if (disabled) attr("disabled", "")
-                },
-            )
-            Text(" $label")
-        }
+    Label(attrs = { classes("checkbox") }) {
+        Input(
+            type = InputType.Checkbox,
+            attrs = {
+                checked(checked)
+                onInput { event ->
+                    val target = event.target
+                    onCheckedChange(target.checked)
+                }
+                if (disabled) attr("disabled", "")
+            },
+        )
+        Text(" $label")
+    }
 }
 
 /**
