@@ -261,66 +261,70 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                     // Set uploading state to true
                                     formState = formState.setUploading(true)
 
-                                    // Compute new ID once before upload to avoid race conditions
-                                    val ids = formState.images.keys.sorted()
-                                    val newId = if (ids.isEmpty()) 1 else ids.last() + 1
+                                    try {
+                                        // Compute new ID once before upload to avoid race
+                                        // conditions
+                                        val ids = formState.images.keys.sorted()
+                                        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
 
-                                    // Upload image immediately to get UUID for alt-text generation
-                                    when (
-                                        val response =
-                                            ApiClient.uploadFile<FileUploadResponse>(
-                                                "/api/files/upload",
-                                                file,
-                                                null, // No alt-text yet
-                                            )
-                                    ) {
-                                        is ApiResponse.Success -> {
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadedUuid = response.data.uuid,
+                                        // Upload image immediately to get UUID for alt-text
+                                        // generation
+                                        when (
+                                            val response =
+                                                ApiClient.uploadFile<FileUploadResponse>(
+                                                    "/api/files/upload",
+                                                    file,
+                                                    null, // No alt-text yet
                                                 )
-                                            formState = formState.addImage(newImage)
-                                        }
-                                        is ApiResponse.Error -> {
-                                            if (response.code == 401) {
-                                                window.location.href =
-                                                    "/login?error=${response.code}&redirect=/form"
-                                                return@launch
+                                        ) {
+                                            is ApiResponse.Success -> {
+                                                val newImage =
+                                                    SelectedImage(
+                                                        newId,
+                                                        file = file,
+                                                        uploadedUuid = response.data.uuid,
+                                                    )
+                                                formState = formState.addImage(newImage)
                                             }
-                                            console.error(
-                                                "Error uploading image:",
-                                                response.message,
-                                            )
-                                            // Add image locally with error message
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadError = response.message,
+                                            is ApiResponse.Error -> {
+                                                if (response.code == 401) {
+                                                    window.location.href =
+                                                        "/login?error=${response.code}&redirect=/form"
+                                                    return@launch
+                                                }
+                                                console.error(
+                                                    "Error uploading image:",
+                                                    response.message,
                                                 )
-                                            formState = formState.addImage(newImage)
-                                        }
-                                        is ApiResponse.Exception -> {
-                                            console.error(
-                                                "Error uploading image:",
-                                                response.message,
-                                            )
-                                            // Add image locally with connection error message
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadError =
-                                                        "Connection error: Could not reach the server. Please check your connection and try again.",
+                                                // Add image locally with error message
+                                                val newImage =
+                                                    SelectedImage(
+                                                        newId,
+                                                        file = file,
+                                                        uploadError = response.message,
+                                                    )
+                                                formState = formState.addImage(newImage)
+                                            }
+                                            is ApiResponse.Exception -> {
+                                                console.error(
+                                                    "Error uploading image:",
+                                                    response.message,
                                                 )
-                                            formState = formState.addImage(newImage)
+                                                // Add image locally with connection error message
+                                                val newImage =
+                                                    SelectedImage(
+                                                        newId,
+                                                        file = file,
+                                                        uploadError =
+                                                            "Connection error: Could not reach the server. Please check your connection and try again.",
+                                                    )
+                                                formState = formState.addImage(newImage)
+                                            }
                                         }
+                                    } finally {
+                                        // Always reset uploading state, even if an exception occurs
+                                        formState = formState.setUploading(false)
                                     }
-
-                                    // Set uploading state back to false
-                                    formState = formState.setUploading(false)
                                 }
                             },
                         )

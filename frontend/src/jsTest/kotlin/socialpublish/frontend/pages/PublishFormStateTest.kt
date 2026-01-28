@@ -105,12 +105,14 @@ class PublishFormStateTest {
                 .updateLink("https://example.com")
                 .toggleTarget("mastodon")
                 .setSubmitting(true)
+                .setUploading(true)
 
         val reset = state.reset()
         assertEquals("", reset.content)
         assertEquals("", reset.link)
         assertEquals(setOf("rss"), reset.targets)
         assertFalse(reset.isSubmitting)
+        assertFalse(reset.isUploading)
     }
 
     @Test
