@@ -104,7 +104,6 @@ class SerializationTest {
                 link = "https://example.com",
                 targets = listOf("twitter", "mastodon"),
                 images = listOf("img1.jpg", "img2.jpg"),
-                cleanupHtml = true,
             )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<PublishRequest>(encoded)
@@ -114,7 +113,6 @@ class SerializationTest {
         assertEquals("https://example.com", decoded.link)
         assertEquals(listOf("twitter", "mastodon"), decoded.targets)
         assertEquals(listOf("img1.jpg", "img2.jpg"), decoded.images)
-        assertTrue(decoded.cleanupHtml)
     }
 
     @Test
@@ -126,20 +124,18 @@ class SerializationTest {
         assertEquals(null, decoded.link)
         assertEquals(listOf("twitter"), decoded.targets)
         assertEquals(emptyList(), decoded.images)
-        assertEquals(false, decoded.cleanupHtml)
     }
 
     @Test
     fun testPublishRequestDeserializationComplete() {
         val jsonString =
-            """{"content":"Post","link":"https://test.com","targets":["mastodon"],"images":["a.png"],"cleanupHtml":true}"""
+            """{"content":"Post","link":"https://test.com","targets":["mastodon"],"images":["a.png"]}"""
         val decoded = json.decodeFromString<PublishRequest>(jsonString)
 
         assertEquals("Post", decoded.content)
         assertEquals("https://test.com", decoded.link)
         assertEquals(listOf("mastodon"), decoded.targets)
         assertEquals(listOf("a.png"), decoded.images)
-        assertTrue(decoded.cleanupHtml)
     }
 
     @Test

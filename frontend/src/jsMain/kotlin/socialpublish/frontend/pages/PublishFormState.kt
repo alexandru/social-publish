@@ -9,10 +9,16 @@ data class PublishFormState(
     val content: String = "",
     val link: String = "",
     val targets: Set<String> = setOf("rss"),
-    val cleanupHtml: Boolean = false,
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
 ) {
+    companion object {
+        const val BLUESKY_LIMIT = 300
+        const val MASTODON_LIMIT = 500
+        const val TWITTER_LIMIT = 280
+        const val LINKEDIN_LIMIT = 2000
+    }
+
     val postText: String
         get() = buildPostText(content, link)
 
@@ -20,16 +26,30 @@ data class PublishFormState(
         get() = countCharactersWithLinks(postText)
 
     val blueskyRemaining: Int
-        get() = 300 - usedCharacters
+        get() = BLUESKY_LIMIT - usedCharacters
 
     val mastodonRemaining: Int
-        get() = 500 - usedCharacters
+        get() = MASTODON_LIMIT - usedCharacters
 
     val twitterRemaining: Int
-        get() = 280 - usedCharacters
+        get() = TWITTER_LIMIT - usedCharacters
 
     val linkedinRemaining: Int
-        get() = 2000 - usedCharacters
+        get() = LINKEDIN_LIMIT - usedCharacters
+
+    val maxCharacters: Int
+        get() =
+            sequenceOf(
+                    if (targets.contains("bluesky")) BLUESKY_LIMIT else null,
+                    if (targets.contains("mastodon")) MASTODON_LIMIT else null,
+                    if (targets.contains("twitter")) TWITTER_LIMIT else null,
+                    if (targets.contains("linkedin")) LINKEDIN_LIMIT else null,
+                )
+                .filterNotNull()
+                .minOrNull() ?: LINKEDIN_LIMIT
+
+    val charactersRemaining: Int
+        get() = maxCharacters - usedCharacters
 
     fun reset(): PublishFormState = PublishFormState()
 
@@ -39,8 +59,6 @@ data class PublishFormState(
 
     fun toggleTarget(target: String): PublishFormState =
         copy(targets = if (targets.contains(target)) targets - target else targets + target)
-
-    fun updateCleanupHtml(value: Boolean): PublishFormState = copy(cleanupHtml = value)
 
     fun addImage(image: SelectedImage): PublishFormState =
         copy(images = images + (image.id to image))

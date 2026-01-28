@@ -120,7 +120,6 @@ fun TextAreaField(
  * @param checked Whether the checkbox is checked
  * @param onCheckedChange Callback when checked state changes
  * @param disabled Whether the checkbox is disabled
- * @param helpContent Optional help content displayed below the checkbox
  */
 @Composable
 fun CheckboxField(
@@ -128,57 +127,42 @@ fun CheckboxField(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     disabled: Boolean = false,
-    helpContent: (@Composable () -> Unit)? = null,
 ) {
-    Div(attrs = { classes("field") }) {
-        Label(attrs = { classes("checkbox") }) {
-            Input(
-                type = InputType.Checkbox,
-                attrs = {
-                    checked(checked)
-                    onInput { event ->
-                        val target = event.target
-                        onCheckedChange(target.checked)
-                    }
-                    if (disabled) attr("disabled", "")
-                },
-            )
-            Text(" $label")
-        }
-        if (helpContent != null) {
-            helpContent()
-        }
+    Label(attrs = { classes("checkbox") }) {
+        Input(
+            type = InputType.Checkbox,
+            attrs = {
+                checked(checked)
+                onInput { event ->
+                    val target = event.target
+                    onCheckedChange(target.checked)
+                }
+                if (disabled) attr("disabled", "")
+            },
+        )
+        Text(" $label")
     }
 }
 
 /**
- * Stateless service checkbox with character counter.
+ * Stateless service checkbox.
  *
  * @param serviceName The name of the service
  * @param checked Whether the checkbox is checked
  * @param onCheckedChange Callback when checked state changes
- * @param charactersRemaining Number of characters remaining (null to hide counter)
  * @param disabled Whether the checkbox is disabled
- * @param helpContent Optional additional help content
  */
 @Composable
 fun ServiceCheckboxField(
     serviceName: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    charactersRemaining: Int? = null,
     disabled: Boolean = false,
-    helpContent: (@Composable () -> Unit)? = null,
 ) {
     CheckboxField(
         label = serviceName,
         checked = checked,
         onCheckedChange = onCheckedChange,
         disabled = disabled,
-    ) {
-        if (charactersRemaining != null) {
-            ServiceCharacterCounter(serviceName, charactersRemaining)
-        }
-        helpContent?.invoke()
-    }
+    )
 }

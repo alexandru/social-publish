@@ -14,7 +14,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
 
     Nav(
         attrs = {
-            classes("navbar", "is-primary")
+            classes("navbar", "is-primary", "has-shadow")
             attr("role", "navigation")
             attr("aria-label", "main navigation")
         }

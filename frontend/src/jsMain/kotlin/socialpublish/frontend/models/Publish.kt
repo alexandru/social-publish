@@ -10,7 +10,6 @@ data class PublishRequest(
     val link: String? = null,
     val targets: List<String>,
     val images: List<String> = emptyList(),
-    val cleanupHtml: Boolean = false,
 )
 
 @Serializable

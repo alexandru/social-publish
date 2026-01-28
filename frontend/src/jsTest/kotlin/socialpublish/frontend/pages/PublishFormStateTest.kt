@@ -14,7 +14,6 @@ class PublishFormStateTest {
         assertEquals("", state.content)
         assertEquals("", state.link)
         assertEquals(setOf("rss"), state.targets)
-        assertFalse(state.cleanupHtml)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
     }
@@ -50,13 +49,6 @@ class PublishFormStateTest {
         // Re-add rss
         val withRssAgain = withoutRss.toggleTarget("rss")
         assertTrue(withRssAgain.targets.contains("rss"))
-    }
-
-    @Test
-    fun testUpdateCleanupHtml() {
-        val state = PublishFormState()
-        val updated = state.updateCleanupHtml(true)
-        assertTrue(updated.cleanupHtml)
     }
 
     @Test
@@ -104,14 +96,12 @@ class PublishFormStateTest {
                 .updateContent("Test content")
                 .updateLink("https://example.com")
                 .toggleTarget("mastodon")
-                .updateCleanupHtml(true)
                 .setSubmitting(true)
 
         val reset = state.reset()
         assertEquals("", reset.content)
         assertEquals("", reset.link)
         assertEquals(setOf("rss"), reset.targets)
-        assertFalse(reset.cleanupHtml)
         assertFalse(reset.isSubmitting)
     }
 
@@ -152,5 +142,41 @@ class PublishFormStateTest {
     fun testPostTextWithOnlyContent() {
         val state = PublishFormState().updateContent("Hello")
         assertEquals("Hello", state.postText)
+    }
+
+    @Test
+    fun testMaxCharactersDefaultsTo2000() {
+        val state = PublishFormState()
+        assertEquals(2000, state.maxCharacters)
+    }
+
+    @Test
+    fun testMaxCharactersWithSingleTarget() {
+        val state = PublishFormState().toggleTarget("mastodon")
+        assertEquals(500, state.maxCharacters)
+    }
+
+    @Test
+    fun testMaxCharactersWithMastodonAndBluesky() {
+        val state = PublishFormState().toggleTarget("mastodon").toggleTarget("bluesky")
+        assertEquals(300, state.maxCharacters) // Minimum of 500 and 300
+    }
+
+    @Test
+    fun testMaxCharactersWithAllTargets() {
+        val state =
+            PublishFormState()
+                .toggleTarget("mastodon")
+                .toggleTarget("bluesky")
+                .toggleTarget("twitter")
+                .toggleTarget("linkedin")
+        assertEquals(280, state.maxCharacters) // Twitter has the lowest limit
+    }
+
+    @Test
+    fun testCharactersRemainingBasedOnMaxCharacters() {
+        val state = PublishFormState().updateContent("Hello, World!").toggleTarget("mastodon")
+        assertEquals(500, state.maxCharacters)
+        assertEquals(487, state.charactersRemaining) // 500 - 13
     }
 }

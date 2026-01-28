@@ -1,8 +1,7 @@
 package socialpublish.frontend.components
 
-import androidx.compose.runtime.*
-import org.jetbrains.compose.web.css.*
-import org.jetbrains.compose.web.dom.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.web.dom.Text
 
 @Composable
 fun ErrorModal(message: String?, onClose: () -> Unit) {
