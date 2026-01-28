@@ -237,9 +237,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         .sortedBy { it.id }
                         .forEach { image ->
                             Div(
-                                attrs = {
-                                    classes("column", "is-half-tablet", "is-half-desktop")
-                                }
+                                attrs = { classes("column", "is-half-tablet", "is-half-desktop") }
                             ) {
                                 key(image.id) {
                                     ImageUpload(
@@ -257,8 +255,12 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     Div(attrs = { classes("control") }) {
                         AddImageButton(
                             disabled = formState.images.size >= 4,
+                            isUploading = formState.isUploading,
                             onImageSelected = { file ->
                                 scope.launch {
+                                    // Set uploading state to true
+                                    formState = formState.setUploading(true)
+
                                     // Compute new ID once before upload to avoid race conditions
                                     val ids = formState.images.keys.sorted()
                                     val newId = if (ids.isEmpty()) 1 else ids.last() + 1
@@ -316,6 +318,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                             formState = formState.addImage(newImage)
                                         }
                                     }
+
+                                    // Set uploading state back to false
+                                    formState = formState.setUploading(false)
                                 }
                             },
                         )

@@ -16,6 +16,7 @@ class PublishFormStateTest {
         assertEquals(setOf("rss"), state.targets)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
+        assertFalse(state.isUploading)
     }
 
     @Test
@@ -87,6 +88,13 @@ class PublishFormStateTest {
         val state = PublishFormState()
         val submitting = state.setSubmitting(true)
         assertTrue(submitting.isSubmitting)
+    }
+
+    @Test
+    fun testSetUploading() {
+        val state = PublishFormState()
+        val uploading = state.setUploading(true)
+        assertTrue(uploading.isUploading)
     }
 
     @Test

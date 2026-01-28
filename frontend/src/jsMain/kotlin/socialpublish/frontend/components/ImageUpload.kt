@@ -292,7 +292,11 @@ fun ImageUpload(
 }
 
 @Composable
-fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
+fun AddImageButton(
+    onImageSelected: (File) -> Unit,
+    disabled: Boolean = false,
+    isUploading: Boolean = false,
+) {
     // Hidden file input - use Long for better uniqueness
     val inputId = remember { "hidden-file-input-${kotlin.random.Random.nextLong()}" }
 
@@ -319,8 +323,11 @@ fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
         attrs = {
             classes("button", "is-info")
             attr("type", "button")
-            if (disabled) {
+            if (disabled || isUploading) {
                 attr("disabled", "")
+            }
+            if (isUploading) {
+                classes("is-loading")
             }
             onClick { event ->
                 event.preventDefault()

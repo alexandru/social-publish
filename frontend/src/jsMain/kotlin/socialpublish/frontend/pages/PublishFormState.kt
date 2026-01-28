@@ -11,6 +11,7 @@ data class PublishFormState(
     val targets: Set<String> = setOf("rss"),
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
+    val isUploading: Boolean = false,
 ) {
     companion object {
         const val BLUESKY_LIMIT = 300
@@ -69,4 +70,6 @@ data class PublishFormState(
     fun removeImage(id: Int): PublishFormState = copy(images = images - id)
 
     fun setSubmitting(value: Boolean): PublishFormState = copy(isSubmitting = value)
+
+    fun setUploading(value: Boolean): PublishFormState = copy(isUploading = value)
 }
