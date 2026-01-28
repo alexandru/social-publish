@@ -1,6 +1,7 @@
 package socialpublish.frontend.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Text
 
@@ -31,7 +32,9 @@ fun ServiceCharacterCounter(label: String, remaining: Int) {
 @Composable
 fun CharacterCounter(remaining: Int, maximum: Int) {
     val classNames = if (remaining < 0) listOf("help", "is-danger") else listOf("help")
-    P(attrs = { classes(*classNames.toTypedArray()) }) {
-        Text("Characters remaining: $remaining of $maximum")
+    Div(attrs = { classes("field") }) {
+        P(attrs = { classes(*classNames.toTypedArray()) }) {
+            Text("Characters remaining: $remaining of $maximum")
+        }
     }
 }

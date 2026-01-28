@@ -128,9 +128,7 @@ fun CheckboxField(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     disabled: Boolean = false,
-    helpContent: (@Composable () -> Unit)? = null,
 ) {
-    Div(attrs = { classes("field") }) {
         Label(attrs = { classes("checkbox") }) {
             Input(
                 type = InputType.Checkbox,
@@ -145,10 +143,6 @@ fun CheckboxField(
             )
             Text(" $label")
         }
-        if (helpContent != null) {
-            helpContent()
-        }
-    }
 }
 
 /**
@@ -158,7 +152,6 @@ fun CheckboxField(
  * @param checked Whether the checkbox is checked
  * @param onCheckedChange Callback when checked state changes
  * @param disabled Whether the checkbox is disabled
- * @param helpContent Optional additional help content
  */
 @Composable
 fun ServiceCheckboxField(
@@ -166,14 +159,11 @@ fun ServiceCheckboxField(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     disabled: Boolean = false,
-    helpContent: (@Composable () -> Unit)? = null,
 ) {
     CheckboxField(
         label = serviceName,
         checked = checked,
         onCheckedChange = onCheckedChange,
         disabled = disabled,
-    ) {
-        helpContent?.invoke()
-    }
+    )
 }

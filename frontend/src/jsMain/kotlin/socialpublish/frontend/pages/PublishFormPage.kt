@@ -174,8 +174,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         ) {
             // Distribution channels box
             Div(attrs = { classes("box") }) {
-                H2(attrs = { classes("subtitle", "is-5") }) { Text("Distribution channels") }
-                Div(attrs = { classes("field") }) {
+                Div(attrs = { classes("checkboxes") }) {
                     ServiceCheckboxField(
                         serviceName = "Mastodon",
                         checked = formState.targets.contains("mastodon"),
@@ -206,26 +205,19 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         serviceName = "RSS feed",
                         checked = formState.targets.contains("rss"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
-                    ) {
-                        P(attrs = { classes("help") }) {
-                            A(href = "/rss", attrs = { attr("target", "_blank") }) {
-                                Text("View feed")
-                            }
-                        }
-                    }
+                    )
                 }
             }
 
             // Message box
             Div(attrs = { classes("box") }) {
-                H2(attrs = { classes("subtitle", "is-5") }) { Text("Message") }
-
                 TextAreaField(
-                    label = "Content",
+                    label = "Message",
                     value = formState.content,
                     onValueChange = { formState = formState.updateContent(it) },
                     rows = 4,
                     required = true,
+                    placeholder = "Write here..."
                 )
 
                 TextInputField(
@@ -322,7 +314,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         )
                     }
                 }
-
                 CheckboxField(
                     label = "cleanup HTML",
                     checked = formState.cleanupHtml,
