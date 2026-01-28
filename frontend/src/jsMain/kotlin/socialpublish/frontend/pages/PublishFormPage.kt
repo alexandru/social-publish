@@ -1,10 +1,26 @@
 package socialpublish.frontend.pages
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.dom.*
-import socialpublish.frontend.components.*
+import socialpublish.frontend.components.AddImageButton
+import socialpublish.frontend.components.Authorize
+import socialpublish.frontend.components.CharacterCounter
+import socialpublish.frontend.components.ImageUpload
+import socialpublish.frontend.components.MessageType
+import socialpublish.frontend.components.ModalMessage
+import socialpublish.frontend.components.PageContainer
+import socialpublish.frontend.components.SelectedImage
+import socialpublish.frontend.components.ServiceCheckboxField
+import socialpublish.frontend.components.TextAreaField
+import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.models.FileUploadResponse
 import socialpublish.frontend.models.ModulePostResponse
 import socialpublish.frontend.models.PublishRequest
@@ -63,15 +79,12 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 return@launch
             }
 
-            // Disable fieldset
             formState = formState.setSubmitting(true)
 
             try {
-                // Upload images with current alt-text
                 val imageUUIDs = mutableListOf<String>()
                 for (image in formState.images.values) {
                     if (image.file != null) {
-                        // Upload/re-upload image with current alt-text
                         when (
                             val response =
                                 ApiClient.uploadFile<FileUploadResponse>(
@@ -100,7 +113,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     }
                 }
 
-                // Submit the form
                 val publishRequest =
                     PublishRequest(
                         content = formState.content,
@@ -162,12 +174,11 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         Fieldset(
             attrs = {
                 id("post-form-fieldset")
-                if (formState.isSubmitting) {
+                if (formState.isFormDisabled) {
                     attr("disabled", "")
                 }
             }
         ) {
-            // Distribution channels box
             Div(attrs = { classes("box") }) {
                 Div(attrs = { classes("checkboxes") }) {
                     ServiceCheckboxField(
@@ -204,7 +215,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
 
-            // Message box
             Div(attrs = { classes("box") }) {
                 TextAreaField(
                     label = "Message",
@@ -241,6 +251,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         state = image,
                                         onSelect = { formState = formState.updateImage(it) },
                                         onRemove = { formState = formState.removeImage(it) },
+                                        onError = onError,
                                     )
                                 }
                             }
@@ -250,65 +261,58 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
                         AddImageButton(
-                            disabled = formState.images.size >= 4,
+                            disabled = formState.images.size >= 4 || formState.isFormDisabled,
                             onImageSelected = { file ->
                                 scope.launch {
-                                    // Compute new ID once before upload to avoid race conditions
-                                    val ids = formState.images.keys.sorted()
-                                    val newId = if (ids.isEmpty()) 1 else ids.last() + 1
+                                    formState = formState.setProcessing(true)
 
-                                    // Upload image immediately to get UUID for alt-text generation
-                                    when (
+                                    try {
+                                        val ids = formState.images.keys.sorted()
+                                        val newId = if (ids.isEmpty()) 1 else ids.last() + 1
+
                                         val response =
                                             ApiClient.uploadFile<FileUploadResponse>(
                                                 "/api/files/upload",
                                                 file,
-                                                null, // No alt-text yet
+                                                null,
                                             )
-                                    ) {
-                                        is ApiResponse.Success -> {
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadedUuid = response.data.uuid,
-                                                )
-                                            formState = formState.addImage(newImage)
-                                        }
-                                        is ApiResponse.Error -> {
-                                            if (response.code == 401) {
-                                                window.location.href =
-                                                    "/login?error=${response.code}&redirect=/form"
-                                                return@launch
+
+                                        when (response) {
+                                            is ApiResponse.Success -> {
+                                                val newImage =
+                                                    SelectedImage(
+                                                        newId,
+                                                        file = file,
+                                                        uploadedUuid = response.data.uuid,
+                                                    )
+                                                formState = formState.addImage(newImage)
                                             }
-                                            console.error(
-                                                "Error uploading image:",
-                                                response.message,
-                                            )
-                                            // Add image locally with error message
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadError = response.message,
+                                            is ApiResponse.Error -> {
+                                                if (response.code == 401) {
+                                                    window.location.href =
+                                                        "/login?error=${response.code}&redirect=/form"
+                                                    return@launch
+                                                }
+                                                onError(
+                                                    "Error uploading image: ${response.message}"
                                                 )
-                                            formState = formState.addImage(newImage)
-                                        }
-                                        is ApiResponse.Exception -> {
-                                            console.error(
-                                                "Error uploading image:",
-                                                response.message,
-                                            )
-                                            // Add image locally with connection error message
-                                            val newImage =
-                                                SelectedImage(
-                                                    newId,
-                                                    file = file,
-                                                    uploadError =
-                                                        "Connection error: Could not reach the server. Please check your connection and try again.",
+                                                console.error(
+                                                    "Error uploading image:",
+                                                    response.message,
                                                 )
-                                            formState = formState.addImage(newImage)
+                                            }
+                                            is ApiResponse.Exception -> {
+                                                onError(
+                                                    "Connection error: Could not reach the server. Please check your connection and try again."
+                                                )
+                                                console.error(
+                                                    "Error uploading image:",
+                                                    response.message,
+                                                )
+                                            }
                                         }
+                                    } finally {
+                                        formState = formState.setProcessing(false)
                                     }
                                 }
                             },
@@ -317,7 +321,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
 
-            // Submit button box
             Div(attrs = { classes("box") }) {
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
