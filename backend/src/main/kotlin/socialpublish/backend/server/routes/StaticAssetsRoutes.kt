@@ -1,4 +1,4 @@
-package socialpublish.backend.modules
+package socialpublish.backend.server.routes
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
@@ -12,7 +12,7 @@ import socialpublish.backend.utils.isPathWithinBase
 
 private val logger = KotlinLogging.logger {}
 
-class StaticFilesModule(private val serverConfig: ServerConfig) {
+class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
     suspend fun serveStaticFile(call: ApplicationCall) {
         val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
         val triedPaths = mutableListOf<String>()

@@ -53,6 +53,7 @@ import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.RssRoutes
+import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.utils.*
@@ -68,7 +69,7 @@ fun startServer(
 ) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
-    val staticFilesModule = StaticFilesModule(config.server)
+    val staticAssetsRoutes = StaticAssetsRoutes(config.server)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
@@ -730,7 +731,7 @@ fun startServer(
 
             // Manual static file serving with absolute paths and fallback
             if (config.server.staticContentPaths.isNotEmpty()) {
-                get("/{path...}") { staticFilesModule.serveStaticFile(call) }
+                get("/{path...}") { staticAssetsRoutes.serveStaticFile(call) }
             }
         }
     }
