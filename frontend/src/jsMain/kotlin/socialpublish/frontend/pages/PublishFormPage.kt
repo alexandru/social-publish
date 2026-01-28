@@ -264,7 +264,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
                         AddImageButton(
-                            disabled = formState.images.size >= 4,
+                            disabled = formState.images.size >= 4 || formState.isFormDisabled,
                             onImageSelected = { file ->
                                 scope.launch {
                                     formState = formState.setProcessing(true)
