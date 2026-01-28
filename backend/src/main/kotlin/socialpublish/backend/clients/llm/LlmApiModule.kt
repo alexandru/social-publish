@@ -21,11 +21,11 @@ import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.RequestError
+import socialpublish.backend.common.ResponseBody
+import socialpublish.backend.common.ValidationError
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}

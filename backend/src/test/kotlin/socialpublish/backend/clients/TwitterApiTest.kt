@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule

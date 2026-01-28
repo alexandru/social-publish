@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.NewMastodonPostResponse
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule

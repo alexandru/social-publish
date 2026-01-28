@@ -1,4 +1,4 @@
-package socialpublish.backend.utils
+package socialpublish.backend.common
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 

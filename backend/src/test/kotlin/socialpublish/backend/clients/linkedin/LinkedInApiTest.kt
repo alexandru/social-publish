@@ -25,9 +25,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
+import socialpublish.backend.common.NewLinkedInPostResponse
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.models.NewLinkedInPostResponse
-import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase

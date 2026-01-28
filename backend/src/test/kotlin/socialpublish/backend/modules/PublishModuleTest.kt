@@ -10,10 +10,14 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.common.ApiError
+import socialpublish.backend.common.CompositeError
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.*
 import socialpublish.backend.testutils.createTestDatabase
 
 class PublishModuleTest {

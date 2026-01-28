@@ -12,15 +12,15 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
 import org.jdom2.Element
 import org.jdom2.Namespace
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
 
 private val logger = KotlinLogging.logger {}
 

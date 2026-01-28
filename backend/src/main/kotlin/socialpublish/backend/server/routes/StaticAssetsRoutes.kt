@@ -7,8 +7,8 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import java.io.File
+import socialpublish.backend.common.isPathWithinBase
 import socialpublish.backend.server.ServerConfig
-import socialpublish.backend.utils.isPathWithinBase
 
 private val logger = KotlinLogging.logger {}
 

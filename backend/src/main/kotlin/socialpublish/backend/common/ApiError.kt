@@ -1,4 +1,4 @@
-package socialpublish.backend.models
+package socialpublish.backend.common
 
 import arrow.core.Either
 import arrow.core.getOrElse

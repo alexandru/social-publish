@@ -18,7 +18,7 @@ import kotlin.test.Test
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase

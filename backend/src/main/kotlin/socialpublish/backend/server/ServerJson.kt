@@ -6,14 +6,14 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import socialpublish.backend.models.CompositeErrorResponse
-import socialpublish.backend.models.CompositeErrorWithDetails
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewLinkedInPostResponse
-import socialpublish.backend.models.NewMastodonPostResponse
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.NewRssPostResponse
-import socialpublish.backend.models.NewTwitterPostResponse
+import socialpublish.backend.common.CompositeErrorResponse
+import socialpublish.backend.common.CompositeErrorWithDetails
+import socialpublish.backend.common.NewBlueSkyPostResponse
+import socialpublish.backend.common.NewLinkedInPostResponse
+import socialpublish.backend.common.NewMastodonPostResponse
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.NewRssPostResponse
+import socialpublish.backend.common.NewTwitterPostResponse
 
 @OptIn(ExperimentalSerializationApi::class)
 fun serverJson(): Json = Json {

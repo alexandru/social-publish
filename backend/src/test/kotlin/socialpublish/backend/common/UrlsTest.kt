@@ -1,4 +1,4 @@
-package socialpublish.backend.utils
+package socialpublish.backend.common
 
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

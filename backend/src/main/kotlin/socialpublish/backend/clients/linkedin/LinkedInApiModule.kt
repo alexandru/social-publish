@@ -74,8 +74,16 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewLinkedInPostResponse
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.RequestError
+import socialpublish.backend.common.ResponseBody
+import socialpublish.backend.common.ValidationError
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.models.*
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}

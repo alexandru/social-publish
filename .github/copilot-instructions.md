@@ -10,11 +10,20 @@ This is a Kotlin multiplatform project with:
 
 - **Backend**: Ktor server with Arrow for functional programming (in `backend/` directory)
   - Package structure: `socialpublish.backend.*`
-  - Main modules: `db/`, `integrations/`, `models/`, `modules/`, `server/`
-  - Database: SQLite (via Exposed ORM)
+    - `common/`: common utilities that don't depend on anything else
+    - `db/`: database integration layer (SQL)
+    - `clients/`: API integrations (social networks, HTTP clients mostly, but also external tools)
+    - `modules/`: High-level features/components, but decoupled from the HTTP server
+    - `server/`: the HTTP server configuration and its routes, making use of `modules`
+    - `.` (root of backend): only contains `main` and the app-wide configuration
+  - Database: SQLite
   - HTTP server: Ktor on port 3000
   
 - **Frontend**: Compose for Web (Kotlin/JS) (in `frontend/` directory)
+  - Package structure: `socialpublish.frontend.*`
+    - `components`: reusable, but smaller components, used by `pages`
+    - `pages`: components corresponding to pages mapped to a URL (e.g., `/form`, `/login`)
+    - `utils`: whatever is needed for browser integration or communications with server
   - Development server runs on port 3002
   - Communicates with backend API
   

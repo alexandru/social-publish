@@ -1,8 +1,7 @@
-package socialpublish.backend.linkpreview
+package socialpublish.backend.clients.linkpreview
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import socialpublish.backend.clients.linkpreview.resolveImageUrl
 
 class UrlUtilsTest {
 

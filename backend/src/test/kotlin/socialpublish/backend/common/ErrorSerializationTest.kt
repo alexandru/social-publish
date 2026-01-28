@@ -1,6 +1,5 @@
-package socialpublish.backend.models
+package socialpublish.backend.common
 
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 

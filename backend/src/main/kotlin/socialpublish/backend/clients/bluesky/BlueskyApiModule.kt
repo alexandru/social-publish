@@ -33,15 +33,15 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewBlueSkyPostResponse
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewPostResponse
-import socialpublish.backend.models.RequestError
-import socialpublish.backend.models.ResponseBody
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewBlueSkyPostResponse
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.RequestError
+import socialpublish.backend.common.ResponseBody
+import socialpublish.backend.common.ValidationError
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}

@@ -1,4 +1,4 @@
-package socialpublish.backend.linkpreview
+package socialpublish.backend.clients.linkpreview
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -12,7 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
-import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 
 class LinkPreviewParserTest {
     @Test

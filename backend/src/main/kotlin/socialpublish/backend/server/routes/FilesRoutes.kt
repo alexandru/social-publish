@@ -18,16 +18,15 @@ import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
-import kotlinx.serialization.encodeToString
-import socialpublish.backend.models.ApiResult
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.ValidationError
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.LoomIO
+import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.sanitizeFilename
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
 import socialpublish.backend.server.serverJson
-import socialpublish.backend.utils.LoomIO
-import socialpublish.backend.utils.sanitizeFilename
 
 class FilesRoutes(private val filesModule: FilesModule) {
     suspend fun uploadFileRoute(call: ApplicationCall) {

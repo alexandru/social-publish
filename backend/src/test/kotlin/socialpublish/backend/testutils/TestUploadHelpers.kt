@@ -18,12 +18,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
 import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.common.LoomIO
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.modules.FileUploadResponse
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.utils.LoomIO
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
 

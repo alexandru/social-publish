@@ -1,4 +1,4 @@
-package socialpublish.backend.models
+package socialpublish.backend.common
 
 import kotlinx.serialization.Serializable
 

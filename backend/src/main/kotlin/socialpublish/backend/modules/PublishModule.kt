@@ -10,7 +10,13 @@ import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
-import socialpublish.backend.models.*
+import socialpublish.backend.common.ApiError
+import socialpublish.backend.common.ApiResult
+import socialpublish.backend.common.CompositeError
+import socialpublish.backend.common.CompositeErrorResponse
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.ValidationError
 
 /** Module for broadcasting posts to multiple social media platforms */
 class PublishModule(

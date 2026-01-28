@@ -7,7 +7,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.apache.tika.Tika
-import socialpublish.backend.utils.LoomIO
+import socialpublish.backend.common.LoomIO
 
 private val logger = KotlinLogging.logger {}
 

@@ -1,7 +1,7 @@
-package socialpublish.backend.models
+package socialpublish.backend.common
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -20,7 +20,7 @@ class PostsSerializationTest {
         prettyPrint = false
         encodeDefaults = true
         classDiscriminator = "#type"
-        classDiscriminatorMode = kotlinx.serialization.json.ClassDiscriminatorMode.NONE
+        classDiscriminatorMode = ClassDiscriminatorMode.NONE
         serializersModule = SerializersModule {
             polymorphic(NewPostResponse::class) {
                 subclass(NewRssPostResponse::class)

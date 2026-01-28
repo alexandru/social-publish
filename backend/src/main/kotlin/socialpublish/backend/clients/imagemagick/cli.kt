@@ -9,7 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import org.apache.commons.text.StringEscapeUtils
-import socialpublish.backend.utils.LoomIO
+import socialpublish.backend.common.LoomIO
 
 data class CommandResult(
     val command: String,

@@ -1,4 +1,4 @@
-package socialpublish.backend.utils
+package socialpublish.backend.server
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Operation
@@ -8,7 +8,7 @@ import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.Application
 import io.ktor.server.routing.openapi.registerApiKeySecurityScheme
 import io.ktor.server.routing.openapi.registerBearerAuthSecurityScheme
-import socialpublish.backend.models.ErrorResponse
+import socialpublish.backend.common.ErrorResponse
 
 fun Operation.Builder.documentSecurityRequirements() {
     security {

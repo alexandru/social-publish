@@ -8,10 +8,10 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import socialpublish.backend.models.CompositeError
-import socialpublish.backend.models.CompositeErrorWithDetails
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.CompositeError
+import socialpublish.backend.common.CompositeErrorWithDetails
+import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.PublishModule
 
 class PublishRoutes(private val publishModule: PublishModule) {

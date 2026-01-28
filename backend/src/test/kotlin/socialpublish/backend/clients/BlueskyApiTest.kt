@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 

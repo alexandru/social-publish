@@ -9,8 +9,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import socialpublish.backend.models.ErrorResponse
-import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.RssModule
 
 class RssRoutes(private val rssModule: RssModule) {

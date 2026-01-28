@@ -7,11 +7,11 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.models.NewPostRequest
-import socialpublish.backend.models.NewRssPostResponse
 import socialpublish.backend.testutils.createTestDatabase
 
 class RssModuleTest {

@@ -17,7 +17,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
-import socialpublish.backend.models.ErrorResponse
+import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
 
