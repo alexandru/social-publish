@@ -22,6 +22,8 @@ subprojects {
 
     extensions.configure<com.ncorti.ktfmt.gradle.KtfmtExtension> {
         kotlinLangStyle()
+        // Enable automatic removal of unused imports during formatting
+        removeUnusedImports.set(true)
     }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {

@@ -1,6 +1,5 @@
 package socialpublish.backend.modules
 
-import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
@@ -10,22 +9,15 @@ import com.rometools.rome.feed.synd.SyndEntryImpl
 import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respond
-import io.ktor.server.response.respondText
 import java.util.Date
 import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.NewPostRequest
 import socialpublish.backend.models.NewPostResponse
 import socialpublish.backend.models.NewRssPostResponse
@@ -181,60 +173,9 @@ class RssModule(
         return output.outputString(feed)
     }
 
-    /** Handle RSS post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
-
-        when (val result = createPost(request)) {
-            is Either.Right -> call.respond(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
-        }
-    }
-
-    /** Handle RSS feed generation HTTP route */
-    suspend fun generateRssRoute(call: ApplicationCall) {
-        val target = call.parameters["target"]
-        val filterByLinks = call.request.queryParameters["filterByLinks"]
-        val filterByImages = call.request.queryParameters["filterByImages"]
-
-        val rssContent = generateRss(filterByLinks, filterByImages, target)
-        call.respondText(rssContent, ContentType.Application.Rss)
-    }
-
     /** Get RSS item by UUID */
-    suspend fun getRssItem(call: ApplicationCall) {
-        val uuid =
-            call.parameters["uuid"]
-                ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing UUID"))
-                    return
-                }
-
-        val post = postsDb.searchByUuid(uuid).getOrElse { throw it }
-        if (post == null) {
-            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
-            return
-        }
-
-        call.respond(post)
+    suspend fun getRssItemByUuid(uuid: String): Post? {
+        return postsDb.searchByUuid(uuid).getOrElse { throw it }
     }
 
     private fun cleanupHtml(html: String): String {

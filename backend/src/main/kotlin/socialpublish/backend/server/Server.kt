@@ -52,6 +52,7 @@ import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.utils.*
@@ -92,6 +93,7 @@ fun startServer(
     val formModule =
         FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
     val filesRoutes = FilesRoutes(filesModule)
+    val rssRoutes = RssRoutes(rssModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -344,7 +346,7 @@ fun startServer(
                     }
 
                 // RSS post creation
-                post("/api/rss/post") { rssModule.createPostRoute(call) }
+                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
                     .describe {
                         summary = "Create RSS post"
                         description = "Create a new RSS feed post"
@@ -594,7 +596,7 @@ fun startServer(
             // -----------------------------------------------------------
             // Public RSS feed
 
-            get("/rss") { rssModule.generateRssRoute(call) }
+            get("/rss") { rssRoutes.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed"
                     description =
@@ -621,7 +623,7 @@ fun startServer(
                     }
                 }
 
-            get("/rss/target/{target}") { rssModule.generateRssRoute(call) }
+            get("/rss/target/{target}") { rssRoutes.generateRssRoute(call) }
                 .describe {
                     summary = "Get RSS feed for specific target"
                     description =
@@ -654,7 +656,7 @@ fun startServer(
                     }
                 }
 
-            get("/rss/{uuid}") { rssModule.getRssItem(call) }
+            get("/rss/{uuid}") { rssRoutes.getRssItem(call) }
                 .describe {
                     summary = "Get RSS item by UUID"
                     description = "Retrieve a specific RSS post/item by its UUID"
