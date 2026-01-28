@@ -38,12 +38,8 @@ fun PublishFormPage() {
             }
         }
 
-        Div(attrs = { classes("publish-form") }) {
-            Section(attrs = { classes("section") }) {
-                Div(attrs = { classes("container", "is-max-desktop") }) {
-                    PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
-                }
-            }
+        PageContainer("publish-form") {
+            PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
         }
     }
 }

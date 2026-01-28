@@ -125,41 +125,45 @@ fun AccountPage() {
             }
         ) {
             Section(attrs = { classes("section") }) {
-                Div(attrs = { classes("container", "block") }) {
-                    H1(attrs = { classes("title") }) { Text("Account Settings") }
-                }
-
-                Div(attrs = { classes("box") }) {
-                    H2(attrs = { classes("subtitle") }) { Text("Social Accounts") }
-                    Button(
-                        attrs = {
-                            classes("button", "is-link")
-                            onClick { authorizeTwitter() }
-                        }
-                    ) {
-                        Span(attrs = { classes("icon") }) {
-                            I(attrs = { classes("fab", "fa-x-twitter") })
-                        }
-                        Span(attrs = { style { fontWeight("bold") } }) {
-                            Text("Connect X (Twitter)")
-                        }
+                Div(attrs = { classes("container", "is-max-desktop") }) {
+                    Div(attrs = { classes("block") }) {
+                        H1(attrs = { classes("title") }) { Text("Account Settings") }
                     }
-                    P(attrs = { classes("help") }) { Text(twitterStatus) }
 
-                    Br()
+                    Div(attrs = { classes("box") }) {
+                        H2(attrs = { classes("subtitle") }) { Text("Social Accounts") }
+                        Button(
+                            attrs = {
+                                classes("button", "is-link")
+                                onClick { authorizeTwitter() }
+                            }
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fab", "fa-x-twitter") })
+                            }
+                            Span(attrs = { style { fontWeight("bold") } }) {
+                                Text("Connect X (Twitter)")
+                            }
+                        }
+                        P(attrs = { classes("help") }) { Text(twitterStatus) }
 
-                    Button(
-                        attrs = {
-                            classes("button", "is-info")
-                            onClick { authorizeLinkedIn() }
+                        Br()
+
+                        Button(
+                            attrs = {
+                                classes("button", "is-info")
+                                onClick { authorizeLinkedIn() }
+                            }
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fa-brands", "fa-square-linkedin") })
+                            }
+                            Span(attrs = { style { fontWeight("bold") } }) {
+                                Text("Connect LinkedIn")
+                            }
                         }
-                    ) {
-                        Span(attrs = { classes("icon") }) {
-                            I(attrs = { classes("fa-brands", "fa-square-linkedin") })
-                        }
-                        Span(attrs = { style { fontWeight("bold") } }) { Text("Connect LinkedIn") }
+                        P(attrs = { classes("help") }) { Text(linkedInStatus) }
                     }
-                    P(attrs = { classes("help") }) { Text(linkedInStatus) }
                 }
             }
         }
