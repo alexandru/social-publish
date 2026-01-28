@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
+import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.models.LoginRequest
 import socialpublish.frontend.models.LoginResponse
@@ -71,57 +72,53 @@ fun LoginPage() {
 
     ErrorModal(message = error) { error = null }
 
-    Div(attrs = { classes("login") }) {
-        Section(attrs = { classes("section") }) {
-            Div(attrs = { classes("container") }) {
-                H1(attrs = { classes("title") }) { Text("Login") }
+    PageContainer("login") {
+        H1(attrs = { classes("title") }) { Text("Login") }
 
-                // Show info notification if redirected from a protected page
-                if (redirectParam != null) {
-                    Div(attrs = { classes("notification", "is-info", "is-light") }) {
-                        Text("You need to log in to access this page.")
+        // Show info notification if redirected from a protected page
+        if (redirectParam != null) {
+            Div(attrs = { classes("notification", "is-info", "is-light") }) {
+                Text("You need to log in to access this page.")
+            }
+        }
+
+        Form(
+            attrs = {
+                classes("box")
+                addEventListener("submit") { event ->
+                    event.preventDefault()
+                    handleSubmit()
+                }
+            }
+        ) {
+            TextInputField(
+                label = "Username",
+                value = username,
+                onValueChange = { username = it },
+                required = true,
+                disabled = isLoading,
+            )
+
+            TextInputField(
+                label = "Password",
+                value = password,
+                onValueChange = { password = it },
+                type = InputType.Password,
+                required = true,
+                disabled = isLoading,
+            )
+
+            Button(
+                attrs = {
+                    classes("button", "is-primary")
+                    attr("type", "submit")
+                    if (isLoading) {
+                        classes("is-loading")
+                        attr("disabled", "")
                     }
                 }
-
-                Form(
-                    attrs = {
-                        classes("box")
-                        addEventListener("submit") { event ->
-                            event.preventDefault()
-                            handleSubmit()
-                        }
-                    }
-                ) {
-                    TextInputField(
-                        label = "Username",
-                        value = username,
-                        onValueChange = { username = it },
-                        required = true,
-                        disabled = isLoading,
-                    )
-
-                    TextInputField(
-                        label = "Password",
-                        value = password,
-                        onValueChange = { password = it },
-                        type = InputType.Password,
-                        required = true,
-                        disabled = isLoading,
-                    )
-
-                    Button(
-                        attrs = {
-                            classes("button", "is-primary")
-                            attr("type", "submit")
-                            if (isLoading) {
-                                classes("is-loading")
-                                attr("disabled", "")
-                            }
-                        }
-                    ) {
-                        Text("Submit")
-                    }
-                }
+            ) {
+                Text("Submit")
             }
         }
     }
