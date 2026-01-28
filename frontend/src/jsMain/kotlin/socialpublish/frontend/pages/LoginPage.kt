@@ -52,10 +52,7 @@ fun LoginPage() {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
                         Storage.setAuthStatus(response.data.hasAuth)
-                        // Check for redirect query param using URLSearchParams
-                        val searchParams = URLSearchParams(window.location.search)
-                        val redirect = searchParams.get("redirect")
-                        window.location.href = redirect ?: "/"
+                        window.location.href = redirectParam ?: "/form"
                     }
                     is ApiResponse.Error -> {
                         error = response.message
