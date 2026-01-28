@@ -2,15 +2,12 @@ package socialpublish.frontend.pages
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.web.dom.*
+import socialpublish.frontend.components.PageContainer
 
 @Composable
 fun NotFoundPage() {
-    Div(attrs = { classes("notFound") }) {
-        Section(attrs = { classes("section") }) {
-            Div(attrs = { classes("container") }) {
-                H1(attrs = { classes("title") }) { Text("404: Not Found") }
-                P(attrs = { classes("subtitle") }) { Text("It's gone 😞") }
-            }
-        }
+    PageContainer("notFound") {
+        H1(attrs = { classes("title") }) { Text("404: Not Found") }
+        P(attrs = { classes("subtitle") }) { Text("It's gone 😞") }
     }
 }
