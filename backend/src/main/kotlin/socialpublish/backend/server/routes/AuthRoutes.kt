@@ -1,7 +1,5 @@
 package socialpublish.backend.server.routes
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -129,7 +127,7 @@ class AuthRoutes(
                 authHeader { call ->
                     extractJwtToken(call)?.let { token -> HttpAuthHeader.Single("Bearer", token) }
                 }
-                verifier(JWT.require(Algorithm.HMAC256(config.jwtSecret)).build())
+                verifier(authModule.verifier)
                 validate { credential ->
                     val username = credential.payload.getClaim("username").asString()
                     if (username != null) {

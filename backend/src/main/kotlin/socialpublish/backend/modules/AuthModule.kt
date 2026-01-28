@@ -2,6 +2,7 @@ package socialpublish.backend.modules
 
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
@@ -10,6 +11,10 @@ private val logger = KotlinLogging.logger {}
 
 class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
+
+    val verifier: JWTVerifier by lazy {
+        JWT.require(algorithm).build()
+    }
 
     /** Generate JWT token for authenticated user */
     fun generateToken(username: String): String {
@@ -23,7 +28,6 @@ class AuthModule(jwtSecret: String) {
     /** Verify JWT token */
     fun verifyToken(token: String): String? {
         return try {
-            val verifier = JWT.require(algorithm).build()
             val jwt = verifier.verify(token)
             jwt.getClaim("username").asString()
         } catch (e: Exception) {
