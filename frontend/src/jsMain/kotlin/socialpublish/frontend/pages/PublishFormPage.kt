@@ -3,6 +3,7 @@ package socialpublish.frontend.pages
 import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.*
 import socialpublish.frontend.models.FileUploadResponse
@@ -166,7 +167,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         Fieldset(
             attrs = {
                 id("post-form-fieldset")
-                if (formState.isSubmitting) {
+                if (formState.isFormDisabled) {
                     attr("disabled", "")
                 }
             }
@@ -255,28 +256,33 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     Div(attrs = { classes("control") }) {
                         AddImageButton(
                             disabled = formState.images.size >= 4,
-                            isUploading = formState.isUploading,
                             onImageSelected = { file ->
                                 scope.launch {
-                                    // Set uploading state to true
-                                    formState = formState.setUploading(true)
+                                    formState = formState.setProcessing(true)
 
                                     try {
-                                        // Compute new ID once before upload to avoid race
-                                        // conditions
                                         val ids = formState.images.keys.sorted()
                                         val newId = if (ids.isEmpty()) 1 else ids.last() + 1
 
-                                        // Upload image immediately to get UUID for alt-text
-                                        // generation
-                                        when (
-                                            val response =
-                                                ApiClient.uploadFile<FileUploadResponse>(
-                                                    "/api/files/upload",
-                                                    file,
-                                                    null, // No alt-text yet
+                                        val response =
+                                            try {
+                                                withTimeout(60000L) {
+                                                    ApiClient.uploadFile<FileUploadResponse>(
+                                                        "/api/files/upload",
+                                                        file,
+                                                        null,
+                                                    )
+                                                }
+                                            } catch (
+                                                e:
+                                                    kotlinx.coroutines.TimeoutCancellationException) {
+                                                onError(
+                                                    "Image upload timed out after 60 seconds. Please try again."
                                                 )
-                                        ) {
+                                                null
+                                            }
+
+                                        when (response) {
                                             is ApiResponse.Success -> {
                                                 val newImage =
                                                     SelectedImage(
@@ -296,7 +302,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                     "Error uploading image:",
                                                     response.message,
                                                 )
-                                                // Add image locally with error message
                                                 val newImage =
                                                     SelectedImage(
                                                         newId,
@@ -310,7 +315,6 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                     "Error uploading image:",
                                                     response.message,
                                                 )
-                                                // Add image locally with connection error message
                                                 val newImage =
                                                     SelectedImage(
                                                         newId,
@@ -320,10 +324,12 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                     )
                                                 formState = formState.addImage(newImage)
                                             }
+                                            null -> {
+                                                // Timeout case - error already shown
+                                            }
                                         }
                                     } finally {
-                                        // Always reset uploading state, even if an exception occurs
-                                        formState = formState.setUploading(false)
+                                        formState = formState.setProcessing(false)
                                     }
                                 }
                             },

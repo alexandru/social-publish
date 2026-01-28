@@ -3,6 +3,7 @@ package socialpublish.frontend.components
 import androidx.compose.runtime.*
 import kotlinx.browser.document
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
@@ -167,20 +168,35 @@ fun ImageUpload(
                                                 scope.launch {
                                                     try {
                                                         val response =
-                                                            ApiClient.post<
-                                                                GenerateAltTextResponse,
-                                                                GenerateAltTextRequest,
-                                                            >(
-                                                                "/api/llm/generate-alt-text",
-                                                                GenerateAltTextRequest(
-                                                                    imageUuid = state.uploadedUuid,
-                                                                    userContext = state.altText,
-                                                                ),
-                                                            )
+                                                            try {
+                                                                withTimeout(60000L) {
+                                                                    ApiClient.post<
+                                                                        GenerateAltTextResponse,
+                                                                        GenerateAltTextRequest,
+                                                                    >(
+                                                                        "/api/llm/generate-alt-text",
+                                                                        GenerateAltTextRequest(
+                                                                            imageUuid =
+                                                                                state.uploadedUuid,
+                                                                            userContext =
+                                                                                state.altText,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            } catch (
+                                                                e:
+                                                                    kotlinx.coroutines.TimeoutCancellationException) {
+                                                                onSelect(
+                                                                    state.copy(
+                                                                        altTextError =
+                                                                            "Alt-text generation timed out after 60 seconds. Please try again.",
+                                                                        isGeneratingAltText = false,
+                                                                    )
+                                                                )
+                                                                null
+                                                            }
                                                         when (response) {
                                                             is ApiResponse.Success -> {
-                                                                // Update local state with generated
-                                                                // alt-text
                                                                 val altText = response.data.altText
                                                                 onSelect(
                                                                     state.copy(
@@ -209,8 +225,6 @@ fun ImageUpload(
                                                                 )
                                                             }
                                                             is ApiResponse.Exception -> {
-                                                                // Connection errors (e.g.,
-                                                                // ERR_CONNECTION_REFUSED)
                                                                 onSelect(
                                                                     state.copy(
                                                                         altTextError =
@@ -222,6 +236,10 @@ fun ImageUpload(
                                                                     "Alt-text generation exception:",
                                                                     response.message,
                                                                 )
+                                                            }
+                                                            null -> {
+                                                                // Timeout case already handled
+                                                                // above
                                                             }
                                                         }
                                                     } catch (e: Exception) {
@@ -292,11 +310,7 @@ fun ImageUpload(
 }
 
 @Composable
-fun AddImageButton(
-    onImageSelected: (File) -> Unit,
-    disabled: Boolean = false,
-    isUploading: Boolean = false,
-) {
+fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
     // Hidden file input - use Long for better uniqueness
     val inputId = remember { "hidden-file-input-${kotlin.random.Random.nextLong()}" }
 
@@ -323,11 +337,8 @@ fun AddImageButton(
         attrs = {
             classes("button", "is-info")
             attr("type", "button")
-            if (disabled || isUploading) {
+            if (disabled) {
                 attr("disabled", "")
-            }
-            if (isUploading) {
-                classes("is-loading")
             }
             onClick { event ->
                 event.preventDefault()

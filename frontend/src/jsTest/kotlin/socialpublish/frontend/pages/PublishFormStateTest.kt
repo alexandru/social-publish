@@ -16,7 +16,8 @@ class PublishFormStateTest {
         assertEquals(setOf("rss"), state.targets)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
-        assertFalse(state.isUploading)
+        assertFalse(state.isProcessing)
+        assertFalse(state.isFormDisabled)
     }
 
     @Test
@@ -88,13 +89,22 @@ class PublishFormStateTest {
         val state = PublishFormState()
         val submitting = state.setSubmitting(true)
         assertTrue(submitting.isSubmitting)
+        assertTrue(submitting.isFormDisabled)
     }
 
     @Test
-    fun testSetUploading() {
+    fun testSetProcessing() {
         val state = PublishFormState()
-        val uploading = state.setUploading(true)
-        assertTrue(uploading.isUploading)
+        val processing = state.setProcessing(true)
+        assertTrue(processing.isProcessing)
+        assertTrue(processing.isFormDisabled)
+    }
+
+    @Test
+    fun testIsFormDisabledWithGeneratingAltText() {
+        val image = SelectedImage(id = 1, isGeneratingAltText = true)
+        val state = PublishFormState().addImage(image)
+        assertTrue(state.isFormDisabled)
     }
 
     @Test
@@ -105,14 +115,15 @@ class PublishFormStateTest {
                 .updateLink("https://example.com")
                 .toggleTarget("mastodon")
                 .setSubmitting(true)
-                .setUploading(true)
+                .setProcessing(true)
 
         val reset = state.reset()
         assertEquals("", reset.content)
         assertEquals("", reset.link)
         assertEquals(setOf("rss"), reset.targets)
         assertFalse(reset.isSubmitting)
-        assertFalse(reset.isUploading)
+        assertFalse(reset.isProcessing)
+        assertFalse(reset.isFormDisabled)
     }
 
     @Test
