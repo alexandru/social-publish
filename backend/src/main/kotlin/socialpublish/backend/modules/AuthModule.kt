@@ -12,9 +12,7 @@ private val logger = KotlinLogging.logger {}
 class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
 
-    val verifier: JWTVerifier by lazy {
-        JWT.require(algorithm).build()
-    }
+    val verifier: JWTVerifier by lazy { JWT.require(algorithm).build() }
 
     /** Generate JWT token for authenticated user */
     fun generateToken(username: String): String {
