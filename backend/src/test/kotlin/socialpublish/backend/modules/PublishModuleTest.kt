@@ -14,6 +14,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.models.*
+import socialpublish.backend.testutils.createTestDatabase
 
 class PublishModuleTest {
     private lateinit var postsDb: PostsDatabase
@@ -22,7 +23,7 @@ class PublishModuleTest {
 
     @BeforeEach
     fun setup(@TempDir tempDir: Path) = runTest {
-        val db = socialpublish.backend.testutils.createTestDatabase(tempDir)
+        val db = createTestDatabase(tempDir)
         val documentsDb = DocumentsDatabase(db)
         postsDb = PostsDatabase(documentsDb)
         filesDb = FilesDatabase(db)
