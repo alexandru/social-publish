@@ -36,10 +36,6 @@ private val logger = KotlinLogging.logger {}
 
 @Serializable data class FileUploadResponse(val uuid: String, val url: String)
 
-@Serializable data class UpdateAltTextRequest(val altText: String)
-
-@Serializable data class UpdateAltTextResponse(val success: Boolean)
-
 data class ProcessedUpload(
     val originalname: String,
     val mimetype: String,
