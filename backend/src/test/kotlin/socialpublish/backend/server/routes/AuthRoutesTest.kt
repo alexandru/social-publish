@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
 
-@Serializable data class TokenResponse(val token: String?)
+@Serializable private data class TokenResponse(val token: String?)
 
 class AuthRoutesTest {
     private val testPasswordHash = AuthModule.hashPassword("testpass", rounds = 10)
