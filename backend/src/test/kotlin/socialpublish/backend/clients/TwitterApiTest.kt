@@ -1,6 +1,5 @@
 package socialpublish.backend.clients
 
-import arrow.core.Either
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -28,6 +27,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
@@ -42,6 +42,7 @@ class TwitterApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val uploadedImages = mutableListOf<ImageDimensions>()
             val altTextRequests = mutableListOf<Pair<String, String>>()
             var tweetMediaIds: List<String>? = null
@@ -49,22 +50,7 @@ class TwitterApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     post("/1.1/media/upload.json") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()

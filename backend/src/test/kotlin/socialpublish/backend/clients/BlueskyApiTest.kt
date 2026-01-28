@@ -22,6 +22,7 @@ import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
@@ -85,27 +86,13 @@ class BlueskyApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val uploadedImages = mutableListOf<ImageDimensions>()
             var createRecordBody: JsonObject? = null
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    io.ktor.http.ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    "{\"error\":\"${result.value.errorMessage}\"}",
-                                    io.ktor.http.ContentType.Application.Json,
-                                    io.ktor.http.HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     post("/xrpc/com.atproto.server.createSession") {
                         call.respondText(
                             "{" +

@@ -3,6 +3,8 @@ package socialpublish.backend.server
 import io.ktor.client.request.get
 import io.ktor.client.request.head
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.response.respondText
@@ -23,6 +25,10 @@ class PingEndpointTest {
         client.get("/ping").apply {
             assertEquals(HttpStatusCode.OK, status)
             assertEquals("pong", bodyAsText())
+            assertTrue(
+                headers[HttpHeaders.ContentType]?.contains(ContentType.Text.Plain.toString()) ==
+                    true
+            )
         }
     }
 

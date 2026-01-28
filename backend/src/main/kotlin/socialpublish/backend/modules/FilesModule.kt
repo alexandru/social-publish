@@ -4,22 +4,10 @@ import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receiveMultipart
-import io.ktor.server.response.header
-import io.ktor.server.response.respond
-import io.ktor.server.response.respondFile
-import io.ktor.utils.io.readRemaining
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withContext
-import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
@@ -27,14 +15,14 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.UploadPayload
 import socialpublish.backend.models.ApiResult
 import socialpublish.backend.models.CaughtException
-import socialpublish.backend.models.ErrorResponse
 import socialpublish.backend.models.ValidationError
 import socialpublish.backend.utils.LoomIO
-import socialpublish.backend.utils.sanitizeFilename
 
 private val logger = KotlinLogging.logger {}
 
 @Serializable data class FileUploadResponse(val uuid: String, val url: String)
+
+data class UploadedFile(val fileName: String, val fileBytes: ByteArray, val altText: String?)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -45,6 +33,8 @@ data class ProcessedUpload(
     val size: Long,
     val bytes: ByteArray,
 )
+
+data class StoredFile(val file: File, val mimeType: String, val originalName: String)
 
 data class FilesConfig(val uploadedFilesPath: File, val baseUrl: String)
 
@@ -74,45 +64,11 @@ private constructor(
     }
 
     /** Upload and process file */
-    suspend fun uploadFile(call: ApplicationCall): ApiResult<FileUploadResponse> {
+    suspend fun uploadFile(upload: UploadedFile): ApiResult<FileUploadResponse> {
         return try {
-            val multipart = call.receiveMultipart()
-            var altText: String? = null
-            var fileBytes: ByteArray? = null
-            var fileName: String? = null
-
-            multipart.forEachPart { part ->
-                try {
-                    when (part) {
-                        is PartData.FormItem -> {
-                            if (part.name == "altText") {
-                                altText = part.value
-                            }
-                        }
-                        is PartData.FileItem -> {
-                            if (part.name == "file") {
-                                fileName = part.originalFileName ?: "unknown"
-                                fileBytes =
-                                    withContext(Dispatchers.LoomIO) {
-                                        part.provider().readRemaining().readByteArray()
-                                    }
-                            }
-                        }
-                        else -> {}
-                    }
-                } finally {
-                    part.dispose()
-                }
-            }
-
-            if (fileBytes == null || fileName == null) {
-                return ValidationError(
-                        status = 400,
-                        errorMessage = "Missing file in upload",
-                        module = "files",
-                    )
-                    .left()
-            }
+            val altText = upload.altText
+            val fileBytes = upload.fileBytes
+            val fileName = upload.fileName
 
             // Calculate hash
             val hash = calculateHash(fileBytes)
@@ -173,32 +129,43 @@ private constructor(
     }
 
     /** Retrieve uploaded file */
-    suspend fun getFile(call: ApplicationCall) {
-        val uuid =
-            call.parameters["uuid"]
-                ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing UUID"))
-                    return
-                }
+    suspend fun getFile(uuid: String): ApiResult<StoredFile> {
+        return try {
+            val upload = db.getFileByUuid(uuid).getOrElse { throw it }
+            if (upload == null) {
+                return ValidationError(
+                        status = 404,
+                        errorMessage = "File not found",
+                        module = "files",
+                    )
+                    .left()
+            }
 
-        val upload = db.getFileByUuid(uuid).getOrElse { throw it }
-        if (upload == null) {
-            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "File not found"))
-            return
+            val filePath = File(processedPath, upload.hash)
+            if (!filePath.exists()) {
+                return ValidationError(
+                        status = 404,
+                        errorMessage = "File content not found",
+                        module = "files",
+                    )
+                    .left()
+            }
+
+            StoredFile(
+                    file = filePath,
+                    mimeType = upload.mimetype,
+                    originalName = upload.originalname,
+                )
+                .right()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to get file" }
+            CaughtException(
+                    status = 500,
+                    module = "files",
+                    errorMessage = "Failed to get file: ${e.message}",
+                )
+                .left()
         }
-
-        val filePath = File(processedPath, upload.hash)
-        if (!filePath.exists()) {
-            call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "File content not found"))
-            return
-        }
-
-        call.response.header(HttpHeaders.ContentType, upload.mimetype)
-        call.response.header(
-            HttpHeaders.ContentDisposition,
-            "inline; filename=\"${sanitizeFilename(upload.originalname)}\"",
-        )
-        call.respondFile(filePath)
     }
 
     /** Read image file for API posting */

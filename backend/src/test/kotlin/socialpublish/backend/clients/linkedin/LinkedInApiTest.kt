@@ -28,6 +28,7 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.models.NewLinkedInPostResponse
 import socialpublish.backend.models.NewPostRequest
+import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
@@ -40,6 +41,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             val linkedInClient = createClient {
@@ -152,6 +154,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             application {
@@ -210,6 +213,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var postCreated = false
             var postBody: String? = null
@@ -331,6 +335,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var uploadRegistered = false
             var binaryUploaded = false
@@ -354,22 +359,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -453,6 +443,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             val linkedInClient = createClient {
@@ -643,6 +634,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var uploadCount = 0
             var postCreated = false
@@ -665,22 +657,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -1397,6 +1374,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var registrationReceived = false
             var registrationBody: String? = null
@@ -1419,22 +1397,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -1528,6 +1491,7 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             // Save a mock OAuth token to DB
@@ -1548,22 +1512,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") {
-                        val result = filesModule.uploadFile(call)
-                        when (result) {
-                            is Either.Right ->
-                                call.respondText(
-                                    Json.encodeToString(result.value),
-                                    ContentType.Application.Json,
-                                )
-                            is Either.Left ->
-                                call.respondText(
-                                    """{"error":"${result.value.errorMessage}"}""",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.fromValue(result.value.status),
-                                )
-                        }
-                    }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
