@@ -52,6 +52,7 @@ import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.PublishRoutes
 import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.UserResponse
@@ -91,8 +92,9 @@ fun startServer(
             twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
             linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
-    val formModule =
-        FormModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
+    val publishModule =
+        PublishModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
+    val publishRoutes = PublishRoutes(publishModule)
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
 
@@ -459,7 +461,7 @@ fun startServer(
                         responses { documentNewPostResponses<NewLinkedInPostResponse>() }
                     }
 
-                post("/api/multiple/post") { formModule.broadcastPostRoute(call) }
+                post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
                         description = "Publish a post to multiple social media platforms at once"
