@@ -39,7 +39,7 @@ fun PublishFormPage() {
         }
 
         Div(attrs = { classes("publish-form") }) {
-            Section(attrs = { classes("section") }) {
+            Section(attrs = { classes("section", "py-4") }) {
                 Div(attrs = { classes("container", "is-max-desktop") }) {
                     PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
                 }
@@ -172,34 +172,42 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             }
         ) {
             // Distribution channels box
-            Div(attrs = { classes("box") }) {
-                Div(attrs = { classes("checkboxes") }) {
+            Div(attrs = { classes("box", "mb-4") }) {
+                Div(attrs = { classes("field") }) {
                     ServiceCheckboxField(
                         serviceName = "Mastodon",
                         checked = formState.targets.contains("mastodon"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("mastodon") },
                     )
+                }
 
+                Div(attrs = { classes("field") }) {
                     ServiceCheckboxField(
                         serviceName = "Bluesky",
                         checked = formState.targets.contains("bluesky"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
                     )
+                }
 
+                Div(attrs = { classes("field") }) {
                     ServiceCheckboxField(
                         serviceName = "Twitter",
                         checked = formState.targets.contains("twitter"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("twitter") },
                         disabled = !hasAuth.twitter,
                     )
+                }
 
+                Div(attrs = { classes("field") }) {
                     ServiceCheckboxField(
                         serviceName = "LinkedIn",
                         checked = formState.targets.contains("linkedin"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("linkedin") },
                         disabled = !hasAuth.linkedin,
                     )
+                }
 
+                Div(attrs = { classes("field") }) {
                     ServiceCheckboxField(
                         serviceName = "RSS feed",
                         checked = formState.targets.contains("rss"),
@@ -209,7 +217,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             }
 
             // Message box
-            Div(attrs = { classes("box") }) {
+            Div(attrs = { classes("box", "mb-4") }) {
                 TextAreaField(
                     label = "Message",
                     value = formState.content,
