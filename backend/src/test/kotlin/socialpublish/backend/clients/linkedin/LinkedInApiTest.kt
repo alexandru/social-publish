@@ -41,7 +41,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             val linkedInClient = createClient {
@@ -154,7 +153,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             application {
@@ -213,7 +211,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var postCreated = false
             var postBody: String? = null
@@ -335,7 +332,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var uploadRegistered = false
             var binaryUploaded = false
@@ -359,7 +355,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -443,7 +439,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             val linkedInClient = createClient {
@@ -634,7 +629,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var uploadCount = 0
             var postCreated = false
@@ -657,7 +651,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -743,8 +737,7 @@ class LinkedInApiTest {
                 val jdbi = createTestDatabase(tempDir)
                 val filesModule = createFilesModule(tempDir, jdbi)
                 val documentsDb = DocumentsDatabase(jdbi)
-                var thumbnailDownloaded = false
-                var thumbnailUploaded = false
+
                 var postCreated = false
                 var postBody: String? = null
 
@@ -790,7 +783,7 @@ class LinkedInApiTest {
                         }
                         // Mock preview image download
                         get("/preview-image.jpg") {
-                            thumbnailDownloaded = true
+
                             // Return a minimal JPEG byte array
                             call.respondBytes(
                                 byteArrayOf(
@@ -804,7 +797,6 @@ class LinkedInApiTest {
                         }
                         // Mock asset registration for thumbnail
                         post("/v2/assets") {
-                            thumbnailUploaded = true
                             call.respondText(
                                 """{"value":{"asset":"urn:li:digitalmediaAsset:thumbnail123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-thumbnail"}}}}""",
                                 ContentType.Application.Json,
@@ -1374,7 +1366,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
             var registrationReceived = false
             var registrationBody: String? = null
@@ -1397,7 +1388,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -1491,7 +1482,6 @@ class LinkedInApiTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
-            val filesRoutes = FilesRoutes(filesModule)
             val documentsDb = DocumentsDatabase(jdbi)
 
             // Save a mock OAuth token to DB
@@ -1512,7 +1502,7 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",

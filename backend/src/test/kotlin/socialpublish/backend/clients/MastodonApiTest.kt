@@ -100,8 +100,7 @@ class MastodonApiTest {
             assertEquals(listOf("media-1", "media-2"), statusMediaIds)
             assertEquals(2, uploadedImages.size)
 
-            val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
-            val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
+            
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)

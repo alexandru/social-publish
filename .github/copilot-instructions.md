@@ -111,7 +111,9 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   - No comments on what the Agent did.
   - No comments on what function signatures already say.
   - No comments on configuration that can always change.
+  - No new comments explaining why code was removed.
   - Document invariants and non-obvious decisions that aren't clear from signatures.
+ - Never delete the user's comments.
 
 ### Frontend (Compose for Web)
 
