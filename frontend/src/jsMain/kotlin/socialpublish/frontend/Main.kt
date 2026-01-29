@@ -39,7 +39,7 @@ fun App() {
         NavBar(currentPath = currentPath) {
             Storage.clearJwtToken()
             Storage.setAuthStatus(null)
-            window.location.href = "/"
+            navigateTo("/login")
         }
 
         Main {

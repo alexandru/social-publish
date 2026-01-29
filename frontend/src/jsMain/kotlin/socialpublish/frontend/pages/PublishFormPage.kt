@@ -27,6 +27,7 @@ import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.navigateTo
 
 @Composable
 fun PublishFormPage() {
@@ -98,8 +99,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                             }
                             is ApiResponse.Error -> {
                                 if (response.code == 401) {
-                                    window.location.href =
-                                        "/login?error=${response.code}&redirect=/form"
+                                    navigateTo("/login?error=${response.code}&redirect=/form")
                                     return@launch
                                 }
                                 onError("Error uploading image: ${response.message}")
@@ -144,7 +144,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     }
                     is ApiResponse.Error -> {
                         if (response.code == 401) {
-                            window.location.href = "/login?error=${response.code}&redirect=/form"
+                            navigateTo("/login?error=${response.code}&redirect=/form")
                             return@launch
                         }
                         onError("Error submitting form: ${response.message}")
@@ -290,8 +290,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                             }
                                             is ApiResponse.Error -> {
                                                 if (response.code == 401) {
-                                                    window.location.href =
+                                                    navigateTo(
                                                         "/login?error=${response.code}&redirect=/form"
+                                                    )
                                                     return@launch
                                                 }
                                                 onError(

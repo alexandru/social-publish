@@ -13,6 +13,7 @@ import socialpublish.frontend.models.LoginResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.navigateTo
 
 // External declaration for URLSearchParams
 external class URLSearchParams(init: String = definedExternally) {
@@ -53,7 +54,7 @@ fun LoginPage() {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
                         Storage.setAuthStatus(response.data.hasAuth)
-                        window.location.href = redirectParam ?: "/form"
+                        navigateTo(redirectParam ?: "/form")
                     }
                     is ApiResponse.Error -> {
                         error = response.message

@@ -19,6 +19,7 @@ import socialpublish.frontend.models.GenerateAltTextRequest
 import socialpublish.frontend.models.GenerateAltTextResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.navigateTo
 
 data class SelectedImage(
     val id: Int,
@@ -249,9 +250,9 @@ fun ImageUpload(
                                                             }
                                                             is ApiResponse.Error -> {
                                                                 if (response.code == 401) {
-                                                                    kotlinx.browser.window.location
-                                                                        .href =
+                                                                    navigateTo(
                                                                         "/login?error=${response.code}&redirect=/form"
+                                                                    )
                                                                     return@launch
                                                                 }
                                                                 onSelect(
