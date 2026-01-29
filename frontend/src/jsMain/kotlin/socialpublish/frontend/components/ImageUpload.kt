@@ -73,16 +73,36 @@ fun ImageUpload(
             }
         }
     ) {
-        Div(attrs = { classes("card-content", "p-4") }) {
+        Div(
+            attrs = {
+                classes("card-content", "p-4")
+                style {
+                    property("background", "linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)")
+                }
+            }
+        ) {
             Div(
                 attrs = {
-                    classes("columns", "is-mobile")
-                    style { property("align-items", "center") }
+                    classes("columns", "is-multiline")
+                    style {
+                        property("align-items", "center")
+                        property("flex-wrap", "wrap")
+                        property("row-gap", "12px")
+                        property("column-gap", "16px")
+                    }
                 }
             ) {
                 // Image preview column
                 if (state.imagePreviewUrl != null) {
-                    Div(attrs = { classes("column", "is-narrow") }) {
+                    Div(
+                        attrs = {
+                            classes("column", "is-narrow", "is-full-mobile")
+                            style {
+                                property("display", "flex")
+                                property("justify-content", "flex-start")
+                            }
+                        }
+                    ) {
                         Div(
                             attrs = {
                                 style {
@@ -114,10 +134,56 @@ fun ImageUpload(
                 }
 
                 // Image info and controls column
-                Div(attrs = { classes("column") }) {
+                Div(
+                    attrs = {
+                        classes("column", "is-full-mobile")
+                        style { property("min-width", "0") }
+                    }
+                ) {
                     Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label", "is-small") }) {
-                            Text("File: ${state.file?.name ?: "No file selected"}")
+                        Div(
+                            attrs = {
+                                style {
+                                    property("display", "flex")
+                                    property("align-items", "center")
+                                    property("justify-content", "space-between")
+                                    property("gap", "12px")
+                                    property("flex-wrap", "wrap")
+                                }
+                            }
+                        ) {
+                            Label(
+                                attrs = {
+                                    classes("label", "is-small")
+                                    style {
+                                        property("margin", "0")
+                                        property("overflow-wrap", "anywhere")
+                                        property("flex", "1")
+                                    }
+                                }
+                            ) {
+                                Text("File: ${state.file?.name ?: "No file selected"}")
+                            }
+                            Button(
+                                attrs = {
+                                    classes("button", "is-danger", "is-small")
+                                    attr("type", "button")
+                                    attr("title", "Remove image")
+                                    if (state.isGeneratingAltText) {
+                                        attr("disabled", "")
+                                    }
+                                    onClick { event ->
+                                        event.preventDefault()
+                                        if (!state.isGeneratingAltText) {
+                                            onRemove(id)
+                                        }
+                                    }
+                                }
+                            ) {
+                                Span(attrs = { classes("icon", "is-small") }) {
+                                    I(attrs = { classes("fas", "fa-trash") })
+                                }
+                            }
                         }
                     }
 
@@ -242,29 +308,6 @@ fun ImageUpload(
                                     Span { Text("Generate Alt-Text") }
                                 }
                             }
-                        }
-                    }
-                }
-
-                Div(attrs = { classes("column", "is-narrow") }) {
-                    Button(
-                        attrs = {
-                            classes("button", "is-danger", "is-small")
-                            attr("type", "button")
-                            attr("title", "Remove image")
-                            if (state.isGeneratingAltText) {
-                                attr("disabled", "")
-                            }
-                            onClick { event ->
-                                event.preventDefault()
-                                if (!state.isGeneratingAltText) {
-                                    onRemove(id)
-                                }
-                            }
-                        }
-                    ) {
-                        Span(attrs = { classes("icon", "is-small") }) {
-                            I(attrs = { classes("fas", "fa-trash") })
                         }
                     }
                 }
