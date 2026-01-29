@@ -11,6 +11,8 @@ This project is a simple tool to publish content to multiple social networks.
 - **NEW**: LLM integration for automatic alt-text generation using any OpenAI-compatible API (OpenAI, Mistral, etc.) 🤖✨
 - Also exports an RSS feed, meant for automation via `ifttt.com`
 
+<img src="./docs/form-screenshot.png" style="max-width: 100%;" width="700" />
+
 **Table of Contents**
 
 - [Self-hosting](#self-hosting)
