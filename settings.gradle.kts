@@ -26,6 +26,7 @@ dependencyResolutionManagement {
             version("common-text", "1.15.0")
             version("apache-tika", "3.2.3")
             version("hikaricp", "7.0.2")
+            version("compose", "1.10.0")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -98,6 +99,12 @@ dependencyResolutionManagement {
             // Mime-type detection
             library("apache-tika-core", "org.apache.tika", "tika-core")
                 .versionRef("apache-tika")
+
+            // Frontend, Compose for Web
+            library("compose.html.core", "org.jetbrains.compose.html", "html-core")
+                .versionRef("compose")
+            library("compose.runtime", "org.jetbrains.compose.runtime", "runtime")
+                .versionRef("compose")
 
             // Testing libraries
             library("kotlin-test", "org.jetbrains.kotlin", "kotlin-test").versionRef("kotlin")

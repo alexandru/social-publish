@@ -48,8 +48,8 @@ kotlin {
         @Suppress("unused")
         val jsMain by getting {
             dependencies {
-                implementation(compose.html.core)
-                implementation(compose.runtime)
+                implementation(libs.compose.html.core)
+                implementation(libs.compose.runtime)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(npm("bulma", "1.0.4"))
