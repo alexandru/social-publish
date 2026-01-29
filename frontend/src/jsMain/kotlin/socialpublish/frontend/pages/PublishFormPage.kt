@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.AddImageButton
