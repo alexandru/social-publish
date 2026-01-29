@@ -3,6 +3,7 @@ package socialpublish.frontend.components
 import androidx.compose.runtime.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.navigateTo
 
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {
@@ -28,6 +29,10 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                         property("display", "flex")
                         property("align-items", "center")
                         property("gap", "0.5rem")
+                    }
+                    onClick { event ->
+                        event.preventDefault()
+                        navigateTo("/")
                     }
                 },
             ) {
@@ -172,7 +177,14 @@ private fun NavButton(
             attrs = {
                 classes("button", "is-primary")
                 if (isActive) classes("is-active")
-                if (onClick != null) onClick { onClick() }
+                onClick { event ->
+                    event.preventDefault()
+                    if (onClick != null) {
+                        onClick()
+                    } else {
+                        navigateTo(href)
+                    }
+                }
             },
         ) {
             Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
