@@ -380,25 +380,12 @@ class BlueskyApiModule(
                     emptyList()
                 }
 
-            // Fetch link preview if link is present and no images
-            // Note: Bluesky only supports one embed type at a time, and images take priority
-            // DISABLED: External embeds interfere with URL counting in text
-            // When URLs are in text with facets, they count as ~25 chars
-            // External embeds are link preview cards and should be a separate feature
+            // Note: External embeds (link preview cards) are currently disabled.
+            // When enabled, they interfere with URL character counting in facets.
+            // URLs in text with facets count as ~25 chars, which is the desired behavior.
+            // External embeds can be re-enabled as a separate feature if needed.
             val linkPreview = null
-            // if (request.link != null && imageEmbeds.isEmpty()) {
-            //     linkPreviewParser.fetchPreview(request.link)
-            // } else {
-            //     null
-            // }
-
-            // Upload link preview image if present
             val linkPreviewBlobRef = null
-            // if (linkPreview?.image != null) {
-            //     uploadBlobFromUrl(linkPreview.image, session)
-            // } else {
-            //     null
-            // }
 
             // Prepare text
             val text =

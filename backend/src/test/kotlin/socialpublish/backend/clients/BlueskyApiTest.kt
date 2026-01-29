@@ -307,7 +307,6 @@ class BlueskyApiTest {
 
             // URLs should be in the text (not in external embed for now)
             assertEquals("Check out this article\n\nhttp://localhost/test-page.html", text)
-            assertTrue(text?.contains("http://localhost/test-page.html") == true)
 
             // Facets should mark the URL so Bluesky counts it as ~25 chars
             assertNotNull(facets)
@@ -392,7 +391,6 @@ class BlueskyApiTest {
 
                 // When link preview fails, URL should be in the text field
                 assertEquals("Check this out\n\nhttps://example.com/test", text)
-                assertTrue(text?.contains("https://example.com/test") == true)
 
                 // No external embed when preview fails
                 assertEquals(null, embed)
