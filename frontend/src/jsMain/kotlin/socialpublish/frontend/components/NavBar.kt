@@ -94,6 +94,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                             label = "Home",
                             iconClasses = arrayOf("fas", "fa-home"),
                             isActive = (currentPath == "/"),
+                            onClick = { navbarActive = false },
                         )
                     }
                 }
@@ -107,6 +108,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                 label = "Publish",
                                 iconClasses = arrayOf("fas", "fa-paper-plane"),
                                 isActive = (currentPath == "/form"),
+                                onClick = { navbarActive = false },
                             )
                         }
                     }
@@ -139,13 +141,17 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                 label = "Account",
                                 iconClasses = arrayOf("fas", "fa-user-circle"),
                                 isActive = (currentPath == "/account"),
+                                onClick = { navbarActive = false },
                             )
 
                             // Logout (action)
                             NavButton(
                                 label = "Logout",
                                 iconClasses = arrayOf("fas", "fa-sign-out-alt"),
-                                onClick = onLogout,
+                                onClick = {
+                                    navbarActive = false
+                                    onLogout()
+                                },
                             )
                         } else {
                             // Login
@@ -154,6 +160,7 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                 label = "Login",
                                 iconClasses = arrayOf("fas", "fa-key"),
                                 isActive = (currentPath == "/login"),
+                                onClick = { navbarActive = false },
                             )
                         }
                     }
@@ -181,9 +188,8 @@ private fun NavButton(
                     event.preventDefault()
                     if (onClick != null) {
                         onClick()
-                    } else {
-                        navigateTo(href)
                     }
+                    navigateTo(href)
                 }
             },
         ) {

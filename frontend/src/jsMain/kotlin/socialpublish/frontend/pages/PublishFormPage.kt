@@ -179,7 +179,8 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
         ) {
-            Div(attrs = { classes("box") }) {
+            // Distribution channels box
+            Div(attrs = { classes("box", "mb-4") }) {
                 Div(attrs = { classes("checkboxes") }) {
                     ServiceCheckboxField(
                         serviceName = "Mastodon",
@@ -215,7 +216,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
 
-            Div(attrs = { classes("box") }) {
+            Div(attrs = { classes("box", "mb-4") }) {
                 TextAreaField(
                     label = "Message",
                     value = formState.content,
@@ -321,7 +322,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 }
             }
 
-            Div(attrs = { classes("box") }) {
+            Div(attrs = { classes("box", "mb-4") }) {
                 Div(attrs = { classes("field") }) {
                     Div(attrs = { classes("control") }) {
                         Button(
