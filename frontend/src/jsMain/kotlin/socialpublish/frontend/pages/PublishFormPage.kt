@@ -181,54 +181,38 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
         ) {
             // Distribution channels box
             Div(attrs = { classes("box", "mb-4") }) {
-                Div(attrs = { classes("columns", "is-mobile", "is-multiline") }) {
-                    Div(attrs = { classes("column", "is-half") }) {
-                        ServiceCheckboxField(
-                            serviceName = "Mastodon",
-                            checked = formState.targets.contains("mastodon"),
-                            onCheckedChange = { _ ->
-                                formState = formState.toggleTarget("mastodon")
-                            },
-                        )
-                    }
+                Div(attrs = { classes("checkboxes") }) {
+                    ServiceCheckboxField(
+                        serviceName = "Mastodon",
+                        checked = formState.targets.contains("mastodon"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("mastodon") },
+                    )
 
-                    Div(attrs = { classes("column", "is-half") }) {
-                        ServiceCheckboxField(
-                            serviceName = "Bluesky",
-                            checked = formState.targets.contains("bluesky"),
-                            onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
-                        )
-                    }
+                    ServiceCheckboxField(
+                        serviceName = "Bluesky",
+                        checked = formState.targets.contains("bluesky"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
+                    )
 
-                    Div(attrs = { classes("column", "is-half") }) {
-                        ServiceCheckboxField(
-                            serviceName = "Twitter",
-                            checked = formState.targets.contains("twitter"),
-                            onCheckedChange = { _ ->
-                                formState = formState.toggleTarget("twitter")
-                            },
-                            disabled = !hasAuth.twitter,
-                        )
-                    }
+                    ServiceCheckboxField(
+                        serviceName = "Twitter",
+                        checked = formState.targets.contains("twitter"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("twitter") },
+                        disabled = !hasAuth.twitter,
+                    )
 
-                    Div(attrs = { classes("column", "is-half") }) {
-                        ServiceCheckboxField(
-                            serviceName = "LinkedIn",
-                            checked = formState.targets.contains("linkedin"),
-                            onCheckedChange = { _ ->
-                                formState = formState.toggleTarget("linkedin")
-                            },
-                            disabled = !hasAuth.linkedin,
-                        )
-                    }
+                    ServiceCheckboxField(
+                        serviceName = "LinkedIn",
+                        checked = formState.targets.contains("linkedin"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("linkedin") },
+                        disabled = !hasAuth.linkedin,
+                    )
 
-                    Div(attrs = { classes("column", "is-half") }) {
-                        ServiceCheckboxField(
-                            serviceName = "RSS feed",
-                            checked = formState.targets.contains("rss"),
-                            onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
-                        )
-                    }
+                    ServiceCheckboxField(
+                        serviceName = "RSS feed",
+                        checked = formState.targets.contains("rss"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
+                    )
                 }
             }
 
