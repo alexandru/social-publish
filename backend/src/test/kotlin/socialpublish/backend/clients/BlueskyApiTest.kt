@@ -302,114 +302,22 @@ class BlueskyApiTest {
             assertTrue(result.isRight())
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
-            val text = record["text"]?.jsonPrimitive?.content
-            val facets = record["facets"]?.jsonArray
+            val embed = record["embed"]?.jsonObject
 
-            // URLs should be in the text (not in external embed for now)
-            assertEquals("Check out this article\n\nhttp://localhost/test-page.html", text)
+            assertNotNull(embed)
+            assertEquals("app.bsky.embed.external", embed["\$type"]?.jsonPrimitive?.content)
 
-            // Facets should mark the URL so Bluesky counts it as ~25 chars
-            assertNotNull(facets)
-            assertTrue(facets.size > 0)
-            val linkFacet =
-                facets.firstOrNull { facet ->
-                    facet.jsonObject["features"]?.jsonArray?.any { feature ->
-                        feature.jsonObject["\$type"]?.jsonPrimitive?.content ==
-                            "app.bsky.richtext.facet#link"
-                    } == true
-                }
-            assertNotNull(linkFacet)
+            val external = embed["external"]?.jsonObject
+            assertNotNull(external)
+            assertEquals("http://localhost/test-page.html", external["uri"]?.jsonPrimitive?.content)
+            assertEquals("Test Article", external["title"]?.jsonPrimitive?.content)
+            assertEquals("Test description", external["description"]?.jsonPrimitive?.content)
+
+            // Check that the thumbnail blob was included
+            val thumb = external["thumb"]?.jsonObject
+            assertNotNull(thumb)
 
             blueskyClient.close()
         }
     }
-
-    @Test
-    fun `creates post with link in text when no link preview available`(@TempDir tempDir: Path) =
-        runTest {
-            testApplication {
-                val jdbi = createTestDatabase(tempDir)
-                val filesModule = createFilesModule(tempDir, jdbi)
-                var createRecordBody: JsonObject? = null
-
-                application {
-                    routing {
-                        post("/xrpc/com.atproto.server.createSession") {
-                            call.respondText(
-                                "{" +
-                                    "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
-                                io.ktor.http.ContentType.Application.Json,
-                            )
-                        }
-                        post("/xrpc/com.atproto.repo.createRecord") {
-                            val body = call.receiveStream().readBytes().decodeToString()
-                            createRecordBody = Json.parseToJsonElement(body).jsonObject
-                            call.respondText(
-                                "{" +
-                                    "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
-                                io.ktor.http.ContentType.Application.Json,
-                            )
-                        }
-                        // No route for link preview - it will fail to fetch
-                    }
-                }
-
-                val blueskyClient = createClient {
-                    install(ClientContentNegotiation) {
-                        json(
-                            Json {
-                                ignoreUnknownKeys = true
-                                isLenient = true
-                            }
-                        )
-                    }
-                }
-                val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-                val blueskyModule =
-                    BlueskyApiModule(
-                        config =
-                            BlueskyConfig(
-                                service = "http://localhost",
-                                username = "u",
-                                password = "p",
-                            ),
-                        filesModule = filesModule,
-                        httpClient = blueskyClient,
-                        linkPreviewParser = linkPreview,
-                    )
-
-                val req =
-                    NewPostRequest(content = "Check this out", link = "https://example.com/test")
-                val result = blueskyModule.createPost(req)
-
-                assertTrue(result.isRight())
-
-                val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
-                val text = record["text"]?.jsonPrimitive?.content
-                val embed = record["embed"]?.jsonObject
-                val facets = record["facets"]?.jsonArray
-
-                // When link preview fails, URL should be in the text field
-                assertEquals("Check this out\n\nhttps://example.com/test", text)
-
-                // No external embed when preview fails
-                assertEquals(null, embed)
-
-                // But facets should be present for the link
-                assertNotNull(facets)
-                assertTrue(facets.size > 0)
-                val linkFacet = facets.first().jsonObject
-                val feature = linkFacet["features"]?.jsonArray?.first()?.jsonObject
-                assertEquals(
-                    "app.bsky.richtext.facet#link",
-                    feature?.get("\$type")?.jsonPrimitive?.content,
-                )
-                assertEquals(
-                    "https://example.com/test",
-                    feature?.get("uri")?.jsonPrimitive?.content,
-                )
-
-                blueskyClient.close()
-            }
-        }
 }

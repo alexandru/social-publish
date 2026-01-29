@@ -380,20 +380,34 @@ class BlueskyApiModule(
                     emptyList()
                 }
 
-            // Note: External embeds (link preview cards) are currently disabled.
-            // When enabled, they interfere with URL character counting in facets.
-            // URLs in text with facets count as ~25 chars, which is the desired behavior.
-            // External embeds can be re-enabled as a separate feature if needed.
-            val linkPreview = null
-            val linkPreviewBlobRef = null
+            // Fetch link preview if link is present and no images
+            // Note: Bluesky only supports one embed type at a time, and images take priority
+            val linkPreview =
+                if (request.link != null && imageEmbeds.isEmpty()) {
+                    linkPreviewParser.fetchPreview(request.link)
+                } else {
+                    null
+                }
+
+            // Upload link preview image if present
+            val linkPreviewBlobRef =
+                if (linkPreview?.image != null) {
+                    uploadBlobFromUrl(linkPreview.image, session)
+                } else {
+                    null
+                }
 
             // Prepare text
+            // If we have a link preview, use its canonical URL in the text
+            // This ensures consistency between facets and external embed
+            val finalLink =
+                if (linkPreview != null && request.link != null) linkPreview.url else request.link
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (request.link != null) "\n\n${request.link}" else ""
+                } + if (finalLink != null) "\n\n$finalLink" else ""
 
             logger.info { "Posting to Bluesky:\n${text.trim().prependIndent("  |")}" }
 
@@ -441,8 +455,26 @@ class BlueskyApiModule(
                             }
                         }
                     }
+                } else if (linkPreview != null) {
+                    // Add external link embed with preview
+                    putJsonObject("embed") {
+                        put("\$type", "app.bsky.embed.external")
+                        putJsonObject("external") {
+                            put("uri", linkPreview.url)
+                            put("title", linkPreview.title)
+                            put("description", linkPreview.description ?: "")
+                            // Add image blob if available
+                            if (linkPreviewBlobRef != null) {
+                                putJsonObject("thumb") {
+                                    put("\$type", linkPreviewBlobRef.`$type`)
+                                    put("ref", linkPreviewBlobRef.ref)
+                                    put("mimeType", linkPreviewBlobRef.mimeType)
+                                    put("size", linkPreviewBlobRef.size)
+                                }
+                            }
+                        }
+                    }
                 }
-                // External embeds disabled - URLs in text with facets count as ~25 chars
             }
 
             // Create the post
