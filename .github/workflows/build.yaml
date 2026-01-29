@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - main
+      - scala3
   pull_request:
     branches:
       - main
+      - scala3
 
 jobs:
   build:
