@@ -382,30 +382,31 @@ class BlueskyApiModule(
 
             // Fetch link preview if link is present and no images
             // Note: Bluesky only supports one embed type at a time, and images take priority
-            val linkPreview =
-                if (request.link != null && imageEmbeds.isEmpty()) {
-                    linkPreviewParser.fetchPreview(request.link)
-                } else {
-                    null
-                }
+            // DISABLED: External embeds interfere with URL counting in text
+            // When URLs are in text with facets, they count as ~25 chars
+            // External embeds are link preview cards and should be a separate feature
+            val linkPreview = null
+            // if (request.link != null && imageEmbeds.isEmpty()) {
+            //     linkPreviewParser.fetchPreview(request.link)
+            // } else {
+            //     null
+            // }
 
             // Upload link preview image if present
-            val linkPreviewBlobRef =
-                if (linkPreview?.image != null) {
-                    uploadBlobFromUrl(linkPreview.image, session)
-                } else {
-                    null
-                }
+            val linkPreviewBlobRef = null
+            // if (linkPreview?.image != null) {
+            //     uploadBlobFromUrl(linkPreview.image, session)
+            // } else {
+            //     null
+            // }
 
             // Prepare text
-            // Note: When using external embed (linkPreview), don't include URL in text
-            // The URL is already in the embed itself
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (request.link != null && linkPreview == null) "\n\n${request.link}" else ""
+                } + if (request.link != null) "\n\n${request.link}" else ""
 
             logger.info { "Posting to Bluesky:\n${text.trim().prependIndent("  |")}" }
 
@@ -453,26 +454,8 @@ class BlueskyApiModule(
                             }
                         }
                     }
-                } else if (linkPreview != null) {
-                    // Add external link embed with preview
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.external")
-                        putJsonObject("external") {
-                            put("uri", linkPreview.url)
-                            put("title", linkPreview.title)
-                            put("description", linkPreview.description ?: "")
-                            // Add image blob if available
-                            if (linkPreviewBlobRef != null) {
-                                putJsonObject("thumb") {
-                                    put("\$type", linkPreviewBlobRef.`$type`)
-                                    put("ref", linkPreviewBlobRef.ref)
-                                    put("mimeType", linkPreviewBlobRef.mimeType)
-                                    put("size", linkPreviewBlobRef.size)
-                                }
-                            }
-                        }
-                    }
                 }
+                // External embeds disabled - URLs in text with facets count as ~25 chars
             }
 
             // Create the post

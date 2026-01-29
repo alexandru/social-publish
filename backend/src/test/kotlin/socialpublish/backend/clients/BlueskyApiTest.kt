@@ -303,24 +303,23 @@ class BlueskyApiTest {
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = record["text"]?.jsonPrimitive?.content
-            val embed = record["embed"]?.jsonObject
+            val facets = record["facets"]?.jsonArray
 
-            // When using external embed, the URL should NOT be in the text field
-            assertEquals("Check out this article", text)
-            assertTrue(text?.contains("http://localhost/test-page.html") == false)
+            // URLs should be in the text (not in external embed for now)
+            assertEquals("Check out this article\n\nhttp://localhost/test-page.html", text)
+            assertTrue(text?.contains("http://localhost/test-page.html") == true)
 
-            assertNotNull(embed)
-            assertEquals("app.bsky.embed.external", embed["\$type"]?.jsonPrimitive?.content)
-
-            val external = embed["external"]?.jsonObject
-            assertNotNull(external)
-            assertEquals("http://localhost/test-page.html", external["uri"]?.jsonPrimitive?.content)
-            assertEquals("Test Article", external["title"]?.jsonPrimitive?.content)
-            assertEquals("Test description", external["description"]?.jsonPrimitive?.content)
-
-            // Check that the thumbnail blob was included
-            val thumb = external["thumb"]?.jsonObject
-            assertNotNull(thumb)
+            // Facets should mark the URL so Bluesky counts it as ~25 chars
+            assertNotNull(facets)
+            assertTrue(facets.size > 0)
+            val linkFacet =
+                facets.firstOrNull { facet ->
+                    facet.jsonObject["features"]?.jsonArray?.any { feature ->
+                        feature.jsonObject["\$type"]?.jsonPrimitive?.content ==
+                            "app.bsky.richtext.facet#link"
+                    } == true
+                }
+            assertNotNull(linkFacet)
 
             blueskyClient.close()
         }
