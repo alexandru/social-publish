@@ -1,20 +1,32 @@
-# social-publish
+# Social Publish
 
 [![build](https://github.com/alexandru/social-publish/actions/workflows/build.yaml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/build.yaml) [![deploy](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml/badge.svg)](https://github.com/alexandru/social-publish/actions/workflows/deploy.yml)
 
-In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere) I need to publish to multiple social networks. This project provides direct API integration for X (Twitter), Mastodon, Bluesky, and LinkedIn.
+In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, syndicate elsewhere), I need to publish to multiple social networks. Social Publish provides direct API integration for X (Twitter), Mastodon, Bluesky, and LinkedIn, plus an RSS feed for automation.
 
-This project is a simple tool to publish content to multiple social networks.
+## What it does
 
-- [X (Twitter)](https://twitter.com), [Mastodon](https://joinmastodon.org/), [Bluesky](https://bsky.app/), and [LinkedIn](https://linkedin.com) support is implemented
-- Image upload is supported, with alt-text included 😊
-- **NEW**: LLM integration for automatic alt-text generation using any OpenAI-compatible API (OpenAI, Mistral, etc.) 🤖✨
-- Also exports an RSS feed, meant for automation via `ifttt.com`
+- Publish the same post to multiple networks from one form
+- Upload images with alt-text, or let an LLM generate alt-text automatically
+- Provide an RSS feed for external automation tools like IFTTT
 
-<img src="./docs/form-screenshot.png" style="max-width: 100%;" width="700" />
+## Supported networks
+
+| Network | Auth model | Notes |
+| --- | --- | --- |
+| [X (Twitter)](https://twitter.com) | OAuth 1.0a | Connect via `/account` after setup |
+| [Mastodon](https://joinmastodon.org/) | Personal access token | Scoped to `write:statuses` and `write:media` |
+| [Bluesky](https://bsky.app/) | App password | One-time app password required |
+| [LinkedIn](https://linkedin.com) | OAuth2 | Token refresh is handled automatically |
+
+<p align="center">
+  <img src="./docs/form-screenshot.png" width="900" alt="Social Publish post form screenshot" />
+</p>
 
 **Table of Contents**
 
+- [What it does](#what-it-does)
+- [Supported networks](#supported-networks)
 - [Self-hosting](#self-hosting)
   - [Bluesky credentials](#bluesky-credentials)
   - [Mastodon credentials](#mastodon-credentials)
@@ -67,7 +79,7 @@ BSKY_PASSWORD="your-password"
 MASTODON_HOST="https://mastodon.social"
 MASTODON_ACCESS_TOKEN="your-access-token"
 
-# YouTube Oauth1 key and secret (Consumer Keys in the Developer Portal)
+# Twitter OAuth1 key and secret (Consumer Keys in the Developer Portal)
 TWITTER_OAUTH1_CONSUMER_KEY="Api Key"
 TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
 
@@ -158,7 +170,7 @@ The application can integrate with LLM providers to automatically generate alt-t
 
 ## RSS feed
 
-While this service is able to publish directly to Mastodon and Bluesky, for other social networks you can use the RSS feed, exposed at `/rss` (e.g., `http://localhost:3000/rss`) in combination with [ifttt.com](https://ifttt.com).
+The RSS feed is exposed at `/rss` (e.g., `http://localhost:3000/rss`). Use it with automation tools like [ifttt.com](https://ifttt.com) if you want additional workflows beyond the direct integrations.
 
 ## Developing
 
