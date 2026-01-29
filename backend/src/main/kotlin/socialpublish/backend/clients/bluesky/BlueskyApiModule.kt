@@ -25,6 +25,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import java.time.Instant
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -78,97 +80,100 @@ class BlueskyApiModule(
     private var accessToken: String? = null
     private var refreshToken: String? = null
     private var sessionDid: String? = null
+    private val authMutex = Mutex()
 
     /** Login to Bluesky and get session token */
-    private suspend fun ensureAuthenticated(): ApiResult<Unit> {
-        if (accessToken != null) {
-            return Unit.right()
-        }
+    private suspend fun ensureAuthenticated(): ApiResult<Unit> =
+        authMutex.withLock {
+            if (accessToken != null) {
+                return Unit.right()
+            }
 
-        return try {
-            val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
-                    contentType(ContentType.Application.Json)
-                    setBody(
-                        buildJsonObject {
-                            put("identifier", config.username)
-                            put("password", config.password)
-                        }
-                    )
-                }
+            return try {
+                val response =
+                    httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
+                        contentType(ContentType.Application.Json)
+                        setBody(
+                            buildJsonObject {
+                                put("identifier", config.username)
+                                put("password", config.password)
+                            }
+                        )
+                    }
 
-            if (response.status.value == 200) {
-                val session = response.body<BlueskySessionResponse>()
-                accessToken = session.accessJwt
-                refreshToken = session.refreshJwt
-                sessionDid = session.did
-                logger.info { "Authenticated to Bluesky as ${session.handle}" }
-                Unit.right()
-            } else {
-                val errorBody = response.bodyAsText()
-                logger.warn {
-                    "Failed to authenticate to Bluesky: ${response.status}, body: $errorBody"
+                if (response.status.value == 200) {
+                    val session = response.body<BlueskySessionResponse>()
+                    accessToken = session.accessJwt
+                    refreshToken = session.refreshJwt
+                    sessionDid = session.did
+                    logger.info { "Authenticated to Bluesky as ${session.handle}" }
+                    Unit.right()
+                } else {
+                    val errorBody = response.bodyAsText()
+                    logger.warn {
+                        "Failed to authenticate to Bluesky: ${response.status}, body: $errorBody"
+                    }
+                    RequestError(
+                            status = response.status.value,
+                            module = "bluesky",
+                            errorMessage = "Failed to authenticate to Bluesky",
+                            body = ResponseBody(asString = errorBody),
+                        )
+                        .left()
                 }
-                RequestError(
-                        status = response.status.value,
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to authenticate to Bluesky" }
+                CaughtException(
+                        status = 500,
                         module = "bluesky",
-                        errorMessage = "Failed to authenticate to Bluesky",
-                        body = ResponseBody(asString = errorBody),
+                        errorMessage = "Failed to authenticate to Bluesky: ${e.message}",
                     )
                     .left()
             }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to authenticate to Bluesky" }
-            CaughtException(
-                    status = 500,
-                    module = "bluesky",
-                    errorMessage = "Failed to authenticate to Bluesky: ${e.message}",
-                )
-                .left()
         }
-    }
 
     /** Refresh the session using the refresh token */
-    private suspend fun refreshSession(): ApiResult<Unit> {
-        val currentRefreshToken = refreshToken
-        if (currentRefreshToken == null) {
-            logger.warn { "No refresh token available, need to re-authenticate" }
-            accessToken = null
-            refreshToken = null
-            return ensureAuthenticated()
-        }
+    private suspend fun refreshSession(): ApiResult<Unit> =
+        authMutex.withLock {
+            val currentRefreshToken = refreshToken
+            if (currentRefreshToken == null) {
+                logger.warn { "No refresh token available, need to re-authenticate" }
+                accessToken = null
+                refreshToken = null
+                return ensureAuthenticated()
+            }
 
-        return try {
-            val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.server.refreshSession") {
-                    header("Authorization", "Bearer $currentRefreshToken")
-                }
+            return try {
+                val response =
+                    httpClient.post("${config.service}/xrpc/com.atproto.server.refreshSession") {
+                        header("Authorization", "Bearer $currentRefreshToken")
+                    }
 
-            if (response.status.value == 200) {
-                val session = response.body<BlueskySessionResponse>()
-                accessToken = session.accessJwt
-                refreshToken = session.refreshJwt
-                sessionDid = session.did
-                logger.info { "Refreshed Bluesky session for ${session.handle}" }
-                Unit.right()
-            } else {
-                val errorBody = response.bodyAsText()
-                logger.warn {
-                    "Failed to refresh Bluesky session: ${response.status}, body: $errorBody"
+                if (response.status.value == 200) {
+                    val session = response.body<BlueskySessionResponse>()
+                    accessToken = session.accessJwt
+                    refreshToken = session.refreshJwt
+                    sessionDid = session.did
+                    logger.info { "Refreshed Bluesky session for ${session.handle}" }
+                    Unit.right()
+                } else {
+                    val errorBody = response.bodyAsText()
+                    logger.warn {
+                        "Failed to refresh Bluesky session: ${response.status}, body: $errorBody"
+                    }
+                    // If refresh fails, clear tokens and try to re-authenticate
+                    accessToken = null
+                    refreshToken = null
+                    ensureAuthenticated()
                 }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to refresh Bluesky session" }
                 // If refresh fails, clear tokens and try to re-authenticate
                 accessToken = null
                 refreshToken = null
                 ensureAuthenticated()
             }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to refresh Bluesky session" }
-            // If refresh fails, clear tokens and try to re-authenticate
-            accessToken = null
-            refreshToken = null
-            ensureAuthenticated()
         }
-    }
 
     /** Check if error response indicates an expired token */
     private fun isExpiredTokenError(errorBody: String): Boolean {
