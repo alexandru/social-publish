@@ -76,6 +76,7 @@ class BlueskyApiModule(
     }
 
     private var accessToken: String? = null
+    private var refreshToken: String? = null
     private var sessionDid: String? = null
 
     /** Login to Bluesky and get session token */
@@ -99,6 +100,7 @@ class BlueskyApiModule(
             if (response.status.value == 200) {
                 val session = response.body<BlueskySessionResponse>()
                 accessToken = session.accessJwt
+                refreshToken = session.refreshJwt
                 sessionDid = session.did
                 logger.info { "Authenticated to Bluesky as ${session.handle}" }
                 Unit.right()
@@ -124,6 +126,54 @@ class BlueskyApiModule(
                 )
                 .left()
         }
+    }
+
+    /** Refresh the session using the refresh token */
+    private suspend fun refreshSession(): ApiResult<Unit> {
+        val currentRefreshToken = refreshToken
+        if (currentRefreshToken == null) {
+            logger.warn { "No refresh token available, need to re-authenticate" }
+            accessToken = null
+            refreshToken = null
+            return ensureAuthenticated()
+        }
+
+        return try {
+            val response =
+                httpClient.post("${config.service}/xrpc/com.atproto.server.refreshSession") {
+                    header("Authorization", "Bearer $currentRefreshToken")
+                }
+
+            if (response.status.value == 200) {
+                val session = response.body<BlueskySessionResponse>()
+                accessToken = session.accessJwt
+                refreshToken = session.refreshJwt
+                sessionDid = session.did
+                logger.info { "Refreshed Bluesky session for ${session.handle}" }
+                Unit.right()
+            } else {
+                val errorBody = response.bodyAsText()
+                logger.warn {
+                    "Failed to refresh Bluesky session: ${response.status}, body: $errorBody"
+                }
+                // If refresh fails, clear tokens and try to re-authenticate
+                accessToken = null
+                refreshToken = null
+                ensureAuthenticated()
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to refresh Bluesky session" }
+            // If refresh fails, clear tokens and try to re-authenticate
+            accessToken = null
+            refreshToken = null
+            ensureAuthenticated()
+        }
+    }
+
+    /** Check if error response indicates an expired token */
+    private fun isExpiredTokenError(errorBody: String): Boolean {
+        return errorBody.contains("ExpiredToken", ignoreCase = true) ||
+            errorBody.contains("Token has expired", ignoreCase = true)
     }
 
     /** Upload image blob to Bluesky */
@@ -182,6 +232,73 @@ class BlueskyApiModule(
                     .right()
             } else {
                 val errorBody = response.bodyAsText()
+
+                // If token expired, refresh and retry once
+                if (isExpiredTokenError(errorBody)) {
+                    logger.info { "Token expired during blob upload, refreshing..." }
+                    when (val refreshResult = refreshSession()) {
+                        is Either.Left -> return refreshResult.value.left()
+                        is Either.Right -> {
+                            // Retry the upload with new token
+                            val retryResponse =
+                                httpClient.post(
+                                    "${config.service}/xrpc/com.atproto.repo.uploadBlob"
+                                ) {
+                                    header("Authorization", "Bearer $accessToken")
+                                    contentType(ContentType.parse(file.mimetype))
+                                    setBody(file.bytes)
+                                }
+
+                            if (retryResponse.status.value == 200) {
+                                val blobData = retryResponse.body<JsonObject>()
+                                val blob =
+                                    blobData["blob"] as? JsonObject
+                                        ?: return CaughtException(
+                                                status = 500,
+                                                module = "bluesky",
+                                                errorMessage = "Invalid blob response",
+                                            )
+                                            .left()
+
+                                val blobRef =
+                                    BlueskyBlobRef(
+                                        `$type` = "blob",
+                                        ref = blob["ref"] as JsonObject,
+                                        mimeType = file.mimetype,
+                                        size = file.size.toInt(),
+                                    )
+
+                                return BlueskyImageEmbed(
+                                        alt = file.altText ?: "",
+                                        image = blobRef,
+                                        aspectRatio =
+                                            if (file.width > 0 && file.height > 0) {
+                                                BlueskyAspectRatio(
+                                                    width = file.width,
+                                                    height = file.height,
+                                                )
+                                            } else {
+                                                null
+                                            },
+                                    )
+                                    .right()
+                            } else {
+                                val retryErrorBody = retryResponse.bodyAsText()
+                                logger.warn {
+                                    "Failed to upload blob to Bluesky after refresh: ${retryResponse.status}, body: $retryErrorBody"
+                                }
+                                return RequestError(
+                                        status = retryResponse.status.value,
+                                        module = "bluesky",
+                                        errorMessage = "Failed to upload blob after token refresh",
+                                        body = ResponseBody(asString = retryErrorBody),
+                                    )
+                                    .left()
+                            }
+                        }
+                    }
+                }
+
                 logger.warn {
                     "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody"
                 }
@@ -242,6 +359,44 @@ class BlueskyApiModule(
                     size = imageBytes.size,
                 )
             } else {
+                val errorBody = uploadResponse.bodyAsText()
+
+                // If token expired, refresh and retry once
+                if (isExpiredTokenError(errorBody)) {
+                    logger.info { "Token expired during blob upload from URL, refreshing..." }
+                    when (refreshSession()) {
+                        is Either.Left -> return null
+                        is Either.Right -> {
+                            // Retry the upload with new token
+                            val retryResponse =
+                                httpClient.post(
+                                    "${config.service}/xrpc/com.atproto.repo.uploadBlob"
+                                ) {
+                                    header("Authorization", "Bearer $accessToken")
+                                    contentType(ContentType.parse(contentType))
+                                    setBody(imageBytes)
+                                }
+
+                            if (retryResponse.status.isSuccess()) {
+                                val blobData = retryResponse.body<JsonObject>()
+                                val blob = blobData["blob"] as? JsonObject ?: return null
+
+                                return BlueskyBlobRef(
+                                    `$type` = "blob",
+                                    ref = blob["ref"] as JsonObject,
+                                    mimeType = contentType,
+                                    size = imageBytes.size,
+                                )
+                            } else {
+                                logger.warn {
+                                    "Failed to upload blob from URL to Bluesky after refresh: ${retryResponse.status}"
+                                }
+                                return null
+                            }
+                        }
+                    }
+                }
+
                 logger.warn {
                     "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
                 }
@@ -508,6 +663,50 @@ class BlueskyApiModule(
                 NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
             } else {
                 val errorBody = response.bodyAsText()
+
+                // If token expired, refresh and retry once
+                if (isExpiredTokenError(errorBody)) {
+                    logger.info { "Token expired during post creation, refreshing..." }
+                    when (val refreshResult = refreshSession()) {
+                        is Either.Left -> return refreshResult.value.left()
+                        is Either.Right -> {
+                            // Retry the post with new token
+                            val retryResponse =
+                                httpClient.post(
+                                    "${config.service}/xrpc/com.atproto.repo.createRecord"
+                                ) {
+                                    header("Authorization", "Bearer $accessToken")
+                                    contentType(ContentType.Application.Json)
+                                    setBody(
+                                        buildJsonObject {
+                                            put("repo", sessionDid)
+                                            put("collection", "app.bsky.feed.post")
+                                            put("record", record)
+                                        }
+                                    )
+                                }
+
+                            if (retryResponse.status.value == 200) {
+                                val data = retryResponse.body<BlueskyPostResponse>()
+                                return NewBlueSkyPostResponse(uri = data.uri, cid = data.cid)
+                                    .right()
+                            } else {
+                                val retryErrorBody = retryResponse.bodyAsText()
+                                logger.warn {
+                                    "Failed to post to Bluesky after refresh: ${retryResponse.status}, body: $retryErrorBody"
+                                }
+                                return RequestError(
+                                        status = retryResponse.status.value,
+                                        module = "bluesky",
+                                        errorMessage = "Failed to create post after token refresh",
+                                        body = ResponseBody(asString = retryErrorBody),
+                                    )
+                                    .left()
+                            }
+                        }
+                    }
+                }
+
                 logger.warn { "Failed to post to Bluesky: ${response.status}, body: $errorBody" }
                 RequestError(
                         status = response.status.value,

@@ -320,4 +320,163 @@ class BlueskyApiTest {
             blueskyClient.close()
         }
     }
+
+    @Test
+    fun `refreshes token and retries when token expires`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var createRecordCallCount = 0
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"initial-token\",\"refreshJwt\":\"refresh-token\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.server.refreshSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"refreshed-token\",\"refreshJwt\":\"new-refresh-token\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        createRecordCallCount++
+                        if (createRecordCallCount == 1) {
+                            // First call fails with expired token
+                            call.respondText(
+                                "{\"error\":\"ExpiredToken\",\"message\":\"Token has expired\"}",
+                                io.ktor.http.ContentType.Application.Json,
+                                status = io.ktor.http.HttpStatusCode.BadRequest,
+                            )
+                        } else {
+                            // Second call succeeds after refresh
+                            call.respondText(
+                                "{" +
+                                    "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        }
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val blueskyModule =
+                BlueskyApiModule(
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
+                )
+
+            val req = NewPostRequest(content = "Hello bluesky")
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+            assertEquals(2, createRecordCallCount) // Verify that retry happened
+
+            blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `refreshes token when blob upload expires`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
+            var uploadBlobCallCount = 0
+
+            application {
+                routing {
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"initial-token\",\"refreshJwt\":\"refresh-token\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.server.refreshSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"refreshed-token\",\"refreshJwt\":\"new-refresh-token\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.uploadBlob") {
+                        uploadBlobCallCount++
+                        if (uploadBlobCallCount == 1) {
+                            // First call fails with expired token
+                            call.respondText(
+                                "{\"error\":\"ExpiredToken\",\"message\":\"Token has expired\"}",
+                                io.ktor.http.ContentType.Application.Json,
+                                status = io.ktor.http.HttpStatusCode.BadRequest,
+                            )
+                        } else {
+                            // Second call succeeds after refresh
+                            val _ = call.receiveStream().readBytes()
+                            call.respondText(
+                                "{" + "\"blob\":{\"ref\":{\"something\":\"ok\"}}}",
+                                io.ktor.http.ContentType.Application.Json,
+                            )
+                        }
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val upload1 = uploadTestImage(blueskyClient, "flower1.jpeg", "rose")
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+
+            val blueskyModule =
+                BlueskyApiModule(
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
+                )
+
+            val req = NewPostRequest(content = "Hello bluesky", images = listOf(upload1.uuid))
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+            assertEquals(2, uploadBlobCallCount) // Verify that retry happened
+
+            blueskyClient.close()
+        }
+    }
 }
