@@ -167,23 +167,31 @@ class ImageMagick private (
     validateFiles(source, dest) match {
       case Left(err) => IO.pure(Left(err))
       case Right(_) =>
-        val command = magickPath.getAbsolutePath
-        val params = Array(
-          source.getAbsolutePath,
-          "-auto-orient",
-          "-resize",
-          s"${options.maxWidth}x${options.maxHeight}>",
-          "-strip",
-          "-quality",
-          quality.toString,
-          "-sampling-factor",
-          "4:2:2",
-          "-interlace",
-          "JPEG",
-          s"jpeg:${dest.getAbsolutePath}"
-        )
+        // Ensure parent directory exists
+        IO.blocking {
+          val parentDir = dest.getParentFile
+          if parentDir != null && !parentDir.exists() then {
+            parentDir.mkdirs()
+            ()
+          }
+        } *> {
+          val command = magickPath.getAbsolutePath
+          val params = Array(
+            source.getAbsolutePath,
+            "-auto-orient",
+            "-resize",
+            s"${options.maxWidth}x${options.maxHeight}>",
+            "-strip",
+            "-quality",
+            quality.toString,
+            "-sampling-factor",
+            "4:2:2",
+            "-interlace",
+            "JPEG",
+            s"jpeg:${dest.getAbsolutePath}"
+          )
 
-        Cli.executeShellCommand(command, params*).map { result =>
+          Cli.executeShellCommand(command, params*).map { result =>
           Cli.orError(result) match {
             case Right(_) =>
               if !dest.exists() then {
@@ -194,8 +202,12 @@ class ImageMagick private (
                 Right(())
               }
             case Left(err) =>
-              Left(new MagickException("ImageMagick JPEG optimization command failed", err))
+              Left(new MagickException(
+                s"ImageMagick JPEG optimization command failed.\nCommand: ${err.command}\nExit code: ${err.exitCode}\nStdout: ${err.stdout}\nStderr: ${err.stderr}",
+                err
+              ))
           }
+        }
         }
     }
   }
@@ -204,32 +216,41 @@ class ImageMagick private (
     validateFiles(source, dest) match {
       case Left(err) => IO.pure(Left(err))
       case Right(_) =>
-        val command = magickPath.getAbsolutePath
-        val params = Array(
-          source.getAbsolutePath,
-          "-auto-orient",
-          "-resize",
-          s"${options.maxWidth}x${options.maxHeight}>",
-          "-strip",
-          "-define",
-          "png:compression-level=9",
-          "-define",
-          "png:compression-strategy=1",
-          s"png:${dest.getAbsolutePath}"
-        )
+        // Ensure parent directory exists
+        IO.blocking {
+          val parentDir = dest.getParentFile
+          if parentDir != null && !parentDir.exists() then {
+            parentDir.mkdirs()
+            ()
+          }
+        } *> {
+          val command = magickPath.getAbsolutePath
+          val params = Array(
+            source.getAbsolutePath,
+            "-auto-orient",
+            "-resize",
+            s"${options.maxWidth}x${options.maxHeight}>",
+            "-strip",
+            "-define",
+            "png:compression-level=9",
+            "-define",
+            "png:compression-strategy=1",
+            s"png:${dest.getAbsolutePath}"
+          )
 
-        Cli.executeShellCommand(command, params*).map { result =>
-          Cli.orError(result) match {
-            case Right(_) =>
-              if !dest.exists() then {
-                Left(new MagickException(
-                  s"Optimization failed, destination file not created: ${dest.getAbsolutePath}"
-                ))
-              } else {
-                Right(())
-              }
-            case Left(err) =>
-              Left(new MagickException("ImageMagick PNG optimization command failed", err))
+          Cli.executeShellCommand(command, params*).map { result =>
+            Cli.orError(result) match {
+              case Right(_) =>
+                if !dest.exists() then {
+                  Left(new MagickException(
+                    s"Optimization failed, destination file not created: ${dest.getAbsolutePath}"
+                  ))
+                } else {
+                  Right(())
+                }
+              case Left(err) =>
+                Left(new MagickException("ImageMagick PNG optimization command failed", err))
+            }
           }
         }
     }

@@ -49,8 +49,8 @@ object Cli {
    * Arguments are escaped and joined with spaces.
    */
   def executeShellCommand(command: String, args: String*): IO[CommandResult] = {
-    val escapedArgs = (command +: args).map(escapeShellArg)
-    val shellCommand = escapedArgs.mkString(" ")
+    val escapedArgs = args.map(escapeShellArg)
+    val shellCommand = command + " " + escapedArgs.mkString(" ")
     executeCommand("/bin/sh", "-c", shellCommand)
   }
 
