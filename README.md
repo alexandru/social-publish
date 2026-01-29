@@ -12,12 +12,10 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
 
 ## Supported networks
 
-| Network | Auth model | Notes |
-| --- | --- | --- |
-| [X (Twitter)](https://twitter.com) | OAuth 1.0a | Connect via `/account` after setup |
-| [Mastodon](https://joinmastodon.org/) | Personal access token | Scoped to `write:statuses` and `write:media` |
-| [Bluesky](https://bsky.app/) | App password | One-time app password required |
-| [LinkedIn](https://linkedin.com) | OAuth2 | Token refresh is handled automatically |
+- [X (Twitter)](https://twitter.com)
+- [Mastodon](https://joinmastodon.org/)
+- [Bluesky](https://bsky.app/)
+- [LinkedIn](https://linkedin.com)
 
 <p align="center">
   <img src="./docs/form-screenshot.png" width="900" alt="Social Publish post form screenshot" />
