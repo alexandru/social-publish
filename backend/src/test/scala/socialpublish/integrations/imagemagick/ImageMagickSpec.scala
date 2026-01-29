@@ -73,7 +73,10 @@ class ImageMagickSpec extends CatsEffectSuite {
           val nonExistent = tempDir.resolve("does-not-exist.jpg").toFile
           magick.identifyImageSize(nonExistent).map {
             case Left(err) =>
-              assert(err.getMessage.contains("does not exist"), "Error should mention file does not exist")
+              assert(
+                err.getMessage.contains("does not exist"),
+                "Error should mention file does not exist"
+              )
             case Right(_) =>
               fail("identifyImageSize should fail for non-existent file")
           }

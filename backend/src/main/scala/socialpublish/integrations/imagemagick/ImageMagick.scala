@@ -28,7 +28,7 @@ case class MagickOptimizeOptions(
 )
 
 class MagickException(message: String, cause: Throwable = null)
-  extends Exception(message, cause)
+    extends Exception(message, cause)
 
 class ImageMagick private (
   magickPath: File,
@@ -38,18 +38,22 @@ class ImageMagick private (
   logger: Logger[IO]
 ) {
 
-  /**
-   * Returns the dimensions of an image file, using ImageMagick's `identify` command.
-   */
+  /** Returns the dimensions of an image file, using ImageMagick's `identify` command.
+    */
   def identifyImageSize(source: File): IO[Either[MagickException, MagickImageSize]] = {
     if !source.exists() || !source.canRead() then {
       IO.pure(Left(
-        new MagickException(s"Source file does not exist or is not readable: ${source.getAbsolutePath}")
+        new MagickException(
+          s"Source file does not exist or is not readable: ${source.getAbsolutePath}"
+        )
       ))
     } else {
       val (command, params) = version match {
         case ImageMagickVersion.V7 =>
-          (magickPath.getAbsolutePath, Array("identify", "-format", "%w %h", source.getAbsolutePath))
+          (
+            magickPath.getAbsolutePath,
+            Array("identify", "-format", "%w %h", source.getAbsolutePath)
+          )
         case ImageMagickVersion.V6 =>
           (identifyPath.get.getAbsolutePath, Array("-format", "%w %h", source.getAbsolutePath))
       }
@@ -67,27 +71,31 @@ class ImageMagick private (
               Right(MagickImageSize(width = parts(0), height = parts(1)))
             }
           case Left(err) =>
-            Left(new MagickException("ImageMagick-powered identification of image size failed", err))
+            Left(new MagickException(
+              "ImageMagick-powered identification of image size failed",
+              err
+            ))
         }
       }
     }
   }
 
-  /**
-   * Optimizes an image file, writing the optimized result to the destination file.
-   *
-   * The optimization process may involve resizing, recompressing, and converting between formats
-   * (PNG to JPEG) to meet the specified size constraints. If the optimized image still exceeds
-   * the maximum size, the process will iteratively adjust parameters (e.g., reducing JPEG
-   * quality) until the size requirement is met or quality limits are reached.
-   */
+  /** Optimizes an image file, writing the optimized result to the destination file.
+    *
+    * The optimization process may involve resizing, recompressing, and converting between formats
+    * (PNG to JPEG) to meet the specified size constraints. If the optimized image still exceeds the
+    * maximum size, the process will iteratively adjust parameters (e.g., reducing JPEG quality)
+    * until the size requirement is met or quality limits are reached.
+    */
   def optimizeImage(source: File, dest: File): IO[Either[MagickException, Unit]] = {
     def optimizeLoop(mimeType: MimeType, quality: Int): IO[Either[MagickException, Unit]] = {
       val optimizeResult = mimeType match {
         case MimeType.PNG => optimizePng(source, dest)
         case MimeType.JPEG | MimeType.IMAGE_UNKNOWN => optimizeJpeg(source, dest, quality)
         case MimeType.OTHER =>
-          IO.pure(Left(new MagickException(s"File is not a supported image type: ${source.getAbsolutePath}")))
+          IO.pure(Left(
+            new MagickException(s"File is not a supported image type: ${source.getAbsolutePath}")
+          ))
       }
 
       optimizeResult.flatMap {
@@ -100,24 +108,26 @@ class ImageMagick private (
             if withinLimit then {
               IO.pure(Right(()))
             } else {
-              logger.warn(s"Optimized image still too large ($fileLength bytes), re-optimizing: ${source.getAbsolutePath}") *>
-              IO.blocking(dest.delete()) *> {
-                // Adjust parameters for next iteration
-                if mimeType == MimeType.PNG then {
-                  // Convert PNG to JPEG
-                  optimizeLoop(MimeType.JPEG, quality)
-                } else {
-                  // Reduce JPEG quality
-                  val newQuality = quality - 10
-                  if newQuality < 40 then {
-                    IO.pure(Left(new MagickException(
-                      s"Cannot optimize image below size limit without excessive quality loss: ${source.getAbsolutePath}"
-                    )))
+              logger.warn(
+                s"Optimized image still too large ($fileLength bytes), re-optimizing: ${source.getAbsolutePath}"
+              ) *>
+                IO.blocking(dest.delete()) *> {
+                  // Adjust parameters for next iteration
+                  if mimeType == MimeType.PNG then {
+                    // Convert PNG to JPEG
+                    optimizeLoop(MimeType.JPEG, quality)
                   } else {
-                    optimizeLoop(MimeType.JPEG, newQuality)
+                    // Reduce JPEG quality
+                    val newQuality = quality - 10
+                    if newQuality < 40 then {
+                      IO.pure(Left(new MagickException(
+                        s"Cannot optimize image below size limit without excessive quality loss: ${source.getAbsolutePath}"
+                      )))
+                    } else {
+                      optimizeLoop(MimeType.JPEG, newQuality)
+                    }
                   }
                 }
-              }
             }
           }
       }
@@ -163,7 +173,11 @@ class ImageMagick private (
     }
   }
 
-  private def optimizeJpeg(source: File, dest: File, quality: Int): IO[Either[MagickException, Unit]] = {
+  private def optimizeJpeg(
+    source: File,
+    dest: File,
+    quality: Int
+  ): IO[Either[MagickException, Unit]] = {
     validateFiles(source, dest) match {
       case Left(err) => IO.pure(Left(err))
       case Right(_) =>
@@ -192,22 +206,22 @@ class ImageMagick private (
           )
 
           Cli.executeShellCommand(command, params*).map { result =>
-          Cli.orError(result) match {
-            case Right(_) =>
-              if !dest.exists() then {
+            Cli.orError(result) match {
+              case Right(_) =>
+                if !dest.exists() then {
+                  Left(new MagickException(
+                    s"Optimization failed, destination file not created: ${dest.getAbsolutePath}"
+                  ))
+                } else {
+                  Right(())
+                }
+              case Left(err) =>
                 Left(new MagickException(
-                  s"Optimization failed, destination file not created: ${dest.getAbsolutePath}"
+                  s"ImageMagick JPEG optimization command failed.\nCommand: ${err.command}\nExit code: ${err.exitCode}\nStdout: ${err.stdout}\nStderr: ${err.stderr}",
+                  err
                 ))
-              } else {
-                Right(())
-              }
-            case Left(err) =>
-              Left(new MagickException(
-                s"ImageMagick JPEG optimization command failed.\nCommand: ${err.command}\nExit code: ${err.exitCode}\nStdout: ${err.stdout}\nStderr: ${err.stderr}",
-                err
-              ))
+            }
           }
-        }
         }
     }
   }
@@ -260,12 +274,12 @@ class ImageMagick private (
 
 object ImageMagick {
 
-  /**
-   * Creates an ImageMagick instance by detecting the installed version.
-   * Tries ImageMagick 7 (unified 'magick' command) first, then falls back to
-   * ImageMagick 6 (separate 'convert' and 'identify' commands).
-   */
-  def apply(options: MagickOptimizeOptions = MagickOptimizeOptions()): IO[Either[MagickException, ImageMagick]] = {
+  /** Creates an ImageMagick instance by detecting the installed version. Tries ImageMagick 7
+    * (unified 'magick' command) first, then falls back to ImageMagick 6 (separate 'convert' and
+    * 'identify' commands).
+    */
+  def apply(options: MagickOptimizeOptions =
+    MagickOptimizeOptions()): IO[Either[MagickException, ImageMagick]] = {
     for {
       logger <- Slf4jLogger.create[IO]
       // Try to find ImageMagick 7 (unified magick command) first
@@ -304,9 +318,18 @@ object ImageMagick {
           val convert = new File(cPath)
           val identify = new File(iPath)
 
-          if convert.exists() && convert.canExecute() && identify.exists() && identify.canExecute() then {
-            logger.info(s"Found ImageMagick 6 - convert: ${convert.getAbsolutePath}, identify: ${identify.getAbsolutePath}") *>
-              IO.pure(Right(new ImageMagick(convert, ImageMagickVersion.V6, Some(identify), options, logger)))
+          if convert.exists() && convert.canExecute() && identify.exists() && identify.canExecute()
+          then {
+            logger.info(
+              s"Found ImageMagick 6 - convert: ${convert.getAbsolutePath}, identify: ${identify.getAbsolutePath}"
+            ) *>
+              IO.pure(Right(new ImageMagick(
+                convert,
+                ImageMagickVersion.V6,
+                Some(identify),
+                options,
+                logger
+              )))
           } else {
             notFoundError()
           }
