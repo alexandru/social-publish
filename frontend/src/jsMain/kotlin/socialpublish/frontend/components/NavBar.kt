@@ -86,19 +86,6 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
             }
         ) {
             Div(attrs = { classes("navbar-start") }) {
-                Div(attrs = { classes("navbar-item") }) {
-                    Div(attrs = { classes("buttons") }) {
-                        // Home
-                        NavButton(
-                            href = "/",
-                            label = "Home",
-                            iconClasses = arrayOf("fas", "fa-home"),
-                            isActive = (currentPath == "/"),
-                            onClick = { navbarActive = false },
-                        )
-                    }
-                }
-
                 if (isLoggedIn) {
                     Div(attrs = { classes("navbar-item") }) {
                         Div(attrs = { classes("buttons") }) {

@@ -8,6 +8,7 @@ import org.jetbrains.compose.web.renderComposable
 import socialpublish.frontend.components.NavBar
 import socialpublish.frontend.pages.*
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.navigateTo
 
 @JsModule("bulma/css/bulma.min.css") @JsNonModule external val bulmaStyles: dynamic
 
@@ -43,7 +44,7 @@ fun App() {
 
         Main {
             when (currentPath) {
-                "/" -> HomePage()
+                "/" -> RedirectToForm()
                 "/login" -> LoginPage()
                 "/form" -> PublishFormPage()
                 "/account" -> AccountPage()
@@ -51,4 +52,9 @@ fun App() {
             }
         }
     }
+}
+
+@Composable
+private fun RedirectToForm() {
+    LaunchedEffect(Unit) { navigateTo("/form") }
 }
