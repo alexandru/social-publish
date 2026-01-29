@@ -398,12 +398,14 @@ class BlueskyApiModule(
                 }
 
             // Prepare text
+            // Note: When using external embed (linkPreview), don't include URL in text
+            // The URL is already in the embed itself
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (request.link != null) "\n\n${request.link}" else ""
+                } + if (request.link != null && linkPreview == null) "\n\n${request.link}" else ""
 
             logger.info { "Posting to Bluesky:\n${text.trim().prependIndent("  |")}" }
 
