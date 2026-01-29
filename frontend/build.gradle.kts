@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("org.jetbrains.compose") version "1.9.2"
+    id("org.jetbrains.compose") version "1.10.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.0"
 }
 
@@ -45,6 +45,7 @@ kotlin {
     }
 
     sourceSets {
+        @Suppress("unused")
         val jsMain by getting {
             dependencies {
                 implementation(compose.html.core)
@@ -56,6 +57,7 @@ kotlin {
                 implementation(npm("html-webpack-plugin", "5.6.3"))
             }
         }
+        @Suppress("unused")
         val jsTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
