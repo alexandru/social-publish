@@ -130,11 +130,9 @@ val migrations: List<Migration> =
  * @param tableName The name of the table to check
  * @return true if the table exists, false otherwise
  */
-private suspend fun SafeConnection.tableExists(tableName: String): Boolean {
-    return query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?") {
-            setString(1, tableName)
-            val rs = executeQuery()
-            rs.next()
-        }
-        .let { exists -> exists }
-}
+private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
+    query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?") {
+        setString(1, tableName)
+        val rs = executeQuery()
+        rs.next()
+    }
