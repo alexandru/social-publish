@@ -75,15 +75,8 @@ class BlueskyApiModule(
             }
     }
 
-    private var accessToken: String? = null
-    private var sessionDid: String? = null
-
     /** Login to Bluesky and get session token */
-    private suspend fun ensureAuthenticated(): ApiResult<Unit> {
-        if (accessToken != null) {
-            return Unit.right()
-        }
-
+    private suspend fun createSession(): ApiResult<BlueskySessionResponse> {
         return try {
             val response =
                 httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
@@ -98,10 +91,8 @@ class BlueskyApiModule(
 
             if (response.status.value == 200) {
                 val session = response.body<BlueskySessionResponse>()
-                accessToken = session.accessJwt
-                sessionDid = session.did
                 logger.info { "Authenticated to Bluesky as ${session.handle}" }
-                Unit.right()
+                session.right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn {
@@ -127,7 +118,10 @@ class BlueskyApiModule(
     }
 
     /** Upload image blob to Bluesky */
-    private suspend fun uploadBlob(uuid: String): ApiResult<BlueskyImageEmbed> {
+    private suspend fun uploadBlob(
+        uuid: String,
+        session: BlueskySessionResponse,
+    ): ApiResult<BlueskyImageEmbed> {
         return try {
             val file =
                 filesModule.readImageFile(uuid)
@@ -138,14 +132,9 @@ class BlueskyApiModule(
                         )
                         .left()
 
-            when (val authResult = ensureAuthenticated()) {
-                is Either.Left -> return authResult.value.left()
-                is Either.Right -> {}
-            }
-
             val response =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
-                    header("Authorization", "Bearer $accessToken")
+                    header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(file.mimetype))
                     setBody(file.bytes)
                 }
@@ -169,7 +158,7 @@ class BlueskyApiModule(
                         size = file.size.toInt(),
                     )
 
-                BlueskyImageEmbed(
+                return BlueskyImageEmbed(
                         alt = file.altText ?: "",
                         image = blobRef,
                         aspectRatio =
@@ -180,19 +169,17 @@ class BlueskyApiModule(
                             },
                     )
                     .right()
-            } else {
-                val errorBody = response.bodyAsText()
-                logger.warn {
-                    "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody"
-                }
-                RequestError(
-                        status = response.status.value,
-                        module = "bluesky",
-                        errorMessage = "Failed to upload blob",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
             }
+
+            val errorBody = response.bodyAsText()
+            logger.warn { "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody" }
+            RequestError(
+                    status = response.status.value,
+                    module = "bluesky",
+                    errorMessage = "Failed to upload blob",
+                    body = ResponseBody(asString = errorBody),
+                )
+                .left()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
             CaughtException(
@@ -205,7 +192,10 @@ class BlueskyApiModule(
     }
 
     /** Upload image from URL as blob to Bluesky for link previews */
-    private suspend fun uploadBlobFromUrl(imageUrl: String): BlueskyBlobRef? {
+    private suspend fun uploadBlobFromUrl(
+        imageUrl: String,
+        session: BlueskySessionResponse,
+    ): BlueskyBlobRef? {
         return try {
             // Fetch the image
             val response = httpClient.get(imageUrl)
@@ -219,14 +209,9 @@ class BlueskyApiModule(
             val contentType = response.contentType()?.toString() ?: "image/jpeg"
 
             // Upload to Bluesky
-            when (ensureAuthenticated()) {
-                is Either.Left -> return null
-                is Either.Right -> {}
-            }
-
             val uploadResponse =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
-                    header("Authorization", "Bearer $accessToken")
+                    header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(contentType))
                     setBody(imageBytes)
                 }
@@ -235,18 +220,16 @@ class BlueskyApiModule(
                 val blobData = uploadResponse.body<JsonObject>()
                 val blob = blobData["blob"] as? JsonObject ?: return null
 
-                BlueskyBlobRef(
+                return BlueskyBlobRef(
                     `$type` = "blob",
                     ref = blob["ref"] as JsonObject,
                     mimeType = contentType,
                     size = imageBytes.size,
                 )
-            } else {
-                logger.warn {
-                    "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
-                }
-                null
             }
+
+            logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
+            null
         } catch (e: Exception) {
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
             null
@@ -379,22 +362,23 @@ class BlueskyApiModule(
                 return error.left()
             }
 
-            // Ensure authenticated
-            when (val authResult = ensureAuthenticated()) {
-                is Either.Left -> return authResult.value.left()
-                is Either.Right -> {}
-            }
-
-            // Upload images if present
-            val imageEmbeds = mutableListOf<BlueskyImageEmbed>()
-            if (!request.images.isNullOrEmpty()) {
-                for (imageUuid in request.images) {
-                    when (val result = uploadBlob(imageUuid)) {
-                        is Either.Right -> imageEmbeds.add(result.value)
-                        is Either.Left -> return result.value.left()
-                    }
+            val session =
+                when (val authResult = createSession()) {
+                    is Either.Left -> return authResult.value.left()
+                    is Either.Right -> authResult.value
                 }
-            }
+
+            val imageEmbeds =
+                if (!request.images.isNullOrEmpty()) {
+                    request.images.map { imageUuid ->
+                        when (val uploadResult = uploadBlob(imageUuid, session)) {
+                            is Either.Left -> return uploadResult.value.left()
+                            is Either.Right -> uploadResult.value
+                        }
+                    }
+                } else {
+                    emptyList()
+                }
 
             // Fetch link preview if link is present and no images
             // Note: Bluesky only supports one embed type at a time, and images take priority
@@ -408,7 +392,7 @@ class BlueskyApiModule(
             // Upload link preview image if present
             val linkPreviewBlobRef =
                 if (linkPreview?.image != null) {
-                    uploadBlobFromUrl(linkPreview.image)
+                    uploadBlobFromUrl(linkPreview.image, session)
                 } else {
                     null
                 }
@@ -492,11 +476,11 @@ class BlueskyApiModule(
             // Create the post
             val response =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.createRecord") {
-                    header("Authorization", "Bearer $accessToken")
+                    header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.Application.Json)
                     setBody(
                         buildJsonObject {
-                            put("repo", sessionDid)
+                            put("repo", session.did)
                             put("collection", "app.bsky.feed.post")
                             put("record", record)
                         }

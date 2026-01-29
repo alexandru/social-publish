@@ -103,6 +103,8 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 
 ## Coding Style
 
+- Prefer functional programming (avoid side effects if not absolutely necessary).
+- No shared mutable state (e.g., `var` in classes) is allowed, unless it's designed by the user and it's thread-safe. 
 - Prefer idiomatic Kotlin constructs and direct style with `suspend` functions for effectful code, rather than monad chaining (`flatMap`).
 - Use Arrow's `Resource` for resource management and `Either` for error modeling where appropriate.
 - Avoid `runBlocking` (except for `main`). Coroutines (suspended functions) should be used idiomatically.
