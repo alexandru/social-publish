@@ -20,8 +20,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
-import socialpublish.backend.clients.imagemagick.ImageMagick
-import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
@@ -63,8 +61,8 @@ class BlueskyApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -72,7 +70,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val req = NewPostRequest(content = "Hello bluesky")
@@ -136,8 +133,8 @@ class BlueskyApiTest {
             }
             val upload1 = uploadTestImage(blueskyClient, "flower1.jpeg", "rose")
             val upload2 = uploadTestImage(blueskyClient, "flower2.jpeg", "tulip")
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
 
             val blueskyModule =
                 BlueskyApiModule(
@@ -146,7 +143,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val req =
@@ -288,8 +284,8 @@ class BlueskyApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -297,7 +293,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val req =
@@ -394,8 +389,8 @@ class BlueskyApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -403,7 +398,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val req =
@@ -416,7 +410,10 @@ class BlueskyApiTest {
             assertTrue(result.isRight())
             assertNotNull(uploadedImageSize)
             // Bluesky limit is approximately 976KB, ensure we're under that
-            assertTrue(uploadedImageSize!! <= 976_000, "Image size $uploadedImageSize should be <= 976KB")
+            assertTrue(
+                uploadedImageSize <= 976_000,
+                "Image size $uploadedImageSize should be <= 976KB",
+            )
 
             blueskyClient.close()
         }
@@ -512,8 +509,8 @@ class BlueskyApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -521,7 +518,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val longLink =
@@ -597,8 +593,8 @@ class BlueskyApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
-            val imageMagick = createTestImageMagick()
+            val linkPreview =
+                LinkPreviewParser(httpClient = blueskyClient, imageMagick = createTestImageMagick())
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -606,7 +602,6 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
-                    imageMagick = imageMagick,
                 )
 
             val linkOne = "http://localhost/alpha?with=a-long-query-param"

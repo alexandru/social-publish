@@ -273,7 +273,7 @@ data class MagickOptimizeOptions(
     val jpegQuality: Int = 95,
     val maxWidth: Int = 1600,
     val maxHeight: Int = 1600,
-    val maxSizeBytes: Long = 1_000_000L, // 1 MB
+    val maxSizeBytes: Long = 900_000L, // 900 KB - safe for all social media platforms
 )
 
 class MagickException(message: String, cause: Throwable? = null) : Exception(message, cause)

@@ -1,11 +1,11 @@
 package socialpublish.backend.clients.bluesky
 
 import arrow.core.Either
-import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -36,8 +36,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import socialpublish.backend.clients.imagemagick.ImageMagick
-import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
@@ -54,7 +52,6 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 private const val BlueskyLinkDisplayLength = 24
-private const val BlueskyMaxImageSize = 950_000L
 
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
@@ -62,7 +59,6 @@ class BlueskyApiModule(
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
     private val linkPreviewParser: LinkPreviewParser,
-    private val imageMagick: ImageMagick,
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
@@ -77,18 +73,11 @@ class BlueskyApiModule(
 
         fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
-                val imageMagick =
-                    ImageMagick(
-                            MagickOptimizeOptions(maxSizeBytes = BlueskyMaxImageSize)
-                        )
-                        .getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
-
                 BlueskyApiModule(
                     config = config,
                     filesModule = filesModule,
                     linkPreviewParser = LinkPreviewParser().bind(),
                     httpClient = defaultHttpClient().bind(),
-                    imageMagick = imageMagick,
                 )
             }
     }
@@ -209,42 +198,31 @@ class BlueskyApiModule(
         }
     }
 
-    /** Upload image from URL as blob to Bluesky for link previews */
-    private suspend fun uploadBlobFromUrl(
-        imageUrl: String,
+    /** Upload image file as blob to Bluesky for link previews */
+    private suspend fun uploadBlobFromFile(
+        file: File,
+        mimeType: String,
         session: BlueskySessionResponse,
     ): BlueskyBlobRef? {
         return try {
-            val response = httpClient.get(imageUrl)
-
-            if (response.status.value != 200) {
-                logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
-                return null
-            }
-
-            val imageBytes = response.body<ByteArray>()
-            val contentType = response.contentType()?.toString() ?: "image/jpeg"
-
-            val optimizedBytes =
-                if (imageBytes.size > BlueskyMaxImageSize) {
-                    logger.info {
-                        "Optimizing link preview image (${imageBytes.size} bytes) from $imageUrl"
+            val imageBytes =
+                runInterruptible(Dispatchers.LoomIO) {
+                    if (!file.exists()) {
+                        null
+                    } else {
+                        file.readBytes()
                     }
-                    optimizeImageBytes(imageBytes) ?: run {
-                        logger.warn {
-                            "Failed to optimize image from $imageUrl, skipping link preview thumbnail"
-                        }
+                }
+                    ?: run {
+                        logger.warn { "Failed to read optimized image file: ${file.absolutePath}" }
                         return null
                     }
-                } else {
-                    imageBytes
-                }
 
             val uploadResponse =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer ${session.accessJwt}")
-                    contentType(ContentType.parse(contentType))
-                    setBody(optimizedBytes)
+                    contentType(ContentType.parse(mimeType))
+                    setBody(imageBytes)
                 }
 
             if (uploadResponse.status.isSuccess()) {
@@ -254,45 +232,15 @@ class BlueskyApiModule(
                 return BlueskyBlobRef(
                     `$type` = "blob",
                     ref = blob["ref"] as JsonObject,
-                    mimeType = contentType,
-                    size = optimizedBytes.size,
+                    mimeType = mimeType,
+                    size = imageBytes.size,
                 )
             }
 
-            logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
+            logger.warn { "Failed to upload blob to Bluesky: ${uploadResponse.status}" }
             null
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
-            null
-        }
-    }
-
-    private suspend fun optimizeImageBytes(bytes: ByteArray): ByteArray? {
-        return try {
-            val sourceFile =
-                runInterruptible(Dispatchers.LoomIO) {
-                    File.createTempFile("bluesky-source-", ".tmp").apply { writeBytes(bytes) }
-                }
-            try {
-                val destFile =
-                    runInterruptible(Dispatchers.LoomIO) {
-                        File.createTempFile("bluesky-optimized-", ".tmp")
-                    }
-                try {
-                    imageMagick.optimizeImage(sourceFile, destFile).getOrElse {
-                        logger.warn(it) { "ImageMagick optimization failed" }
-                        return null
-                    }
-
-                    runInterruptible(Dispatchers.LoomIO) { destFile.readBytes() }
-                } finally {
-                    runInterruptible(Dispatchers.LoomIO) { destFile.delete() }
-                }
-            } finally {
-                runInterruptible(Dispatchers.LoomIO) { sourceFile.delete() }
-            }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to optimize image bytes" }
+            logger.warn(e) { "Failed to upload blob from file ${file.absolutePath}" }
             null
         }
     }
@@ -488,128 +436,137 @@ class BlueskyApiModule(
 
             // Fetch link preview if link is present and no images
             // Note: Bluesky only supports one embed type at a time, and images take priority
-            val linkPreview =
-                if (request.link != null && imageEmbeds.isEmpty()) {
-                    linkPreviewParser.fetchPreview(request.link)
-                } else {
-                    null
-                }
-
-            // Upload link preview image if present
-            val linkPreviewBlobRef =
-                if (linkPreview?.image != null) {
-                    uploadBlobFromUrl(linkPreview.image, session)
-                } else {
-                    null
-                }
-
-            // Prepare text
-            // If we have a link preview, use its canonical URL in the text
-            // This ensures consistency between facets and external embed
-            val finalLink =
-                if (linkPreview != null && request.link != null) linkPreview.url else request.link
-            val text =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content.trim()
-                } + if (finalLink != null) "\n\n$finalLink" else ""
-
-            // Detect facets (mentions, links, hashtags) and shorten link display text
-            val richText = buildRichText(text)
-
-            logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
-
-            // Build post record
-            val record = buildJsonObject {
-                put("\$type", "app.bsky.feed.post")
-                put("text", richText.text)
-                put("createdAt", Instant.now().toString())
-
-                if (richText.facets.isNotEmpty()) {
-                    putJsonArray("facets") { richText.facets.forEach { add(it) } }
-                }
-
-                if (request.language != null) {
-                    putJsonArray("langs") {
-                        add(kotlinx.serialization.json.JsonPrimitive(request.language))
+            // Use resourceScope to keep optimized file alive during upload
+            resourceScope {
+                val linkPreview =
+                    if (request.link != null && imageEmbeds.isEmpty()) {
+                        linkPreviewParser.fetchPreviewWithImage(request.link).bind()
+                    } else {
+                        null
                     }
-                }
 
-                if (imageEmbeds.isNotEmpty()) {
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.images")
-                        putJsonArray("images") {
-                            imageEmbeds.forEach { embed ->
-                                add(
-                                    buildJsonObject {
-                                        put("alt", embed.alt)
-                                        putJsonObject("image") {
-                                            put("\$type", embed.image.`$type`)
-                                            put("ref", embed.image.ref)
-                                            put("mimeType", embed.image.mimeType)
-                                            put("size", embed.image.size)
-                                        }
-                                        embed.aspectRatio?.let { ratio ->
-                                            putJsonObject("aspectRatio") {
-                                                put("width", ratio.width)
-                                                put("height", ratio.height)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
+                // Upload link preview image if present
+                val linkPreviewBlobRef =
+                    if (
+                        linkPreview?.optimizedImageFile != null &&
+                            linkPreview.optimizedImageMimeType != null
+                    ) {
+                        uploadBlobFromFile(
+                            linkPreview.optimizedImageFile,
+                            linkPreview.optimizedImageMimeType,
+                            session,
+                        )
+                    } else {
+                        null
+                    }
+
+                // Prepare text
+                // Always use the original link in the text and facets
+                val text =
+                    if (request.cleanupHtml == true) {
+                        cleanupHtml(request.content)
+                    } else {
+                        request.content.trim()
+                    } + if (request.link != null) "\n\n${request.link}" else ""
+
+                // Detect facets (mentions, links, hashtags) and shorten link display text
+                val richText = buildRichText(text)
+
+                logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
+
+                // Build post record
+                val record = buildJsonObject {
+                    put("\$type", "app.bsky.feed.post")
+                    put("text", richText.text)
+                    put("createdAt", Instant.now().toString())
+
+                    if (richText.facets.isNotEmpty()) {
+                        putJsonArray("facets") { richText.facets.forEach { add(it) } }
+                    }
+
+                    if (request.language != null) {
+                        putJsonArray("langs") {
+                            add(kotlinx.serialization.json.JsonPrimitive(request.language))
                         }
                     }
-                } else if (linkPreview != null) {
-                    // Add external link embed with preview
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.external")
-                        putJsonObject("external") {
-                            put("uri", linkPreview.url)
-                            put("title", linkPreview.title)
-                            put("description", linkPreview.description ?: "")
-                            // Add image blob if available
-                            if (linkPreviewBlobRef != null) {
-                                putJsonObject("thumb") {
-                                    put("\$type", linkPreviewBlobRef.`$type`)
-                                    put("ref", linkPreviewBlobRef.ref)
-                                    put("mimeType", linkPreviewBlobRef.mimeType)
-                                    put("size", linkPreviewBlobRef.size)
+
+                    if (imageEmbeds.isNotEmpty()) {
+                        putJsonObject("embed") {
+                            put("\$type", "app.bsky.embed.images")
+                            putJsonArray("images") {
+                                imageEmbeds.forEach { embed ->
+                                    add(
+                                        buildJsonObject {
+                                            put("alt", embed.alt)
+                                            putJsonObject("image") {
+                                                put("\$type", embed.image.`$type`)
+                                                put("ref", embed.image.ref)
+                                                put("mimeType", embed.image.mimeType)
+                                                put("size", embed.image.size)
+                                            }
+                                            embed.aspectRatio?.let { ratio ->
+                                                putJsonObject("aspectRatio") {
+                                                    put("width", ratio.width)
+                                                    put("height", ratio.height)
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    } else if (linkPreview != null) {
+                        // Add external link embed with preview
+                        putJsonObject("embed") {
+                            put("\$type", "app.bsky.embed.external")
+                            putJsonObject("external") {
+                                put("uri", linkPreview.url)
+                                put("title", linkPreview.title)
+                                put("description", linkPreview.description ?: "")
+                                // Add image blob if available
+                                if (linkPreviewBlobRef != null) {
+                                    putJsonObject("thumb") {
+                                        put("\$type", linkPreviewBlobRef.`$type`)
+                                        put("ref", linkPreviewBlobRef.ref)
+                                        put("mimeType", linkPreviewBlobRef.mimeType)
+                                        put("size", linkPreviewBlobRef.size)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Create the post
-            val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.repo.createRecord") {
-                    header("Authorization", "Bearer ${session.accessJwt}")
-                    contentType(ContentType.Application.Json)
-                    setBody(
-                        buildJsonObject {
-                            put("repo", session.did)
-                            put("collection", "app.bsky.feed.post")
-                            put("record", record)
-                        }
-                    )
+                // Create the post
+                val response =
+                    httpClient.post("${config.service}/xrpc/com.atproto.repo.createRecord") {
+                        header("Authorization", "Bearer ${session.accessJwt}")
+                        contentType(ContentType.Application.Json)
+                        setBody(
+                            buildJsonObject {
+                                put("repo", session.did)
+                                put("collection", "app.bsky.feed.post")
+                                put("record", record)
+                            }
+                        )
+                    }
+
+                if (response.status.value == 200) {
+                    val data = response.body<BlueskyPostResponse>()
+                    NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
+                } else {
+                    val errorBody = response.bodyAsText()
+                    logger.warn {
+                        "Failed to post to Bluesky: ${response.status}, body: $errorBody"
+                    }
+                    RequestError(
+                            status = response.status.value,
+                            module = "bluesky",
+                            errorMessage = "Failed to create post",
+                            body = ResponseBody(asString = errorBody),
+                        )
+                        .left()
                 }
-
-            if (response.status.value == 200) {
-                val data = response.body<BlueskyPostResponse>()
-                NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
-            } else {
-                val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to Bluesky: ${response.status}, body: $errorBody" }
-                RequestError(
-                        status = response.status.value,
-                        module = "bluesky",
-                        errorMessage = "Failed to create post",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
             }
         } catch (e: Exception) {
             logger.error(e) { "Failed to post to Bluesky" }

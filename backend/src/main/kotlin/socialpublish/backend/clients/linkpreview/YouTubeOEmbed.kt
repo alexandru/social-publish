@@ -69,9 +69,14 @@ fun parseYouTubeOEmbedResponse(jsonResponse: String, fallbackUrl: String): LinkP
         val description = response.authorName?.takeIf { it.isNotBlank() }
 
         // Use thumbnail_url as the image
-        val image = response.thumbnailUrl?.takeIf { it.isNotBlank() }
+        val imageUrl = response.thumbnailUrl?.takeIf { it.isNotBlank() }
 
-        LinkPreview(title = title, description = description, url = fallbackUrl, image = image)
+        LinkPreview(
+            title = title,
+            description = description,
+            url = fallbackUrl,
+            imageUrl = imageUrl,
+        )
     } catch (e: Exception) {
         logger.warn(e) { "Failed to parse YouTube OEmbed response" }
         null

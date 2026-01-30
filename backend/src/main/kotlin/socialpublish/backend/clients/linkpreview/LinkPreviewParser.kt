@@ -1,19 +1,27 @@
 package socialpublish.backend.clients.linkpreview
 
+import arrow.core.getOrElse
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLBuilder
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.common.LoomIO
 
 private val logger = KotlinLogging.logger {}
 
@@ -33,6 +41,7 @@ data class LinkPreviewConfig(
 /** Parser for extracting link previews from HTML content. */
 class LinkPreviewParser(
     private val httpClient: HttpClient,
+    private val imageMagick: ImageMagick,
     private val config: LinkPreviewConfig = LinkPreviewConfig(),
 ) {
     companion object {
@@ -48,11 +57,9 @@ class LinkPreviewParser(
                 install(
                     {
                         HttpClient(CIO) {
-                            // Disable automatic redirects to detect bot blocking
                             followRedirects = false
                             expectSuccess = false
 
-                            // Configure timeouts to prevent hanging on unresponsive servers
                             install(io.ktor.client.plugins.HttpTimeout) {
                                 requestTimeoutMillis = config.requestTimeout.inWholeMilliseconds
                                 connectTimeoutMillis = config.connectTimeout.inWholeMilliseconds
@@ -62,7 +69,9 @@ class LinkPreviewParser(
                     },
                     { client, _ -> client.close() },
                 )
-            LinkPreviewParser(httpClient, config)
+            val imageMagick =
+                ImageMagick().getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
+            LinkPreviewParser(httpClient, imageMagick, config)
         }
     }
 
@@ -81,27 +90,97 @@ class LinkPreviewParser(
     fun parseHtml(html: String, fallbackUrl: String): LinkPreview? {
         val doc = Jsoup.parse(html)
 
-        // Try to extract metadata using priority order
         val title = extractTitle(doc) ?: return null
         val description = extractDescription(doc)
         val url = extractUrl(doc) ?: fallbackUrl
-        val image = extractImage(doc, fallbackUrl)
+        val imageUrl = extractImage(doc, fallbackUrl)
 
-        return LinkPreview(title = title, description = description, url = url, image = image)
+        return LinkPreview(title = title, description = description, url = url, imageUrl = imageUrl)
     }
 
     /**
-     * Fetches a URL and extracts link preview metadata.
+     * Fetches a URL and extracts link preview metadata with optimized image.
+     *
+     * Returns a Resource that manages the lifecycle of the optimized image file. The file will be
+     * automatically deleted when the Resource is released.
      *
      * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For other URLs, fetches
-     * the HTML content directly. Prevents redirects to avoid bot detection. If a redirect is
-     * detected, this function returns null.
+     * the HTML content directly.
+     *
+     * @param url The URL to fetch
+     * @return A Resource containing LinkPreview if successful, or Resource wrapping null if failed
+     */
+    suspend fun fetchPreviewWithImage(url: String): Resource<LinkPreview?> = resource {
+        val preview = fetchPreview(url) ?: return@resource null
+
+        if (preview.imageUrl == null) {
+            return@resource preview
+        }
+
+        try {
+            val response = httpClient.get(preview.imageUrl)
+
+            if (!response.status.isSuccess()) {
+                logger.warn {
+                    "Failed to fetch preview image from ${preview.imageUrl}: ${response.status}"
+                }
+                return@resource preview
+            }
+
+            val imageBytes = response.body<ByteArray>()
+            val contentTypeStr = response.contentType()?.toString() ?: "image/jpeg"
+
+            val sourceFile =
+                runInterruptible(Dispatchers.LoomIO) {
+                    File.createTempFile("linkpreview-source-", ".tmp").apply {
+                        writeBytes(imageBytes)
+                        deleteOnExit()
+                    }
+                }
+
+            val optimizedFile =
+                runInterruptible(Dispatchers.LoomIO) {
+                    File.createTempFile("linkpreview-opt-", ".tmp")
+                }
+
+            val managedOptimizedFile =
+                install(
+                    { optimizedFile },
+                    { file, _ -> runInterruptible(Dispatchers.LoomIO) { file.delete() } },
+                )
+
+            try {
+                val _ =
+                    imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse {
+                        logger.warn(it) { "Failed to optimize preview image, using original" }
+                        runInterruptible(Dispatchers.LoomIO) {
+                            sourceFile.copyTo(optimizedFile, overwrite = true)
+                        }
+                    }
+
+                preview.copy(
+                    optimizedImageFile = managedOptimizedFile,
+                    optimizedImageMimeType = contentTypeStr,
+                )
+            } finally {
+                runInterruptible(Dispatchers.LoomIO) { sourceFile.delete() }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to fetch and optimize preview image from ${preview.imageUrl}" }
+            preview
+        }
+    }
+
+    /**
+     * Fetches a URL and extracts link preview metadata (without image optimization).
+     *
+     * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For other URLs, fetches
+     * the HTML content directly.
      *
      * @param url The URL to fetch
      * @return A LinkPreview object if successful, null if redirect detected or fetch failed
      */
     suspend fun fetchPreview(url: String): LinkPreview? {
-        // Use YouTube OEmbed API for YouTube URLs to avoid bot blocking
         if (isYouTubeUrl(url)) {
             return fetchYouTubeOEmbed(url)
         }

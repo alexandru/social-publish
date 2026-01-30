@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
+import socialpublish.backend.testutils.createTestImageMagick
 
 class LinkPreviewParserTest {
     @Test
@@ -36,7 +37,7 @@ class LinkPreviewParserTest {
         assertEquals("Test Article Title", preview.title)
         assertEquals("This is a test description", preview.description)
         assertEquals("https://example.com/article", preview.url)
-        assertEquals("https://example.com/image.jpg", preview.image)
+        assertEquals("https://example.com/image.jpg", preview.imageUrl)
     }
 
     @Test
@@ -62,7 +63,7 @@ class LinkPreviewParserTest {
         assertEquals("Twitter Title", preview.title)
         assertEquals("Twitter description", preview.description)
         assertEquals("https://example.com/twitter", preview.url)
-        assertEquals("https://example.com/twitter-image.jpg", preview.image)
+        assertEquals("https://example.com/twitter-image.jpg", preview.imageUrl)
     }
 
     @Test
@@ -87,7 +88,7 @@ class LinkPreviewParserTest {
         assertEquals("Standard HTML Title", preview.title)
         assertEquals("Standard HTML description", preview.description)
         assertEquals("https://example.com/standard", preview.url)
-        assertNull(preview.image)
+        assertNull(preview.imageUrl)
     }
 
     @Test
@@ -171,7 +172,7 @@ class LinkPreviewParserTest {
         val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
-        assertEquals("https://example.com/twitter-src.jpg", preview.image)
+        assertEquals("https://example.com/twitter-src.jpg", preview.imageUrl)
     }
 
     @Test
@@ -192,7 +193,7 @@ class LinkPreviewParserTest {
         val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
-        assertEquals("https://example.com/images/relative.jpg", preview.image)
+        assertEquals("https://example.com/images/relative.jpg", preview.imageUrl)
     }
 
     @Test
@@ -213,7 +214,7 @@ class LinkPreviewParserTest {
         val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
-        assertEquals("https://cdn.example.com/images/absolute.jpg", preview.image)
+        assertEquals("https://cdn.example.com/images/absolute.jpg", preview.imageUrl)
     }
 
     @Test
@@ -234,7 +235,7 @@ class LinkPreviewParserTest {
         val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
 
         assertNotNull(preview)
-        assertEquals("https://cdn.example.com/images/protocol-relative.jpg", preview.image)
+        assertEquals("https://cdn.example.com/images/protocol-relative.jpg", preview.imageUrl)
     }
 
     @Test
@@ -256,7 +257,7 @@ class LinkPreviewParserTest {
             LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/blog/post") }
 
         assertNotNull(preview)
-        assertEquals("https://example.com/blog/images/path-relative.jpg", preview.image)
+        assertEquals("https://example.com/blog/images/path-relative.jpg", preview.imageUrl)
     }
 
     @Test
@@ -278,7 +279,7 @@ class LinkPreviewParserTest {
 
         assertNotNull(preview)
         assertEquals("Malformed Base URL Test", preview.title)
-        assertNull(preview.image) // Should be null due to malformed base URL
+        assertNull(preview.imageUrl) // Should be null due to malformed base URL
     }
 
     @Test
@@ -306,14 +307,14 @@ class LinkPreviewParserTest {
             }
         }
 
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val parser = LinkPreviewParser(HttpClient(mockEngine), createTestImageMagick())
         val preview = parser.fetchPreview("https://www.youtube.com/watch?v=5l2wMgm7ZOk")
 
         assertNotNull(preview)
         assertEquals("Why Black Boxes are so Hard to Reuse", preview.title)
         assertEquals("Computer History Museum", preview.description)
         assertEquals("https://www.youtube.com/watch?v=5l2wMgm7ZOk", preview.url)
-        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
+        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.imageUrl)
     }
 
     @Test
@@ -341,14 +342,14 @@ class LinkPreviewParserTest {
             }
         }
 
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val parser = LinkPreviewParser(HttpClient(mockEngine), createTestImageMagick())
         val preview = parser.fetchPreview("https://youtu.be/Y3N9qlPZBc0")
 
         assertNotNull(preview)
         assertEquals("OpenAI is Broke", preview.title)
         assertEquals("Vanessa Wingårdh", preview.description)
         assertEquals("https://youtu.be/Y3N9qlPZBc0", preview.url)
-        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
+        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.imageUrl)
     }
 
     @Test
@@ -357,7 +358,7 @@ class LinkPreviewParserTest {
             respond(content = "", status = HttpStatusCode.NotFound)
         }
 
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val parser = LinkPreviewParser(HttpClient(mockEngine), createTestImageMagick())
         val preview = parser.fetchPreview("https://www.youtube.com/watch?v=invalid")
 
         assertNull(preview)
@@ -373,7 +374,7 @@ class LinkPreviewParserTest {
             )
         }
 
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
+        val parser = LinkPreviewParser(HttpClient(mockEngine), createTestImageMagick())
         val preview = parser.fetchPreview("https://www.youtube.com/watch?v=123")
 
         assertNull(preview)

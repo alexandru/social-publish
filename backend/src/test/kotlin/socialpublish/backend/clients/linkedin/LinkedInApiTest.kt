@@ -31,6 +31,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestImageMagick
 import socialpublish.backend.testutils.uploadTestImage
 
 class LinkedInApiTest {
@@ -53,7 +54,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(clientId = "test-client-id", clientSecret = "test-client-secret")
@@ -117,7 +122,11 @@ class LinkedInApiTest {
                         )
                     }
                 }
-                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+                val linkPreview =
+                    LinkPreviewParser(
+                        httpClient = linkedInClient,
+                        imageMagick = createTestImageMagick(),
+                    )
 
                 val config =
                     LinkedInConfig(
@@ -176,7 +185,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(
@@ -262,7 +275,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(
@@ -395,7 +412,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
 
@@ -451,7 +472,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(clientId = "test-client-id", clientSecret = "test-client-secret")
@@ -505,7 +530,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config = LinkedInConfig(clientId = "test-client-id", clientSecret = "test-secret")
 
@@ -544,7 +573,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config = LinkedInConfig(clientId = "test-client-id", clientSecret = "test-secret")
 
@@ -594,7 +627,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(
@@ -690,7 +727,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val upload1 = uploadTestImage(linkedInClient, "flower1.jpeg", "test1")
             val upload2 = uploadTestImage(linkedInClient, "flower1.jpeg", "test2")
@@ -828,7 +869,11 @@ class LinkedInApiTest {
                         )
                     }
                 }
-                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+                val linkPreview =
+                    LinkPreviewParser(
+                        httpClient = linkedInClient,
+                        imageMagick = createTestImageMagick(),
+                    )
 
                 val config =
                     LinkedInConfig(
@@ -1270,7 +1315,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(
@@ -1328,7 +1377,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(
@@ -1425,7 +1478,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
 
@@ -1529,7 +1586,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
 
@@ -1618,7 +1679,11 @@ class LinkedInApiTest {
                     )
                 }
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val linkPreview =
+                LinkPreviewParser(
+                    httpClient = linkedInClient,
+                    imageMagick = createTestImageMagick(),
+                )
 
             val config =
                 LinkedInConfig(

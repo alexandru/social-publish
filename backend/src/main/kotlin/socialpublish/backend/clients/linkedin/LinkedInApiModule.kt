@@ -821,7 +821,7 @@ class LinkedInApiModule(
                                                             linkPreview?.title?.let { UgcText(it) },
                                                         description = UgcText(content.take(256)),
                                                         thumbnails =
-                                                            linkPreview?.image?.let {
+                                                            linkPreview?.imageUrl?.let {
                                                                 listOf(UgcThumbnail(url = it))
                                                             },
                                                     )

@@ -66,7 +66,7 @@ class YouTubeOEmbedTest {
         )
         assertEquals("Computer History Museum", preview.description)
         assertEquals("https://www.youtube.com/watch?v=5l2wMgm7ZOk", preview.url)
-        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
+        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.imageUrl)
     }
 
     @Test
@@ -98,7 +98,7 @@ class YouTubeOEmbedTest {
         assertEquals("OpenAI is Broke… and so is everyone else", preview.title)
         assertEquals("Vanessa Wingårdh", preview.description)
         assertEquals("https://www.youtube.com/watch?v=Y3N9qlPZBc0", preview.url)
-        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
+        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.imageUrl)
     }
 
     @Test
