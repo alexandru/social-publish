@@ -398,12 +398,16 @@ class BlueskyApiModule(
                 }
 
             // Prepare text
+            // If we have a link preview, use its canonical URL in the text
+            // This ensures consistency between facets and external embed
+            val finalLink =
+                if (linkPreview != null && request.link != null) linkPreview.url else request.link
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (request.link != null) "\n\n${request.link}" else ""
+                } + if (finalLink != null) "\n\n$finalLink" else ""
 
             logger.info { "Posting to Bluesky:\n${text.trim().prependIndent("  |")}" }
 
