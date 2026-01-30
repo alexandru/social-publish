@@ -132,6 +132,68 @@ class MetaThreadsApiTest {
     }
 
     @Test
+    fun `creates post with images`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        call.respondText(
+                            """{"uuid":"image-uuid-123","url":"http://localhost/files/image-uuid-123"}""",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/v1.0/test-user-id/threads") {
+                        call.respondText(
+                            """{"id":"container789"}""",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/v1.0/test-user-id/threads_publish") {
+                        call.respondText(
+                            """{"id":"post789"}""",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val metaThreadsClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val metaThreadsModule =
+                MetaThreadsApiModule(
+                    config =
+                        MetaThreadsConfig(
+                            apiBase = "http://localhost",
+                            userId = "test-user-id",
+                            accessToken = "test-token",
+                        ),
+                    filesModule = filesModule,
+                    httpClient = metaThreadsClient,
+                )
+
+            val req = NewPostRequest(content = "Post with image", images = listOf("image-uuid-123"))
+            val result = metaThreadsModule.createPost(req)
+
+            assertTrue(result.isRight())
+            val response = (result as Either.Right).value
+            assertEquals("metathreads", response.module)
+
+            metaThreadsClient.close()
+        }
+    }
+
+    @Test
     fun `refreshes access token`(@TempDir tempDir: Path) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)

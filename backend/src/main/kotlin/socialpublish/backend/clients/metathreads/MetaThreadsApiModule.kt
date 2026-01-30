@@ -65,7 +65,7 @@ class MetaThreadsApiModule(
             val imageUrl = filesModule.getFileUrl(imageUuid)
 
             val response =
-                httpClient.post("${config.apiBase}/v1.0/${config.userId}/media") {
+                httpClient.post("${config.apiBase}/v1.0/${config.userId}/threads") {
                     parameter("media_type", "IMAGE")
                     parameter("image_url", imageUrl)
                     parameter("access_token", config.accessToken)
@@ -143,7 +143,7 @@ class MetaThreadsApiModule(
                 return RequestError(
                         status = containerResponse.status.value,
                         module = "metathreads",
-                        errorMessage = "Failed to create media container",
+                        errorMessage = "Failed to create post container",
                         body = ResponseBody(asString = errorBody),
                     )
                     .left()

@@ -495,7 +495,7 @@ fun startServer(
                         responses { documentNewPostResponses<NewMetaThreadsPostResponse>() }
                     }
 
-                get("/api/metathreads/refresh_access_token") {
+                post("/api/metathreads/refresh_access_token") {
                         if (metaThreadsModule != null) {
                             metaThreadsModule.refreshAccessTokenRoute(call)
                         } else {
