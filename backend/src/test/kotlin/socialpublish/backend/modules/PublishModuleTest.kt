@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import io.ktor.client.HttpClient
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -10,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.NewPostRequest
@@ -19,6 +21,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestImageMagick
 
 class PublishModuleTest {
     private lateinit var postsDb: PostsDatabase
@@ -36,13 +39,17 @@ class PublishModuleTest {
 
     @Test
     fun `PublishModule can be instantiated`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         assertNotNull(publishModule)
     }
 
     @Test
     fun `broadcastPost to RSS only returns success`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request = NewPostRequest(content = "Test post to RSS", targets = listOf("rss"))
 
         val result = publishModule.broadcastPost(request)
@@ -58,7 +65,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to unconfigured platform returns error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
         val result = publishModule.broadcastPost(request)
@@ -78,7 +87,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to multiple targets with mixed results returns composite error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request =
             NewPostRequest(content = "Test post", targets = listOf("rss", "mastodon", "twitter"))
 
@@ -116,7 +127,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with empty targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request = NewPostRequest(content = "Test post", targets = emptyList())
 
         val result = publishModule.broadcastPost(request)
@@ -128,7 +141,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with null targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request = NewPostRequest(content = "Test post", targets = null)
 
         val result = publishModule.broadcastPost(request)
@@ -140,7 +155,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost normalizes target names to lowercase`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request = NewPostRequest(content = "Test post", targets = listOf("RSS", "Mastodon"))
 
         val result = publishModule.broadcastPost(request)
@@ -154,7 +171,9 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with multiple unconfigured platforms`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val linkPreviewParser =
+            LinkPreviewParser(httpClient = HttpClient(), imageMagick = createTestImageMagick())
+        val publishModule = PublishModule(null, null, null, null, rssModule, linkPreviewParser)
         val request =
             NewPostRequest(
                 content = "Test post to all platforms",
