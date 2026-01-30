@@ -289,6 +289,7 @@ fun startServer(
                                     llmModule.generateAltText(
                                         request.imageUuid,
                                         request.userContext,
+                                        request.language,
                                     )
                             ) {
                                 is Either.Right ->

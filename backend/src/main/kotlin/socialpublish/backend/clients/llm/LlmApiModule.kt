@@ -64,7 +64,11 @@ class LlmApiModule(
             }
     }
 
-    suspend fun generateAltText(imageUuid: String, userContext: String? = null): ApiResult<String> {
+    suspend fun generateAltText(
+        imageUuid: String,
+        userContext: String? = null,
+        language: String? = null,
+    ): ApiResult<String> {
         return try {
             // Read the already-optimized image file
             // Images are optimized during upload to max 1600x1600, which is sufficient for
@@ -83,7 +87,7 @@ class LlmApiModule(
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
-            generateAltTextFromApi(dataUrl, userContext)
+            generateAltTextFromApi(dataUrl, userContext, language)
         } catch (e: HttpRequestTimeoutException) {
             logger.warn(e) { "LLM request timed out for image $imageUuid" }
             CaughtException(
@@ -107,6 +111,7 @@ class LlmApiModule(
     private suspend fun generateAltTextFromApi(
         dataUrl: String,
         extraContextOrInstructions: String?,
+        language: String?,
     ): ApiResult<String> {
         return try {
             // Build the prompt text, including user context/instructions if available
@@ -119,10 +124,18 @@ class LlmApiModule(
                     """
                         .trimIndent()
 
+                val languageInstruction =
+                    when (language) {
+                        "en" -> "\n\nIMPORTANT: Generate the alt-text in English."
+                        "ro" -> "\n\nIMPORTANT: Generate the alt-text in Romanian."
+                        null -> ""
+                        else -> "\n\nIMPORTANT: Generate the alt-text in the language: $language."
+                    }
+
                 if (!extraContextOrInstructions.isNullOrBlank()) {
-                    "$basePrompt\n\nFollow user's context/instructions (important!):\n$extraContextOrInstructions"
+                    "$basePrompt$languageInstruction\n\nFollow user's context/instructions (important!):\n$extraContextOrInstructions"
                 } else {
-                    basePrompt
+                    "$basePrompt$languageInstruction"
                 }
             }
 

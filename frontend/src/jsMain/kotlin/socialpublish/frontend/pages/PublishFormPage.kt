@@ -16,6 +16,7 @@ import socialpublish.frontend.components.ImageUpload
 import socialpublish.frontend.components.MessageType
 import socialpublish.frontend.components.ModalMessage
 import socialpublish.frontend.components.PageContainer
+import socialpublish.frontend.components.SelectInputField
 import socialpublish.frontend.components.SelectedImage
 import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
@@ -118,6 +119,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         link = formState.link.ifEmpty { null },
                         targets = formState.targets.toList(),
                         images = imageUUIDs,
+                        language = formState.language,
                     )
 
                 when (
@@ -233,6 +235,14 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     pattern = "https?://.+",
                 )
 
+                SelectInputField(
+                    label = "Language (optional)",
+                    value = formState.language,
+                    onValueChange = { formState = formState.updateLanguage(it) },
+                    options = mapOf(null to "Not specified", "en" to "English", "ro" to "Romanian"),
+                    icon = "fa-globe",
+                )
+
                 CharacterCounter(
                     remaining = formState.charactersRemaining,
                     maximum = formState.maxCharacters,
@@ -252,6 +262,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         onSelect = { formState = formState.updateImage(it) },
                                         onRemove = { formState = formState.removeImage(it) },
                                         onError = onError,
+                                        language = formState.language,
                                     )
                                 }
                             }

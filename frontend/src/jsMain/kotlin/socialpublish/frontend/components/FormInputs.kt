@@ -166,3 +166,81 @@ fun ServiceCheckboxField(
         disabled = disabled,
     )
 }
+
+/**
+ * Stateless select input field with label and icon.
+ *
+ * @param label The label text for the select field
+ * @param value Current selected value (null for default/placeholder)
+ * @param onValueChange Callback when value changes
+ * @param options Map of value to display text for options
+ * @param placeholder Optional placeholder text
+ * @param icon Optional Font Awesome icon class (e.g., "fa-globe")
+ * @param disabled Whether the field is disabled
+ * @param required Whether the field is required
+ * @param id Optional HTML id for the select element (auto-generated if not provided)
+ */
+@Composable
+fun SelectInputField(
+    label: String,
+    value: String?,
+    onValueChange: (String?) -> Unit,
+    options: Map<String?, String>,
+    placeholder: String? = null,
+    icon: String? = null,
+    disabled: Boolean = false,
+    required: Boolean = false,
+    id: String? = null,
+) {
+    val selectId = id ?: remember { "select-${kotlin.random.Random.nextLong()}" }
+
+    Div(attrs = { classes("field") }) {
+        Label(
+            attrs = {
+                classes("label")
+                attr("for", selectId)
+            }
+        ) {
+            Text(label)
+        }
+        Div(
+            attrs = {
+                if (icon != null) {
+                    classes("control", "has-icons-left")
+                } else {
+                    classes("control")
+                }
+            }
+        ) {
+            Div(attrs = { classes("select") }) {
+                Select(
+                    attrs = {
+                        id(selectId)
+                        onChange { event ->
+                            val selectedValue = event.target.value
+                            onValueChange(if (selectedValue.isEmpty()) null else selectedValue)
+                        }
+                        if (disabled) attr("disabled", "")
+                        if (required) attr("required", "")
+                    }
+                ) {
+                    options.forEach { (optionValue, optionText) ->
+                        Option(
+                            value = optionValue ?: "",
+                            attrs = {
+                                if (optionValue == value) {
+                                    attr("selected", "")
+                                }
+                            },
+                        ) {
+                            Text(optionText)
+                        }
+                    }
+                }
+            }
+            if (icon != null) {
+                Span(attrs = { classes("icon", "is-left") }) { I(attrs = { classes("fas", icon) }) }
+            }
+        }
+    }
+}
