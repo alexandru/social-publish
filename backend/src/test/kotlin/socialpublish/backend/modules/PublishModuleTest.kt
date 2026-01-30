@@ -36,13 +36,13 @@ class PublishModuleTest {
 
     @Test
     fun `PublishModule can be instantiated`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         assertNotNull(publishModule)
     }
 
     @Test
     fun `broadcastPost to RSS only returns success`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post to RSS", targets = listOf("rss"))
 
         val result = publishModule.broadcastPost(request)
@@ -58,7 +58,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to unconfigured platform returns error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
         val result = publishModule.broadcastPost(request)
@@ -78,7 +78,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to multiple targets with mixed results returns composite error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request =
             NewPostRequest(content = "Test post", targets = listOf("rss", "mastodon", "twitter"))
 
@@ -116,7 +116,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with empty targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = emptyList())
 
         val result = publishModule.broadcastPost(request)
@@ -128,7 +128,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with null targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = null)
 
         val result = publishModule.broadcastPost(request)
@@ -140,7 +140,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost normalizes target names to lowercase`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = listOf("RSS", "Mastodon"))
 
         val result = publishModule.broadcastPost(request)
@@ -154,7 +154,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with multiple unconfigured platforms`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val request =
             NewPostRequest(
                 content = "Test post to all platforms",

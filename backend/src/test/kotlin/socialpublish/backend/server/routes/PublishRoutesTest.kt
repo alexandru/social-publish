@@ -31,7 +31,7 @@ class PublishRoutesTest {
             socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
         val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val publishModule = PublishModule(null, null, null, null, rssModule)
+        val publishModule = PublishModule(null, null, null, null, null, rssModule)
         val publishRoutes = PublishRoutes(publishModule)
 
         application {
@@ -76,7 +76,7 @@ class PublishRoutesTest {
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
             val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-            val publishModule = PublishModule(null, null, null, null, rssModule)
+            val publishModule = PublishModule(null, null, null, null, null, rssModule)
             val publishRoutes = PublishRoutes(publishModule)
 
             application {
@@ -120,7 +120,7 @@ class PublishRoutesTest {
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
             val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-            val publishModule = PublishModule(null, null, null, null, rssModule)
+            val publishModule = PublishModule(null, null, null, null, null, rssModule)
             val publishRoutes = PublishRoutes(publishModule)
 
             application {
