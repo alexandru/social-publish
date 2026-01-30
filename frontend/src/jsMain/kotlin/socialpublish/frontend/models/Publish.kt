@@ -10,6 +10,7 @@ data class PublishRequest(
     val link: String? = null,
     val targets: List<String>,
     val images: List<String> = emptyList(),
+    val language: String? = null,
 )
 
 @Serializable
@@ -21,6 +22,10 @@ data class ModulePostResponse(
 )
 
 @Serializable
-data class GenerateAltTextRequest(val imageUuid: String, val userContext: String? = null)
+data class GenerateAltTextRequest(
+    val imageUuid: String,
+    val userContext: String? = null,
+    val language: String? = null,
+)
 
 @Serializable data class GenerateAltTextResponse(val altText: String)

@@ -16,11 +16,14 @@ import socialpublish.frontend.components.ImageUpload
 import socialpublish.frontend.components.MessageType
 import socialpublish.frontend.components.ModalMessage
 import socialpublish.frontend.components.PageContainer
+import socialpublish.frontend.components.SelectInputField
+import socialpublish.frontend.components.SelectOption
 import socialpublish.frontend.components.SelectedImage
 import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.models.FileUploadResponse
+import socialpublish.frontend.models.LANGUAGE_OPTIONS
 import socialpublish.frontend.models.ModulePostResponse
 import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
@@ -118,6 +121,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         link = formState.link.ifEmpty { null },
                         targets = formState.targets.toList(),
                         images = imageUUIDs,
+                        language = formState.language,
                     )
 
                 when (
@@ -226,16 +230,24 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 )
 
                 TextInputField(
-                    label = "Highlighted link (optional)",
+                    label = null,
                     value = formState.link,
                     onValueChange = { formState = formState.updateLink(it) },
-                    placeholder = "https://example.com/...",
+                    placeholder = "Highlighted URL (optional): https://example.com/...",
                     pattern = "https?://.+",
                 )
 
                 CharacterCounter(
                     remaining = formState.charactersRemaining,
                     maximum = formState.maxCharacters,
+                )
+
+                SelectInputField(
+                    label = null,
+                    value = formState.language,
+                    onValueChange = { formState = formState.updateLanguage(it) },
+                    options = listOf(SelectOption("Language", null)).plus(LANGUAGE_OPTIONS),
+                    icon = "fa-globe",
                 )
 
                 Div(attrs = { classes("columns", "is-multiline") }) {
@@ -252,6 +264,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                         onSelect = { formState = formState.updateImage(it) },
                                         onRemove = { formState = formState.removeImage(it) },
                                         onError = onError,
+                                        language = formState.language,
                                     )
                                 }
                             }

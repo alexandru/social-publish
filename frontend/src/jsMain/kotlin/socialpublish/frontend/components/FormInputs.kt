@@ -5,6 +5,8 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 
+data class SelectOption(val text: String, val value: String?)
+
 /**
  * Stateless text input field with label.
  *
@@ -20,7 +22,7 @@ import org.jetbrains.compose.web.dom.*
  */
 @Composable
 fun TextInputField(
-    label: String,
+    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
     type: InputType<String> = InputType.Text,
@@ -33,14 +35,15 @@ fun TextInputField(
     val inputId = id ?: remember { "input-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
-        Label(
-            attrs = {
-                classes("label")
-                attr("for", inputId)
+        if (label != null)
+            Label(
+                attrs = {
+                    classes("label")
+                    attr("for", inputId)
+                }
+            ) {
+                Text(label)
             }
-        ) {
-            Text(label)
-        }
         Div(attrs = { classes("control") }) {
             Input(
                 type = type,
@@ -165,4 +168,81 @@ fun ServiceCheckboxField(
         onCheckedChange = onCheckedChange,
         disabled = disabled,
     )
+}
+
+/**
+ * Stateless select input field with label and icon.
+ *
+ * @param label The label text for the select field
+ * @param value Current selected value (null for default/placeholder)
+ * @param onValueChange Callback when value changes
+ * @param options List of SelectOption for options (preserves order)
+ * @param icon Optional Font Awesome icon class (e.g., "fa-globe")
+ * @param disabled Whether the field is disabled
+ * @param required Whether the field is required
+ * @param id Optional HTML id for the select element (auto-generated if not provided)
+ */
+@Composable
+fun SelectInputField(
+    label: String?,
+    value: String?,
+    onValueChange: (String?) -> Unit,
+    options: List<SelectOption>,
+    icon: String? = null,
+    disabled: Boolean = false,
+    required: Boolean = false,
+    id: String? = null,
+) {
+    val selectId = id ?: remember { "select-${kotlin.random.Random.nextLong()}" }
+
+    Div(attrs = { classes("field") }) {
+        if (label != null)
+            Label(
+                attrs = {
+                    classes("label")
+                    attr("for", selectId)
+                }
+            ) {
+                Text(label)
+            }
+        Div(
+            attrs = {
+                if (icon != null) {
+                    classes("control", "has-icons-left")
+                } else {
+                    classes("control")
+                }
+            }
+        ) {
+            Div(attrs = { classes("select") }) {
+                Select(
+                    attrs = {
+                        id(selectId)
+                        onChange { event ->
+                            val selectedValue = event.target.value
+                            onValueChange(if (selectedValue.isEmpty()) null else selectedValue)
+                        }
+                        if (disabled) attr("disabled", "")
+                        if (required) attr("required", "")
+                    }
+                ) {
+                    options.forEach { option ->
+                        Option(
+                            value = option.value ?: "",
+                            attrs = {
+                                if (option.value == value) {
+                                    attr("selected", "")
+                                }
+                            },
+                        ) {
+                            Text(option.text)
+                        }
+                    }
+                }
+            }
+            if (icon != null) {
+                Span(attrs = { classes("icon", "is-left") }) { I(attrs = { classes("fas", icon) }) }
+            }
+        }
+    }
 }

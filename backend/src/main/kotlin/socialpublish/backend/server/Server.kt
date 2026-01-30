@@ -289,6 +289,7 @@ fun startServer(
                                     llmModule.generateAltText(
                                         request.imageUuid,
                                         request.userContext,
+                                        request.language,
                                     )
                             ) {
                                 is Either.Right ->
@@ -297,7 +298,12 @@ fun startServer(
                                     val error = result.value
                                     call.respond(
                                         HttpStatusCode.fromValue(error.status),
-                                        ErrorResponse(error = error.errorMessage),
+                                        ErrorResponse(
+                                            error =
+                                                error.errorMessage +
+                                                    (if (error.module == "llm") " (llm integration)"
+                                                    else "")
+                                        ),
                                     )
                                 }
                             }

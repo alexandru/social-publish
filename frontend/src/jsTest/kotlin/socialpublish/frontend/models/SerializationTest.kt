@@ -104,6 +104,7 @@ class SerializationTest {
                 link = "https://example.com",
                 targets = listOf("twitter", "mastodon"),
                 images = listOf("img1.jpg", "img2.jpg"),
+                language = "en",
             )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<PublishRequest>(encoded)
@@ -113,6 +114,7 @@ class SerializationTest {
         assertEquals("https://example.com", decoded.link)
         assertEquals(listOf("twitter", "mastodon"), decoded.targets)
         assertEquals(listOf("img1.jpg", "img2.jpg"), decoded.images)
+        assertEquals("en", decoded.language)
     }
 
     @Test
@@ -124,18 +126,20 @@ class SerializationTest {
         assertEquals(null, decoded.link)
         assertEquals(listOf("twitter"), decoded.targets)
         assertEquals(emptyList(), decoded.images)
+        assertEquals(null, decoded.language)
     }
 
     @Test
     fun testPublishRequestDeserializationComplete() {
         val jsonString =
-            """{"content":"Post","link":"https://test.com","targets":["mastodon"],"images":["a.png"]}"""
+            """{"content":"Post","link":"https://test.com","targets":["mastodon"],"images":["a.png"],"language":"ro"}"""
         val decoded = json.decodeFromString<PublishRequest>(jsonString)
 
         assertEquals("Post", decoded.content)
         assertEquals("https://test.com", decoded.link)
         assertEquals(listOf("mastodon"), decoded.targets)
         assertEquals(listOf("a.png"), decoded.images)
+        assertEquals("ro", decoded.language)
     }
 
     @Test
@@ -256,5 +260,34 @@ class SerializationTest {
         assertEquals(original, decoded)
         assertTrue(decoded.hasAuthorization)
         assertEquals(1737478801545L, decoded.createdAt)
+    }
+
+    @Test
+    fun testGenerateAltTextRequestSerializationWithLanguage() {
+        val original =
+            GenerateAltTextRequest(
+                imageUuid = "uuid-123",
+                userContext = "Custom context",
+                language = "en",
+            )
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<GenerateAltTextRequest>(encoded)
+
+        assertEquals(original, decoded)
+        assertEquals("uuid-123", decoded.imageUuid)
+        assertEquals("Custom context", decoded.userContext)
+        assertEquals("en", decoded.language)
+    }
+
+    @Test
+    fun testGenerateAltTextRequestSerializationWithoutLanguage() {
+        val original = GenerateAltTextRequest(imageUuid = "uuid-456")
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<GenerateAltTextRequest>(encoded)
+
+        assertEquals(original, decoded)
+        assertEquals("uuid-456", decoded.imageUuid)
+        assertEquals(null, decoded.userContext)
+        assertEquals(null, decoded.language)
     }
 }

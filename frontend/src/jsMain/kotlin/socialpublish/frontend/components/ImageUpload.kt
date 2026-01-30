@@ -39,6 +39,7 @@ fun ImageUpload(
     onSelect: (SelectedImage) -> Unit,
     onRemove: (Int) -> Unit,
     onError: (String) -> Unit = {},
+    language: String? = null,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -235,6 +236,7 @@ fun ImageUpload(
                                                                 GenerateAltTextRequest(
                                                                     imageUuid = state.uploadedUuid,
                                                                     userContext = state.altText,
+                                                                    language = language,
                                                                 ),
                                                             )
 

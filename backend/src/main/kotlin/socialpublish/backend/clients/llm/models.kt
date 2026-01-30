@@ -4,7 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class GenerateAltTextRequest(val imageUuid: String, val userContext: String? = null)
+data class GenerateAltTextRequest(
+    val imageUuid: String,
+    val userContext: String? = null,
+    val language: String? = null,
+)
 
 @Serializable data class GenerateAltTextResponse(val altText: String)
 
