@@ -36,6 +36,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import socialpublish.backend.clients.linkpreview.LinkPreview
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
@@ -409,7 +410,10 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        request: NewPostRequest,
+        linkPreview: LinkPreview? = null,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -434,26 +438,27 @@ class BlueskyApiModule(
                     emptyList()
                 }
 
-            // Fetch link preview if link is present and no images
+            // Fetch link preview if link is present and no images (and not already provided)
             // Note: Bluesky only supports one embed type at a time, and images take priority
             // Use resourceScope to keep optimized file alive during upload
             resourceScope {
-                val linkPreview =
-                    if (request.link != null && imageEmbeds.isEmpty()) {
-                        linkPreviewParser.fetchPreviewWithImage(request.link).bind()
-                    } else {
-                        null
-                    }
+                val fetchedLinkPreview =
+                    linkPreview
+                        ?: if (request.link != null && imageEmbeds.isEmpty()) {
+                            linkPreviewParser.fetchPreviewWithImage(request.link).bind()
+                        } else {
+                            null
+                        }
 
                 // Upload link preview image if present
                 val linkPreviewBlobRef =
                     if (
-                        linkPreview?.optimizedImageFile != null &&
-                            linkPreview.optimizedImageMimeType != null
+                        fetchedLinkPreview?.optimizedImageFile != null &&
+                            fetchedLinkPreview.optimizedImageMimeType != null
                     ) {
                         uploadBlobFromFile(
-                            linkPreview.optimizedImageFile,
-                            linkPreview.optimizedImageMimeType,
+                            fetchedLinkPreview.optimizedImageFile,
+                            fetchedLinkPreview.optimizedImageMimeType,
                             session,
                         )
                     } else {
@@ -515,14 +520,14 @@ class BlueskyApiModule(
                                 }
                             }
                         }
-                    } else if (linkPreview != null) {
+                    } else if (fetchedLinkPreview != null) {
                         // Add external link embed with preview
                         putJsonObject("embed") {
                             put("\$type", "app.bsky.embed.external")
                             putJsonObject("external") {
-                                put("uri", linkPreview.url)
-                                put("title", linkPreview.title)
-                                put("description", linkPreview.description ?: "")
+                                put("uri", fetchedLinkPreview.url)
+                                put("title", fetchedLinkPreview.title)
+                                put("description", fetchedLinkPreview.description ?: "")
                                 // Add image blob if available
                                 if (linkPreviewBlobRef != null) {
                                     putJsonObject("thumb") {

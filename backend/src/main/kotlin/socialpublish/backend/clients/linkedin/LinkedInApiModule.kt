@@ -73,6 +73,7 @@ import java.util.Base64
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import socialpublish.backend.clients.linkpreview.LinkPreview
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
@@ -733,7 +734,10 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        request: NewPostRequest,
+        linkPreview: LinkPreview? = null,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -802,7 +806,7 @@ class LinkedInApiModule(
                     }
                     // If we have a link (and no images), create ARTICLE share
                     request.link != null -> {
-                        val linkPreview = fetchLinkPreview(request.link)
+                        val fetchedLinkPreview = linkPreview ?: fetchLinkPreview(request.link)
                         UgcPostRequest(
                             author = personUrn,
                             lifecycleState = UgcLifecycleState.PUBLISHED,
@@ -818,10 +822,12 @@ class LinkedInApiModule(
                                                         status = "READY",
                                                         originalUrl = request.link,
                                                         title =
-                                                            linkPreview?.title?.let { UgcText(it) },
+                                                            fetchedLinkPreview?.title?.let {
+                                                                UgcText(it)
+                                                            },
                                                         description = UgcText(content.take(256)),
                                                         thumbnails =
-                                                            linkPreview?.imageUrl?.let {
+                                                            fetchedLinkPreview?.imageUrl?.let {
                                                                 listOf(UgcThumbnail(url = it))
                                                             },
                                                     )

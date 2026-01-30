@@ -37,6 +37,7 @@ import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
@@ -85,6 +86,8 @@ fun startServer(
         }
     val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
+    val linkPreviewParser = LinkPreviewParser().bind()
+
     val authRoutes =
         AuthRoutes(
             config = config.server.auth,
@@ -92,7 +95,14 @@ fun startServer(
             linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
     val publishModule =
-        PublishModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
+        PublishModule(
+            mastodonModule,
+            blueskyModule,
+            twitterModule,
+            linkedInModule,
+            rssModule,
+            linkPreviewParser,
+        )
     val publishRoutes = PublishRoutes(publishModule)
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
