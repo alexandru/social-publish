@@ -77,7 +77,7 @@ class MetaThreadsApiModule(
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn {
-                    "Failed to create media container for Threads: ${response.status}, body: $errorBody"
+                    "Failed to create media container for Meta Threads: ${response.status}, body: $errorBody"
                 }
                 RequestError(
                         status = response.status.value,
@@ -88,7 +88,7 @@ class MetaThreadsApiModule(
                     .left()
             }
         } catch (e: Exception) {
-            logger.error(e) { "Failed to create media container (threads) — uuid $imageUuid" }
+            logger.error(e) { "Failed to create media container (metathreads) — uuid $imageUuid" }
             CaughtException(
                     status = 500,
                     module = "metathreads",
@@ -111,7 +111,7 @@ class MetaThreadsApiModule(
                     request.content.trim()
                 } + if (request.link != null) "\n\n${request.link}" else ""
 
-            logger.info { "Posting to Threads:\n${text.prependIndent("  |")}" }
+            logger.info { "Posting to Meta Threads:\n${text.prependIndent("  |")}" }
 
             val imageIds =
                 if (!request.images.isNullOrEmpty()) {
@@ -138,7 +138,7 @@ class MetaThreadsApiModule(
             if (containerResponse.status.value != 200) {
                 val errorBody = containerResponse.bodyAsText()
                 logger.warn {
-                    "Failed to create Threads container: ${containerResponse.status}, body: $errorBody"
+                    "Failed to create Meta Threads container: ${containerResponse.status}, body: $errorBody"
                 }
                 return RequestError(
                         status = containerResponse.status.value,
@@ -163,7 +163,7 @@ class MetaThreadsApiModule(
             } else {
                 val errorBody = publishResponse.bodyAsText()
                 logger.warn {
-                    "Failed to publish to Threads: ${publishResponse.status}, body: $errorBody"
+                    "Failed to publish to Meta Threads: ${publishResponse.status}, body: $errorBody"
                 }
                 RequestError(
                         status = publishResponse.status.value,
@@ -174,11 +174,11 @@ class MetaThreadsApiModule(
                     .left()
             }
         } catch (e: Exception) {
-            logger.error(e) { "Failed to post to Threads" }
+            logger.error(e) { "Failed to post to Meta Threads" }
             CaughtException(
                     status = 500,
                     module = "metathreads",
-                    errorMessage = "Failed to post to Threads: ${e.message}",
+                    errorMessage = "Failed to post to Meta Threads: ${e.message}",
                 )
                 .left()
         }

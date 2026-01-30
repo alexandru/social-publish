@@ -165,7 +165,7 @@ To post to Meta's Threads:
 - Find your Threads User ID (available in the Threads API documentation or through the Graph API Explorer)
 - Set the `METATHREADS_ACCESS_TOKEN` and `METATHREADS_USER_ID` environment variables
 
-**Note:** Meta Threads uses long-lived access tokens that are valid for 60 days. You'll need to refresh the token before it expires to maintain access.
+**Token Refresh:** Meta Threads long-lived access tokens are valid for 60 days. The application provides a `GET /api/metathreads/refresh_access_token` endpoint to refresh your token and extend its validity. You should call this endpoint periodically (e.g., every 30 days) to ensure continuous access. The response includes a new access token that you'll need to update in your environment variables.
 
 ### LLM setup (Optional)
 
