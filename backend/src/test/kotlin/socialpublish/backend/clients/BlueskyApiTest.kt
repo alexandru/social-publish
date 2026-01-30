@@ -320,4 +320,247 @@ class BlueskyApiTest {
             blueskyClient.close()
         }
     }
+
+    @Test
+    fun `shortens link text while preserving preview`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var createRecordBody: JsonObject? = null
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        createRecordBody = Json.parseToJsonElement(body).jsonObject
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    get("/test-page.html") {
+                        call.respondText(
+                            """
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta property="og:title" content="Test Article">
+                                <meta property="og:description" content="Test description">
+                                <meta property="og:url" content="http://localhost/test-page.html">
+                                <meta property="og:image" content="http://localhost/test-image.jpg">
+                            </head>
+                            <body></body>
+                            </html>
+                            """
+                                .trimIndent(),
+                            io.ktor.http.ContentType.Text.Html,
+                        )
+                    }
+                    get("/test-image.jpg") {
+                        val bytes =
+                            byteArrayOf(
+                                0xFF.toByte(),
+                                0xD8.toByte(),
+                                0xFF.toByte(),
+                                0xE0.toByte(),
+                                0x00,
+                                0x10,
+                                0x4A,
+                                0x46,
+                                0x49,
+                                0x46,
+                                0x00,
+                                0x01,
+                                0x01,
+                                0x00,
+                                0x00,
+                                0x01,
+                                0x00,
+                                0x01,
+                                0x00,
+                                0x00,
+                                0xFF.toByte(),
+                                0xD9.toByte(),
+                            )
+                        call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
+                    }
+                    post("/xrpc/com.atproto.repo.uploadBlob") {
+                        call.respondText(
+                            "{" + "\"blob\":{\"ref\":{\"link\":\"bafytest\"}}}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val blueskyModule =
+                BlueskyApiModule(
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
+                )
+
+            val longLink =
+                "http://localhost/test-page.html?with=a-very-long-query-parameter-to-overflow"
+            val req = NewPostRequest(content = "Check out this article", link = longLink)
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+
+            val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
+            val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
+            val expectedDisplay = longLink.take(21) + "..."
+            assertEquals("Check out this article\n\n$expectedDisplay", text)
+
+            val facets = requireNotNull(record["facets"]?.jsonArray)
+            val linkFacet = facets.first().jsonObject
+            val index = linkFacet["index"]?.jsonObject
+            val byteStart = index?.get("byteStart")?.jsonPrimitive?.int
+            val byteEnd = index?.get("byteEnd")?.jsonPrimitive?.int
+            val expectedStart = "Check out this article\n\n".toByteArray(Charsets.UTF_8).size
+            val expectedEnd = expectedStart + expectedDisplay.toByteArray(Charsets.UTF_8).size
+
+            assertEquals(expectedStart, byteStart)
+            assertEquals(expectedEnd, byteEnd)
+
+            val features = linkFacet["features"] as JsonArray
+            val uri = features.first().jsonObject["uri"]?.jsonPrimitive?.content
+            assertEquals(longLink, uri)
+
+            val embed = record["embed"]?.jsonObject
+            assertNotNull(embed)
+            assertEquals("app.bsky.embed.external", embed["\$type"]?.jsonPrimitive?.content)
+
+            blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `shortens multiple links in text`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var createRecordBody: JsonObject? = null
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        createRecordBody = Json.parseToJsonElement(body).jsonObject
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val blueskyModule =
+                BlueskyApiModule(
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
+                )
+
+            val linkOne = "http://localhost/alpha?with=a-long-query-param"
+            val linkTwo = "http://localhost/beta?another-long-query-param"
+            val content = "First $linkOne and then $linkTwo"
+            val req = NewPostRequest(content = content)
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+
+            val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
+            val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
+
+            val displayOne = linkOne.take(21) + "..."
+            val displayTwo = linkTwo.take(21) + "..."
+            val expectedText = "First $displayOne and then $displayTwo"
+
+            assertEquals(expectedText, text)
+
+            val facets = requireNotNull(record["facets"]?.jsonArray)
+            assertEquals(2, facets.size)
+
+            val firstIndex = facets[0].jsonObject["index"]?.jsonObject
+            val secondIndex = facets[1].jsonObject["index"]?.jsonObject
+
+            val expectedFirstStart = "First ".toByteArray(Charsets.UTF_8).size
+            val expectedFirstEnd = expectedFirstStart + displayOne.toByteArray(Charsets.UTF_8).size
+            val expectedSecondStart = "First $displayOne and then ".toByteArray(Charsets.UTF_8).size
+            val expectedSecondEnd =
+                expectedSecondStart + displayTwo.toByteArray(Charsets.UTF_8).size
+
+            assertEquals(expectedFirstStart, firstIndex?.get("byteStart")?.jsonPrimitive?.int)
+            assertEquals(expectedFirstEnd, firstIndex?.get("byteEnd")?.jsonPrimitive?.int)
+            assertEquals(expectedSecondStart, secondIndex?.get("byteStart")?.jsonPrimitive?.int)
+            assertEquals(expectedSecondEnd, secondIndex?.get("byteEnd")?.jsonPrimitive?.int)
+
+            val firstUri =
+                facets[0]
+                    .jsonObject["features"]
+                    ?.jsonArray
+                    ?.first()
+                    ?.jsonObject
+                    ?.get("uri")
+                    ?.jsonPrimitive
+                    ?.content
+            val secondUri =
+                facets[1]
+                    .jsonObject["features"]
+                    ?.jsonArray
+                    ?.first()
+                    ?.jsonObject
+                    ?.get("uri")
+                    ?.jsonPrimitive
+                    ?.content
+
+            assertEquals(linkOne, firstUri)
+            assertEquals(linkTwo, secondUri)
+
+            blueskyClient.close()
+        }
+    }
 }

@@ -46,6 +46,8 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
+private const val BlueskyLinkDisplayLength = 24
+
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
     private val config: BlueskyConfig,
@@ -261,42 +263,51 @@ class BlueskyApiModule(
         }
     }
 
+    private data class RichTextPayload(val text: String, val facets: List<JsonObject>)
+
+    private fun utf8Length(value: String): Int = value.toByteArray(Charsets.UTF_8).size
+
+    private fun shortenLinkForDisplay(
+        url: String,
+        maxLength: Int = BlueskyLinkDisplayLength,
+    ): String {
+        if (url.length <= maxLength) {
+            return url
+        }
+
+        if (maxLength <= 3) {
+            return url.take(maxLength)
+        }
+
+        return url.take(maxLength - 3) + "..."
+    }
+
+    private fun buildLinkFacet(byteStart: Int, byteEnd: Int, uri: String): JsonObject {
+        return buildJsonObject {
+            putJsonObject("index") {
+                put("byteStart", byteStart)
+                put("byteEnd", byteEnd)
+            }
+            putJsonArray("features") {
+                add(
+                    buildJsonObject {
+                        put("\$type", "app.bsky.richtext.facet#link")
+                        put("uri", uri)
+                    }
+                )
+            }
+        }
+    }
+
     /**
-     * Detect facets (mentions, links, hashtags) in text Supports:
-     * - URLs (app.bsky.richtext.facet#link)
-     * - Mentions @handle (app.bsky.richtext.facet#mention)
-     * - Hashtags #tag (app.bsky.richtext.facet#tag)
+     * Detect facets (mentions, hashtags) in text.
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun detectFacets(text: String): List<JsonObject> {
+    private suspend fun detectMentionsAndTags(text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
 
-        // 1. Detect URLs
-        // Regex handles http/https and ensures valid surrounding characters
-        val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
-        urlRegex.findAll(text).forEach { match ->
-            val byteStart = text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
-            val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
-
-            val facet = buildJsonObject {
-                putJsonObject("index") {
-                    put("byteStart", byteStart)
-                    put("byteEnd", byteEnd)
-                }
-                putJsonArray("features") {
-                    add(
-                        buildJsonObject {
-                            put("\$type", "app.bsky.richtext.facet#link")
-                            put("uri", match.value)
-                        }
-                    )
-                }
-            }
-            facets.add(facet)
-        }
-
-        // 2. Detect Mentions (@handle.bsky.social)
+        // 1. Detect Mentions (@handle.bsky.social)
         val mentionRegex = Regex("""(?<=\s|^)(@[a-zA-Z0-9.-]+)""")
         for (match in mentionRegex.findAll(text)) {
             val handle = match.value.substring(1) // Remove '@'
@@ -304,9 +315,8 @@ class BlueskyApiModule(
             if (handle.contains(".")) {
                 val did = resolveHandle(handle)
                 if (did != null) {
-                    val byteStart =
-                        text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
-                    val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
+                    val byteStart = utf8Length(text.substring(0, match.range.first))
+                    val byteEnd = byteStart + utf8Length(match.value)
 
                     val facet = buildJsonObject {
                         putJsonObject("index") {
@@ -327,12 +337,12 @@ class BlueskyApiModule(
             }
         }
 
-        // 3. Detect Hashtags (#tag)
+        // 2. Detect Hashtags (#tag)
         val tagRegex = Regex("""(?<=\s|^)(#[a-zA-Z0-9]+)""")
         tagRegex.findAll(text).forEach { match ->
             val tag = match.value.substring(1) // Remove '#'
-            val byteStart = text.substring(0, match.range.first).toByteArray(Charsets.UTF_8).size
-            val byteEnd = byteStart + match.value.toByteArray(Charsets.UTF_8).size
+            val byteStart = utf8Length(text.substring(0, match.range.first))
+            val byteEnd = byteStart + utf8Length(match.value)
 
             val facet = buildJsonObject {
                 putJsonObject("index") {
@@ -352,6 +362,43 @@ class BlueskyApiModule(
         }
 
         return facets
+    }
+
+    /**
+     * Build rich text payload with shortened link display text and facets.
+     *
+     * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
+     */
+    private suspend fun buildRichText(text: String): RichTextPayload {
+        val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
+        val facets = mutableListOf<JsonObject>()
+        val builder = StringBuilder()
+        var byteOffset = 0
+        var lastIndex = 0
+
+        for (match in urlRegex.findAll(text)) {
+            val prefix = text.substring(lastIndex, match.range.first)
+            builder.append(prefix)
+            byteOffset += utf8Length(prefix)
+
+            val displayText = shortenLinkForDisplay(match.value)
+            val byteStart = byteOffset
+            val byteEnd = byteStart + utf8Length(displayText)
+
+            builder.append(displayText)
+            byteOffset = byteEnd
+
+            facets.add(buildLinkFacet(byteStart, byteEnd, match.value))
+            lastIndex = match.range.last + 1
+        }
+
+        if (lastIndex < text.length) {
+            builder.append(text.substring(lastIndex))
+        }
+
+        val finalText = builder.toString()
+        val mentionAndTagFacets = detectMentionsAndTags(finalText)
+        return RichTextPayload(finalText, facets + mentionAndTagFacets)
     }
 
     /** Create a post on Bluesky */
@@ -409,19 +456,19 @@ class BlueskyApiModule(
                     request.content.trim()
                 } + if (finalLink != null) "\n\n$finalLink" else ""
 
-            logger.info { "Posting to Bluesky:\n${text.trim().prependIndent("  |")}" }
+            // Detect facets (mentions, links, hashtags) and shorten link display text
+            val richText = buildRichText(text)
 
-            // Detect facets (mentions, links, hashtags)
-            val facets = detectFacets(text)
+            logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
 
             // Build post record
             val record = buildJsonObject {
                 put("\$type", "app.bsky.feed.post")
-                put("text", text)
+                put("text", richText.text)
                 put("createdAt", Instant.now().toString())
 
-                if (facets.isNotEmpty()) {
-                    putJsonArray("facets") { facets.forEach { add(it) } }
+                if (richText.facets.isNotEmpty()) {
+                    putJsonArray("facets") { richText.facets.forEach { add(it) } }
                 }
 
                 if (request.language != null) {
