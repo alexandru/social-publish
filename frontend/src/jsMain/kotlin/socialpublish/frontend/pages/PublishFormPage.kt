@@ -17,11 +17,13 @@ import socialpublish.frontend.components.MessageType
 import socialpublish.frontend.components.ModalMessage
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.SelectInputField
+import socialpublish.frontend.components.SelectOption
 import socialpublish.frontend.components.SelectedImage
 import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.models.FileUploadResponse
+import socialpublish.frontend.models.LANGUAGE_OPTIONS
 import socialpublish.frontend.models.ModulePostResponse
 import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
@@ -244,7 +246,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     label = null,
                     value = formState.language,
                     onValueChange = { formState = formState.updateLanguage(it) },
-                    options = mapOf(null to "Language", "en" to "English", "ro" to "Romanian"),
+                    options = listOf(SelectOption("Language", null)).plus(LANGUAGE_OPTIONS),
                     icon = "fa-globe",
                 )
 

@@ -5,6 +5,8 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 
+data class SelectOption(val text: String, val value: String?)
+
 /**
  * Stateless text input field with label.
  *
@@ -174,7 +176,7 @@ fun ServiceCheckboxField(
  * @param label The label text for the select field
  * @param value Current selected value (null for default/placeholder)
  * @param onValueChange Callback when value changes
- * @param options Map of value to display text for options
+ * @param options List of SelectOption for options (preserves order)
  * @param icon Optional Font Awesome icon class (e.g., "fa-globe")
  * @param disabled Whether the field is disabled
  * @param required Whether the field is required
@@ -185,7 +187,7 @@ fun SelectInputField(
     label: String?,
     value: String?,
     onValueChange: (String?) -> Unit,
-    options: Map<String?, String>,
+    options: List<SelectOption>,
     icon: String? = null,
     disabled: Boolean = false,
     required: Boolean = false,
@@ -224,16 +226,16 @@ fun SelectInputField(
                         if (required) attr("required", "")
                     }
                 ) {
-                    options.forEach { (optionValue, optionText) ->
+                    options.forEach { option ->
                         Option(
-                            value = optionValue ?: "",
+                            value = option.value ?: "",
                             attrs = {
-                                if (optionValue == value) {
+                                if (option.value == value) {
                                     attr("selected", "")
                                 }
                             },
                         ) {
-                            Text(optionText)
+                            Text(option.text)
                         }
                     }
                 }
