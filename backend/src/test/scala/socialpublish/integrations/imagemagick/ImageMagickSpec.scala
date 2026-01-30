@@ -27,11 +27,10 @@ class ImageMagickSpec extends CatsEffectSuite {
   private val testFlower2 = getTestResource("flower2.jpeg")
 
   test("ImageMagick.apply should find magick executable") {
-    ImageMagick().flatMap {
-      case Right(magick) =>
-        IO(assertNotEquals(magick, null))
+    ImageMagick().map {
+      case Right(magick) => assertNotEquals(magick, null)
       case Left(err) =>
-        IO(fail(s"ImageMagick not available: ${err.getMessage}. Is ImageMagick installed?"))
+        fail(s"ImageMagick not available: ${err.getMessage}. Is ImageMagick installed?")
     }
   }
 
@@ -99,14 +98,16 @@ class ImageMagickSpec extends CatsEffectSuite {
               IO {
                 assert(dest.exists(), "Destination file should be created")
                 assert(dest.length() > 0, "Destination file should not be empty")
-              } *> magick.identifyImageSize(dest).map {
-                case Right(size) =>
-                  assert(size.width <= 1600, "Width should be <= max width (1600)")
-                  assert(size.height <= 1600, "Height should be <= max height (1600)")
-                  assert(size.width < 4966, "Image should be resized from original width")
-                  assert(size.height < 3313, "Image should be resized from original height")
-                case Left(err) =>
-                  fail(s"Failed to identify optimized image: ${err.getMessage}")
+              }.flatMap { _ =>
+                magick.identifyImageSize(dest).map {
+                  case Right(size) =>
+                    assert(size.width <= 1600, "Width should be <= max width (1600)")
+                    assert(size.height <= 1600, "Height should be <= max height (1600)")
+                    assert(size.width < 4966, "Image should be resized from original width")
+                    assert(size.height < 3313, "Image should be resized from original height")
+                  case Left(err) =>
+                    fail(s"Failed to identify optimized image: ${err.getMessage}")
+                }
               }
             case Left(err) =>
               IO(fail(s"optimizeImage failed: ${err.getMessage}"))

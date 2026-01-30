@@ -68,6 +68,7 @@ lazy val backend = (project in file("backend"))
       "com.twelvemonkeys.imageio" % "imageio-core" % "3.13.0",
       "com.twelvemonkeys.imageio" % "imageio-jpeg" % "3.13.0",
       "org.apache.tika" % "tika-core" % "2.9.2",
+      "org.apache.commons" % "commons-text" % "1.11.0",
 
       // BCrypt for password hashing/verification
       "org.mindrot" % "jbcrypt" % "0.4",
