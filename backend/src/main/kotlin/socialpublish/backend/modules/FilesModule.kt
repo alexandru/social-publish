@@ -193,6 +193,11 @@ private constructor(
         )
     }
 
+    /** Get the public URL for a file */
+    fun getFileUrl(uuid: String): String {
+        return "${config.baseUrl}/files/$uuid"
+    }
+
     private suspend fun detectImageFormat(bytes: ByteArray): String? {
         return runInterruptible(Dispatchers.LoomIO) {
             try {

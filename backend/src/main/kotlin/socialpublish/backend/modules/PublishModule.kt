@@ -9,6 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.threads.ThreadsApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.ApiResult
@@ -24,6 +25,7 @@ class PublishModule(
     private val blueskyModule: BlueskyApiModule?,
     private val twitterModule: TwitterApiModule?,
     private val linkedInModule: LinkedInApiModule?,
+    private val threadsModule: ThreadsApiModule?,
     private val rssModule: RssModule,
 ) {
     /** Broadcast post to multiple platforms */
@@ -78,6 +80,18 @@ class PublishModule(
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "LinkedIn integration not configured",
+                            module = "publish",
+                        )
+                        .left()
+            }
+        }
+
+        if (targets.contains("threads")) {
+            tasks.add {
+                threadsModule?.createPost(request)
+                    ?: ValidationError(
+                            status = 503,
+                            errorMessage = "Threads integration not configured",
                             module = "publish",
                         )
                         .left()

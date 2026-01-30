@@ -41,6 +41,7 @@ import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.threads.ThreadsApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
@@ -83,6 +84,7 @@ fun startServer(
         config.linkedin?.let {
             LinkedInApiModule.resource(it, config.server.baseUrl, documentsDb, filesModule).bind()
         }
+    val threadsModule = config.threads?.let { ThreadsApiModule.resource(it, filesModule).bind() }
     val llmModule = config.llm?.let { LlmApiModule.resource(it, filesModule).bind() }
 
     val authRoutes =
@@ -92,7 +94,14 @@ fun startServer(
             linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
         )
     val publishModule =
-        PublishModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
+        PublishModule(
+            mastodonModule,
+            blueskyModule,
+            twitterModule,
+            linkedInModule,
+            threadsModule,
+            rssModule,
+        )
     val publishRoutes = PublishRoutes(publishModule)
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
@@ -458,6 +467,30 @@ fun startServer(
                             }
                         }
                         responses { documentNewPostResponses<NewLinkedInPostResponse>() }
+                    }
+
+                post("/api/threads/post") {
+                        if (threadsModule != null) {
+                            threadsModule.createPostRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Threads integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Create Threads post"
+                        description = "Publish a post to Meta's Threads"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewThreadsPostResponse>() }
                     }
 
                 post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) }

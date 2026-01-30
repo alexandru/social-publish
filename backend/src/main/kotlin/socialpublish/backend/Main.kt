@@ -24,6 +24,7 @@ import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.clients.threads.ThreadsConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
@@ -189,6 +190,21 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             envvar = "LINKEDIN_CLIENT_SECRET",
         )
 
+    // Threads integration (optional)
+    private val threadsAccessToken: String? by
+        option(
+            "--threads-access-token",
+            help = "Threads API access token (env: THREADS_ACCESS_TOKEN)",
+            envvar = "THREADS_ACCESS_TOKEN",
+        )
+
+    private val threadsUserId: String? by
+        option(
+            "--threads-user-id",
+            help = "Threads user ID (env: THREADS_USER_ID)",
+            envvar = "THREADS_USER_ID",
+        )
+
     // LLM integration for alt-text generation (optional)
     private val llmApiUrl: String? by
         option(
@@ -267,6 +283,13 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 null
             }
 
+        val threadsConfig =
+            if (threadsAccessToken != null && threadsUserId != null) {
+                ThreadsConfig(accessToken = threadsAccessToken!!, userId = threadsUserId!!)
+            } else {
+                null
+            }
+
         val llmConfig =
             if (llmApiUrl != null && llmApiKey != null && llmModel != null) {
                 LlmConfig(apiUrl = llmApiUrl!!, apiKey = llmApiKey!!, model = llmModel!!)
@@ -282,6 +305,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
                 linkedin = linkedinConfig,
+                threads = threadsConfig,
                 llm = llmConfig,
             )
 
