@@ -20,7 +20,7 @@ import org.jetbrains.compose.web.dom.*
  */
 @Composable
 fun TextInputField(
-    label: String,
+    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
     type: InputType<String> = InputType.Text,
@@ -33,14 +33,15 @@ fun TextInputField(
     val inputId = id ?: remember { "input-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
-        Label(
-            attrs = {
-                classes("label")
-                attr("for", inputId)
+        if (label != null)
+            Label(
+                attrs = {
+                    classes("label")
+                    attr("for", inputId)
+                }
+            ) {
+                Text(label)
             }
-        ) {
-            Text(label)
-        }
         Div(attrs = { classes("control") }) {
             Input(
                 type = type,
@@ -181,7 +182,7 @@ fun ServiceCheckboxField(
  */
 @Composable
 fun SelectInputField(
-    label: String,
+    label: String?,
     value: String?,
     onValueChange: (String?) -> Unit,
     options: Map<String?, String>,
@@ -193,14 +194,15 @@ fun SelectInputField(
     val selectId = id ?: remember { "select-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
-        Label(
-            attrs = {
-                classes("label")
-                attr("for", selectId)
+        if (label != null)
+            Label(
+                attrs = {
+                    classes("label")
+                    attr("for", selectId)
+                }
+            ) {
+                Text(label)
             }
-        ) {
-            Text(label)
-        }
         Div(
             attrs = {
                 if (icon != null) {

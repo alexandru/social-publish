@@ -228,24 +228,24 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                 )
 
                 TextInputField(
-                    label = "Highlighted link (optional)",
+                    label = null,
                     value = formState.link,
                     onValueChange = { formState = formState.updateLink(it) },
-                    placeholder = "https://example.com/...",
+                    placeholder = "Highlighted URL (optional): https://example.com/...",
                     pattern = "https?://.+",
-                )
-
-                SelectInputField(
-                    label = "Language (optional)",
-                    value = formState.language,
-                    onValueChange = { formState = formState.updateLanguage(it) },
-                    options = mapOf(null to "Not specified", "en" to "English", "ro" to "Romanian"),
-                    icon = "fa-globe",
                 )
 
                 CharacterCounter(
                     remaining = formState.charactersRemaining,
                     maximum = formState.maxCharacters,
+                )
+
+                SelectInputField(
+                    label = null,
+                    value = formState.language,
+                    onValueChange = { formState = formState.updateLanguage(it) },
+                    options = mapOf(null to "Language", "en" to "English", "ro" to "Romanian"),
+                    icon = "fa-globe",
                 )
 
                 Div(attrs = { classes("columns", "is-multiline") }) {
