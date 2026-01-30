@@ -55,7 +55,7 @@ internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule
     return FilesModule.create(filesConfig, FilesDatabase(db))
 }
 
-internal suspend fun createTestImageMagick(maxSizeBytes: Long = 950_000L): ImageMagick {
+internal suspend fun createTestImageMagick(maxSizeBytes: Long = 900_000L): ImageMagick {
     return ImageMagick(MagickOptimizeOptions(maxSizeBytes = maxSizeBytes)).getOrElse {
         error("ImageMagick not available: ${it.message}")
     }
