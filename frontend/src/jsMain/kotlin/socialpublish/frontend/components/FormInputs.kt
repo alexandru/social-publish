@@ -174,7 +174,6 @@ fun ServiceCheckboxField(
  * @param value Current selected value (null for default/placeholder)
  * @param onValueChange Callback when value changes
  * @param options Map of value to display text for options
- * @param placeholder Optional placeholder text
  * @param icon Optional Font Awesome icon class (e.g., "fa-globe")
  * @param disabled Whether the field is disabled
  * @param required Whether the field is required
@@ -186,7 +185,6 @@ fun SelectInputField(
     value: String?,
     onValueChange: (String?) -> Unit,
     options: Map<String?, String>,
-    placeholder: String? = null,
     icon: String? = null,
     disabled: Boolean = false,
     required: Boolean = false,
