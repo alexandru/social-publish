@@ -211,6 +211,55 @@ class MetaThreadsApiModule(
         }
     }
 
+    suspend fun refreshAccessToken(): ApiResult<MetaThreadsRefreshTokenResponse> {
+        return try {
+            val response =
+                httpClient.post("${config.apiBase}/v1.0/access_token") {
+                    parameter("grant_type", "th_refresh_token")
+                    parameter("access_token", config.accessToken)
+                }
+
+            if (response.status.value == 200) {
+                val tokenResponse = response.body<MetaThreadsRefreshTokenResponse>()
+                logger.info { "Successfully refreshed Meta Threads access token" }
+                tokenResponse.right()
+            } else {
+                val errorBody = response.bodyAsText()
+                logger.warn {
+                    "Failed to refresh Meta Threads access token: ${response.status}, body: $errorBody"
+                }
+                RequestError(
+                        status = response.status.value,
+                        module = "metathreads",
+                        errorMessage = "Failed to refresh access token",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to refresh Meta Threads access token" }
+            CaughtException(
+                    status = 500,
+                    module = "metathreads",
+                    errorMessage = "Failed to refresh access token: ${e.message}",
+                )
+                .left()
+        }
+    }
+
+    suspend fun refreshAccessTokenRoute(call: ApplicationCall) {
+        when (val result = refreshAccessToken()) {
+            is Either.Right -> call.respond(result.value)
+            is Either.Left -> {
+                val error = result.value
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    ErrorResponse(error = error.errorMessage),
+                )
+            }
+        }
+    }
+
     private fun cleanupHtml(html: String): String {
         return html
             .replace(Regex("<[^>]+>"), "")

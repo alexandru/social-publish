@@ -22,3 +22,10 @@ data class MetaThreadsError(
     val code: Int,
     @SerialName("fbtrace_id") val fbtraceId: String? = null,
 )
+
+@Serializable
+data class MetaThreadsRefreshTokenResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("token_type") val tokenType: String,
+    @SerialName("expires_in") val expiresIn: Long,
+)

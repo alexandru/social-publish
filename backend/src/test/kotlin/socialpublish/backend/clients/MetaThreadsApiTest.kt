@@ -130,4 +130,55 @@ class MetaThreadsApiTest {
             metaThreadsClient.close()
         }
     }
+
+    @Test
+    fun `refreshes access token`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+
+            application {
+                routing {
+                    post("/v1.0/access_token") {
+                        call.respondText(
+                            """{"access_token":"new-token-123","token_type":"bearer","expires_in":5184000}""",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val metaThreadsClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val metaThreadsModule =
+                MetaThreadsApiModule(
+                    config =
+                        MetaThreadsConfig(
+                            apiBase = "http://localhost",
+                            userId = "test-user-id",
+                            accessToken = "old-token",
+                        ),
+                    filesModule = filesModule,
+                    httpClient = metaThreadsClient,
+                )
+
+            val result = metaThreadsModule.refreshAccessToken()
+
+            assertTrue(result.isRight())
+            val response = (result as Either.Right).value
+            assertEquals("new-token-123", response.accessToken)
+            assertEquals("bearer", response.tokenType)
+            assertEquals(5184000L, response.expiresIn)
+
+            metaThreadsClient.close()
+        }
+    }
 }

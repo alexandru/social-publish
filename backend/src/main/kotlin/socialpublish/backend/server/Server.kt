@@ -42,6 +42,7 @@ import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.metathreads.MetaThreadsApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsRefreshTokenResponse
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
@@ -492,6 +493,33 @@ fun startServer(
                             }
                         }
                         responses { documentNewPostResponses<NewMetaThreadsPostResponse>() }
+                    }
+
+                get("/api/metathreads/refresh_access_token") {
+                        if (metaThreadsModule != null) {
+                            metaThreadsModule.refreshAccessTokenRoute(call)
+                        } else {
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(error = "Meta Threads integration not configured"),
+                            )
+                        }
+                    }
+                    .describe {
+                        summary = "Refresh Meta Threads access token"
+                        description =
+                            "Refresh the Meta Threads long-lived access token to extend its validity"
+                        documentSecurityRequirements()
+                        responses {
+                            response(200) {
+                                description = "Successfully refreshed access token"
+                                schema = jsonSchema<MetaThreadsRefreshTokenResponse>()
+                            }
+                            response(503) {
+                                description = "Meta Threads integration not configured"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
                     }
 
                 post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) }
