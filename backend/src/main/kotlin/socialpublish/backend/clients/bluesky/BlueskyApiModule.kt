@@ -1,6 +1,7 @@
 package socialpublish.backend.clients.bluesky
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
@@ -24,7 +25,10 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import java.io.File
 import java.time.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -32,10 +36,13 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.LoomIO
 import socialpublish.backend.common.NewBlueSkyPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
@@ -47,6 +54,7 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 private const val BlueskyLinkDisplayLength = 24
+private const val BlueskyMaxImageSize = 950_000L
 
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
@@ -54,6 +62,7 @@ class BlueskyApiModule(
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
     private val linkPreviewParser: LinkPreviewParser,
+    private val imageMagick: ImageMagick,
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
@@ -68,11 +77,18 @@ class BlueskyApiModule(
 
         fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
+                val imageMagick =
+                    ImageMagick(
+                            MagickOptimizeOptions(maxSizeBytes = BlueskyMaxImageSize)
+                        )
+                        .getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
+
                 BlueskyApiModule(
                     config = config,
                     filesModule = filesModule,
                     linkPreviewParser = LinkPreviewParser().bind(),
                     httpClient = defaultHttpClient().bind(),
+                    imageMagick = imageMagick,
                 )
             }
     }
@@ -199,7 +215,6 @@ class BlueskyApiModule(
         session: BlueskySessionResponse,
     ): BlueskyBlobRef? {
         return try {
-            // Fetch the image
             val response = httpClient.get(imageUrl)
 
             if (response.status.value != 200) {
@@ -210,12 +225,26 @@ class BlueskyApiModule(
             val imageBytes = response.body<ByteArray>()
             val contentType = response.contentType()?.toString() ?: "image/jpeg"
 
-            // Upload to Bluesky
+            val optimizedBytes =
+                if (imageBytes.size > BlueskyMaxImageSize) {
+                    logger.info {
+                        "Optimizing link preview image (${imageBytes.size} bytes) from $imageUrl"
+                    }
+                    optimizeImageBytes(imageBytes) ?: run {
+                        logger.warn {
+                            "Failed to optimize image from $imageUrl, skipping link preview thumbnail"
+                        }
+                        return null
+                    }
+                } else {
+                    imageBytes
+                }
+
             val uploadResponse =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(contentType))
-                    setBody(imageBytes)
+                    setBody(optimizedBytes)
                 }
 
             if (uploadResponse.status.isSuccess()) {
@@ -226,7 +255,7 @@ class BlueskyApiModule(
                     `$type` = "blob",
                     ref = blob["ref"] as JsonObject,
                     mimeType = contentType,
-                    size = imageBytes.size,
+                    size = optimizedBytes.size,
                 )
             }
 
@@ -234,6 +263,36 @@ class BlueskyApiModule(
             null
         } catch (e: Exception) {
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
+            null
+        }
+    }
+
+    private suspend fun optimizeImageBytes(bytes: ByteArray): ByteArray? {
+        return try {
+            val sourceFile =
+                runInterruptible(Dispatchers.LoomIO) {
+                    File.createTempFile("bluesky-source-", ".tmp").apply { writeBytes(bytes) }
+                }
+            try {
+                val destFile =
+                    runInterruptible(Dispatchers.LoomIO) {
+                        File.createTempFile("bluesky-optimized-", ".tmp")
+                    }
+                try {
+                    imageMagick.optimizeImage(sourceFile, destFile).getOrElse {
+                        logger.warn(it) { "ImageMagick optimization failed" }
+                        return null
+                    }
+
+                    runInterruptible(Dispatchers.LoomIO) { destFile.readBytes() }
+                } finally {
+                    runInterruptible(Dispatchers.LoomIO) { destFile.delete() }
+                }
+            } finally {
+                runInterruptible(Dispatchers.LoomIO) { sourceFile.delete() }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to optimize image bytes" }
             null
         }
     }

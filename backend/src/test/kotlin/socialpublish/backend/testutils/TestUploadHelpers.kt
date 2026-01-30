@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
 import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.common.LoomIO
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
@@ -52,6 +53,12 @@ internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule
     val uploadsDir = tempDir.resolve("uploads").toFile()
     val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir, baseUrl = "http://localhost")
     return FilesModule.create(filesConfig, FilesDatabase(db))
+}
+
+internal suspend fun createTestImageMagick(maxSizeBytes: Long = 950_000L): ImageMagick {
+    return ImageMagick(MagickOptimizeOptions(maxSizeBytes = maxSizeBytes)).getOrElse {
+        error("ImageMagick not available: ${it.message}")
+    }
 }
 
 internal fun loadTestResourceBytes(resourceName: String): ByteArray {

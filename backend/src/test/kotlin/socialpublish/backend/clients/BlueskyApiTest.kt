@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
+import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.clients.imagemagick.MagickOptimizeOptions
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
@@ -62,6 +64,7 @@ class BlueskyApiTest {
                 }
             }
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -69,6 +72,7 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
                 )
 
             val req = NewPostRequest(content = "Hello bluesky")
@@ -133,6 +137,7 @@ class BlueskyApiTest {
             val upload1 = uploadTestImage(blueskyClient, "flower1.jpeg", "rose")
             val upload2 = uploadTestImage(blueskyClient, "flower2.jpeg", "tulip")
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
 
             val blueskyModule =
                 BlueskyApiModule(
@@ -141,6 +146,7 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
                 )
 
             val req =
@@ -283,6 +289,7 @@ class BlueskyApiTest {
                 }
             }
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -290,6 +297,7 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
                 )
 
             val req =
@@ -316,6 +324,99 @@ class BlueskyApiTest {
             // Check that the thumbnail blob was included
             val thumb = external["thumb"]?.jsonObject
             assertNotNull(thumb)
+
+            blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `optimizes link preview images before upload`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var uploadedImageSize: Int? = null
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/1\",\"cid\":\"cid123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    get("/test-page.html") {
+                        call.respondText(
+                            """
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta property="og:title" content="Test Article">
+                                <meta property="og:image" content="http://localhost/large-image.jpg">
+                            </head>
+                            <body></body>
+                            </html>
+                            """
+                                .trimIndent(),
+                            io.ktor.http.ContentType.Text.Html,
+                        )
+                    }
+                    get("/large-image.jpg") {
+                        // Return a real test image that might be large
+                        val bytes = loadTestResourceBytes("flower1.jpeg")
+                        call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
+                    }
+                    post("/xrpc/com.atproto.repo.uploadBlob") {
+                        val bytes = call.receiveStream().readBytes()
+                        uploadedImageSize = bytes.size
+                        call.respondText(
+                            "{" + "\"blob\":{\"ref\":{\"link\":\"bafytest\"}}}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val blueskyClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
+            val blueskyModule =
+                BlueskyApiModule(
+                    config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
+                    filesModule = filesModule,
+                    httpClient = blueskyClient,
+                    linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
+                )
+
+            val req =
+                NewPostRequest(
+                    content = "Check out this article",
+                    link = "http://localhost/test-page.html",
+                )
+            val result = blueskyModule.createPost(req)
+
+            assertTrue(result.isRight())
+            assertNotNull(uploadedImageSize)
+            // Bluesky limit is approximately 976KB, ensure we're under that
+            assertTrue(uploadedImageSize!! <= 976_000, "Image size $uploadedImageSize should be <= 976KB")
 
             blueskyClient.close()
         }
@@ -412,6 +513,7 @@ class BlueskyApiTest {
                 }
             }
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -419,6 +521,7 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
                 )
 
             val longLink =
@@ -495,6 +598,7 @@ class BlueskyApiTest {
                 }
             }
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+            val imageMagick = createTestImageMagick()
             val blueskyModule =
                 BlueskyApiModule(
                     config =
@@ -502,6 +606,7 @@ class BlueskyApiTest {
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
+                    imageMagick = imageMagick,
                 )
 
             val linkOne = "http://localhost/alpha?with=a-long-query-param"
