@@ -24,7 +24,7 @@ import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
-import socialpublish.backend.clients.threads.ThreadsConfig
+import socialpublish.backend.clients.metathreads.MetaThreadsConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
@@ -191,18 +191,18 @@ class StartServerCommand : CliktCommand(name = "start-server") {
         )
 
     // Threads integration (optional)
-    private val threadsAccessToken: String? by
+    private val metaThreadsAccessToken: String? by
         option(
-            "--threads-access-token",
-            help = "Threads API access token (env: THREADS_ACCESS_TOKEN)",
-            envvar = "THREADS_ACCESS_TOKEN",
+            "--metathreads-access-token",
+            help = "Meta Threads API access token (env: METATHREADS_ACCESS_TOKEN)",
+            envvar = "METATHREADS_ACCESS_TOKEN",
         )
 
-    private val threadsUserId: String? by
+    private val metaThreadsUserId: String? by
         option(
-            "--threads-user-id",
-            help = "Threads user ID (env: THREADS_USER_ID)",
-            envvar = "THREADS_USER_ID",
+            "--metathreads-user-id",
+            help = "Meta Threads user ID (env: METATHREADS_USER_ID)",
+            envvar = "METATHREADS_USER_ID",
         )
 
     // LLM integration for alt-text generation (optional)
@@ -283,9 +283,12 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 null
             }
 
-        val threadsConfig =
-            if (threadsAccessToken != null && threadsUserId != null) {
-                ThreadsConfig(accessToken = threadsAccessToken!!, userId = threadsUserId!!)
+        val metaThreadsConfig =
+            if (metaThreadsAccessToken != null && metaThreadsUserId != null) {
+                MetaThreadsConfig(
+                    accessToken = metaThreadsAccessToken!!,
+                    userId = metaThreadsUserId!!,
+                )
             } else {
                 null
             }
@@ -305,7 +308,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                 mastodon = mastodonConfig,
                 twitter = twitterConfig,
                 linkedin = linkedinConfig,
-                threads = threadsConfig,
+                metaThreads = metaThreadsConfig,
                 llm = llmConfig,
             )
 

@@ -1,4 +1,4 @@
-package socialpublish.backend.clients.threads
+package socialpublish.backend.clients.metathreads
 
 import arrow.core.Either
 import arrow.core.left
@@ -23,17 +23,17 @@ import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewMetaThreadsPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.NewThreadsPostResponse
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class ThreadsApiModule(
-    private val config: ThreadsConfig,
+class MetaThreadsApiModule(
+    private val config: MetaThreadsConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
 ) {
@@ -48,14 +48,16 @@ class ThreadsApiModule(
             }
         }
 
-        fun resource(config: ThreadsConfig, filesModule: FilesModule): Resource<ThreadsApiModule> =
-            resource {
-                ThreadsApiModule(
-                    config = config,
-                    filesModule = filesModule,
-                    httpClient = defaultHttpClient().bind(),
-                )
-            }
+        fun resource(
+            config: MetaThreadsConfig,
+            filesModule: FilesModule,
+        ): Resource<MetaThreadsApiModule> = resource {
+            MetaThreadsApiModule(
+                config = config,
+                filesModule = filesModule,
+                httpClient = defaultHttpClient().bind(),
+            )
+        }
     }
 
     private suspend fun createMediaContainer(imageUuid: String): ApiResult<String> {
@@ -70,7 +72,7 @@ class ThreadsApiModule(
                 }
 
             if (response.status.value == 200) {
-                val data = response.body<ThreadsMediaContainerResponse>()
+                val data = response.body<MetaThreadsMediaContainerResponse>()
                 data.id.right()
             } else {
                 val errorBody = response.bodyAsText()
@@ -79,7 +81,7 @@ class ThreadsApiModule(
                 }
                 RequestError(
                         status = response.status.value,
-                        module = "threads",
+                        module = "metathreads",
                         errorMessage = "Failed to create media container",
                         body = ResponseBody(asString = errorBody),
                     )
@@ -89,7 +91,7 @@ class ThreadsApiModule(
             logger.error(e) { "Failed to create media container (threads) — uuid $imageUuid" }
             CaughtException(
                     status = 500,
-                    module = "threads",
+                    module = "metathreads",
                     errorMessage = "Failed to create media container — uuid: $imageUuid",
                 )
                 .left()
@@ -140,14 +142,14 @@ class ThreadsApiModule(
                 }
                 return RequestError(
                         status = containerResponse.status.value,
-                        module = "threads",
+                        module = "metathreads",
                         errorMessage = "Failed to create media container",
                         body = ResponseBody(asString = errorBody),
                     )
                     .left()
             }
 
-            val containerData = containerResponse.body<ThreadsMediaContainerResponse>()
+            val containerData = containerResponse.body<MetaThreadsMediaContainerResponse>()
 
             val publishResponse =
                 httpClient.post("${config.apiBase}/v1.0/${config.userId}/threads_publish") {
@@ -156,8 +158,8 @@ class ThreadsApiModule(
                 }
 
             if (publishResponse.status.value == 200) {
-                val data = publishResponse.body<ThreadsPublishResponse>()
-                NewThreadsPostResponse(id = data.id).right()
+                val data = publishResponse.body<MetaThreadsPublishResponse>()
+                NewMetaThreadsPostResponse(id = data.id).right()
             } else {
                 val errorBody = publishResponse.bodyAsText()
                 logger.warn {
@@ -165,7 +167,7 @@ class ThreadsApiModule(
                 }
                 RequestError(
                         status = publishResponse.status.value,
-                        module = "threads",
+                        module = "metathreads",
                         errorMessage = "Failed to publish post",
                         body = ResponseBody(asString = errorBody),
                     )
@@ -175,7 +177,7 @@ class ThreadsApiModule(
             logger.error(e) { "Failed to post to Threads" }
             CaughtException(
                     status = 500,
-                    module = "threads",
+                    module = "metathreads",
                     errorMessage = "Failed to post to Threads: ${e.message}",
                 )
                 .left()

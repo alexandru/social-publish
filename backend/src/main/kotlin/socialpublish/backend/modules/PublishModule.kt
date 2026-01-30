@@ -9,7 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
-import socialpublish.backend.clients.threads.ThreadsApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.ApiResult
@@ -25,7 +25,7 @@ class PublishModule(
     private val blueskyModule: BlueskyApiModule?,
     private val twitterModule: TwitterApiModule?,
     private val linkedInModule: LinkedInApiModule?,
-    private val threadsModule: ThreadsApiModule?,
+    private val metaThreadsModule: MetaThreadsApiModule?,
     private val rssModule: RssModule,
 ) {
     /** Broadcast post to multiple platforms */
@@ -86,12 +86,12 @@ class PublishModule(
             }
         }
 
-        if (targets.contains("threads")) {
+        if (targets.contains("metathreads")) {
             tasks.add {
-                threadsModule?.createPost(request)
+                metaThreadsModule?.createPost(request)
                     ?: ValidationError(
                             status = 503,
-                            errorMessage = "Threads integration not configured",
+                            errorMessage = "Meta Threads integration not configured",
                             module = "publish",
                         )
                         .left()
