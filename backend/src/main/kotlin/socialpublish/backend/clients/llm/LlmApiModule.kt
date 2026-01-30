@@ -3,7 +3,6 @@ package socialpublish.backend.clients.llm
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
-import arrow.fx.coroutines.map
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -37,9 +36,9 @@ class LlmApiModule(
     private val httpClient: HttpClient,
 ) {
     companion object {
-        fun defaultHttpClient(): Resource<HttpClient> =
-            resource(
-                { _: arrow.fx.coroutines.ResourceScope ->
+        fun defaultHttpClient(): Resource<HttpClient> = resource {
+            install(
+                {
                     HttpClient(CIO) {
                         install(ContentNegotiation) {
                             json(
@@ -55,11 +54,14 @@ class LlmApiModule(
                         }
                     }
                 },
-                { client -> client.close() },
+                { client, _ -> client.close() },
             )
+        }
 
         fun resource(config: LlmConfig, filesModule: FilesModule): Resource<LlmApiModule> =
-            defaultHttpClient().map { client -> LlmApiModule(config, filesModule, client) }
+            resource {
+                LlmApiModule(config, filesModule, defaultHttpClient().bind())
+            }
     }
 
     suspend fun generateAltText(
