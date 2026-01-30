@@ -3,6 +3,7 @@ package socialpublish.backend.clients.llm
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.map
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -36,9 +37,9 @@ class LlmApiModule(
     private val httpClient: HttpClient,
 ) {
     companion object {
-        fun defaultHttpClient(): Resource<HttpClient> = resource {
-            install(
-                {
+        fun defaultHttpClient(): Resource<HttpClient> =
+            resource(
+                { _: arrow.fx.coroutines.ResourceScope ->
                     HttpClient(CIO) {
                         install(ContentNegotiation) {
                             json(
@@ -54,14 +55,11 @@ class LlmApiModule(
                         }
                     }
                 },
-                { client, _ -> client.close() },
+                { client -> client.close() },
             )
-        }
 
         fun resource(config: LlmConfig, filesModule: FilesModule): Resource<LlmApiModule> =
-            resource {
-                LlmApiModule(config, filesModule, defaultHttpClient().bind())
-            }
+            defaultHttpClient().map { client -> LlmApiModule(config, filesModule, client) }
     }
 
     suspend fun generateAltText(
@@ -189,10 +187,24 @@ class LlmApiModule(
                 else -> {
                     val errorBody = response.bodyAsText()
                     logger.warn { "LLM API error: ${response.status}, body: $errorBody" }
+
+                    // Remap LLM HTTP errors to 502/503 so the client doesn't treat as
+                    // unauthenticated
+                    val originalStatus = response.status.value
+                    val mappedStatus =
+                        when (originalStatus) {
+                            401,
+                            403,
+                            404,
+                            429 -> 502 // Bad Gateway: LLM integration problem
+                            in 500..599 -> 503 // Service Unavailable: Upstream provider error
+                            else -> originalStatus // Validation, not found, etc: propagate
+                        }
                     RequestError(
-                            status = response.status.value,
+                            status = mappedStatus,
                             module = "llm",
-                            errorMessage = "LLM API request failed",
+                            errorMessage =
+                                "LLM backend error: $originalStatus received from third-party provider",
                             body = ResponseBody(asString = errorBody),
                         )
                         .left()
