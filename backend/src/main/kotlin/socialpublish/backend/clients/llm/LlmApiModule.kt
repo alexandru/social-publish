@@ -129,7 +129,8 @@ class LlmApiModule(
                         "en" -> "\n\nIMPORTANT: Generate the alt-text in English."
                         "ro" -> "\n\nIMPORTANT: Generate the alt-text in Romanian."
                         null -> ""
-                        else -> "\n\nIMPORTANT: Generate the alt-text in the language: $language."
+                        else ->
+                            "\n\nIMPORTANT: Generate the alt-text in the language (ISO 639-1): ${language.uppercase()}."
                     }
 
                 if (!extraContextOrInstructions.isNullOrBlank()) {
