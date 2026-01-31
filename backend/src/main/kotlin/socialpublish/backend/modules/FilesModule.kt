@@ -8,20 +8,13 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
-import java.nio.file.Files
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
-import socialpublish.backend.common.ApiResult
-import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.LoomIO
-import socialpublish.backend.common.UploadSource
-import socialpublish.backend.common.ValidationError
-import socialpublish.backend.common.calculateHash
-import socialpublish.backend.common.createTempFileName
+import socialpublish.backend.common.*
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.UploadPayload
 
@@ -96,15 +89,17 @@ private constructor(
 
             val processedFilePath = File(processedPath, hash)
             val processed =
-                processImage(
-                    // WARNING: This param is fine, only because `processImage`
-                    // doesn't need to keep the source after:
-                    UploadSource.FromFile(originalFileTmp),
-                    originalName = fileName,
-                    mimeType = mimeType,
-                    altText = altText,
-                    saveToFile = processedFilePath
-                ).bind()
+                processedFilePath.deleteWithBackup {
+                    processImage(
+                        // WARNING: This param is fine, only because `processImage`
+                        // doesn't need to keep the source after:
+                        UploadSource.FromFile(originalFileTmp),
+                        originalName = fileName,
+                        mimeType = mimeType,
+                        altText = altText,
+                        saveToFile = processedFilePath
+                    ).bind()
+                }
 
             // Save to database
             val upload =
@@ -126,12 +121,11 @@ private constructor(
                 // Save original unprocessed file
                 val originalFilePath = File(originalPath, upload.hash)
                 // copy from temporary file to permanent location
-                Files.copy(originalFileTmp.toPath(), originalFilePath.toPath())
+                originalFileTmp.copyTo(originalFilePath, overwrite = true)
             }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
-            FileUploadResponse(uuid = upload.uuid, url = "${config.baseUrl}/files/${upload.uuid}")
-                .right()
+            FileUploadResponse(uuid = upload.uuid, url = "${config.baseUrl}/files/${upload.uuid}").right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload file" }
             CaughtException(

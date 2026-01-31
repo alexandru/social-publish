@@ -68,6 +68,7 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
@@ -663,7 +664,7 @@ class LinkedInApiModule(
                 httpClient.put(uploadUrl) {
                     header("Authorization", "Bearer $accessToken")
                     contentType(ContentType.parse(mimetype))
-                    setBody(fileSource.asKotlinSource().bind())
+                    setBody(ByteReadChannel(fileSource.asKotlinSource().bind()))
                 }
 
             if (uploadBinaryResponse.status !in listOf(

@@ -1,9 +1,9 @@
 package socialpublish.backend.common
 
+import arrow.fx.coroutines.ExitCase
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.ktor.utils.io.core.readBytes
 import java.io.BufferedOutputStream
 import java.io.File
 import java.security.MessageDigest
@@ -187,6 +187,9 @@ suspend fun Source.saveToFile(file: File): Unit =
         }
     }
 
+/**
+ * Read the source in chunks to process it incrementally.
+ */
 suspend fun Source.forEachChunk(chunkSize: Int = 8192, block: suspend (ByteArray, Int) -> Unit) {
     val buffer = ByteArray(chunkSize)
     while (true) {
@@ -196,6 +199,9 @@ suspend fun Source.forEachChunk(chunkSize: Int = 8192, block: suspend (ByteArray
     }
 }
 
+/**
+ * Calculate the SHA-256 hash of a file's contents.
+ */
 suspend fun File.calculateHash(): String = resourceScope {
     val digest = MessageDigest.getInstance("SHA-256")
     toKotlinSource().bind().forEachChunk { bytes, len ->
@@ -204,3 +210,32 @@ suspend fun File.calculateHash(): String = resourceScope {
     val hashBytes = digest.digest()
     return hashBytes.joinToString("") { "%02x".format(it) }
 }
+
+/**
+ * Perform operations on a file, creating a temporary backup copy,
+ * to be restored in case of exceptions.
+ */
+suspend fun <A> File.deleteWithBackup(block: suspend () -> A): A =
+    let { source ->
+        resourceScope {
+            if (source.exists()) {
+                val _ = install({
+                    val tempFile = createTempFileName("backup-", source.name)
+                    runInterruptible(Dispatchers.LoomIO) {
+                        source.copyTo(tempFile, overwrite = true)
+                        source.delete()
+                    }
+                    tempFile
+                }, { tempFile, exitCase ->
+                    runInterruptible(Dispatchers.LoomIO) {
+                        if (exitCase != ExitCase.Completed) {
+                            // Restore original file from temp copy in case of error
+                            tempFile.copyTo(source, overwrite = true)
+                        }
+                        tempFile.delete()
+                    }
+                })
+            }
+            block()
+        }
+    }

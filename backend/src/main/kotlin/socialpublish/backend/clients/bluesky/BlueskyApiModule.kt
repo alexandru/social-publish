@@ -8,6 +8,7 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -139,7 +140,7 @@ class BlueskyApiModule(
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(file.mimetype))
-                    setBody(file.source.asKotlinSource().bind())
+                    setBody(ByteReadChannel(file.source.asKotlinSource().bind()))
                 }
 
             if (response.status.value == 200) {
