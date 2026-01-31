@@ -1,5 +1,6 @@
 package socialpublish.backend.modules
 
+import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
@@ -20,13 +21,9 @@ import socialpublish.backend.db.UploadPayload
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable data class FileUploadResponse(val uuid: String, val url: String)
+@Serializable data class FileUploadResponse(val uuid: String, val url: String, val mimeType: String)
 
-data class UploadedFile(
-    val fileName: String,
-    val source: UploadSource,
-    val altText: String?
-)
+data class UploadedFile(val fileName: String, val source: UploadSource, val altText: String?)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -70,36 +67,18 @@ private constructor(
     /** Upload and process file */
     suspend fun uploadFile(upload: UploadedFile): ApiResult<FileUploadResponse> = resourceScope {
         try {
-            val altText = upload.altText
-            val fileName = upload.fileName
             val originalFileTmp = upload.source.asFileResource().bind()
             val hash = originalFileTmp.calculateHash()
-            val formatName = detectImageFormat(originalFileTmp)
-
-            val mimeType = formatName?.let { toSupportedMimeType(it) }
-            if (mimeType == null) {
-                return ValidationError(
-                        status = 400,
-                        errorMessage =
-                            "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
-                        module = "files",
-                    )
-                    .left()
-            }
-
             val processedFilePath = File(processedPath, hash)
             val processed =
-                processedFilePath.deleteWithBackup {
-                    processImage(
-                        // WARNING: This param is fine, only because `processImage`
-                        // doesn't need to keep the source after:
-                        UploadSource.FromFile(originalFileTmp),
-                        originalName = fileName,
-                        mimeType = mimeType,
-                        altText = altText,
-                        saveToFile = processedFilePath
-                    ).bind()
-                }
+                processFile(
+                        upload.copy(source = UploadSource.FromFile(originalFileTmp)),
+                        safeToFile = processedFilePath,
+                    )
+                    .bind()
+                    .getOrElse {
+                        return@resourceScope it.left()
+                    }
 
             // Save to database
             val upload =
@@ -125,13 +104,65 @@ private constructor(
             }
 
             logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
-            FileUploadResponse(uuid = upload.uuid, url = "${config.baseUrl}/files/${upload.uuid}").right()
+            FileUploadResponse(
+                    uuid = upload.uuid,
+                    url = "${config.baseUrl}/files/${upload.uuid}",
+                    mimeType = upload.mimetype,
+                )
+                .right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload file" }
             CaughtException(
                     status = 500,
                     module = "files",
                     errorMessage = "Failed to upload file: ${e.message}",
+                )
+                .left()
+        }
+    }
+
+    /** Process an uploaded file without saving it. */
+    fun processFile(
+        upload: UploadedFile,
+        safeToFile: File? = null,
+    ): Resource<Either<ApiError, ProcessedUpload>> = resource {
+        try {
+            val altText = upload.altText
+            val fileName = upload.fileName
+            val originalFileTmp = upload.source.asFileResource().bind()
+            val formatName = detectImageFormat(originalFileTmp)
+
+            val mimeType = formatName?.let { toSupportedMimeType(it) }
+            if (mimeType == null) {
+                return@resource ValidationError(
+                        status = 400,
+                        errorMessage =
+                            "Only PNG and JPEG images are supported, got: ${formatName ?: "unknown"}",
+                        module = "files",
+                    )
+                    .left()
+            }
+
+            val processedFilePath = safeToFile ?: createTempFileResource("tmp-", fileName).bind()
+            processedFilePath.deleteWithBackup {
+                processImage(
+                        // WARNING: This param is fine, only because `processImage`
+                        // doesn't need to keep the source after:
+                        UploadSource.FromFile(originalFileTmp),
+                        originalName = fileName,
+                        mimeType = mimeType,
+                        altText = altText,
+                        saveToFile = processedFilePath,
+                    )
+                    .bind()
+                    .right()
+            }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to process uploaded file" }
+            CaughtException(
+                    status = 500,
+                    module = "files",
+                    errorMessage = "Failed to process uploaded file",
                 )
                 .left()
         }
@@ -232,12 +263,11 @@ private constructor(
     /**
      * Process and optimize image upload.
      *
-     * @param uploadSource The source of the uploaded image — this can be destroyed
-     *        after processing.
+     * @param uploadSource The source of the uploaded image — this can be destroyed after
+     *   processing.
      * @param originalName The original file name of the uploaded image.
      * @param mimeType The MIME type of the uploaded image.
      * @param altText Optional alt text for the image.
-     *
      * @return A [Resource] containing the [ProcessedUpload] information.
      */
     private fun processImage(
@@ -247,15 +277,12 @@ private constructor(
         altText: String?,
         saveToFile: File? = null,
     ): Resource<ProcessedUpload> = resource {
-        val sourceFile =
-            uploadSource.asFileResource().bind()
-        val optimizedFile =
-            saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
+        val sourceFile = uploadSource.asFileResource().bind()
+        val optimizedFile = saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
         // Go, go, go
         imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse { throw it }
 
-        val fileSize =
-            withContext(Dispatchers.LoomIO) { optimizedFile.length() }
+        val fileSize = withContext(Dispatchers.LoomIO) { optimizedFile.length() }
         val imageSize =
             imageMagick.identifyImageSize(optimizedFile).getOrElse {
                 logger.warn(it) { "Failed to identify optimized image size" }
@@ -268,7 +295,7 @@ private constructor(
             width = imageSize?.width ?: 0,
             height = imageSize?.height ?: 0,
             size = fileSize,
-            source = UploadSource.FromFile(optimizedFile)
+            source = UploadSource.FromFile(optimizedFile),
         )
     }
 }

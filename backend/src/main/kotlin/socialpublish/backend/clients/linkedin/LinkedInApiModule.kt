@@ -584,10 +584,11 @@ class LinkedInApiModule(
             val file =
                 filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
-                        status = 404,
-                        errorMessage = "Failed to read image file — uuid: $uuid",
-                        module = "linkedin",
-                    ).left()
+                            status = 404,
+                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            module = "linkedin",
+                        )
+                        .left()
 
             uploadMediaFromBytes(
                 accessToken = accessToken,
@@ -599,10 +600,11 @@ class LinkedInApiModule(
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
             CaughtException(
-                status = 500,
-                module = "linkedin",
-                errorMessage = "Failed to upload media — uuid: $uuid",
-            ).left()
+                    status = 500,
+                    module = "linkedin",
+                    errorMessage = "Failed to upload media — uuid: $uuid",
+                )
+                .left()
         }
     }
 
@@ -645,18 +647,16 @@ class LinkedInApiModule(
                     "Failed to register upload on LinkedIn: ${registerResponse.status}, body: $errorBody"
                 }
                 return RequestError(
-                    status = registerResponse.status.value,
-                    module = "linkedin",
-                    errorMessage = "Failed to register upload",
-                    body = ResponseBody(asString = errorBody),
-                )
+                        status = registerResponse.status.value,
+                        module = "linkedin",
+                        errorMessage = "Failed to register upload",
+                        body = ResponseBody(asString = errorBody),
+                    )
                     .left()
             }
 
-            val registerData =
-                registerResponse.body<LinkedInRegisterUploadResponse>()
-            val uploadUrl =
-                registerData.value.uploadMechanism.uploadRequest.uploadUrl
+            val registerData = registerResponse.body<LinkedInRegisterUploadResponse>()
+            val uploadUrl = registerData.value.uploadMechanism.uploadRequest.uploadUrl
             val asset = registerData.value.asset
 
             // Step 2: Upload the binary
@@ -667,31 +667,29 @@ class LinkedInApiModule(
                     setBody(ByteReadChannel(fileSource.asKotlinSource().bind()))
                 }
 
-            if (uploadBinaryResponse.status !in listOf(
-                    HttpStatusCode.OK,
-                    HttpStatusCode.Created
-                )
-            ) {
+            if (uploadBinaryResponse.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
                 val errorBody = uploadBinaryResponse.bodyAsText()
                 logger.warn {
                     "Failed to upload binary to LinkedIn: ${uploadBinaryResponse.status}, body: $errorBody"
                 }
                 return RequestError(
-                    status = uploadBinaryResponse.status.value,
-                    module = "linkedin",
-                    errorMessage = "Failed to upload binary",
-                    body = ResponseBody(asString = errorBody),
-                ).left()
+                        status = uploadBinaryResponse.status.value,
+                        module = "linkedin",
+                        errorMessage = "Failed to upload binary",
+                        body = ResponseBody(asString = errorBody),
+                    )
+                    .left()
             }
             // Return asset URN along with optional alt text stored in file metadata
             UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media to LinkedIn from bytes" }
             CaughtException(
-                status = 500,
-                module = "linkedin",
-                errorMessage = "Failed to upload media from bytes: ${e.message}",
-            ).left()
+                    status = 500,
+                    module = "linkedin",
+                    errorMessage = "Failed to upload media from bytes: ${e.message}",
+                )
+                .left()
         }
     }
 

@@ -1,6 +1,7 @@
 package socialpublish.backend.clients.bluesky
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
@@ -8,7 +9,6 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
-import io.ktor.utils.io.ByteReadChannel
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -26,25 +26,16 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.asSource
 import java.time.Instant
+import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
+import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
-import socialpublish.backend.common.ApiResult
-import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.NewBlueSkyPostResponse
-import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.RequestError
-import socialpublish.backend.common.ResponseBody
-import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.*
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.modules.UploadedFile
 
 private val logger = KotlinLogging.logger {}
 
@@ -159,7 +150,7 @@ class BlueskyApiModule(
                         `$type` = "blob",
                         ref = blob["ref"] as JsonObject,
                         mimeType = file.mimetype,
-                        size = file.size.toInt(),
+                        size = file.size,
                     )
 
                 return BlueskyImageEmbed(
@@ -199,25 +190,37 @@ class BlueskyApiModule(
     private suspend fun uploadBlobFromUrl(
         imageUrl: String,
         session: BlueskySessionResponse,
-    ): BlueskyBlobRef? {
-        return try {
+    ): BlueskyBlobRef? = resourceScope {
+        try {
             // Fetch the image
             val response = httpClient.get(imageUrl)
-
             if (response.status.value != 200) {
                 logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
                 return null
             }
 
-            val imageBytes = response.body<ByteArray>()
-            val contentType = response.contentType()?.toString() ?: "image/jpeg"
+            val fileName = imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
+            val imageSource =
+                UploadSource.FromSource(response.body<ByteReadChannel>().asSource().buffered())
+            val uploadedFile =
+                filesModule
+                    .processFile(
+                        UploadedFile(fileName = fileName, source = imageSource, altText = null)
+                    )
+                    .bind()
+                    .getOrElse { error ->
+                        logger.warn {
+                            "Failed to upload image from URL $imageUrl to temp storage: ${error.toJsonString()}"
+                        }
+                        return null
+                    }
 
             // Upload to Bluesky
             val uploadResponse =
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer ${session.accessJwt}")
-                    contentType(ContentType.parse(contentType))
-                    setBody(imageBytes)
+                    contentType(ContentType.parse(uploadedFile.mimetype))
+                    setBody(ByteReadChannel(uploadedFile.source.asKotlinSource().bind()))
                 }
 
             if (uploadResponse.status.isSuccess()) {
@@ -227,8 +230,8 @@ class BlueskyApiModule(
                 return BlueskyBlobRef(
                     `$type` = "blob",
                     ref = blob["ref"] as JsonObject,
-                    mimeType = contentType,
-                    size = imageBytes.size,
+                    mimeType = uploadedFile.mimetype,
+                    size = uploadedFile.size,
                 )
             }
 

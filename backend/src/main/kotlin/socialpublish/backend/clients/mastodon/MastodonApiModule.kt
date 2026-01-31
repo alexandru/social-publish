@@ -78,73 +78,74 @@ class MastodonApiModule(
     private val statusesUrlV1 = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
-    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> = resourceScope {
-        try {
-            val file =
-                filesModule.readImageFile(uuid)
-                    ?: return@resourceScope ValidationError(
-                            status = 404,
-                            errorMessage = "Failed to read image file — uuid: $uuid",
-                            module = "mastodon",
-                        )
-                        .left()
-
-            val response =
-                httpClient.submitFormWithBinaryData(
-                    url = mediaUrlV2,
-                    formData =
-                        formData {
-                            append(
-                                "file",
-                                file.source.asKotlinSource().bind(),
-                                Headers.build {
-                                    append(HttpHeaders.ContentType, file.mimetype)
-                                    append(
-                                        HttpHeaders.ContentDisposition,
-                                        "filename=\"${file.originalname}\"",
-                                    )
-                                },
+    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> =
+        resourceScope {
+            try {
+                val file =
+                    filesModule.readImageFile(uuid)
+                        ?: return@resourceScope ValidationError(
+                                status = 404,
+                                errorMessage = "Failed to read image file — uuid: $uuid",
+                                module = "mastodon",
                             )
-                            file.altText?.let { append("description", it) }
-                        },
-                ) {
-                    header("Authorization", "Bearer ${config.accessToken}")
-                }
+                            .left()
 
-            when (response.status.value) {
-                200 -> {
-                    val data = response.body<MastodonMediaResponse>()
-                    data.right()
-                }
-                202 -> {
-                    // Async upload - poll for completion
-                    val initialData = response.body<MastodonMediaResponse>()
-                    waitForMediaProcessing(initialData.id)
-                }
-                else -> {
-                    val errorBody = response.bodyAsText()
-                    logger.warn {
-                        "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
+                val response =
+                    httpClient.submitFormWithBinaryData(
+                        url = mediaUrlV2,
+                        formData =
+                            formData {
+                                append(
+                                    "file",
+                                    file.source.asKotlinSource().bind(),
+                                    Headers.build {
+                                        append(HttpHeaders.ContentType, file.mimetype)
+                                        append(
+                                            HttpHeaders.ContentDisposition,
+                                            "filename=\"${file.originalname}\"",
+                                        )
+                                    },
+                                )
+                                file.altText?.let { append("description", it) }
+                            },
+                    ) {
+                        header("Authorization", "Bearer ${config.accessToken}")
                     }
-                    RequestError(
-                            status = response.status.value,
-                            module = "mastodon",
-                            errorMessage = "Failed to upload media",
-                            body = ResponseBody(asString = errorBody),
-                        )
-                        .left()
+
+                when (response.status.value) {
+                    200 -> {
+                        val data = response.body<MastodonMediaResponse>()
+                        data.right()
+                    }
+                    202 -> {
+                        // Async upload - poll for completion
+                        val initialData = response.body<MastodonMediaResponse>()
+                        waitForMediaProcessing(initialData.id)
+                    }
+                    else -> {
+                        val errorBody = response.bodyAsText()
+                        logger.warn {
+                            "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
+                        }
+                        RequestError(
+                                status = response.status.value,
+                                module = "mastodon",
+                                errorMessage = "Failed to upload media",
+                                body = ResponseBody(asString = errorBody),
+                            )
+                            .left()
+                    }
                 }
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
+                CaughtException(
+                        status = 500,
+                        module = "mastodon",
+                        errorMessage = "Failed to upload media — uuid: $uuid",
+                    )
+                    .left()
             }
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
-            CaughtException(
-                    status = 500,
-                    module = "mastodon",
-                    errorMessage = "Failed to upload media — uuid: $uuid",
-                )
-                .left()
         }
-    }
 
     /** Poll for media processing completion */
     private suspend fun waitForMediaProcessing(mediaId: String): ApiResult<MastodonMediaResponse> {

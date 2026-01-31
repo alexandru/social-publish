@@ -70,42 +70,38 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
     }
 
-    private fun receiveUpload(call: ApplicationCall): Resource<ApiResult<UploadedFile>> =
-        resource {
-            val multipart = call.receiveMultipart()
-            var altText: String? = null
-            var fileName: String? = null
-            var fileSource: UploadSource? = null
+    private fun receiveUpload(call: ApplicationCall): Resource<ApiResult<UploadedFile>> = resource {
+        val multipart = call.receiveMultipart()
+        var altText: String? = null
+        var fileName: String? = null
+        var fileSource: UploadSource? = null
 
-            multipart.forEachPart { part ->
-                onClose { part.dispose() }
+        multipart.forEachPart { part ->
+            onClose { part.dispose() }
 
-                when (part) {
-                    is PartData.FormItem -> {
-                        if (part.name == "altText") {
-                            altText = part.value
-                        }
+            when (part) {
+                is PartData.FormItem -> {
+                    if (part.name == "altText") {
+                        altText = part.value
                     }
-                    is PartData.FileItem -> {
-                        if (part.name == "file") {
-                            fileName = part.originalFileName ?: "unknown"
-                            fileSource = UploadSource.FromSource(part.provider().readRemaining())
-                        }
-                    }
-                    else -> {}
                 }
-            }
-
-            if (fileSource == null || fileName == null) {
-                ValidationError(
-                    status = 400,
-                    errorMessage = "Missing file in upload",
-                    module = "files",
-                ).left()
-            } else {
-                UploadedFile(fileName = fileName, altText = altText, source = fileSource).right()
+                is PartData.FileItem -> {
+                    if (part.name == "file") {
+                        fileName = part.originalFileName ?: "unknown"
+                        fileSource = UploadSource.FromSource(part.provider().readRemaining())
+                    }
+                }
+                else -> {}
             }
         }
+
+        if (fileSource == null || fileName == null) {
+            ValidationError(status = 400, errorMessage = "Missing file in upload", module = "files")
+                .left()
+        } else {
+            UploadedFile(fileName = fileName, altText = altText, source = fileSource).right()
+        }
+    }
 
     private suspend fun respondFile(call: ApplicationCall, storedFile: StoredFile) {
         call.response.header(HttpHeaders.ContentType, storedFile.mimeType)
