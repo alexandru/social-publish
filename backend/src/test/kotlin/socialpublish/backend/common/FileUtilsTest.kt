@@ -5,6 +5,7 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -185,5 +186,55 @@ class FileUtilsTest {
         }
 
         assertFalse(File(tempPath).exists())
+    }
+
+    @Test
+    fun `createTempFileResource cleans up after scope`(): Unit = runTest {
+        val tempPath = resourceScope {
+            val file = createTempFileResource("tmp-").bind()
+            assertTrue(file.exists())
+            file.absolutePath
+        }
+
+        assertFalse(File(tempPath).exists())
+    }
+
+    @Test
+    fun `createTempFileName returns a non-existing file`(@TempDir tempDir: File) = runTest {
+        val file = createTempFileName("reserved-", ".tmp")
+
+        try {
+            assertFalse(file.exists())
+            file.writeText("data")
+            assertTrue(file.exists())
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `saveToFile writes source bytes`(@TempDir tempDir: File) = runTest {
+        val bytes = ByteArray(12) { (it * 2).toByte() }
+        val source = ByteReadChannel(bytes).asSource().buffered()
+        val file = File(tempDir, "out.bin")
+
+        source.saveToFile(file)
+
+        assertEquals(bytes.toList(), file.readBytes().toList())
+    }
+
+    @Test
+    fun `deleteWithBackup restores original on failure`(@TempDir tempDir: File) = runTest {
+        val file = File(tempDir, "data.txt").apply { writeText("original") }
+
+        assertFails {
+            file.deleteWithBackup {
+                file.writeText("new")
+                error("boom")
+            }
+        }
+
+        assertTrue(file.exists())
+        assertEquals("original", file.readText())
     }
 }
