@@ -83,7 +83,7 @@ class LlmApiModule(
                         .left()
 
             // Convert image to base64 data URL
-            val base64Image = Base64.getEncoder().encodeToString(file.bytes)
+            val base64Image = Base64.getEncoder().encodeToString(file.source.readBytes())
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API

@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -123,7 +124,7 @@ class BlueskyApiModule(
     private suspend fun uploadBlob(
         uuid: String,
         session: BlueskySessionResponse,
-    ): ApiResult<BlueskyImageEmbed> {
+    ): ApiResult<BlueskyImageEmbed> = resourceScope {
         return try {
             val file =
                 filesModule.readImageFile(uuid)
@@ -138,7 +139,7 @@ class BlueskyApiModule(
                 httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(file.mimetype))
-                    setBody(file.bytes)
+                    setBody(file.source.asKotlinSource().bind())
                 }
 
             if (response.status.value == 200) {

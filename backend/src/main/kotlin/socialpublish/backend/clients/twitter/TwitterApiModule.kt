@@ -8,6 +8,7 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import com.github.scribejava.core.builder.ServiceBuilder
 import com.github.scribejava.core.builder.api.DefaultApi10a
 import com.github.scribejava.core.model.OAuth1AccessToken
@@ -40,16 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
-import socialpublish.backend.common.ApiResult
-import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.LoomIO
-import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.NewTwitterPostResponse
-import socialpublish.backend.common.RequestError
-import socialpublish.backend.common.ResponseBody
-import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
 
@@ -203,11 +195,11 @@ class TwitterApiModule(
         }
 
     /** Upload media to Twitter */
-    private suspend fun uploadMedia(token: TwitterOAuthToken, uuid: String): ApiResult<String> {
-        return try {
+    private suspend fun uploadMedia(token: TwitterOAuthToken, uuid: String): ApiResult<String> = resourceScope {
+        try {
             val file =
                 filesModule.readImageFile(uuid)
-                    ?: return ValidationError(
+                    ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
                             module = "twitter",
@@ -226,7 +218,7 @@ class TwitterApiModule(
                         formData {
                             append(
                                 "media",
-                                file.bytes,
+                                file.source.asKotlinSource().bind(),
                                 Headers.build {
                                     append(HttpHeaders.ContentType, file.mimetype)
                                     append(

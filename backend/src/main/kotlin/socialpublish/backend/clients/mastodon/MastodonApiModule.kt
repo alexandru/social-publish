@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -77,11 +78,11 @@ class MastodonApiModule(
     private val statusesUrlV1 = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
-    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> {
-        return try {
+    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> = resourceScope {
+        try {
             val file =
                 filesModule.readImageFile(uuid)
-                    ?: return ValidationError(
+                    ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
                             module = "mastodon",
@@ -95,7 +96,7 @@ class MastodonApiModule(
                         formData {
                             append(
                                 "file",
-                                file.bytes,
+                                file.source.asKotlinSource().bind(),
                                 Headers.build {
                                     append(HttpHeaders.ContentType, file.mimetype)
                                     append(

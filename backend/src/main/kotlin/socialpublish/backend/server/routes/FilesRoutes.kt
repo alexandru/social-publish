@@ -3,6 +3,9 @@ package socialpublish.backend.server.routes
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import arrow.fx.coroutines.Resource
+import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -15,23 +18,16 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.io.readByteArray
-import socialpublish.backend.common.ApiResult
-import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.LoomIO
-import socialpublish.backend.common.ValidationError
-import socialpublish.backend.common.sanitizeFilename
+import socialpublish.backend.common.*
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
 import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
-    suspend fun uploadFileRoute(call: ApplicationCall) {
+    suspend fun uploadFileRoute(call: ApplicationCall) = resourceScope {
         val result =
-            when (val upload = receiveUpload(call)) {
+            when (val upload = receiveUpload(call).bind()) {
                 is Either.Right -> filesModule.uploadFile(upload.value)
                 is Either.Left -> upload
             }
@@ -74,14 +70,16 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
     }
 
-    private suspend fun receiveUpload(call: ApplicationCall): ApiResult<UploadedFile> {
-        val multipart = call.receiveMultipart()
-        var altText: String? = null
-        var fileBytes: ByteArray? = null
-        var fileName: String? = null
+    private fun receiveUpload(call: ApplicationCall): Resource<ApiResult<UploadedFile>> =
+        resource {
+            val multipart = call.receiveMultipart()
+            var altText: String? = null
+            var fileName: String? = null
+            var fileSource: UploadSource? = null
 
-        multipart.forEachPart { part ->
-            try {
+            multipart.forEachPart { part ->
+                onClose { part.dispose() }
+
                 when (part) {
                     is PartData.FormItem -> {
                         if (part.name == "altText") {
@@ -91,30 +89,23 @@ class FilesRoutes(private val filesModule: FilesModule) {
                     is PartData.FileItem -> {
                         if (part.name == "file") {
                             fileName = part.originalFileName ?: "unknown"
-                            fileBytes =
-                                withContext(Dispatchers.LoomIO) {
-                                    part.provider().readRemaining().readByteArray()
-                                }
+                            fileSource = UploadSource.FromSource(part.provider().readRemaining())
                         }
                     }
                     else -> {}
                 }
-            } finally {
-                part.dispose()
             }
-        }
 
-        if (fileBytes == null || fileName == null) {
-            return ValidationError(
+            if (fileSource == null || fileName == null) {
+                ValidationError(
                     status = 400,
                     errorMessage = "Missing file in upload",
                     module = "files",
-                )
-                .left()
+                ).left()
+            } else {
+                UploadedFile(fileName = fileName, altText = altText, source = fileSource).right()
+            }
         }
-
-        return UploadedFile(fileName = fileName, fileBytes = fileBytes, altText = altText).right()
-    }
 
     private suspend fun respondFile(call: ApplicationCall, storedFile: StoredFile) {
         call.response.header(HttpHeaders.ContentType, storedFile.mimeType)
