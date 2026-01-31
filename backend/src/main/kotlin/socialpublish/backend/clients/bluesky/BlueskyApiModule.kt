@@ -117,7 +117,7 @@ class BlueskyApiModule(
         uuid: String,
         session: BlueskySessionResponse,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
-        return try {
+        try {
             val file =
                 filesModule.readImageFile(uuid)
                     ?: return ValidationError(
@@ -153,7 +153,7 @@ class BlueskyApiModule(
                         size = file.size,
                     )
 
-                return BlueskyImageEmbed(
+                return@resourceScope BlueskyImageEmbed(
                         alt = file.altText ?: "",
                         image = blobRef,
                         aspectRatio =
@@ -196,7 +196,7 @@ class BlueskyApiModule(
             val response = httpClient.get(imageUrl)
             if (response.status.value != 200) {
                 logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
-                return null
+                return@resourceScope null
             }
 
             val fileName = imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
@@ -212,7 +212,7 @@ class BlueskyApiModule(
                         logger.warn {
                             "Failed to upload image from URL $imageUrl to temp storage: ${error.toJsonString()}"
                         }
-                        return null
+                        return@resourceScope null
                     }
 
             logger.info {
@@ -231,7 +231,7 @@ class BlueskyApiModule(
                 val blobData = uploadResponse.body<JsonObject>()
                 val blob = blobData["blob"] as? JsonObject ?: return null
 
-                return BlueskyBlobRef(
+                return@resourceScope BlueskyBlobRef(
                     `$type` = "blob",
                     ref = blob["ref"] as JsonObject,
                     mimeType = uploadedFile.mimetype,

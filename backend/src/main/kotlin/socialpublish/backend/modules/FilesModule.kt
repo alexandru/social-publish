@@ -73,7 +73,7 @@ private constructor(
             val processed =
                 processFile(
                         upload.copy(source = UploadSource.FromFile(originalFileTmp)),
-                        safeToFile = processedFilePath,
+                        saveToFile = processedFilePath,
                     )
                     .bind()
                     .getOrElse {
@@ -124,7 +124,7 @@ private constructor(
     /** Process an uploaded file without saving it. */
     fun processFile(
         upload: UploadedFile,
-        safeToFile: File? = null,
+        saveToFile: File? = null,
     ): Resource<Either<ApiError, ProcessedUpload>> = resource {
         try {
             val altText = upload.altText
@@ -143,7 +143,8 @@ private constructor(
                     .left()
             }
 
-            val processedFilePath = safeToFile ?: createTempFileResource("tmp-", fileName).bind()
+            val safeSuffix = sanitizeFilename(fileName)
+            val processedFilePath = saveToFile ?: createTempFileResource("tmp-", safeSuffix).bind()
             processedFilePath.deleteWithBackup {
                 processImage(
                         // WARNING: This param is fine, only because `processImage`

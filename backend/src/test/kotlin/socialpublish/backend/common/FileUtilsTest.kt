@@ -200,6 +200,21 @@ class FileUtilsTest {
     }
 
     @Test
+    fun `createTempFileResource accepts sanitized suffix`(): Unit = runTest {
+        val unsafeName = "../../weird/name/with spaces?.png"
+        val safeSuffix = sanitizeFilename(unsafeName)
+
+        val tempPath = resourceScope {
+            val file = createTempFileResource("tmp-", safeSuffix).bind()
+            assertTrue(file.exists())
+            assertTrue(file.name.endsWith(safeSuffix))
+            file.absolutePath
+        }
+
+        assertFalse(File(tempPath).exists())
+    }
+
+    @Test
     fun `createTempFileName returns a non-existing file`(@TempDir tempDir: File) = runTest {
         val file = createTempFileName("reserved-", ".tmp")
 
