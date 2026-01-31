@@ -199,8 +199,7 @@ class BlueskyApiModule(
                 return null
             }
 
-            val fileName =
-                imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
+            val fileName = imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
             val imageSource =
                 UploadSource.FromSource(response.body<ByteReadChannel>().asSource().buffered())
             val uploadedFile =
@@ -481,9 +480,7 @@ class BlueskyApiModule(
                 }
 
                 if (request.language != null) {
-                    putJsonArray("langs") {
-                        add(kotlinx.serialization.json.JsonPrimitive(request.language))
-                    }
+                    putJsonArray("langs") { add(JsonPrimitive(request.language)) }
                 }
 
                 if (imageEmbeds.isNotEmpty()) {
