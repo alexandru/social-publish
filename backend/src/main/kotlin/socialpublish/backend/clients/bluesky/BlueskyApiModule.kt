@@ -199,7 +199,8 @@ class BlueskyApiModule(
                 return null
             }
 
-            val fileName = imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
+            val fileName =
+                imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
             val imageSource =
                 UploadSource.FromSource(response.body<ByteReadChannel>().asSource().buffered())
             val uploadedFile =
@@ -214,6 +215,10 @@ class BlueskyApiModule(
                         }
                         return null
                     }
+
+            logger.info {
+                "Fetched image from $imageUrl: ${uploadedFile.mimetype}, ${uploadedFile.size} bytes"
+            }
 
             // Upload to Bluesky
             val uploadResponse =
@@ -452,8 +457,7 @@ class BlueskyApiModule(
             // Prepare text
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
-            val finalLink =
-                if (linkPreview != null && request.link != null) linkPreview.url else request.link
+            val finalLink = linkPreview?.url ?: request.link
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)

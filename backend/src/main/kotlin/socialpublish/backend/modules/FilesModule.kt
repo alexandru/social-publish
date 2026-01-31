@@ -288,9 +288,11 @@ private constructor(
                 logger.warn(it) { "Failed to identify optimized image size" }
                 null
             }
+        val newMimeType =
+            detectImageFormat(optimizedFile)?.let { toSupportedMimeType(it) } ?: mimeType
         ProcessedUpload(
             originalname = originalName,
-            mimetype = mimeType,
+            mimetype = newMimeType,
             altText = altText,
             width = imageSize?.width ?: 0,
             height = imageSize?.height ?: 0,
