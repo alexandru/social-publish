@@ -235,32 +235,7 @@ class BlueskyApiTest {
                         )
                     }
                     get("/test-image.jpg") {
-                        // Return a minimal valid 1x1 JPEG image
-                        val bytes =
-                            byteArrayOf(
-                                0xFF.toByte(),
-                                0xD8.toByte(), // JPEG SOI marker
-                                0xFF.toByte(),
-                                0xE0.toByte(), // JFIF APP0 marker
-                                0x00,
-                                0x10, // Length
-                                0x4A,
-                                0x46,
-                                0x49,
-                                0x46, // "JFIF"
-                                0x00, // Null terminator
-                                0x01,
-                                0x01, // Version 1.1
-                                0x00, // No units
-                                0x00,
-                                0x01, // X density
-                                0x00,
-                                0x01, // Y density
-                                0x00,
-                                0x00, // No thumbnail
-                                0xFF.toByte(),
-                                0xD9.toByte(), // JPEG EOI marker
-                            )
+                        val bytes = loadTestResourceBytes("flower1.jpeg")
                         call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
                     }
                     post("/xrpc/com.atproto.repo.uploadBlob") {
@@ -365,31 +340,7 @@ class BlueskyApiTest {
                         )
                     }
                     get("/test-image.jpg") {
-                        val bytes =
-                            byteArrayOf(
-                                0xFF.toByte(),
-                                0xD8.toByte(),
-                                0xFF.toByte(),
-                                0xE0.toByte(),
-                                0x00,
-                                0x10,
-                                0x4A,
-                                0x46,
-                                0x49,
-                                0x46,
-                                0x00,
-                                0x01,
-                                0x01,
-                                0x00,
-                                0x00,
-                                0x01,
-                                0x00,
-                                0x01,
-                                0x00,
-                                0x00,
-                                0xFF.toByte(),
-                                0xD9.toByte(),
-                            )
+                        val bytes = loadTestResourceBytes("flower1.jpeg")
                         call.respondBytes(bytes, io.ktor.http.ContentType.Image.JPEG)
                     }
                     post("/xrpc/com.atproto.repo.uploadBlob") {
@@ -430,7 +381,13 @@ class BlueskyApiTest {
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
-            val expectedDisplay = longLink.take(21) + "..."
+            val canonicalLink = "http://localhost/test-page.html"
+            val expectedDisplay =
+                if (canonicalLink.length <= 24) {
+                    canonicalLink
+                } else {
+                    canonicalLink.take(21) + "..."
+                }
             assertEquals("Check out this article\n\n$expectedDisplay", text)
 
             val facets = requireNotNull(record["facets"]?.jsonArray)
@@ -446,7 +403,7 @@ class BlueskyApiTest {
 
             val features = linkFacet["features"] as JsonArray
             val uri = features.first().jsonObject["uri"]?.jsonPrimitive?.content
-            assertEquals(longLink, uri)
+            assertEquals(canonicalLink, uri)
 
             val embed = record["embed"]?.jsonObject
             assertNotNull(embed)

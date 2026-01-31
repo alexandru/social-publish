@@ -18,7 +18,7 @@ data class BlueskyBlobRef(
     val `$type`: String = "blob",
     val ref: JsonObject,
     val mimeType: String,
-    val size: Int,
+    val size: Long,
 )
 
 @Serializable

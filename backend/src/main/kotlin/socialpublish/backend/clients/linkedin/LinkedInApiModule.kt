@@ -47,6 +47,7 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
+import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -67,6 +68,7 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
@@ -74,15 +76,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
-import socialpublish.backend.common.ApiResult
-import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.NewLinkedInPostResponse
-import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.RequestError
-import socialpublish.backend.common.ResponseBody
-import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
 
@@ -585,11 +579,11 @@ class LinkedInApiModule(
         accessToken: String,
         personUrn: String,
         uuid: String,
-    ): ApiResult<UploadedAsset> =
+    ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
                 filesModule.readImageFile(uuid)
-                    ?: return ValidationError(
+                    ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
                             module = "linkedin",
@@ -599,27 +593,28 @@ class LinkedInApiModule(
             uploadMediaFromBytes(
                 accessToken = accessToken,
                 personUrn = personUrn,
-                imageBytes = file.bytes,
+                fileSource = file.source,
                 mimetype = file.mimetype,
                 altText = file.altText,
             )
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
-            return CaughtException(
+            CaughtException(
                     status = 500,
                     module = "linkedin",
                     errorMessage = "Failed to upload media — uuid: $uuid",
                 )
                 .left()
         }
+    }
 
     private suspend fun uploadMediaFromBytes(
         accessToken: String,
         personUrn: String,
-        imageBytes: ByteArray,
+        fileSource: UploadSource,
         mimetype: String,
         altText: String?,
-    ): ApiResult<UploadedAsset> =
+    ): ApiResult<UploadedAsset> = resourceScope {
         try {
             // Step 1: Register upload
             val registerRequest =
@@ -669,7 +664,7 @@ class LinkedInApiModule(
                 httpClient.put(uploadUrl) {
                     header("Authorization", "Bearer $accessToken")
                     contentType(ContentType.parse(mimetype))
-                    setBody(imageBytes)
+                    setBody(ByteReadChannel(fileSource.asKotlinSource().bind()))
                 }
 
             if (uploadBinaryResponse.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
@@ -685,7 +680,6 @@ class LinkedInApiModule(
                     )
                     .left()
             }
-
             // Return asset URN along with optional alt text stored in file metadata
             UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Exception) {
@@ -697,6 +691,7 @@ class LinkedInApiModule(
                 )
                 .left()
         }
+    }
 
     /** Fetch link preview metadata using LinkPreviewParser */
     private suspend fun fetchLinkPreview(url: String) =
