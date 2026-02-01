@@ -1,5 +1,6 @@
 package socialpublish.backend.modules
 
+import arrow.core.getOrElse
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -21,7 +22,7 @@ class AuthModuleTest {
     fun `should verify valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
         val token = authModule.generateToken("testuser")
-        val username = authModule.verifyToken(token)
+        val username = authModule.verifyToken(token).getOrElse { null }
 
         assertEquals("testuser", username)
     }
@@ -29,7 +30,7 @@ class AuthModuleTest {
     @Test
     fun `should reject invalid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("invalid-token")
+        val username = authModule.verifyToken("invalid-token").getOrElse { null }
 
         assertEquals(null, username)
     }
@@ -40,7 +41,7 @@ class AuthModuleTest {
         val authModule2 = AuthModule("secret2")
 
         val token = authModule1.generateToken("testuser")
-        val username = authModule2.verifyToken(token)
+        val username = authModule2.verifyToken(token).getOrElse { null }
 
         assertEquals(null, username)
     }
@@ -48,7 +49,7 @@ class AuthModuleTest {
     @Test
     fun `verifyToken should reject malformed token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("not.a.valid.jwt.token")
+        val username = authModule.verifyToken("not.a.valid.jwt.token").getOrElse { null }
 
         assertEquals(null, username)
     }
@@ -56,7 +57,7 @@ class AuthModuleTest {
     @Test
     fun `verifyToken should reject empty token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("")
+        val username = authModule.verifyToken("").getOrElse { null }
 
         assertEquals(null, username)
     }
@@ -70,7 +71,8 @@ class AuthModuleTest {
         assertTrue(hash.startsWith("\$2"))
 
         val authModule = AuthModule(jwtSecret)
-        assertTrue(authModule.verifyPassword(password, hash))
+        val verified = authModule.verifyPassword(password, hash).getOrElse { false }
+        assertEquals(true, verified)
     }
 
     @Test
@@ -84,8 +86,8 @@ class AuthModuleTest {
         assertTrue(hash1 != hash2)
 
         val authModule = AuthModule(jwtSecret)
-        assertTrue(authModule.verifyPassword(password, hash1))
-        assertTrue(authModule.verifyPassword(password, hash2))
+        assertTrue(authModule.verifyPassword(password, hash1).getOrElse { false })
+        assertTrue(authModule.verifyPassword(password, hash2).getOrElse { false })
     }
 
     @Test
@@ -94,7 +96,7 @@ class AuthModuleTest {
         val password = "myPassword"
         val hash = AuthModule.hashPassword(password)
 
-        val verified = authModule.verifyPassword(password, "  $hash  ")
+        val verified = authModule.verifyPassword(password, "  $hash  ").getOrElse { false }
         assertTrue(verified)
     }
 
@@ -103,7 +105,7 @@ class AuthModuleTest {
         val authModule = AuthModule(jwtSecret)
         val hash = AuthModule.hashPassword("correctPassword")
 
-        val verified = authModule.verifyPassword("wrongPassword", hash)
+        val verified = authModule.verifyPassword("wrongPassword", hash).getOrElse { true }
         assertEquals(false, verified)
     }
 
@@ -111,7 +113,7 @@ class AuthModuleTest {
     fun `verifyPassword should return false for malformed hash`() {
         val authModule = AuthModule(jwtSecret)
 
-        val verified = authModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
+        val verified = authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { true }
         assertEquals(false, verified)
     }
 
@@ -119,7 +121,7 @@ class AuthModuleTest {
     fun `verifyPassword should return false for empty hash`() {
         val authModule = AuthModule(jwtSecret)
 
-        val verified = authModule.verifyPassword("password", "")
+        val verified = authModule.verifyPassword("password", "").getOrElse { true }
         assertEquals(false, verified)
     }
 }

@@ -67,26 +67,35 @@ class AuthRoutes(
         }
 
         // Check username and verify password with BCrypt
-        val isPasswordValid =
-            try {
-                authModule.verifyPassword(request.password, config.passwordHash)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to verify password for user: ${request.username}" }
-                false
-            }
-        if (request.username == config.username && isPasswordValid) {
-            val token = authModule.generateToken(request.username)
-            val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
-            val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
-            call.respond(
-                LoginResponse(
-                    token = token,
-                    hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
-                )
+        authModule
+            .verifyPassword(request.password, config.passwordHash)
+            .fold(
+                ifLeft = { error ->
+                    logger.warn {
+                        "Failed to verify password for user ${request.username}: ${error.message}"
+                    }
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+                },
+                ifRight = { isPasswordValid ->
+                    if (request.username == config.username && isPasswordValid) {
+                        val token = authModule.generateToken(request.username)
+                        val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
+                        val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
+                        call.respond(
+                            LoginResponse(
+                                token = token,
+                                hasAuth =
+                                    AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                            )
+                        )
+                    } else {
+                        call.respond(
+                            HttpStatusCode.Unauthorized,
+                            ErrorResponse("Invalid credentials"),
+                        )
+                    }
+                },
             )
-        } else {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
-        }
     }
 
     suspend fun protectedRoute(call: ApplicationCall) {

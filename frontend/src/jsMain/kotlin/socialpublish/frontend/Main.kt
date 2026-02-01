@@ -27,20 +27,29 @@ fun main() {
 @Composable
 fun App() {
     var currentPath by remember { mutableStateOf(window.location.pathname) }
+    var isNavbarActive by remember { mutableStateOf(false) }
 
     // Handle browser navigation
     DisposableEffect(Unit) {
-        val listener: (dynamic) -> Unit = { currentPath = window.location.pathname }
+        val listener: (dynamic) -> Unit = {
+            currentPath = window.location.pathname
+            isNavbarActive = false // Close navbar on route change
+        }
         window.addEventListener("popstate", listener)
         onDispose { window.removeEventListener("popstate", listener) }
     }
 
     Div {
-        NavBar(currentPath = currentPath) {
-            Storage.clearJwtToken()
-            Storage.setAuthStatus(null)
-            navigateTo("/login")
-        }
+        NavBar(
+            currentPath = currentPath,
+            isNavbarActive = isNavbarActive,
+            onNavbarToggle = { isNavbarActive = it },
+            onLogout = {
+                Storage.clearJwtToken()
+                Storage.setAuthStatus(null)
+                navigateTo("/login")
+            },
+        )
 
         Main {
             when (currentPath) {

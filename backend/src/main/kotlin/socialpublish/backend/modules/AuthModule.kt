@@ -1,11 +1,15 @@
 package socialpublish.backend.modules
 
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
+import socialpublish.backend.common.AuthError
 
 private val logger = KotlinLogging.logger {}
 
@@ -24,13 +28,18 @@ class AuthModule(jwtSecret: String) {
     }
 
     /** Verify JWT token */
-    fun verifyToken(token: String): String? {
+    fun verifyToken(token: String): Either<AuthError, String> {
         return try {
             val jwt = verifier.verify(token)
-            jwt.getClaim("username").asString()
+            val username = jwt.getClaim("username").asString()
+            if (username.isNullOrBlank()) {
+                AuthError.InvalidToken("Missing username claim").left()
+            } else {
+                username.right()
+            }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify JWT token" }
-            null
+            AuthError.InvalidToken("Token verification failed", e).left()
         }
     }
 
@@ -39,16 +48,19 @@ class AuthModule(jwtSecret: String) {
      *
      * The stored password must be a BCrypt hash (starts with $2a$, $2b$, or $2y$).
      */
-    fun verifyPassword(providedPassword: String, storedPassword: String): Boolean {
+    fun verifyPassword(
+        providedPassword: String,
+        storedPassword: String,
+    ): Either<AuthError, Boolean> {
         val trimmedStoredPassword = storedPassword.trim()
         return try {
             val result =
                 FavreBCrypt.verifyer()
                     .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
-            result.verified
+            result.verified.right()
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify BCrypt password" }
-            false
+            AuthError.PasswordVerificationFailed(e).left()
         }
     }
 

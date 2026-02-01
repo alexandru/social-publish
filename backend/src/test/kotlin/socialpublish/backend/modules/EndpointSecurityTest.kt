@@ -1,5 +1,6 @@
 package socialpublish.backend.modules
 
+import arrow.core.getOrElse
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -213,8 +214,8 @@ class EndpointSecurityTest {
         assertTrue(token1 != token2)
 
         // But both should verify correctly with their respective usernames
-        val username1 = authModule.verifyToken(token1)
-        val username2 = authModule.verifyToken(token2)
+        val username1 = authModule.verifyToken(token1).getOrElse { null }
+        val username2 = authModule.verifyToken(token2).getOrElse { null }
 
         assertEquals("user1", username1)
         assertEquals("user2", username2)
@@ -229,11 +230,11 @@ class EndpointSecurityTest {
         val token = authModule.generateToken("testuser")
 
         // Token should verify immediately
-        val username = authModule.verifyToken(token)
+        val username = authModule.verifyToken(token).getOrElse { null }
         assertEquals("testuser", username)
 
         // The token is valid for 6 months, so it should still be valid
-        val usernameAgain = authModule.verifyToken(token)
+        val usernameAgain = authModule.verifyToken(token).getOrElse { null }
         assertEquals("testuser", usernameAgain)
     }
 
@@ -245,7 +246,7 @@ class EndpointSecurityTest {
         // Tamper with the token by changing one character
         val tamperedToken = validToken.dropLast(1) + "X"
 
-        val username = authModule.verifyToken(tamperedToken)
+        val username = authModule.verifyToken(tamperedToken).getOrElse { null }
         assertEquals(null, username)
     }
 }
