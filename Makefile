@@ -53,9 +53,14 @@ dependency-updates:
 		-Drevision=release \
 		-DoutputFormatter=html \
 		--refresh-dependencies && \
-		open backend/build/dependencyUpdates/report.html &&
+		open backend/build/dependencyUpdates/report.html && \
 		open frontend/build/dependencyUpdates/report.html
 
+skills-update:
+	npx skills add alexandru/skills -a claude-code github-copilot opencode -y --skill \
+		arrow-resource \
+		arrow-typed-errors \
+		compose-state-hoisting
 
 # Docker setup
 docker-init:

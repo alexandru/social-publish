@@ -19,6 +19,29 @@ Sources:
   - Raise DSL models errors in the computation context via `Raise<E>`.
 - Uniform API: `raise`, `ensure`, `ensureNotNull`, `bind`, `recover`, `catch`, `withError`, `ignoreErrors`.
 
+## Avoid sealed inheritance chains
+Avoid having a sealed error type inherit from another sealed error type. Prefer composition so each error ADT stays focused and can be wrapped by the outer domain error.
+
+Wrong:
+```kotlin
+sealed interface DomainError
+
+sealed class ParseError : DomainError {
+  data class MissingRequiredField(val field: String) : ParseError()
+}
+```
+
+Prefer composition (wrapping):
+```kotlin
+sealed interface DomainError {
+  data class Parse(val error: ParseError) : DomainError
+}
+
+sealed interface ParseError {
+  data class MissingRequiredField(val field: String) : ParseError
+}
+```
+
 ## Prefer Raise DSL for composition
 - Use builders: `either {}`, `ior {}`, `result {}`, `option {}`, `nullable {}`.
 - Inside builders, call `.bind()` to unwrap typed values; forgetting it is a common bug.
@@ -69,6 +92,11 @@ Sources:
 
 ## Debugging
 - Use `Raise.traced` for tracing `raise`/`bind` call origins in larger call stacks.
+
+## Test prompts
+- Convert this exception-driven parser to typed errors with Raise DSL; use error accumulation for validation.
+- Refactor a sealed-on-sealed error hierarchy into composition using wrapper data classes.
+- Show a boundary function returning `Either` while keeping Raise internally.
 
 ## Common snippets
 ```kotlin

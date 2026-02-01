@@ -31,6 +31,7 @@ description: Kotlin + Arrow typed error handling using Raise DSL and wrapper typ
   - Use `Result` only when errors are `Throwable` and interop with stdlib APIs is required.
 - **Error translation across layers**: use `withError` to map inner errors to outer domain errors.
 - **Drop error types explicitly**: wrap `bind` with `ignoreErrors` when moving from informative error types to `Option`/nullable flows.
+- **Avoid sealed-on-sealed inheritance**: model error hierarchies with composition (wrapper data classes), not sealed inheritance chains.
 
 ## References
 - Load `references/typed-errors.md` for API details, error accumulation, wrapper-specific guidance, and sample snippets.
