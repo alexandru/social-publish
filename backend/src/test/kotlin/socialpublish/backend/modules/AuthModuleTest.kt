@@ -105,7 +105,7 @@ class AuthModuleTest {
         val authModule = AuthModule(jwtSecret)
         val hash = AuthModule.hashPassword("correctPassword")
 
-        val verified = authModule.verifyPassword("wrongPassword", hash).getOrElse { true }
+        val verified = authModule.verifyPassword("wrongPassword", hash).getOrElse { false }
         assertEquals(false, verified)
     }
 
@@ -114,7 +114,7 @@ class AuthModuleTest {
         val authModule = AuthModule(jwtSecret)
 
         val verified =
-            authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { true }
+            authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { false }
         assertEquals(false, verified)
     }
 
