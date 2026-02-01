@@ -10,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLBuilder
 import io.ktor.http.isSuccess
+import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
@@ -84,7 +85,7 @@ class LinkPreviewParser(
         // Try to extract metadata using priority order
         val title = extractTitle(doc) ?: return null
         val description = extractDescription(doc)
-        val url = extractUrl(doc) ?: fallbackUrl
+        val url = extractUrl(doc, fallbackUrl) ?: fallbackUrl
         val image = extractImage(doc, fallbackUrl)
 
         return LinkPreview(title = title, description = description, url = url, image = image)
@@ -227,14 +228,18 @@ class LinkPreviewParser(
         return null
     }
 
-    private fun extractUrl(doc: Document): String? {
+    private fun extractUrl(doc: Document, baseUrl: String): String? {
         // Priority 1: Open Graph
         doc.select("meta[property=og:url]")
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
+            ?.let { url ->
+                val resolved = resolveUrl(url, baseUrl)
+                if (resolved == null) {
+                    logger.warn { "Failed to resolve URL '$url' against base URL '$baseUrl'" }
+                }
+                return resolved
             }
 
         // Priority 2: Twitter Cards
@@ -242,11 +247,69 @@ class LinkPreviewParser(
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
+            ?.let { url ->
+                val resolved = resolveUrl(url, baseUrl)
+                if (resolved == null) {
+                    logger.warn { "Failed to resolve URL '$url' against base URL '$baseUrl'" }
+                }
+                return resolved
             }
 
         return null
+    }
+
+    private fun resolveUrl(url: String, baseUrl: String): String? {
+        // First validate the base URL for all relative URL cases
+        val isBaseUrlValid =
+            try {
+                val baseUri = URI(baseUrl)
+                baseUri.scheme != null && baseUri.host != null
+            } catch (_: Exception) {
+                false
+            }
+
+        return when {
+            // Already absolute URL (has protocol)
+            url.startsWith("http://") || url.startsWith("https://") -> url
+
+            // Protocol-relative URL (starts with //)
+            url.startsWith("//") -> {
+                if (!isBaseUrlValid) {
+                    null
+                } else {
+                    val protocol = if (baseUrl.startsWith("https://")) "https:" else "http:"
+                    "$protocol$url"
+                }
+            }
+
+            // Root-relative URL (starts with /)
+            url.startsWith("/") -> {
+                if (!isBaseUrlValid) {
+                    null
+                } else {
+                    try {
+                        val baseUri = URI(baseUrl)
+                        "${baseUri.scheme}://${baseUri.host}${if (baseUri.port != -1) ":${baseUri.port}" else ""}$url"
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }
+
+            // Path-relative URL - resolve against base URL directory
+            else -> {
+                if (!isBaseUrlValid) {
+                    null
+                } else {
+                    try {
+                        val baseUri = URI(baseUrl)
+                        baseUri.resolve(url).toString()
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            }
+        }
     }
 
     private fun extractImage(doc: Document, baseUrl: String): String? {

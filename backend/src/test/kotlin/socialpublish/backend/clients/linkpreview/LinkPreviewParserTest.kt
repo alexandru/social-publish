@@ -378,4 +378,78 @@ class LinkPreviewParserTest {
 
         assertNull(preview)
     }
+
+    @Test
+    fun `resolves relative og url to absolute URL`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta property="og:title" content="Test Article">
+                <meta property="og:description" content="Test description">
+                <meta property="og:url" content="/funfix/tasks/releases/tag/v0.4.0">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview =
+            LinkPreviewParser.scoped {
+                it.parseHtml(html, "https://github.com/funfix/tasks/releases/tag/v0.4.0")
+            }
+
+        assertNotNull(preview)
+        assertEquals("Test Article", preview.title)
+        assertEquals("Test description", preview.description)
+        assertEquals(
+            "https://github.com/funfix/tasks/releases/tag/v0.4.0",
+            preview.url,
+        ) // Should be absolute, not relative
+    }
+
+    @Test
+    fun `resolves protocol-relative og url to absolute URL`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta property="og:title" content="Test Article">
+                <meta property="og:url" content="//example.com/path/to/article">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview =
+            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/original/path") }
+
+        assertNotNull(preview)
+        assertEquals("https://example.com/path/to/article", preview.url)
+    }
+
+    @Test
+    fun `keeps absolute og url unchanged`() = runTest {
+        val html =
+            """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta property="og:title" content="Test Article">
+                <meta property="og:url" content="https://canonical.example.com/article">
+            </head>
+            <body></body>
+            </html>
+            """
+                .trimIndent()
+
+        val preview =
+            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/original/path") }
+
+        assertNotNull(preview)
+        assertEquals("https://canonical.example.com/article", preview.url)
+    }
 }
