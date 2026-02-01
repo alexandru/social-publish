@@ -1,6 +1,5 @@
 package socialpublish.backend.modules
 
-import arrow.core.getOrElse
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -22,17 +21,21 @@ class AuthModuleTest {
     fun `should verify valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
         val token = authModule.generateToken("testuser")
-        val username = authModule.verifyToken(token).getOrElse { null }
+        val result = authModule.verifyToken(token)
 
-        assertEquals("testuser", username)
+        assertTrue(result.isRight())
+        when (result) {
+            is arrow.core.Either.Right -> assertEquals("testuser", result.value)
+            is arrow.core.Either.Left -> throw AssertionError("Expected Right, got Left")
+        }
     }
 
     @Test
     fun `should reject invalid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("invalid-token").getOrElse { null }
+        val result = authModule.verifyToken("invalid-token")
 
-        assertEquals(null, username)
+        assertTrue(result.isLeft())
     }
 
     @Test
@@ -41,25 +44,25 @@ class AuthModuleTest {
         val authModule2 = AuthModule("secret2")
 
         val token = authModule1.generateToken("testuser")
-        val username = authModule2.verifyToken(token).getOrElse { null }
+        val result = authModule2.verifyToken(token)
 
-        assertEquals(null, username)
+        assertTrue(result.isLeft())
     }
 
     @Test
     fun `verifyToken should reject malformed token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("not.a.valid.jwt.token").getOrElse { null }
+        val result = authModule.verifyToken("not.a.valid.jwt.token")
 
-        assertEquals(null, username)
+        assertTrue(result.isLeft())
     }
 
     @Test
     fun `verifyToken should reject empty token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("").getOrElse { null }
+        val result = authModule.verifyToken("")
 
-        assertEquals(null, username)
+        assertTrue(result.isLeft())
     }
 
     @Test
@@ -71,8 +74,7 @@ class AuthModuleTest {
         assertTrue(hash.startsWith("\$2"))
 
         val authModule = AuthModule(jwtSecret)
-        val verified = authModule.verifyPassword(password, hash).getOrElse { false }
-        assertEquals(true, verified)
+        assertTrue(authModule.verifyPassword(password, hash).isRight())
     }
 
     @Test
@@ -86,8 +88,8 @@ class AuthModuleTest {
         assertTrue(hash1 != hash2)
 
         val authModule = AuthModule(jwtSecret)
-        assertTrue(authModule.verifyPassword(password, hash1).getOrElse { false })
-        assertTrue(authModule.verifyPassword(password, hash2).getOrElse { false })
+        assertTrue(authModule.verifyPassword(password, hash1).isRight())
+        assertTrue(authModule.verifyPassword(password, hash2).isRight())
     }
 
     @Test
@@ -96,34 +98,29 @@ class AuthModuleTest {
         val password = "myPassword"
         val hash = AuthModule.hashPassword(password)
 
-        val verified = authModule.verifyPassword(password, "  $hash  ").getOrElse { false }
-        assertTrue(verified)
+        assertTrue(authModule.verifyPassword(password, "  $hash  ").isRight())
     }
 
     @Test
-    fun `verifyPassword should return false for incorrect password`() {
+    fun `verifyPassword should return error for incorrect password`() {
         val authModule = AuthModule(jwtSecret)
         val hash = AuthModule.hashPassword("correctPassword")
 
-        val verified = authModule.verifyPassword("wrongPassword", hash).getOrElse { false }
-        assertEquals(false, verified)
+        assertTrue(authModule.verifyPassword("wrongPassword", hash).isLeft())
     }
 
     @Test
-    fun `verifyPassword should return false for malformed hash`() {
+    fun `verifyPassword should return error for malformed hash`() {
         val authModule = AuthModule(jwtSecret)
 
-        val verified =
-            authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { false }
-        assertEquals(false, verified)
+        assertTrue(authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").isLeft())
     }
 
     @Test
-    fun `verifyPassword should return false for empty hash`() {
+    fun `verifyPassword should return error for empty hash`() {
         val authModule = AuthModule(jwtSecret)
 
         val result = authModule.verifyPassword("password", "")
-        // Empty hash should result in an error (Left), not a false verification (Right(false))
         assertTrue(result.isLeft())
     }
 }

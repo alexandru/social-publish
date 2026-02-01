@@ -109,6 +109,10 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 - Use Arrow's `Resource` for resource management and `Either` for error modeling where appropriate.
 - Avoid `runBlocking` (except for `main`). Coroutines (suspended functions) should be used idiomatically.
 - For error handling, custom sealed classes (union types) are encouraged for domain-specific errors.
+  - **DO NOT** create sealed hierarchies that inherit from other sealed interfaces/classes. Each error type should be self-contained.
+  - Colocate error types with their modules (e.g., `AuthError` should be in the same file as `AuthModule`).
+  - Avoid creating `common` error types that span multiple domains.
+- **DO NOT** use `.fold()` for discriminating on `Either` values. Use `when` with pattern matching instead.
 - Avoid public inner classes unless they are part of a sealed class hierarchy (for union types). Prefer top-level classes and functions.
 - Use packages for namespacing; avoid unnecessary nesting of classes.
 - Prefer data classes and other FP techniques for modeling data over ad-hoc OOP wrappers.
@@ -116,7 +120,9 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 - Prefer encapsulated, self-contained components (e.g., each social integration in its own package).
 - Avoid project-wide MVC-style grouping; instead, group by feature/component. Prefer colocating types with the feature that uses them.
   - Don't introduce silly `models/` or `views/` packages
+  - Don't create `common/` packages for domain types that should be colocated with their features
 - Components should be modular enough to be extracted into their own sub-projects or libraries.
+- Good encapsulation means API and dependencies that don't leak. Design modules so they can be extracted into libraries without impacting the project design.
 - Use good imports (no fully qualified names).
 - Write comments, but keep them meaningful:
   - No comments on what the Agent did.

@@ -1,5 +1,6 @@
 package socialpublish.backend.server.routes
 
+import arrow.core.Either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -67,35 +68,30 @@ class AuthRoutes(
         }
 
         // Check username and verify password with BCrypt
-        authModule
-            .verifyPassword(request.password, config.passwordHash)
-            .fold(
-                ifLeft = { error ->
-                    logger.warn {
-                        "Failed to verify password for user ${request.username}: ${error.message}"
-                    }
-                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
-                },
-                ifRight = { isPasswordValid ->
-                    if (request.username == config.username && isPasswordValid) {
-                        val token = authModule.generateToken(request.username)
-                        val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
-                        val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
-                        call.respond(
-                            LoginResponse(
-                                token = token,
-                                hasAuth =
-                                    AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
-                            )
-                        )
-                    } else {
-                        call.respond(
-                            HttpStatusCode.Unauthorized,
-                            ErrorResponse("Invalid credentials"),
-                        )
-                    }
-                },
-            )
+        if (request.username != config.username) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            return
+        }
+
+        when (val result = authModule.verifyPassword(request.password, config.passwordHash)) {
+            is Either.Left -> {
+                logger.warn {
+                    "Failed to verify password for user ${request.username}: ${result.value.message}"
+                }
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            }
+            is Either.Right -> {
+                val token = authModule.generateToken(request.username)
+                val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
+                val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
+                call.respond(
+                    LoginResponse(
+                        token = token,
+                        hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                    )
+                )
+            }
+        }
     }
 
     suspend fun protectedRoute(call: ApplicationCall) {

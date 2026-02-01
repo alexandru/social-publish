@@ -1,6 +1,5 @@
 package socialpublish.backend.modules
 
-import arrow.core.getOrElse
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -214,11 +213,14 @@ class EndpointSecurityTest {
         assertTrue(token1 != token2)
 
         // But both should verify correctly with their respective usernames
-        val username1 = authModule.verifyToken(token1).getOrElse { null }
-        val username2 = authModule.verifyToken(token2).getOrElse { null }
-
-        assertEquals("user1", username1)
-        assertEquals("user2", username2)
+        when (val result1 = authModule.verifyToken(token1)) {
+            is arrow.core.Either.Right -> assertEquals("user1", result1.value)
+            is arrow.core.Either.Left -> throw AssertionError("Expected Right for user1")
+        }
+        when (val result2 = authModule.verifyToken(token2)) {
+            is arrow.core.Either.Right -> assertEquals("user2", result2.value)
+            is arrow.core.Either.Left -> throw AssertionError("Expected Right for user2")
+        }
     }
 
     @Test
@@ -230,12 +232,16 @@ class EndpointSecurityTest {
         val token = authModule.generateToken("testuser")
 
         // Token should verify immediately
-        val username = authModule.verifyToken(token).getOrElse { null }
-        assertEquals("testuser", username)
+        when (val result = authModule.verifyToken(token)) {
+            is arrow.core.Either.Right -> assertEquals("testuser", result.value)
+            is arrow.core.Either.Left -> throw AssertionError("Token should be valid")
+        }
 
         // The token is valid for 6 months, so it should still be valid
-        val usernameAgain = authModule.verifyToken(token).getOrElse { null }
-        assertEquals("testuser", usernameAgain)
+        when (val result = authModule.verifyToken(token)) {
+            is arrow.core.Either.Right -> assertEquals("testuser", result.value)
+            is arrow.core.Either.Left -> throw AssertionError("Token should still be valid")
+        }
     }
 
     @Test
@@ -246,7 +252,7 @@ class EndpointSecurityTest {
         // Tamper with the token by changing one character
         val tamperedToken = validToken.dropLast(1) + "X"
 
-        val username = authModule.verifyToken(tamperedToken).getOrElse { null }
-        assertEquals(null, username)
+        val result = authModule.verifyToken(tamperedToken)
+        assertTrue(result.isLeft())
     }
 }

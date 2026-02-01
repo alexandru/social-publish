@@ -9,9 +9,19 @@ import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
-import socialpublish.backend.common.AuthError
 
 private val logger = KotlinLogging.logger {}
+
+sealed class AuthError(val message: String, open val cause: Throwable? = null) {
+    data class InvalidToken(val details: String, override val cause: Throwable? = null) :
+        AuthError("Invalid JWT token: $details", cause)
+
+    data class InvalidCredentials(val details: String = "Invalid username or password") :
+        AuthError(details)
+
+    data class PasswordVerificationFailed(override val cause: Throwable) :
+        AuthError("Password verification failed", cause)
+}
 
 class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
@@ -46,18 +56,20 @@ class AuthModule(jwtSecret: String) {
     /**
      * Verify a password against a BCrypt hash.
      *
-     * The stored password must be a BCrypt hash (starts with $2a$, $2b$, or $2y$).
+     * The stored password must be a BCrypt hash (starts with $2a$, $2b$, or $2y$). Returns
+     * Either.Right(Unit) on success, Either.Left(AuthError) on failure.
      */
-    fun verifyPassword(
-        providedPassword: String,
-        storedPassword: String,
-    ): Either<AuthError, Boolean> {
+    fun verifyPassword(providedPassword: String, storedPassword: String): Either<AuthError, Unit> {
         val trimmedStoredPassword = storedPassword.trim()
         return try {
             val result =
                 FavreBCrypt.verifyer()
                     .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
-            result.verified.right()
+            if (result.verified) {
+                Unit.right()
+            } else {
+                AuthError.InvalidCredentials().left()
+            }
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify BCrypt password" }
             AuthError.PasswordVerificationFailed(e).left()

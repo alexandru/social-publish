@@ -6,13 +6,9 @@ import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.navigateTo
 
 @Composable
-fun NavBar(
-    currentPath: String,
-    isNavbarActive: Boolean,
-    onNavbarToggle: (Boolean) -> Unit,
-    onLogout: () -> Unit,
-) {
+fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasJwtToken()
+    var navbarActive by remember { mutableStateOf(false) }
 
     // Normalize currentPath to ignore trailing slashes and query strings so active checks are
     // robust
@@ -70,11 +66,11 @@ fun NavBar(
             A(
                 attrs = {
                     classes("navbar-burger")
-                    if (isNavbarActive) classes("is-active")
+                    if (navbarActive) classes("is-active")
                     attr("role", "button")
                     attr("aria-label", "menu")
                     attr("aria-expanded", "false")
-                    onClick { onNavbarToggle(!isNavbarActive) }
+                    onClick { navbarActive = !navbarActive }
                 }
             ) {
                 Span(attrs = { attr("aria-hidden", "true") })
@@ -86,7 +82,7 @@ fun NavBar(
         Div(
             attrs = {
                 classes("navbar-menu")
-                if (isNavbarActive) classes("is-active")
+                if (navbarActive) classes("is-active")
             }
         ) {
             Div(attrs = { classes("navbar-start") }) {
@@ -99,7 +95,7 @@ fun NavBar(
                                 label = "Publish",
                                 iconClasses = arrayOf("fas", "fa-paper-plane"),
                                 isActive = (currentPath == "/form"),
-                                onClick = { onNavbarToggle(false) },
+                                onClick = { navbarActive = false },
                             )
                         }
                     }
@@ -132,7 +128,7 @@ fun NavBar(
                                 label = "Account",
                                 iconClasses = arrayOf("fas", "fa-user-circle"),
                                 isActive = (currentPath == "/account"),
-                                onClick = { onNavbarToggle(false) },
+                                onClick = { navbarActive = false },
                             )
 
                             // Logout (action)
@@ -140,7 +136,7 @@ fun NavBar(
                                 label = "Logout",
                                 iconClasses = arrayOf("fas", "fa-sign-out-alt"),
                                 onClick = {
-                                    onNavbarToggle(false)
+                                    navbarActive = false
                                     onLogout()
                                 },
                             )
@@ -151,7 +147,7 @@ fun NavBar(
                                 label = "Login",
                                 iconClasses = arrayOf("fas", "fa-key"),
                                 isActive = (currentPath == "/login"),
-                                onClick = { onNavbarToggle(false) },
+                                onClick = { navbarActive = false },
                             )
                         }
                     }
