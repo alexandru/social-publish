@@ -1,8 +1,9 @@
 package socialpublish.backend.clients.metathreads
 
 import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.catch
+import arrow.core.raise.either
+import arrow.core.raise.ensure
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -60,8 +61,8 @@ class MetaThreadsApiModule(
         }
     }
 
-    private suspend fun createMediaContainer(imageUuid: String): ApiResult<String> {
-        return try {
+    private suspend fun createMediaContainer(imageUuid: String): ApiResult<String> = either {
+        catch({
             val imageUrl = filesModule.getFileUrl(imageUuid)
 
             val response =
@@ -71,38 +72,36 @@ class MetaThreadsApiModule(
                     parameter("access_token", config.accessToken)
                 }
 
-            if (response.status.value == 200) {
-                val data = response.body<MetaThreadsMediaContainerResponse>()
-                data.id.right()
-            } else {
+            ensure(response.status.value == 200) {
                 val errorBody = response.bodyAsText()
                 logger.warn {
                     "Failed to create media container for Meta Threads: ${response.status}, body: $errorBody"
                 }
                 RequestError(
-                        status = response.status.value,
-                        module = "metathreads",
-                        errorMessage = "Failed to create media container",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
+                    status = response.status.value,
+                    module = "metathreads",
+                    errorMessage = "Failed to create media container",
+                    body = ResponseBody(asString = errorBody),
+                )
             }
-        } catch (e: Exception) {
+
+            val data = response.body<MetaThreadsMediaContainerResponse>()
+            data.id
+        }) { e: Exception ->
             logger.error(e) { "Failed to create media container (metathreads) — uuid $imageUuid" }
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "metathreads",
                     errorMessage = "Failed to create media container — uuid: $imageUuid",
                 )
-                .left()
+            )
         }
     }
 
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
-        return try {
-            request.validate()?.let { error ->
-                return error.left()
-            }
+    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> = either {
+        catch({
+            request.validate()?.let { error -> raise(error) }
 
             val text =
                 if (request.cleanupHtml == true) {
@@ -114,16 +113,8 @@ class MetaThreadsApiModule(
             logger.info { "Posting to Meta Threads:\n${text.prependIndent("  |")}" }
 
             val imageIds =
-                if (!request.images.isNullOrEmpty()) {
-                    request.images.map { imageUuid ->
-                        when (val uploadResult = createMediaContainer(imageUuid)) {
-                            is Either.Left -> return uploadResult.value.left()
-                            is Either.Right -> uploadResult.value
-                        }
-                    }
-                } else {
-                    emptyList()
-                }
+                request.images?.map { imageUuid -> createMediaContainer(imageUuid).bind() }
+                    ?: emptyList()
 
             val containerResponse =
                 httpClient.post("${config.apiBase}/v1.0/${config.userId}/threads") {
@@ -135,18 +126,17 @@ class MetaThreadsApiModule(
                     parameter("access_token", config.accessToken)
                 }
 
-            if (containerResponse.status.value != 200) {
+            ensure(containerResponse.status.value == 200) {
                 val errorBody = containerResponse.bodyAsText()
                 logger.warn {
                     "Failed to create Meta Threads container: ${containerResponse.status}, body: $errorBody"
                 }
-                return RequestError(
-                        status = containerResponse.status.value,
-                        module = "metathreads",
-                        errorMessage = "Failed to create post container",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
+                RequestError(
+                    status = containerResponse.status.value,
+                    module = "metathreads",
+                    errorMessage = "Failed to create post container",
+                    body = ResponseBody(asString = errorBody),
+                )
             }
 
             val containerData = containerResponse.body<MetaThreadsMediaContainerResponse>()
@@ -157,30 +147,30 @@ class MetaThreadsApiModule(
                     parameter("access_token", config.accessToken)
                 }
 
-            if (publishResponse.status.value == 200) {
-                val data = publishResponse.body<MetaThreadsPublishResponse>()
-                NewMetaThreadsPostResponse(id = data.id).right()
-            } else {
+            ensure(publishResponse.status.value == 200) {
                 val errorBody = publishResponse.bodyAsText()
                 logger.warn {
                     "Failed to publish to Meta Threads: ${publishResponse.status}, body: $errorBody"
                 }
                 RequestError(
-                        status = publishResponse.status.value,
-                        module = "metathreads",
-                        errorMessage = "Failed to publish post",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
+                    status = publishResponse.status.value,
+                    module = "metathreads",
+                    errorMessage = "Failed to publish post",
+                    body = ResponseBody(asString = errorBody),
+                )
             }
-        } catch (e: Exception) {
+
+            val data = publishResponse.body<MetaThreadsPublishResponse>()
+            NewMetaThreadsPostResponse(id = data.id)
+        }) { e: Exception ->
             logger.error(e) { "Failed to post to Meta Threads" }
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "metathreads",
                     errorMessage = "Failed to post to Meta Threads: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -211,39 +201,39 @@ class MetaThreadsApiModule(
         }
     }
 
-    suspend fun refreshAccessToken(): ApiResult<MetaThreadsRefreshTokenResponse> {
-        return try {
+    suspend fun refreshAccessToken(): ApiResult<MetaThreadsRefreshTokenResponse> = either {
+        catch({
             val response =
                 httpClient.post("${config.apiBase}/v1.0/access_token") {
                     parameter("grant_type", "th_refresh_token")
                     parameter("access_token", config.accessToken)
                 }
 
-            if (response.status.value == 200) {
-                val tokenResponse = response.body<MetaThreadsRefreshTokenResponse>()
-                logger.info { "Successfully refreshed Meta Threads access token" }
-                tokenResponse.right()
-            } else {
+            ensure(response.status.value == 200) {
                 val errorBody = response.bodyAsText()
                 logger.warn {
                     "Failed to refresh Meta Threads access token: ${response.status}, body: $errorBody"
                 }
                 RequestError(
-                        status = response.status.value,
-                        module = "metathreads",
-                        errorMessage = "Failed to refresh access token",
-                        body = ResponseBody(asString = errorBody),
-                    )
-                    .left()
+                    status = response.status.value,
+                    module = "metathreads",
+                    errorMessage = "Failed to refresh access token",
+                    body = ResponseBody(asString = errorBody),
+                )
             }
-        } catch (e: Exception) {
+
+            val tokenResponse = response.body<MetaThreadsRefreshTokenResponse>()
+            logger.info { "Successfully refreshed Meta Threads access token" }
+            tokenResponse
+        }) { e: Exception ->
             logger.error(e) { "Failed to refresh Meta Threads access token" }
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "metathreads",
                     errorMessage = "Failed to refresh access token: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
