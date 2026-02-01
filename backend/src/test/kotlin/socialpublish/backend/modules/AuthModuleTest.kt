@@ -113,7 +113,8 @@ class AuthModuleTest {
     fun `verifyPassword should return false for malformed hash`() {
         val authModule = AuthModule(jwtSecret)
 
-        val verified = authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { true }
+        val verified =
+            authModule.verifyPassword("password", "not-a-valid-bcrypt-hash").getOrElse { true }
         assertEquals(false, verified)
     }
 
@@ -121,7 +122,8 @@ class AuthModuleTest {
     fun `verifyPassword should return false for empty hash`() {
         val authModule = AuthModule(jwtSecret)
 
-        val verified = authModule.verifyPassword("password", "").getOrElse { true }
-        assertEquals(false, verified)
+        val result = authModule.verifyPassword("password", "")
+        // Empty hash should result in an error (Left), not a false verification (Right(false))
+        assertTrue(result.isLeft())
     }
 }
