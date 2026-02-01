@@ -126,6 +126,14 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   - Document invariants and non-obvious decisions that aren't clear from signatures.
  - Never delete the user's comments.
 
+## Agent Skills
+
+Use the following installed skills when relevant:
+
+- `arrow-resource`: resource lifecycle management with Arrow `Resource` and `ResourceScope`
+- `arrow-typed-errors`: typed error handling patterns with Arrow Raise/Either
+- `compose-state-hoisting`: state hoisting best practices for Compose
+
 ### Frontend (Compose for Web)
 
 - **State Hoisting**: Follow the State Hoisting best practice where state is kept by a component's caller, while the component remains stateless, communicating back and forth with the caller via events. Model state with clean and immutable data structures.
