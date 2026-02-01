@@ -276,15 +276,12 @@ class LinkPreviewParser(
             url.startsWith("http://") || url.startsWith("https://") -> url
 
             // Protocol-relative URL (starts with //)
-            url.startsWith("//") -> {
-                val protocol = if (baseUrl.startsWith("https://")) "https:" else "http:"
-                "$protocol$url"
-            }
+            url.startsWith("//") -> "${baseUri.scheme}:$url"
 
             // Root-relative URL (starts with /)
             url.startsWith("/") -> {
                 try {
-                    "${baseUri.scheme}://${baseUri.host}${if (baseUri.port != -1) ":${baseUri.port}" else ""}$url"
+                    buildBaseUrl(baseUri) + url
                 } catch (_: Exception) {
                     null
                 }
@@ -299,6 +296,10 @@ class LinkPreviewParser(
                 }
             }
         }
+    }
+
+    private fun buildBaseUrl(uri: URI): String {
+        return "${uri.scheme}://${uri.host}${if (uri.port != -1) ":${uri.port}" else ""}"
     }
 
     private fun extractImage(doc: Document, baseUrl: String): String? {
