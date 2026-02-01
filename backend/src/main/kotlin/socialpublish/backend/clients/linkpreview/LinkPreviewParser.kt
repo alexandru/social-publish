@@ -259,13 +259,16 @@ class LinkPreviewParser(
     }
 
     private fun resolveUrl(url: String, baseUrl: String): String? {
-        // First validate the base URL for all relative URL cases
-        val isBaseUrlValid =
+        // Validate and parse the base URL once
+        val baseUri =
             try {
-                val baseUri = URI(baseUrl)
-                baseUri.scheme != null && baseUri.host != null
+                val uri = URI(baseUrl)
+                if (uri.scheme == null || uri.host == null) {
+                    return null
+                }
+                uri
             } catch (_: Exception) {
-                false
+                return null
             }
 
         return when {
@@ -274,39 +277,25 @@ class LinkPreviewParser(
 
             // Protocol-relative URL (starts with //)
             url.startsWith("//") -> {
-                if (!isBaseUrlValid) {
-                    null
-                } else {
-                    val protocol = if (baseUrl.startsWith("https://")) "https:" else "http:"
-                    "$protocol$url"
-                }
+                val protocol = if (baseUrl.startsWith("https://")) "https:" else "http:"
+                "$protocol$url"
             }
 
             // Root-relative URL (starts with /)
             url.startsWith("/") -> {
-                if (!isBaseUrlValid) {
+                try {
+                    "${baseUri.scheme}://${baseUri.host}${if (baseUri.port != -1) ":${baseUri.port}" else ""}$url"
+                } catch (_: Exception) {
                     null
-                } else {
-                    try {
-                        val baseUri = URI(baseUrl)
-                        "${baseUri.scheme}://${baseUri.host}${if (baseUri.port != -1) ":${baseUri.port}" else ""}$url"
-                    } catch (_: Exception) {
-                        null
-                    }
                 }
             }
 
             // Path-relative URL - resolve against base URL directory
             else -> {
-                if (!isBaseUrlValid) {
+                try {
+                    baseUri.resolve(url).toString()
+                } catch (_: Exception) {
                     null
-                } else {
-                    try {
-                        val baseUri = URI(baseUrl)
-                        baseUri.resolve(url).toString()
-                    } catch (_: Exception) {
-                        null
-                    }
                 }
             }
         }
