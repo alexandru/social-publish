@@ -2,12 +2,16 @@ package socialpublish.backend.modules
 
 import arrow.core.Either
 import arrow.core.getOrElse
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.asSource
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.buffered
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.common.UploadSource
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.testutils.*
 
@@ -21,7 +25,12 @@ class FilesModuleTest {
                 .uploadFile(
                     UploadedFile(
                         fileName = "flower1.jpeg",
-                        fileBytes = loadTestResourceBytes("flower1.jpeg"),
+                        source =
+                            UploadSource.FromSource(
+                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                    .asSource()
+                                    .buffered()
+                            ),
                         altText = "rose",
                     )
                 )
@@ -31,7 +40,12 @@ class FilesModuleTest {
                 .uploadFile(
                     UploadedFile(
                         fileName = "flower2.jpeg",
-                        fileBytes = loadTestResourceBytes("flower2.jpeg"),
+                        source =
+                            UploadSource.FromSource(
+                                ByteReadChannel(loadTestResourceBytes("flower2.jpeg"))
+                                    .asSource()
+                                    .buffered()
+                            ),
                         altText = "tulip",
                     )
                 )
@@ -43,8 +57,8 @@ class FilesModuleTest {
         assertEquals("rose", processed1.altText)
         assertEquals("tulip", processed2.altText)
 
-        val stored1 = imageDimensions(processed1.bytes)
-        val stored2 = imageDimensions(processed2.bytes)
+        val stored1 = imageDimensions(processed1.source.readBytes())
+        val stored2 = imageDimensions(processed2.source.readBytes())
 
         // Images should be optimized on upload (max 1600x1600)
         assertTrue(stored1.width <= 1600)
@@ -60,7 +74,7 @@ class FilesModuleTest {
 
         // Verify readImageFile returns the same optimized image
         val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid))
-        val retrievedDimensions = imageDimensions(retrieved.bytes)
+        val retrievedDimensions = imageDimensions(retrieved.source.readBytes())
 
         assertEquals(stored1.width, retrievedDimensions.width)
         assertEquals(stored1.height, retrievedDimensions.height)
@@ -77,7 +91,12 @@ class FilesModuleTest {
                 .uploadFile(
                     UploadedFile(
                         fileName = "flower1.jpeg",
-                        fileBytes = loadTestResourceBytes("flower1.jpeg"),
+                        source =
+                            UploadSource.FromSource(
+                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                    .asSource()
+                                    .buffered()
+                            ),
                         altText = "rose",
                     )
                 )
@@ -114,7 +133,10 @@ class FilesModuleTest {
             filesModule.uploadFile(
                 UploadedFile(
                     fileName = "notes.txt",
-                    fileBytes = "not-an-image".toByteArray(),
+                    source =
+                        UploadSource.FromSource(
+                            ByteReadChannel("not-an-image".toByteArray()).asSource().buffered()
+                        ),
                     altText = null,
                 )
             )

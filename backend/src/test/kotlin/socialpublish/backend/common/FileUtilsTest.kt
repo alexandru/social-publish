@@ -1,9 +1,15 @@
 package socialpublish.backend.common
 
+import arrow.fx.coroutines.resourceScope
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.asSource
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+import kotlinx.io.buffered
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -146,5 +152,104 @@ class FileUtilsTest {
 
         // The base directory itself should be considered within base
         assertTrue(isPathWithinBase(baseDir, baseDir))
+    }
+
+    @Test
+    fun `forEachChunk reads source incrementally`() = runTest {
+        val bytes = ByteArray(20) { it.toByte() }
+        val source = ByteReadChannel(bytes).asSource().buffered()
+        val chunks = mutableListOf<ByteArray>()
+
+        source.forEachChunk(chunkSize = 6) { buffer, len -> chunks.add(buffer.copyOf(len)) }
+
+        val reconstructed = chunks.fold(ByteArray(0)) { acc, chunk -> acc + chunk }
+        assertEquals(bytes.toList(), reconstructed.toList())
+        assertEquals(listOf(6, 6, 6, 2), chunks.map { it.size })
+    }
+
+    @Test
+    fun `calculateHash matches SHA-256 output`(@TempDir tempDir: File) = runTest {
+        val file = File(tempDir, "hash.txt").apply { writeText("hello") }
+
+        val hash = file.calculateHash()
+
+        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", hash)
+    }
+
+    @Test
+    fun `UploadSource from source creates and cleans temp file`(): Unit = runTest {
+        val tempPath = resourceScope {
+            val source = ByteReadChannel("data".toByteArray()).asSource().buffered()
+            val file = UploadSource.FromSource(source).asFileResource().bind()
+            assertTrue(file.exists())
+            file.absolutePath
+        }
+
+        assertFalse(File(tempPath).exists())
+    }
+
+    @Test
+    fun `createTempFileResource cleans up after scope`(): Unit = runTest {
+        val tempPath = resourceScope {
+            val file = createTempFileResource("tmp-").bind()
+            assertTrue(file.exists())
+            file.absolutePath
+        }
+
+        assertFalse(File(tempPath).exists())
+    }
+
+    @Test
+    fun `createTempFileResource accepts sanitized suffix`(): Unit = runTest {
+        val unsafeName = "../../weird/name/with spaces?.png"
+        val safeSuffix = sanitizeFilename(unsafeName)
+
+        val tempPath = resourceScope {
+            val file = createTempFileResource("tmp-", safeSuffix).bind()
+            assertTrue(file.exists())
+            assertTrue(file.name.endsWith(safeSuffix))
+            file.absolutePath
+        }
+
+        assertFalse(File(tempPath).exists())
+    }
+
+    @Test
+    fun `createTempFileName returns a non-existing file`(@TempDir tempDir: File) = runTest {
+        val file = createTempFileName("reserved-", ".tmp")
+
+        try {
+            assertFalse(file.exists())
+            file.writeText("data")
+            assertTrue(file.exists())
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `saveToFile writes source bytes`(@TempDir tempDir: File) = runTest {
+        val bytes = ByteArray(12) { (it * 2).toByte() }
+        val source = ByteReadChannel(bytes).asSource().buffered()
+        val file = File(tempDir, "out.bin")
+
+        source.saveToFile(file)
+
+        assertEquals(bytes.toList(), file.readBytes().toList())
+    }
+
+    @Test
+    fun `deleteWithBackup restores original on failure`(@TempDir tempDir: File) = runTest {
+        val file = File(tempDir, "data.txt").apply { writeText("original") }
+
+        assertFails {
+            file.deleteWithBackup {
+                file.writeText("new")
+                error("boom")
+            }
+        }
+
+        assertTrue(file.exists())
+        assertEquals("original", file.readText())
     }
 }

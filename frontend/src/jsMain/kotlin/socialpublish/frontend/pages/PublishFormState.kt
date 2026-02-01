@@ -8,6 +8,7 @@ import socialpublish.frontend.components.countCharactersWithLinks
 data class PublishFormState(
     val content: String = "",
     val link: String = "",
+    val language: String? = null,
     val targets: Set<String> = setOf("rss"),
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
@@ -57,6 +58,8 @@ data class PublishFormState(
     fun updateContent(value: String): PublishFormState = copy(content = value)
 
     fun updateLink(value: String): PublishFormState = copy(link = value)
+
+    fun updateLanguage(value: String?): PublishFormState = copy(language = value)
 
     fun toggleTarget(target: String): PublishFormState =
         copy(targets = if (targets.contains(target)) targets - target else targets + target)
