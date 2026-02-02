@@ -381,13 +381,10 @@ class BlueskyApiTest {
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
-            val canonicalLink = "http://localhost/test-page.html"
-            val expectedDisplay =
-                if (canonicalLink.length <= 24) {
-                    canonicalLink
-                } else {
-                    canonicalLink.take(21) + "..."
-                }
+            val expectedDisplay = let {
+                val link = longLink.replace("^https?://".toRegex(), "")
+                if (link.length <= 24) link else link.take(21) + "..."
+            }
             assertEquals("Check out this article\n\n$expectedDisplay", text)
 
             val facets = requireNotNull(record["facets"]?.jsonArray)
@@ -403,7 +400,7 @@ class BlueskyApiTest {
 
             val features = linkFacet["features"] as JsonArray
             val uri = features.first().jsonObject["uri"]?.jsonPrimitive?.content
-            assertEquals(canonicalLink, uri)
+            assertEquals(longLink, uri)
 
             val embed = record["embed"]?.jsonObject
             assertNotNull(embed)
@@ -472,8 +469,8 @@ class BlueskyApiTest {
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
 
-            val displayOne = linkOne.take(21) + "..."
-            val displayTwo = linkTwo.take(21) + "..."
+            val displayOne = linkOne.replace("^https?://".toRegex(), "").take(21) + "..."
+            val displayTwo = linkTwo.replace("^https?://".toRegex(), "").take(21) + "..."
             val expectedText = "First $displayOne and then $displayTwo"
 
             assertEquals(expectedText, text)

@@ -31,10 +31,7 @@ data class LinkPreviewConfig(
 )
 
 /** Parser for extracting link previews from HTML content. */
-class LinkPreviewParser(
-    private val httpClient: HttpClient,
-    private val config: LinkPreviewConfig = LinkPreviewConfig(),
-) {
+class LinkPreviewParser(private val httpClient: HttpClient) {
     companion object {
         suspend fun <A> scoped(
             config: LinkPreviewConfig = LinkPreviewConfig(),
@@ -62,7 +59,7 @@ class LinkPreviewParser(
                     },
                     { client, _ -> client.close() },
                 )
-            LinkPreviewParser(httpClient, config)
+            LinkPreviewParser(httpClient)
         }
     }
 
@@ -75,19 +72,18 @@ class LinkPreviewParser(
      * 3. Standard HTML tags (<title>, <meta name="description">)
      *
      * @param html The HTML content to parse
-     * @param fallbackUrl The URL to use if no URL is found in the metadata
+     * @param url The URL to use if no URL is found in the metadata
      * @return A LinkPreview object if metadata was found, null otherwise
      */
-    fun parseHtml(html: String, fallbackUrl: String): LinkPreview? {
+    fun parseHtml(html: String, url: String): LinkPreview? {
         val doc = Jsoup.parse(html)
 
         // Try to extract metadata using priority order
         val title = extractTitle(doc) ?: return null
         val description = extractDescription(doc)
-        val url = extractUrl(doc) ?: fallbackUrl
-        val image = extractImage(doc, fallbackUrl)
+        val image = extractImage(doc, url)
 
-        return LinkPreview(title = title, description = description, url = url, image = image)
+        return LinkPreview(title = title, description = description, image = image)
     }
 
     /**
@@ -158,7 +154,7 @@ class LinkPreviewParser(
             }
 
             val json = response.bodyAsText()
-            parseYouTubeOEmbedResponse(json, url)
+            parseYouTubeOEmbedResponse(json)
         } catch (e: Exception) {
             logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
             null
@@ -217,28 +213,6 @@ class LinkPreviewParser(
 
         // Priority 3: Standard HTML meta description
         doc.select("meta[name=description]")
-            .firstOrNull()
-            ?.attr("content")
-            ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
-            }
-
-        return null
-    }
-
-    private fun extractUrl(doc: Document): String? {
-        // Priority 1: Open Graph
-        doc.select("meta[property=og:url]")
-            .firstOrNull()
-            ?.attr("content")
-            ?.takeIf { it.isNotBlank() }
-            ?.let {
-                return it
-            }
-
-        // Priority 2: Twitter Cards
-        doc.select("meta[name=twitter:url]")
             .firstOrNull()
             ?.attr("content")
             ?.takeIf { it.isNotBlank() }

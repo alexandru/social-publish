@@ -54,10 +54,9 @@ fun isYouTubeUrl(url: String): Boolean {
  * description to provide context about the video creator.
  *
  * @param jsonResponse The JSON response from the YouTube OEmbed API
- * @param fallbackUrl The URL to use if parsing fails
  * @return A LinkPreview if parsing succeeds, null otherwise
  */
-fun parseYouTubeOEmbedResponse(jsonResponse: String, fallbackUrl: String): LinkPreview? {
+fun parseYouTubeOEmbedResponse(jsonResponse: String): LinkPreview? {
     return try {
         val json = Json { ignoreUnknownKeys = true }
         val response = json.decodeFromString<YouTubeOEmbedResponse>(jsonResponse)
@@ -71,7 +70,7 @@ fun parseYouTubeOEmbedResponse(jsonResponse: String, fallbackUrl: String): LinkP
         // Use thumbnail_url as the image
         val image = response.thumbnailUrl?.takeIf { it.isNotBlank() }
 
-        LinkPreview(title = title, description = description, url = fallbackUrl, image = image)
+        LinkPreview(title = title, description = description, image = image)
     } catch (e: Exception) {
         logger.warn(e) { "Failed to parse YouTube OEmbed response" }
         null

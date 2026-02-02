@@ -280,15 +280,13 @@ class BlueskyApiModule(
         url: String,
         maxLength: Int = BlueskyLinkDisplayLength,
     ): String {
-        if (url.length <= maxLength) {
-            return url
+        assert(maxLength > 3) { "maxLength must be greater than 3" }
+        val cleanUrl = url.replace("^https?://".toRegex(), "")
+        return if (cleanUrl.length <= maxLength) {
+            cleanUrl
+        } else {
+            cleanUrl.take(maxLength - 3) + "..."
         }
-
-        if (maxLength <= 3) {
-            return url.take(maxLength)
-        }
-
-        return url.take(maxLength - 3) + "..."
     }
 
     private fun buildLinkFacet(byteStart: Int, byteEnd: Int, uri: String): JsonObject {
@@ -456,13 +454,13 @@ class BlueskyApiModule(
             // Prepare text
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
-            val finalLink = linkPreview?.url ?: request.link
+            val url = request.link
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (finalLink != null) "\n\n$finalLink" else ""
+                } + if (url != null) "\n\n$url" else ""
 
             // Detect facets (mentions, links, hashtags) and shorten link display text
             val richText = buildRichText(text)
@@ -513,7 +511,7 @@ class BlueskyApiModule(
                     putJsonObject("embed") {
                         put("\$type", "app.bsky.embed.external")
                         putJsonObject("external") {
-                            put("uri", linkPreview.url)
+                            put("uri", url)
                             put("title", linkPreview.title)
                             put("description", linkPreview.description ?: "")
                             // Add image blob if available
