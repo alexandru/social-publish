@@ -36,6 +36,7 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
+import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -114,12 +115,13 @@ class BlueskyApiModule(
 
     /** Upload image blob to Bluesky */
     private suspend fun uploadBlob(
+        userUuid: java.util.UUID,
         uuid: String,
         session: BlueskySessionResponse,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(userUuid, uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -409,7 +411,7 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -425,7 +427,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(imageUuid, session)) {
+                        when (val uploadResult = uploadBlob(userUuid, imageUuid, session)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -569,6 +571,12 @@ class BlueskyApiModule(
 
     /** Handle Bluesky post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                return
+            }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -583,7 +591,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

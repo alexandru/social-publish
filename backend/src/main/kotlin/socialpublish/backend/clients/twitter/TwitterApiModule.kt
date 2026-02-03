@@ -44,6 +44,7 @@ import org.jsoup.Jsoup
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -107,14 +108,14 @@ class TwitterApiModule(
     }
 
     /** Check if Twitter auth exists */
-    suspend fun hasTwitterAuth(): Boolean {
-        val token = restoreOauthTokenFromDb()
+    suspend fun hasTwitterAuth(userUuid: java.util.UUID): Boolean {
+        val token = restoreOauthTokenFromDb(userUuid)
         return token != null
     }
 
     /** Restore OAuth token from database */
-    private suspend fun restoreOauthTokenFromDb(): TwitterOAuthToken? {
-        val doc = documentsDb.searchByKey("twitter-oauth-token").getOrElse { throw it }
+    private suspend fun restoreOauthTokenFromDb(userUuid: java.util.UUID): TwitterOAuthToken? {
+        val doc = documentsDb.searchByKey(userUuid, "twitter-oauth-token").getOrElse { throw it }
         return if (doc != null) {
             try {
                 Json.decodeFromString<TwitterOAuthToken>(doc.payload)
@@ -147,7 +148,7 @@ class TwitterApiModule(
     }
 
     /** Save OAuth token after callback */
-    suspend fun saveOauthToken(token: String, verifier: String): ApiResult<Unit> {
+    suspend fun saveOauthToken(userUuid: java.util.UUID, token: String, verifier: String): ApiResult<Unit> {
         return try {
             // Twitter's access token endpoint doesn't require the request token secret
             // in the OAuth signature, only the oauth_token and oauth_verifier parameters
@@ -161,6 +162,7 @@ class TwitterApiModule(
 
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = userUuid,
                     kind = "twitter-oauth-token",
                     payload = Json.encodeToString(TwitterOAuthToken.serializer(), authorizedToken),
                     searchKey = "twitter-oauth-token",
@@ -195,11 +197,11 @@ class TwitterApiModule(
         }
 
     /** Upload media to Twitter */
-    private suspend fun uploadMedia(token: TwitterOAuthToken, uuid: String): ApiResult<String> =
+    private suspend fun uploadMedia(userUuid: java.util.UUID, token: TwitterOAuthToken, uuid: String): ApiResult<String> =
         resourceScope {
             try {
                 val file =
-                    filesModule.readImageFile(uuid)
+                    filesModule.readImageFile(userUuid, uuid)
                         ?: return@resourceScope ValidationError(
                                 status = 404,
                                 errorMessage = "Failed to read image file — uuid: $uuid",
@@ -278,7 +280,7 @@ class TwitterApiModule(
         }
 
     /** Create a post on Twitter */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -287,7 +289,7 @@ class TwitterApiModule(
 
             // Get OAuth token
             val token =
-                restoreOauthTokenFromDb()
+                restoreOauthTokenFromDb(userUuid)
                     ?: return ValidationError(
                             status = 401,
                             errorMessage = "Unauthorized: Missing Twitter OAuth token!",
@@ -299,7 +301,7 @@ class TwitterApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(token, imageUuid)) {
+                    when (val result = uploadMedia(userUuid, token, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
@@ -376,6 +378,12 @@ class TwitterApiModule(
 
     /** Handle OAuth callback HTTP route */
     suspend fun callbackRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                return
+            }
+
         val token = call.request.queryParameters["oauth_token"]
         val verifier = call.request.queryParameters["oauth_verifier"]
 
@@ -386,7 +394,7 @@ class TwitterApiModule(
 
         logger.info { "Twitter auth callback: token=$token, verifier=$verifier" }
 
-        when (val result = saveOauthToken(token, verifier)) {
+        when (val result = saveOauthToken(userUuid, token, verifier)) {
             is Either.Right -> {
                 call.response.header(
                     "Cache-Control",
@@ -407,8 +415,8 @@ class TwitterApiModule(
     }
 
     /** Handle status check HTTP route */
-    suspend fun statusRoute(call: ApplicationCall) {
-        val row = documentsDb.searchByKey("twitter-oauth-token").getOrElse { throw it }
+    suspend fun statusRoute(call: ApplicationCall, userUuid: java.util.UUID) {
+        val row = documentsDb.searchByKey(userUuid, "twitter-oauth-token").getOrElse { throw it }
         call.respond(
             TwitterStatusResponse(
                 hasAuthorization = row != null,
@@ -419,6 +427,12 @@ class TwitterApiModule(
 
     /** Handle Twitter post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                return
+            }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -433,7 +447,7 @@ class TwitterApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

@@ -38,6 +38,7 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -78,11 +79,11 @@ class MastodonApiModule(
     private val statusesUrlV1 = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
-    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> =
+    private suspend fun uploadMedia(userUuid: java.util.UUID, uuid: String): ApiResult<MastodonMediaResponse> =
         resourceScope {
             try {
                 val file =
-                    filesModule.readImageFile(uuid)
+                    filesModule.readImageFile(userUuid, uuid)
                         ?: return@resourceScope ValidationError(
                                 status = 404,
                                 errorMessage = "Failed to read image file — uuid: $uuid",
@@ -191,7 +192,7 @@ class MastodonApiModule(
     }
 
     /** Create a post on Mastodon */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -202,7 +203,7 @@ class MastodonApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(imageUuid)) {
+                    when (val result = uploadMedia(userUuid, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
                     }
@@ -262,6 +263,12 @@ class MastodonApiModule(
 
     /** Handle Mastodon post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                return
+            }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -276,7 +283,7 @@ class MastodonApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

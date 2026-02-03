@@ -79,8 +79,11 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
+
+private val OAUTH_STATE_SYSTEM_UUID = java.util.UUID.fromString("00000000-0000-0000-0000-000000000000")
 
 /**
  * LinkedIn API integration for OAuth2 authentication and posting to LinkedIn.
@@ -190,6 +193,7 @@ class LinkedInApiModule(
     private suspend fun saveOAuthState(state: String, jwtToken: String) {
         val _ =
             documentsDb.createOrUpdate(
+                userUuid = OAUTH_STATE_SYSTEM_UUID,
                 kind = "linkedin-oauth-state",
                 payload = """{"state":"$state","jwtToken":"$jwtToken"}""",
                 searchKey = state,
@@ -199,7 +203,7 @@ class LinkedInApiModule(
 
     /** Verify and consume OAuth state during callback */
     private suspend fun verifyOAuthState(state: String): String? {
-        val doc = documentsDb.searchByKey(state).getOrElse { throw it }
+        val doc = documentsDb.searchByKey(OAUTH_STATE_SYSTEM_UUID, state).getOrElse { throw it }
         return if (doc != null && doc.kind == "linkedin-oauth-state") {
             // State found and valid (we don't delete it, but could track usage)
             // In production, we might want to track used states to prevent replay attacks
@@ -284,14 +288,14 @@ class LinkedInApiModule(
     }
 
     /** Check if LinkedIn auth exists */
-    suspend fun hasLinkedInAuth(): Boolean {
-        val token = restoreOAuthTokenFromDb()
+    suspend fun hasLinkedInAuth(userUuid: java.util.UUID): Boolean {
+        val token = restoreOAuthTokenFromDb(userUuid)
         return token != null
     }
 
     /** Restore OAuth token from database */
-    private suspend fun restoreOAuthTokenFromDb(): LinkedInOAuthToken? {
-        val doc = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
+    private suspend fun restoreOAuthTokenFromDb(userUuid: java.util.UUID): LinkedInOAuthToken? {
+        val doc = documentsDb.searchByKey(userUuid, "linkedin-oauth-token").getOrElse { throw it }
         return if (doc != null) {
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
@@ -447,10 +451,11 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth token to database */
-    suspend fun saveOAuthToken(token: LinkedInOAuthToken): ApiResult<Unit> {
+    suspend fun saveOAuthToken(userUuid: java.util.UUID, token: LinkedInOAuthToken): ApiResult<Unit> {
         return try {
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = userUuid,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(LinkedInOAuthToken.serializer(), token),
                     searchKey = "linkedin-oauth-token",
@@ -519,9 +524,9 @@ class LinkedInApiModule(
     }
 
     /** Get valid access token, refreshing if needed. Returns (accessToken, personUrn) */
-    suspend fun getValidToken(): ApiResult<Pair<String, String>> {
+    suspend fun getValidToken(userUuid: java.util.UUID): ApiResult<Pair<String, String>> {
         val token =
-            restoreOAuthTokenFromDb()
+            restoreOAuthTokenFromDb(userUuid)
                 ?: return ValidationError(
                         status = 401,
                         errorMessage = "Unauthorized: Missing LinkedIn OAuth token!",
@@ -545,7 +550,7 @@ class LinkedInApiModule(
                 when (val result = refreshAccessToken(token.refreshToken)) {
                     is Either.Right -> {
                         val newToken = result.value
-                        when (val saveResult = saveOAuthToken(newToken)) {
+                        when (val saveResult = saveOAuthToken(userUuid, newToken)) {
                             is Either.Right -> newToken
                             is Either.Left -> return saveResult.value.left()
                         }
@@ -576,13 +581,14 @@ class LinkedInApiModule(
 
     /** Upload media to LinkedIn */
     private suspend fun uploadMedia(
+        userUuid: java.util.UUID,
         accessToken: String,
         personUrn: String,
         uuid: String,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(userUuid, uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -728,7 +734,7 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -737,7 +743,7 @@ class LinkedInApiModule(
 
             // Get valid OAuth token and person URN
             val (accessToken, personUrn) =
-                when (val result = getValidToken()) {
+                when (val result = getValidToken(userUuid)) {
                     is Either.Right -> result.value
                     is Either.Left -> return result.value.left()
                 }
@@ -758,7 +764,7 @@ class LinkedInApiModule(
             val uploadedAssets = mutableListOf<UploadedAsset>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(accessToken, personUrn, imageUuid)) {
+                    when (val result = uploadMedia(userUuid, accessToken, personUrn, imageUuid)) {
                         is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
@@ -956,7 +962,7 @@ class LinkedInApiModule(
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      */
-    suspend fun callbackRoute(call: ApplicationCall) {
+    suspend fun callbackRoute(call: ApplicationCall, userUuid: java.util.UUID) {
         val code = call.request.queryParameters["code"]
         val state = call.request.queryParameters["state"]
         val accessToken = call.request.queryParameters["access_token"]
@@ -1017,7 +1023,7 @@ class LinkedInApiModule(
         when (val tokenResult = exchangeCodeForToken(code, redirectUri)) {
             is Either.Right -> {
                 val token = tokenResult.value
-                when (val saveResult = saveOAuthToken(token)) {
+                when (val saveResult = saveOAuthToken(userUuid, token)) {
                     is Either.Right -> {
                         call.response.header(
                             "Cache-Control",
@@ -1047,8 +1053,8 @@ class LinkedInApiModule(
     }
 
     /** Handle status check HTTP route */
-    suspend fun statusRoute(call: ApplicationCall) {
-        val row = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
+    suspend fun statusRoute(call: ApplicationCall, userUuid: java.util.UUID) {
+        val row = documentsDb.searchByKey(userUuid, "linkedin-oauth-token").getOrElse { throw it }
         call.respond(
             LinkedInStatusResponse(
                 hasAuthorization = row != null,
@@ -1059,6 +1065,12 @@ class LinkedInApiModule(
 
     /** Handle LinkedIn post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                return
+            }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -1073,7 +1085,7 @@ class LinkedInApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

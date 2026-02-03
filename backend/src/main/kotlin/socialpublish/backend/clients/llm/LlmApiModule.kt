@@ -65,6 +65,7 @@ class LlmApiModule(
     }
 
     suspend fun generateAltText(
+        userUuid: java.util.UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -74,7 +75,7 @@ class LlmApiModule(
             // Images are optimized during upload to max 1600x1600, which is sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid)
+                filesModule.readImageFile(userUuid = userUuid, uuid = imageUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",
