@@ -57,100 +57,106 @@ class FilesDatabase(private val db: Database) {
         }
     }
 
-    suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = either {
-        db.transaction {
-            // Generate deterministic UUID
-            val uuidInput =
-                listOf(
-                        "h:${payload.hash}",
-                        "n:${payload.originalname}",
-                        "a:${payload.altText ?: ""}",
-                        "w:${payload.imageWidth ?: ""}",
-                        "h:${payload.imageHeight ?: ""}",
-                        "m:${payload.mimetype}",
-                    )
-                    .joinToString("/")
-
-            val uuid = generateUuidV5(uuidInput).toString()
-
-            // Check if already exists
-            val existing =
-                query("SELECT * FROM uploads WHERE uuid = ?") {
-                    setString(1, uuid)
-                    executeQuery().safe().firstOrNull { rs ->
-                        Upload(
-                            uuid = rs.getString("uuid"),
-                            hash = rs.getString("hash"),
-                            originalname = rs.getString("originalname"),
-                            mimetype = rs.getString("mimetype"),
-                            size = rs.getLong("size"),
-                            altText = rs.getString("altText"),
-                            imageWidth = rs.getObject("imageWidth") as? Int,
-                            imageHeight = rs.getObject("imageHeight") as? Int,
-                            createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+    suspend fun createFile(userUuid: UUID, payload: UploadPayload): Either<DBException, Upload> =
+        either {
+            db.transaction {
+                // Generate deterministic UUID
+                val uuidInput =
+                    listOf(
+                            "u:${userUuid}",
+                            "h:${payload.hash}",
+                            "n:${payload.originalname}",
+                            "a:${payload.altText ?: ""}",
+                            "w:${payload.imageWidth ?: ""}",
+                            "h:${payload.imageHeight ?: ""}",
+                            "m:${payload.mimetype}",
                         )
+                        .joinToString("/")
+
+                val uuid = generateUuidV5(uuidInput).toString()
+
+                // Check if already exists
+                val existing =
+                    query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
+                        setString(1, uuid)
+                        setString(2, userUuid.toString())
+                        executeQuery().safe().firstOrNull { rs ->
+                            Upload(
+                                uuid = rs.getString("uuid"),
+                                hash = rs.getString("hash"),
+                                originalname = rs.getString("originalname"),
+                                mimetype = rs.getString("mimetype"),
+                                size = rs.getLong("size"),
+                                altText = rs.getString("altText"),
+                                imageWidth = rs.getObject("imageWidth") as? Int,
+                                imageHeight = rs.getObject("imageHeight") as? Int,
+                                createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                            )
+                        }
                     }
+
+                if (existing != null) {
+                    return@transaction existing
                 }
 
-            if (existing != null) {
-                return@transaction existing
-            }
+                val now = db.clock.instant()
+                val upload =
+                    Upload(
+                        uuid = uuid,
+                        hash = payload.hash,
+                        originalname = payload.originalname,
+                        mimetype = payload.mimetype,
+                        size = payload.size,
+                        altText = payload.altText,
+                        imageWidth = payload.imageWidth,
+                        imageHeight = payload.imageHeight,
+                        createdAt = now,
+                    )
 
-            val now = db.clock.instant()
-            val upload =
-                Upload(
-                    uuid = uuid,
-                    hash = payload.hash,
-                    originalname = payload.originalname,
-                    mimetype = payload.mimetype,
-                    size = payload.size,
-                    altText = payload.altText,
-                    imageWidth = payload.imageWidth,
-                    imageHeight = payload.imageHeight,
-                    createdAt = now,
-                )
+                query(
+                    """
+                    INSERT INTO uploads
+                        (uuid, user_uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """
+                        .trimIndent()
+                ) {
+                    setString(1, upload.uuid)
+                    setString(2, userUuid.toString())
+                    setString(3, upload.hash)
+                    setString(4, upload.originalname)
+                    setString(5, upload.mimetype)
+                    setLong(6, upload.size)
+                    setString(7, upload.altText)
+                    upload.imageWidth?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
+                    upload.imageHeight?.let { setInt(9, it) } ?: setNull(9, java.sql.Types.INTEGER)
+                    setLong(10, upload.createdAt.toEpochMilli())
+                    execute()
+                    Unit
+                }
 
-            query(
-                """
-                INSERT INTO uploads
-                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-                    .trimIndent()
-            ) {
-                setString(1, upload.uuid)
-                setString(2, upload.hash)
-                setString(3, upload.originalname)
-                setString(4, upload.mimetype)
-                setLong(5, upload.size)
-                setString(6, upload.altText)
-                upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, java.sql.Types.INTEGER)
-                upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
-                setLong(9, upload.createdAt.toEpochMilli())
-                execute()
-                Unit
-            }
-
-            upload
-        }
-    }
-
-    suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> = either {
-        db.query("SELECT * FROM uploads WHERE uuid = ?") {
-            setString(1, uuid)
-            executeQuery().safe().firstOrNull { rs ->
-                Upload(
-                    uuid = rs.getString("uuid"),
-                    hash = rs.getString("hash"),
-                    originalname = rs.getString("originalname"),
-                    mimetype = rs.getString("mimetype"),
-                    size = rs.getLong("size"),
-                    altText = rs.getString("altText"),
-                    imageWidth = rs.getObject("imageWidth") as? Int,
-                    imageHeight = rs.getObject("imageHeight") as? Int,
-                    createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
-                )
+                upload
             }
         }
-    }
+
+    suspend fun getFileByUuid(userUuid: UUID, uuid: String): Either<DBException, Upload?> =
+        either {
+            db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
+                setString(1, uuid)
+                setString(2, userUuid.toString())
+                executeQuery().safe().firstOrNull { rs ->
+                    Upload(
+                        uuid = rs.getString("uuid"),
+                        hash = rs.getString("hash"),
+                        originalname = rs.getString("originalname"),
+                        mimetype = rs.getString("mimetype"),
+                        size = rs.getLong("size"),
+                        altText = rs.getString("altText"),
+                        imageWidth = rs.getObject("imageWidth") as? Int,
+                        imageHeight = rs.getObject("imageHeight") as? Int,
+                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                    )
+                }
+            }
+        }
 }

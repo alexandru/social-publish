@@ -9,17 +9,25 @@ import java.util.UUID
 private val logger = KotlinLogging.logger {}
 
 class DocumentsDatabase(private val db: Database) {
-    private suspend fun SafeConnection.setDocumentTags(documentUuid: String, tags: List<Tag>) {
-        query("DELETE FROM document_tags WHERE document_uuid = ?") {
+    private suspend fun SafeConnection.setDocumentTags(
+        documentUuid: String,
+        userUuid: UUID,
+        tags: List<Tag>,
+    ) {
+        query("DELETE FROM document_tags WHERE document_uuid = ? AND user_uuid = ?") {
             setString(1, documentUuid)
+            setString(2, userUuid.toString())
             execute()
             Unit
         }
         tags.forEach { tag ->
-            query("INSERT INTO document_tags (document_uuid, name, kind) VALUES (?, ?, ?)") {
+            query(
+                "INSERT INTO document_tags (document_uuid, user_uuid, name, kind) VALUES (?, ?, ?, ?)"
+            ) {
                 setString(1, documentUuid)
-                setString(2, tag.name)
-                setString(3, tag.kind)
+                setString(2, userUuid.toString())
+                setString(3, tag.name)
+                setString(4, tag.kind)
                 execute()
                 Unit
             }
@@ -31,14 +39,21 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
-    private suspend fun SafeConnection.getDocumentTags(documentUuid: String): List<Tag> {
-        return query("SELECT name, kind FROM document_tags WHERE document_uuid = ?") {
+    private suspend fun SafeConnection.getDocumentTags(
+        documentUuid: String,
+        userUuid: UUID,
+    ): List<Tag> {
+        return query(
+            "SELECT name, kind FROM document_tags WHERE document_uuid = ? AND user_uuid = ?"
+        ) {
             setString(1, documentUuid)
+            setString(2, userUuid.toString())
             executeQuery().safe().toList { rs -> Tag(rs.getString("name"), rs.getString("kind")) }
         }
     }
 
     suspend fun createOrUpdate(
+        userUuid: UUID,
         kind: String,
         payload: String,
         searchKey: String? = null,
@@ -48,8 +63,9 @@ class DocumentsDatabase(private val db: Database) {
             val existing =
                 searchKey?.let { key ->
                     val docData =
-                        query("SELECT * FROM documents WHERE search_key = ?") {
+                        query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
                             setString(1, key)
+                            setString(2, userUuid.toString())
                             executeQuery().safe().firstOrNull { rs ->
                                 Triple(
                                     rs.getString("uuid"),
@@ -59,7 +75,7 @@ class DocumentsDatabase(private val db: Database) {
                             }
                         }
                     docData?.let { (uuid, existingPayload, createdAt) ->
-                        val tagsForRow = getDocumentTags(uuid)
+                        val tagsForRow = getDocumentTags(uuid, userUuid)
                         Document(
                             uuid = uuid,
                             kind = kind,
@@ -73,13 +89,14 @@ class DocumentsDatabase(private val db: Database) {
 
             if (existing != null) {
                 val updated =
-                    query("UPDATE documents SET payload = ? WHERE search_key = ?") {
+                    query("UPDATE documents SET payload = ? WHERE search_key = ? AND user_uuid = ?") {
                         setString(1, payload)
                         setString(2, searchKey)
+                        setString(3, userUuid.toString())
                         executeUpdate()
                     }
                 logger.info { "Updated document: $updated" }
-                setDocumentTags(existing.uuid, tags)
+                setDocumentTags(existing.uuid, userUuid, tags)
                 if (updated > 0) {
                     return@transaction existing.copy(payload = payload, tags = tags)
                 }
@@ -91,30 +108,59 @@ class DocumentsDatabase(private val db: Database) {
             val now = db.clock.instant()
 
             query(
-                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)"
+                "INSERT INTO documents (uuid, user_uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)"
             ) {
                 setString(1, uuid)
-                setString(2, finalSearchKey)
-                setString(3, kind)
-                setString(4, payload)
-                setLong(5, now.toEpochMilli())
+                setString(2, userUuid.toString())
+                setString(3, finalSearchKey)
+                setString(4, kind)
+                setString(5, payload)
+                setLong(6, now.toEpochMilli())
                 execute()
                 Unit
             }
-            setDocumentTags(uuid, tags)
+            setDocumentTags(uuid, userUuid, tags)
 
             Document(uuid, finalSearchKey, kind, tags, payload, now)
         }
     }
 
-    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> = either {
-        db.transaction {
-            val docData =
-                query("SELECT * FROM documents WHERE search_key = ?") {
-                    setString(1, searchKey)
-                    executeQuery().safe().firstOrNull { rs ->
-                        Pair(
-                            rs.getString("uuid"),
+    suspend fun searchByKey(userUuid: UUID, searchKey: String): Either<DBException, Document?> =
+        either {
+            db.transaction {
+                val docData =
+                    query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
+                        setString(1, searchKey)
+                        setString(2, userUuid.toString())
+                        executeQuery().safe().firstOrNull { rs ->
+                            Pair(
+                                rs.getString("uuid"),
+                                Document(
+                                    uuid = rs.getString("uuid"),
+                                    kind = rs.getString("kind"),
+                                    payload = rs.getString("payload"),
+                                    searchKey = rs.getString("search_key"),
+                                    tags = emptyList(), // Fetch tags separately
+                                    createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                                ),
+                            )
+                        }
+                    }
+                docData?.let { (uuid, doc) ->
+                    val tags = getDocumentTags(uuid, userUuid)
+                    doc.copy(tags = tags)
+                }
+            }
+        }
+
+    suspend fun searchByUuid(userUuid: UUID, uuid: String): Either<DBException, Document?> =
+        either {
+            db.transaction {
+                val doc =
+                    query("SELECT * FROM documents WHERE uuid = ? AND user_uuid = ?") {
+                        setString(1, uuid)
+                        setString(2, userUuid.toString())
+                        executeQuery().safe().firstOrNull { rs ->
                             Document(
                                 uuid = rs.getString("uuid"),
                                 kind = rs.getString("kind"),
@@ -122,39 +168,15 @@ class DocumentsDatabase(private val db: Database) {
                                 searchKey = rs.getString("search_key"),
                                 tags = emptyList(), // Fetch tags separately
                                 createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                            ),
-                        )
+                            )
+                        }
                     }
+                doc?.let {
+                    val tags = getDocumentTags(uuid, userUuid)
+                    it.copy(tags = tags)
                 }
-            docData?.let { (uuid, doc) ->
-                val tags = getDocumentTags(uuid)
-                doc.copy(tags = tags)
             }
         }
-    }
-
-    suspend fun searchByUuid(uuid: String): Either<DBException, Document?> = either {
-        db.transaction {
-            val doc =
-                query("SELECT * FROM documents WHERE uuid = ?") {
-                    setString(1, uuid)
-                    executeQuery().safe().firstOrNull { rs ->
-                        Document(
-                            uuid = rs.getString("uuid"),
-                            kind = rs.getString("kind"),
-                            payload = rs.getString("payload"),
-                            searchKey = rs.getString("search_key"),
-                            tags = emptyList(), // Fetch tags separately
-                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        )
-                    }
-                }
-            doc?.let {
-                val tags = getDocumentTags(uuid)
-                it.copy(tags = tags)
-            }
-        }
-    }
 
     enum class OrderBy(val sql: String) {
         CREATED_AT_DESC("created_at DESC")
@@ -162,13 +184,17 @@ class DocumentsDatabase(private val db: Database) {
     }
 
     suspend fun getAll(
+        userUuid: UUID,
         kind: String,
         orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
     ): Either<DBException, List<Document>> = either {
         db.transaction {
             val docs =
-                query("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}") {
+                query(
+                    "SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}"
+                ) {
                     setString(1, kind)
+                    setString(2, userUuid.toString())
                     executeQuery().safe().toList { rs ->
                         Document(
                             uuid = rs.getString("uuid"),
@@ -181,7 +207,7 @@ class DocumentsDatabase(private val db: Database) {
                     }
                 }
             docs.map { doc ->
-                val tags = getDocumentTags(doc.uuid)
+                val tags = getDocumentTags(doc.uuid, userUuid)
                 doc.copy(tags = tags)
             }
         }

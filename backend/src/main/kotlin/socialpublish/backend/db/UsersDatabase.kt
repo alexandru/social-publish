@@ -33,11 +33,13 @@ class UsersDatabase(private val db: Database) {
      *
      * @param username Unique username for the user
      * @param password Plain text password that will be hashed with BCrypt
+     * @param settings Optional user settings as JSON string
      * @return Either a DBException or the CreateResult<User>
      */
     suspend fun createUser(
         username: String,
         password: String,
+        settings: String? = null,
     ): Either<DBException, CreateResult<User>> = either {
         db.transaction {
             // Check if user already exists
@@ -55,13 +57,18 @@ class UsersDatabase(private val db: Database) {
                 val now = db.clock.instant()
 
                 query(
-                    "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+                    "INSERT INTO users (uuid, username, password_hash, settings, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
                 ) {
                     setString(1, uuid.toString())
                     setString(2, username)
                     setString(3, passwordHash)
-                    setLong(4, now.toEpochMilli())
+                    if (settings != null) {
+                        setString(4, settings)
+                    } else {
+                        setNull(4, java.sql.Types.VARCHAR)
+                    }
                     setLong(5, now.toEpochMilli())
+                    setLong(6, now.toEpochMilli())
                     execute()
                     Unit
                 }
@@ -73,6 +80,7 @@ class UsersDatabase(private val db: Database) {
                         uuid = uuid,
                         username = username,
                         passwordHash = passwordHash,
+                        settings = settings,
                         createdAt = now,
                         updatedAt = now,
                     )
@@ -96,6 +104,7 @@ class UsersDatabase(private val db: Database) {
                         uuid = UUID.fromString(rs.getString("uuid")),
                         username = rs.getString("username"),
                         passwordHash = rs.getString("password_hash"),
+                        settings = rs.getString("settings"),
                         createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
                     )
@@ -243,6 +252,56 @@ class UsersDatabase(private val db: Database) {
             query("DELETE FROM user_sessions WHERE expires_at < ?") {
                 setLong(1, now.toEpochMilli())
                 executeUpdate()
+            }
+        }
+    }
+
+    /**
+     * Update user settings.
+     *
+     * @param userUuid UUID of the user
+     * @param settings JSON string of user settings
+     * @return Either a DBException or true if updated, false if user not found
+     */
+    suspend fun updateSettings(userUuid: UUID, settings: String?): Either<DBException, Boolean> =
+        either {
+            db.transaction {
+                val now = db.clock.instant()
+                val updated =
+                    query("UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?") {
+                        if (settings != null) {
+                            setString(1, settings)
+                        } else {
+                            setNull(1, java.sql.Types.VARCHAR)
+                        }
+                        setLong(2, now.toEpochMilli())
+                        setString(3, userUuid.toString())
+                        executeUpdate()
+                    }
+                updated > 0
+            }
+        }
+
+    /**
+     * Find a user by UUID.
+     *
+     * @param uuid User UUID to search for
+     * @return Either a DBException or the User (null if not found)
+     */
+    suspend fun findByUuid(uuid: UUID): Either<DBException, User?> = either {
+        db.transaction {
+            query("SELECT * FROM users WHERE uuid = ?") {
+                setString(1, uuid.toString())
+                executeQuery().safe().firstOrNull { rs ->
+                    User(
+                        uuid = UUID.fromString(rs.getString("uuid")),
+                        username = rs.getString("username"),
+                        passwordHash = rs.getString("password_hash"),
+                        settings = rs.getString("settings"),
+                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
+                    )
+                }
             }
         }
     }

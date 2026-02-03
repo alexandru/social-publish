@@ -122,6 +122,92 @@ val migrations: List<Migration> =
                 ),
             testIfApplied = { conn -> conn.tableExists("user_sessions") },
         ),
+        // Migration 5: Add settings column to users table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    ALTER TABLE users ADD COLUMN settings TEXT
+                    """
+                ),
+            testIfApplied = { conn -> conn.columnExists("users", "settings") },
+        ),
+        // Migration 6: Add user_uuid column to documents table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    ALTER TABLE documents ADD COLUMN user_uuid VARCHAR(36)
+                    """,
+                    """
+                    CREATE INDEX IF NOT EXISTS documents_user_uuid
+                        ON documents(user_uuid, kind, created_at)
+                    """,
+                ),
+            testIfApplied = { conn -> conn.columnExists("documents", "user_uuid") },
+        ),
+        // Migration 7: Add user_uuid column to document_tags table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    ALTER TABLE document_tags ADD COLUMN user_uuid VARCHAR(36)
+                    """
+                ),
+            testIfApplied = { conn -> conn.columnExists("document_tags", "user_uuid") },
+        ),
+        // Migration 8: Add user_uuid column to uploads table
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    ALTER TABLE uploads ADD COLUMN user_uuid VARCHAR(36)
+                    """,
+                    """
+                    CREATE INDEX IF NOT EXISTS uploads_user_uuid
+                        ON uploads(user_uuid, createdAt)
+                    """,
+                ),
+            testIfApplied = { conn -> conn.columnExists("uploads", "user_uuid") },
+        ),
+        // Migration 9: Create admin user if no users exist, and assign all data to admin
+        Migration(
+            ddl =
+                listOf(
+                    """
+                    INSERT INTO users (uuid, username, password_hash, settings, created_at, updated_at)
+                    SELECT 
+                        '00000000-0000-0000-0000-000000000001',
+                        'admin',
+                        '${'$'}2a${'$'}12${'$'}LQnzVXxbDhXe8z9F.gxXguLlKQqz8KL6P3fZH8tZ0qUZvH3YI5X.W',
+                        NULL,
+                        strftime('%s','now') * 1000,
+                        strftime('%s','now') * 1000
+                    WHERE NOT EXISTS (SELECT 1 FROM users)
+                    """,
+                    """
+                    UPDATE documents 
+                    SET user_uuid = '00000000-0000-0000-0000-000000000001'
+                    WHERE user_uuid IS NULL
+                    """,
+                    """
+                    UPDATE document_tags 
+                    SET user_uuid = '00000000-0000-0000-0000-000000000001'
+                    WHERE user_uuid IS NULL
+                    """,
+                    """
+                    UPDATE uploads 
+                    SET user_uuid = '00000000-0000-0000-0000-000000000001'
+                    WHERE user_uuid IS NULL
+                    """,
+                ),
+            testIfApplied = { conn ->
+                conn.query("SELECT COUNT(*) as count FROM users WHERE uuid = '00000000-0000-0000-0000-000000000001'") {
+                    val rs = executeQuery()
+                    rs.next() && rs.getInt("count") > 0
+                }
+            },
+        ),
     )
 
 /**
@@ -135,4 +221,17 @@ private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
         setString(1, tableName)
         val rs = executeQuery()
         rs.next()
+    }
+
+/**
+ * Helper function to check if a column exists in a table.
+ *
+ * @param tableName The name of the table
+ * @param columnName The name of the column to check
+ * @return true if the column exists, false otherwise
+ */
+private suspend fun SafeConnection.columnExists(tableName: String, columnName: String): Boolean =
+    query("PRAGMA table_info($tableName)") {
+        val rs = executeQuery().safe()
+        rs.toList { it.getString("name") }.contains(columnName)
     }
