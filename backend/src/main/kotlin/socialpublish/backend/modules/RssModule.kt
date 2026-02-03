@@ -30,7 +30,10 @@ class RssModule(
     private val filesDb: FilesDatabase,
 ) {
     /** Create a new RSS post */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        userUuid: java.util.UUID,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -61,7 +64,9 @@ class RssModule(
                 )
 
             val post =
-                postsDb.create(payload, request.targets ?: emptyList()).getOrElse { throw it }
+                postsDb
+                    .create(userUuid, payload, request.targets ?: emptyList())
+                    .getOrElse { throw it }
 
             NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
         } catch (e: Exception) {
@@ -77,11 +82,12 @@ class RssModule(
 
     /** Generate RSS feed */
     suspend fun generateRss(
+        userUuid: java.util.UUID,
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAll().getOrElse { throw it }
+        val posts = postsDb.getAll(userUuid).getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
@@ -116,7 +122,8 @@ class RssModule(
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
-                val upload = filesDb.getFileByUuid(imageUuid).getOrElse { throw it } ?: continue
+                val upload =
+                    filesDb.getFileByUuid(userUuid, imageUuid).getOrElse { throw it } ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())
@@ -174,8 +181,8 @@ class RssModule(
     }
 
     /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(uuid: String): Post? {
-        return postsDb.searchByUuid(uuid).getOrElse { throw it }
+    suspend fun getRssItemByUuid(userUuid: java.util.UUID, uuid: String): Post? {
+        return postsDb.searchByUuid(userUuid, uuid).getOrElse { throw it }
     }
 
     private fun cleanupHtml(html: String): String {

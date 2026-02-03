@@ -65,7 +65,10 @@ private constructor(
     }
 
     /** Upload and process file */
-    suspend fun uploadFile(upload: UploadedFile): ApiResult<FileUploadResponse> = resourceScope {
+    suspend fun uploadFile(
+        userUuid: java.util.UUID,
+        upload: UploadedFile,
+    ): ApiResult<FileUploadResponse> = resourceScope {
         try {
             val originalFileTmp = upload.source.asFileResource().bind()
             val hash = originalFileTmp.calculateHash()
@@ -83,6 +86,7 @@ private constructor(
             // Save to database
             val upload =
                 db.createFile(
+                        userUuid,
                         UploadPayload(
                             hash = hash,
                             originalname = processed.originalname,
@@ -91,7 +95,7 @@ private constructor(
                             altText = processed.altText,
                             imageWidth = if (processed.width > 0) processed.width else null,
                             imageHeight = if (processed.height > 0) processed.height else null,
-                        )
+                        ),
                     )
                     .getOrElse { throw it }
 
@@ -170,9 +174,9 @@ private constructor(
     }
 
     /** Retrieve uploaded file */
-    suspend fun getFile(uuid: String): ApiResult<StoredFile> {
+    suspend fun getFile(userUuid: java.util.UUID, uuid: String): ApiResult<StoredFile> {
         return try {
-            val upload = db.getFileByUuid(uuid).getOrElse { throw it }
+            val upload = db.getFileByUuid(userUuid, uuid).getOrElse { throw it }
             if (upload == null) {
                 return ValidationError(
                         status = 404,
@@ -210,8 +214,8 @@ private constructor(
     }
 
     /** Read image file for API posting */
-    suspend fun readImageFile(uuid: String): ProcessedUpload? {
-        val upload = db.getFileByUuid(uuid).getOrElse { throw it } ?: return null
+    suspend fun readImageFile(userUuid: java.util.UUID, uuid: String): ProcessedUpload? {
+        val upload = db.getFileByUuid(userUuid, uuid).getOrElse { throw it } ?: return null
         val filePath = File(processedPath, upload.hash)
 
         val (source, size) =
