@@ -24,6 +24,7 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
+import socialpublish.backend.testutils.TEST_USER_UUID
 
 class BlueskyApiTest {
     @Test
@@ -72,7 +73,7 @@ class BlueskyApiTest {
                 )
 
             val req = NewPostRequest(content = "Hello bluesky")
-            val result = blueskyModule.createPost(req)
+            val result = blueskyModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
             val _ = (result as Either.Right).value
@@ -148,7 +149,7 @@ class BlueskyApiTest {
                     content = "Hello bluesky",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
-            val result = blueskyModule.createPost(req)
+            val result = blueskyModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
@@ -272,7 +273,7 @@ class BlueskyApiTest {
                     content = "Check out this article",
                     link = "http://localhost/test-page.html",
                 )
-            val result = blueskyModule.createPost(req)
+            val result = blueskyModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
 
@@ -375,7 +376,7 @@ class BlueskyApiTest {
             val longLink =
                 "http://localhost/test-page.html?with=a-very-long-query-parameter-to-overflow"
             val req = NewPostRequest(content = "Check out this article", link = longLink)
-            val result = blueskyModule.createPost(req)
+            val result = blueskyModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
 
@@ -462,7 +463,7 @@ class BlueskyApiTest {
             val linkTwo = "http://localhost/beta?another-long-query-param"
             val content = "First $linkOne and then $linkTwo"
             val req = NewPostRequest(content = content)
-            val result = blueskyModule.createPost(req)
+            val result = blueskyModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
 

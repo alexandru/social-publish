@@ -10,6 +10,7 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.testutils.TEST_USER_UUID
 
 class FilesDatabaseTest {
     @Test
@@ -31,7 +32,7 @@ class FilesDatabaseTest {
                     imageHeight = 600,
                 )
 
-            val upload = filesDb.createFile(payload).getOrElse { throw it }
+            val upload = filesDb.createFile(TEST_USER_UUID, payload).getOrElse { throw it }
 
             assertNotNull(upload.uuid)
             assertEquals("abc123", upload.hash)
@@ -63,10 +64,10 @@ class FilesDatabaseTest {
                     )
 
                 // Create first time
-                val first = filesDb.createFile(payload).getOrElse { throw it }
+                val first = filesDb.createFile(TEST_USER_UUID, payload).getOrElse { throw it }
 
                 // Try to create again with same data
-                val second = filesDb.createFile(payload).getOrElse { throw it }
+                val second = filesDb.createFile(TEST_USER_UUID, payload).getOrElse { throw it }
 
                 // Should return the same record
                 assertEquals(first.uuid, second.uuid)
@@ -95,7 +96,7 @@ class FilesDatabaseTest {
                     imageHeight = null,
                 )
 
-            val upload = filesDb.createFile(payload).getOrElse { throw it }
+            val upload = filesDb.createFile(TEST_USER_UUID, payload).getOrElse { throw it }
 
             assertNotNull(upload.uuid)
             assertNull(upload.altText)
@@ -122,10 +123,11 @@ class FilesDatabaseTest {
                     altText = "Retrieval test",
                 )
 
-            val created = filesDb.createFile(payload).getOrElse { throw it }
+            val created = filesDb.createFile(TEST_USER_UUID, payload).getOrElse { throw it }
 
             // Retrieve it
-            val retrieved = filesDb.getFileByUuid(created.uuid).getOrElse { throw it }
+            val retrieved =
+                filesDb.getFileByUuid(TEST_USER_UUID, created.uuid).getOrElse { throw it }
 
             assertNotNull(retrieved)
             assertEquals(created.uuid, retrieved.uuid)
@@ -144,7 +146,9 @@ class FilesDatabaseTest {
             val filesDb = FilesDatabase(db)
 
             val notFound =
-                filesDb.getFileByUuid("00000000-0000-0000-0000-000000000000").getOrElse { throw it }
+                filesDb
+                    .getFileByUuid(TEST_USER_UUID, "00000000-0000-0000-0000-000000000000")
+                    .getOrElse { throw it }
 
             assertNull(notFound)
         }
@@ -225,9 +229,9 @@ class FilesDatabaseTest {
                         imageHeight = 100,
                     )
 
-                val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
+                val upload1 = filesDb.createFile(TEST_USER_UUID, payload1).getOrElse { throw it }
                 // Create in a different database instance to verify determinism
-                val upload2 = filesDb.createFile(payload2).getOrElse { throw it }
+                val upload2 = filesDb.createFile(TEST_USER_UUID, payload2).getOrElse { throw it }
 
                 // Should have same UUID because payload is identical
                 assertEquals(upload1.uuid, upload2.uuid)
@@ -258,8 +262,8 @@ class FilesDatabaseTest {
                     size = 1000L,
                 )
 
-            val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
-            val upload2 = filesDb.createFile(payload2).getOrElse { throw it }
+            val upload1 = filesDb.createFile(TEST_USER_UUID, payload1).getOrElse { throw it }
+            val upload2 = filesDb.createFile(TEST_USER_UUID, payload2).getOrElse { throw it }
 
             // Should have different UUIDs because hash is different
             assert(upload1.uuid != upload2.uuid)

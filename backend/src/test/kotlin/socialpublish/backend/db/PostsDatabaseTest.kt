@@ -8,6 +8,7 @@ import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.testutils.TEST_USER_UUID
 
 class PostsDatabaseTest {
     @Test
@@ -31,8 +32,11 @@ class PostsDatabaseTest {
                 )
 
             val created =
-                postsDb.create(payload, listOf("mastodon", "bluesky")).getOrElse { throw it }
-            val retrieved = postsDb.searchByUuid(created.uuid).getOrElse { throw it }
+                postsDb.create(TEST_USER_UUID, payload, listOf("mastodon", "bluesky")).getOrElse {
+                    throw it
+                }
+            val retrieved =
+                postsDb.searchByUuid(TEST_USER_UUID, created.uuid).getOrElse { throw it }
 
             // Verify
             assertNotNull(created.uuid)

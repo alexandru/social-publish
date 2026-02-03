@@ -9,6 +9,7 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.testutils.TEST_USER_UUID
 
 class DocumentsDatabaseTest {
     @Test
@@ -22,6 +23,7 @@ class DocumentsDatabaseTest {
             val doc =
                 documentsDb
                     .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "test",
                         payload = """{"message": "Hello"}""",
                         searchKey = "test-key-1",
@@ -52,6 +54,7 @@ class DocumentsDatabaseTest {
                 val created =
                     documentsDb
                         .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
                             kind = "test",
                             payload = """{"message": "Original"}""",
                             searchKey = "update-test",
@@ -63,6 +66,7 @@ class DocumentsDatabaseTest {
                 val updated =
                     documentsDb
                         .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
                             kind = "test",
                             payload = """{"message": "Updated"}""",
                             searchKey = "update-test",
@@ -89,7 +93,11 @@ class DocumentsDatabaseTest {
 
                 val doc =
                     documentsDb
-                        .createOrUpdate(kind = "test", payload = """{"message": "Auto key"}""")
+                        .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
+                            kind = "test",
+                            payload = """{"message": "Auto key"}""",
+                        )
                         .getOrElse { throw it }
 
                 assertNotNull(doc.searchKey)
@@ -111,6 +119,7 @@ class DocumentsDatabaseTest {
             val created =
                 documentsDb
                     .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "test",
                         payload = """{"data": "searchable"}""",
                         searchKey = "find-me",
@@ -119,7 +128,7 @@ class DocumentsDatabaseTest {
                     .getOrElse { throw it }
 
             // Search for it
-            val found = documentsDb.searchByKey("find-me").getOrElse { throw it }
+            val found = documentsDb.searchByKey(TEST_USER_UUID, "find-me").getOrElse { throw it }
 
             assertNotNull(found)
             assertEquals("""{"data": "searchable"}""", found.payload)
@@ -137,7 +146,8 @@ class DocumentsDatabaseTest {
             val db = Database.connect(dbPath).bind()
             val documentsDb = DocumentsDatabase(db)
 
-            val notFound = documentsDb.searchByKey("does-not-exist").getOrElse { throw it }
+            val notFound =
+                documentsDb.searchByKey(TEST_USER_UUID, "does-not-exist").getOrElse { throw it }
 
             assertNull(notFound)
         }
@@ -155,6 +165,7 @@ class DocumentsDatabaseTest {
             val created =
                 documentsDb
                     .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "test",
                         payload = """{"uuid": "test"}""",
                         tags = listOf(Tag("uuid-tag", "test")),
@@ -162,7 +173,8 @@ class DocumentsDatabaseTest {
                     .getOrElse { throw it }
 
             // Search by UUID
-            val found = documentsDb.searchByUuid(created.uuid).getOrElse { throw it }
+            val found =
+                documentsDb.searchByUuid(TEST_USER_UUID, created.uuid).getOrElse { throw it }
 
             assertNotNull(found)
             assertEquals(created.uuid, found.uuid)
@@ -180,9 +192,9 @@ class DocumentsDatabaseTest {
             val documentsDb = DocumentsDatabase(db)
 
             val notFound =
-                documentsDb.searchByUuid("00000000-0000-0000-0000-000000000000").getOrElse {
-                    throw it
-                }
+                documentsDb
+                    .searchByUuid(TEST_USER_UUID, "00000000-0000-0000-0000-000000000000")
+                    .getOrElse { throw it }
 
             assertNull(notFound)
         }
@@ -200,21 +212,33 @@ class DocumentsDatabaseTest {
             @Suppress("UNUSED_VARIABLE")
             val post1 =
                 documentsDb
-                    .createOrUpdate(kind = "blog", payload = """{"title": "Post 1"}""")
+                    .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
+                        kind = "blog",
+                        payload = """{"title": "Post 1"}""",
+                    )
                     .getOrElse { throw it }
             @Suppress("UNUSED_VARIABLE")
             val post2 =
                 documentsDb
-                    .createOrUpdate(kind = "blog", payload = """{"title": "Post 2"}""")
+                    .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
+                        kind = "blog",
+                        payload = """{"title": "Post 2"}""",
+                    )
                     .getOrElse { throw it }
             @Suppress("UNUSED_VARIABLE")
             val note1 =
                 documentsDb
-                    .createOrUpdate(kind = "note", payload = """{"title": "Note 1"}""")
+                    .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
+                        kind = "note",
+                        payload = """{"title": "Note 1"}""",
+                    )
                     .getOrElse { throw it }
 
             // Get all blogs
-            val blogs = documentsDb.getAll("blog").getOrElse { throw it }
+            val blogs = documentsDb.getAll(TEST_USER_UUID, "blog").getOrElse { throw it }
 
             assertEquals(2, blogs.size)
             assert(blogs.all { it.kind == "blog" })
@@ -233,23 +257,35 @@ class DocumentsDatabaseTest {
                 // Create documents in sequence
                 val first =
                     documentsDb
-                        .createOrUpdate(kind = "test", payload = """{"order": 1}""")
+                        .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
+                            kind = "test",
+                            payload = """{"order": 1}""",
+                        )
                         .getOrElse { throw it }
                 // Small delay to ensure different timestamps (DB stores millis precision)
                 @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
                 val second =
                     documentsDb
-                        .createOrUpdate(kind = "test", payload = """{"order": 2}""")
+                        .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
+                            kind = "test",
+                            payload = """{"order": 2}""",
+                        )
                         .getOrElse { throw it }
                 @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
                 val third =
                     documentsDb
-                        .createOrUpdate(kind = "test", payload = """{"order": 3}""")
+                        .createOrUpdate(
+                            userUuid = TEST_USER_UUID,
+                            kind = "test",
+                            payload = """{"order": 3}""",
+                        )
                         .getOrElse { throw it }
 
                 val all =
                     documentsDb
-                        .getAll("test", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
+                        .getAll(TEST_USER_UUID, "test", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
                         .getOrElse { throw it }
 
                 assertEquals(3, all.size)
@@ -272,7 +308,7 @@ class DocumentsDatabaseTest {
             val db = Database.connect(dbPath).bind()
             val documentsDb = DocumentsDatabase(db)
 
-            val result = documentsDb.getAll("non-existent").getOrElse { throw it }
+            val result = documentsDb.getAll(TEST_USER_UUID, "non-existent").getOrElse { throw it }
 
             assertEquals(0, result.size)
         }
@@ -290,13 +326,19 @@ class DocumentsDatabaseTest {
 
             val created =
                 documentsDb
-                    .createOrUpdate(kind = "tagged", payload = """{"tagged": true}""", tags = tags)
+                    .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
+                        kind = "tagged",
+                        payload = """{"tagged": true}""",
+                        tags = tags,
+                    )
                     .getOrElse { throw it }
 
             assertEquals(3, created.tags.size)
 
             // Retrieve and verify tags are still there
-            val retrieved = documentsDb.searchByUuid(created.uuid).getOrElse { throw it }
+            val retrieved =
+                documentsDb.searchByUuid(TEST_USER_UUID, created.uuid).getOrElse { throw it }
 
             assertNotNull(retrieved)
             assertEquals(3, retrieved.tags.size)
@@ -318,6 +360,7 @@ class DocumentsDatabaseTest {
             val initial =
                 documentsDb
                     .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "test",
                         payload = """{"v": 1}""",
                         searchKey = "tag-update",
@@ -329,6 +372,7 @@ class DocumentsDatabaseTest {
             val updated =
                 documentsDb
                     .createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "test",
                         payload = """{"v": 2}""",
                         searchKey = "tag-update",

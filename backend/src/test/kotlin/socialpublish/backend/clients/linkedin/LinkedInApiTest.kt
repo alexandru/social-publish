@@ -29,6 +29,7 @@ import socialpublish.backend.common.NewLinkedInPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.server.routes.FilesRoutes
+import socialpublish.backend.testutils.TEST_USER_UUID
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
@@ -225,6 +226,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -284,7 +286,7 @@ class LinkedInApiTest {
             val request =
                 NewPostRequest(content = "Test LinkedIn post", targets = listOf("linkedin"))
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Right)
             assertTrue(postCreated, "Post should have been created")
@@ -347,6 +349,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -423,7 +426,7 @@ class LinkedInApiTest {
                     images = listOf(upload.uuid),
                 )
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Right)
             assertTrue(uploadRegistered, "Upload should have been registered")
@@ -468,7 +471,7 @@ class LinkedInApiTest {
 
             val request = NewPostRequest(content = "", targets = listOf("linkedin"))
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Left)
             val error = (result as Either.Left).value
@@ -489,6 +492,7 @@ class LinkedInApiTest {
             val token = LinkedInOAuthToken(accessToken = "test-access-token", expiresIn = 5184000)
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -519,7 +523,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val hasAuth = module.hasLinkedInAuth()
+            val hasAuth = module.hasLinkedInAuth(TEST_USER_UUID)
 
             assertTrue(hasAuth)
 
@@ -558,7 +562,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val hasAuth = module.hasLinkedInAuth()
+            val hasAuth = module.hasLinkedInAuth(TEST_USER_UUID)
 
             assertFalse(hasAuth)
 
@@ -643,6 +647,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -720,7 +725,7 @@ class LinkedInApiTest {
                     images = listOf(upload1.uuid, upload2.uuid, upload3.uuid),
                 )
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Right)
             assertEquals(3, uploadCount, "Should have uploaded 3 images")
@@ -751,6 +756,7 @@ class LinkedInApiTest {
                     )
                 val _ =
                     documentsDb.createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "linkedin-oauth-token",
                         payload = Json.encodeToString(token),
                         searchKey = "linkedin-oauth-token",
@@ -854,7 +860,7 @@ class LinkedInApiTest {
                         link = "http://localhost/preview-page",
                     )
 
-                val result = module.createPost(request)
+                val result = module.createPost(TEST_USER_UUID, request)
 
                 assertTrue(result is Either.Right)
                 // Thumbnail download/upload removed: ensure post was created
@@ -1380,6 +1386,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -1453,7 +1460,7 @@ class LinkedInApiTest {
                     images = listOf(upload.uuid),
                 )
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Right)
             assertTrue(registrationReceived, "Upload registration should have been called")
@@ -1494,6 +1501,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -1557,7 +1565,7 @@ class LinkedInApiTest {
                     images = listOf(upload.uuid),
                 )
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Left, "Should fail when upload registration fails")
             val error = (result as Either.Left).value
@@ -1584,6 +1592,7 @@ class LinkedInApiTest {
                 )
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
                     searchKey = "linkedin-oauth-token",
@@ -1639,7 +1648,7 @@ class LinkedInApiTest {
 
             val request = NewPostRequest(content = "Test post", targets = listOf("linkedin"))
 
-            val result = module.createPost(request)
+            val result = module.createPost(TEST_USER_UUID, request)
 
             assertTrue(result is Either.Left, "Should fail when API returns error")
             val error = (result as Either.Left).value

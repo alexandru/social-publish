@@ -22,6 +22,7 @@ import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
+import socialpublish.backend.testutils.TEST_USER_UUID
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.imageDimensions
@@ -89,7 +90,7 @@ class MastodonApiTest {
                 )
 
             val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
-            val result = mastodonModule.createPost(req)
+            val result = mastodonModule.createPost(TEST_USER_UUID, req)
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value as NewMastodonPostResponse

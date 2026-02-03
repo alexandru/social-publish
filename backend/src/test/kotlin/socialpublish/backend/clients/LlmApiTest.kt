@@ -22,6 +22,7 @@ import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.llm.OpenAiChatRequest
 import socialpublish.backend.server.routes.FilesRoutes
+import socialpublish.backend.testutils.TEST_USER_UUID
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
@@ -95,7 +96,7 @@ class LlmApiTest {
                 )
 
             // Generate alt-text
-            val result = llmModule.generateAltText(upload.uuid)
+            val result = llmModule.generateAltText(TEST_USER_UUID, upload.uuid)
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result but got: $result")
@@ -193,7 +194,7 @@ class LlmApiTest {
                 )
 
             // Generate alt-text
-            val result = llmModule.generateAltText(upload.uuid)
+            val result = llmModule.generateAltText(TEST_USER_UUID, upload.uuid)
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result")
@@ -230,7 +231,7 @@ class LlmApiTest {
                     client,
                 )
 
-            val result = llmModule.generateAltText("non-existent-uuid")
+            val result = llmModule.generateAltText(TEST_USER_UUID, "non-existent-uuid")
 
             assertTrue(result is Either.Left, "Expected error result")
             val error = (result as Either.Left).value

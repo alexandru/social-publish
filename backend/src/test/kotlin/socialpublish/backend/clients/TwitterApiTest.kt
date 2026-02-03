@@ -29,6 +29,7 @@ import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
+import socialpublish.backend.testutils.TEST_USER_UUID
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.imageDimensions
@@ -131,6 +132,7 @@ class TwitterApiTest {
 
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "twitter-oauth-token",
                     payload =
                         Json.encodeToString(
@@ -152,7 +154,7 @@ class TwitterApiTest {
                     content = "Hello twitter",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
-            val result = twitterModule.createPost(req)
+            val result = twitterModule.createPost(TEST_USER_UUID, req)
             assertTrue(result.isRight())
 
             assertEquals(2, uploadedImages.size)
@@ -234,6 +236,7 @@ class TwitterApiTest {
 
             val _ =
                 documentsDb.createOrUpdate(
+                    userUuid = TEST_USER_UUID,
                     kind = "twitter-oauth-token",
                     payload =
                         Json.encodeToString(
@@ -252,7 +255,7 @@ class TwitterApiTest {
                     content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
                     cleanupHtml = true,
                 )
-            val result = twitterModule.createPost(req)
+            val result = twitterModule.createPost(TEST_USER_UUID, req)
             assertTrue(result.isRight())
 
             // Jsoup properly decodes HTML entities and removes tags
@@ -303,6 +306,7 @@ class TwitterApiTest {
                 // Create a Twitter OAuth token in the database
                 val _ =
                     documentsDb.createOrUpdate(
+                        userUuid = TEST_USER_UUID,
                         kind = "twitter-oauth-token",
                         payload =
                             Json.encodeToString(
@@ -326,7 +330,11 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                    routing {
+                        get("/api/twitter/status") {
+                            twitterModule.statusRoute(call, TEST_USER_UUID)
+                        }
+                    }
                 }
 
                 // Make request and verify it doesn't throw serialization error
@@ -392,7 +400,11 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                    routing {
+                        get("/api/twitter/status") {
+                            twitterModule.statusRoute(call, TEST_USER_UUID)
+                        }
+                    }
                 }
 
                 // Make request without any token in database
