@@ -29,6 +29,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.head
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
@@ -47,8 +48,10 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
+import socialpublish.backend.server.routes.AccountRoutes
 import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LoginRequest
@@ -57,6 +60,7 @@ import socialpublish.backend.server.routes.PublishRoutes
 import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.UserResponse
+import socialpublish.backend.server.routes.UserSettingsResponse
 import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
@@ -105,6 +109,7 @@ fun startServer(
     val publishRoutes = PublishRoutes(publishModule)
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
+    val accountRoutes = AccountRoutes(usersDb)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -495,6 +500,53 @@ fun startServer(
                             }
                         }
                         responses { documentNewPostResponses<Map<String, NewPostResponse>>() }
+                    }
+
+                // -----------------------------------------------------------
+                // Account settings routes
+
+                get("/api/account/settings") { accountRoutes.getSettings(call) }
+                    .describe {
+                        summary = "Get user settings"
+                        description =
+                            "Retrieve current user's social network and integration settings"
+                        documentSecurityRequirements()
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "User settings retrieved successfully"
+                                schema = jsonSchema<UserSettingsResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
+                put("/api/account/settings") { accountRoutes.updateSettings(call) }
+                    .describe {
+                        summary = "Update user settings"
+                        description =
+                            "Update current user's social network and integration settings"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<UserSettings>() }
+                        }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "Settings updated successfully"
+                                schema = jsonSchema<UserSettingsResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Invalid settings format"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
                     }
 
                 // -----------------------------------------------------------
