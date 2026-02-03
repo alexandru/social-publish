@@ -17,13 +17,20 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.testutils.TEST_USER_UUID
+import socialpublish.backend.testutils.createTestDatabase
 
 @Serializable private data class TokenResponse(val token: String?)
 
@@ -36,10 +43,19 @@ class AuthRoutesTest {
             jwtSecret = "test-secret",
         )
 
+    private lateinit var usersDb: UsersDatabase
+
+    @BeforeEach
+    fun setup(@TempDir tempDir: Path) = runTest {
+        val db = createTestDatabase(tempDir)
+        usersDb = UsersDatabase(db)
+        usersDb.createUser("testuser", "testpass")
+    }
+
     @Test
     fun `login should work with correct password`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -71,7 +87,7 @@ class AuthRoutesTest {
             )
 
         testApplication {
-            val authRoute = AuthRoutes(testConfig)
+            val authRoute = AuthRoutes(testConfig, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -99,7 +115,7 @@ class AuthRoutesTest {
             )
 
         testApplication {
-            val authRoute = AuthRoutes(testConfig)
+            val authRoute = AuthRoutes(testConfig, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -119,7 +135,7 @@ class AuthRoutesTest {
     @Test
     fun `login should return twitter auth status`() {
         testApplication {
-            val authRoute = AuthRoutes(config, twitterAuthProvider = { true })
+            val authRoute = AuthRoutes(config, usersDb, twitterAuthProvider = { true })
 
             application {
                 install(ContentNegotiation) { json() }
@@ -143,7 +159,7 @@ class AuthRoutesTest {
     @Test
     fun `login should return linkedin auth status`() {
         testApplication {
-            val authRoute = AuthRoutes(config, linkedInAuthProvider = { true })
+            val authRoute = AuthRoutes(config, usersDb, linkedInAuthProvider = { true })
 
             application {
                 install(ContentNegotiation) { json() }
@@ -167,7 +183,7 @@ class AuthRoutesTest {
     @Test
     fun `login should work with form-urlencoded data`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -191,7 +207,7 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config)
+                val authRoutes = AuthRoutes(config, usersDb)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -200,7 +216,7 @@ class AuthRoutesTest {
                 }
             }
 
-            val token = authModule.generateToken("testuser")
+            val token = authModule.generateToken("testuser", TEST_USER_UUID.toString())
             val response = client.get("/api/protected?access_token=$token")
 
             assertEquals(HttpStatusCode.OK, response.status)
@@ -210,7 +226,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject wrong username`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -230,7 +246,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject malformed JSON`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -250,7 +266,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject unsupported content type`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -270,7 +286,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing username`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -290,7 +306,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing password`() {
         testApplication {
-            val authRoute = AuthRoutes(config)
+            val authRoute = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -312,7 +328,7 @@ class AuthRoutesTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config)
+                val authRoutes = AuthRoutes(config, usersDb)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -332,7 +348,7 @@ class AuthRoutesTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config)
+                val authRoutes = AuthRoutes(config, usersDb)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -357,7 +373,7 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config)
+                val authRoutes = AuthRoutes(config, usersDb)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -366,7 +382,7 @@ class AuthRoutesTest {
                 }
             }
 
-            val token = authModule.generateToken("testuser")
+            val token = authModule.generateToken("testuser", TEST_USER_UUID.toString())
             val response =
                 client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
 
@@ -377,7 +393,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should extract token from Bearer header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
             application {
                 install(ContentNegotiation) { json() }
                 routing {
@@ -399,7 +415,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should extract token from cookie`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -422,7 +438,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should return null for malformed Authorization header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -445,7 +461,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should return null when no token present`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -467,7 +483,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should prioritize Bearer header over query param`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -492,7 +508,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should prioritize query param over cookie`() {
         testApplication {
-            val authRoutes = AuthRoutes(config)
+            val authRoutes = AuthRoutes(config, usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -518,7 +534,12 @@ class AuthRoutesTest {
     fun `login should return auth status with both providers true`() {
         testApplication {
             val authRoute =
-                AuthRoutes(config, twitterAuthProvider = { true }, linkedInAuthProvider = { true })
+                AuthRoutes(
+                    config,
+                    usersDb,
+                    twitterAuthProvider = { true },
+                    linkedInAuthProvider = { true },
+                )
 
             application {
                 install(ContentNegotiation) { json() }
@@ -546,6 +567,7 @@ class AuthRoutesTest {
             val authRoute =
                 AuthRoutes(
                     config,
+                    usersDb,
                     twitterAuthProvider = { false },
                     linkedInAuthProvider = { false },
                 )

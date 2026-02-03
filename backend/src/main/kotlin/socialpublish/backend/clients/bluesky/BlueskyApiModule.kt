@@ -411,7 +411,10 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        userUuid: java.util.UUID,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -571,11 +574,12 @@ class BlueskyApiModule(
 
     /** Handle Bluesky post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
-        val userUuid = call.getAuthenticatedUserUuid()
-            ?: run {
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-                return
-            }
+        val userUuid =
+            call.getAuthenticatedUserUuid()
+                ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                    return
+                }
 
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()

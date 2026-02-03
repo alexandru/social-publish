@@ -83,7 +83,8 @@ import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
-private val OAUTH_STATE_SYSTEM_UUID = java.util.UUID.fromString("00000000-0000-0000-0000-000000000000")
+private val OAUTH_STATE_SYSTEM_UUID =
+    java.util.UUID.fromString("00000000-0000-0000-0000-000000000000")
 
 /**
  * LinkedIn API integration for OAuth2 authentication and posting to LinkedIn.
@@ -451,7 +452,10 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth token to database */
-    suspend fun saveOAuthToken(userUuid: java.util.UUID, token: LinkedInOAuthToken): ApiResult<Unit> {
+    suspend fun saveOAuthToken(
+        userUuid: java.util.UUID,
+        token: LinkedInOAuthToken,
+    ): ApiResult<Unit> {
         return try {
             val _ =
                 documentsDb.createOrUpdate(
@@ -734,7 +738,10 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
-    suspend fun createPost(userUuid: java.util.UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        userUuid: java.util.UUID,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -1065,11 +1072,12 @@ class LinkedInApiModule(
 
     /** Handle LinkedIn post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
-        val userUuid = call.getAuthenticatedUserUuid()
-            ?: run {
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-                return
-            }
+        val userUuid =
+            call.getAuthenticatedUserUuid()
+                ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                    return
+                }
 
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()

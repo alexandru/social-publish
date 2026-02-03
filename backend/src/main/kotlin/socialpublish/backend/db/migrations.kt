@@ -202,7 +202,9 @@ val migrations: List<Migration> =
                     """,
                 ),
             testIfApplied = { conn ->
-                conn.query("SELECT COUNT(*) as count FROM users WHERE uuid = '00000000-0000-0000-0000-000000000001'") {
+                conn.query(
+                    "SELECT COUNT(*) as count FROM users WHERE uuid = '00000000-0000-0000-0000-000000000001'"
+                ) {
                     val rs = executeQuery()
                     rs.next() && rs.getInt("count") > 0
                 }

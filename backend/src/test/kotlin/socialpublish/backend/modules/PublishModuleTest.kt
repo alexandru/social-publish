@@ -18,6 +18,7 @@ import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.testutils.TEST_USER_UUID
 import socialpublish.backend.testutils.createTestDatabase
 
 class PublishModuleTest {
@@ -45,7 +46,7 @@ class PublishModuleTest {
         val publishModule = PublishModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post to RSS", targets = listOf("rss"))
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
@@ -61,7 +62,7 @@ class PublishModuleTest {
         val publishModule = PublishModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         val errorResult = assertIs<Either.Left<ApiError>>(result)
         val error = errorResult.value
@@ -82,7 +83,7 @@ class PublishModuleTest {
         val request =
             NewPostRequest(content = "Test post", targets = listOf("rss", "mastodon", "twitter"))
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         val errorResult = assertIs<Either.Left<ApiError>>(result)
         val error = errorResult.value
@@ -119,7 +120,7 @@ class PublishModuleTest {
         val publishModule = PublishModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = emptyList())
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
@@ -131,7 +132,7 @@ class PublishModuleTest {
         val publishModule = PublishModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = null)
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
@@ -143,7 +144,7 @@ class PublishModuleTest {
         val publishModule = PublishModule(null, null, null, null, rssModule)
         val request = NewPostRequest(content = "Test post", targets = listOf("RSS", "Mastodon"))
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         // Should process as lowercase (rss succeeds, mastodon fails)
         val errorResult = assertIs<Either.Left<ApiError>>(result)
@@ -161,7 +162,7 @@ class PublishModuleTest {
                 targets = listOf("rss", "mastodon", "bluesky", "twitter", "linkedin"),
             )
 
-        val result = publishModule.broadcastPost(request)
+        val result = publishModule.broadcastPost(TEST_USER_UUID, request)
 
         // Should return composite error since 4 platforms are not configured
         val errorResult = assertIs<Either.Left<ApiError>>(result)

@@ -101,7 +101,8 @@ class AuthRoutes(
                     call.respond(
                         LoginResponse(
                             token = token,
-                            hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                            hasAuth =
+                                AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
                         )
                     )
                 } else {

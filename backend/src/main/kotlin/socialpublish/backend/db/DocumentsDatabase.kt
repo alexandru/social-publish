@@ -89,7 +89,9 @@ class DocumentsDatabase(private val db: Database) {
 
             if (existing != null) {
                 val updated =
-                    query("UPDATE documents SET payload = ? WHERE search_key = ? AND user_uuid = ?") {
+                    query(
+                        "UPDATE documents SET payload = ? WHERE search_key = ? AND user_uuid = ?"
+                    ) {
                         setString(1, payload)
                         setString(2, searchKey)
                         setString(3, userUuid.toString())

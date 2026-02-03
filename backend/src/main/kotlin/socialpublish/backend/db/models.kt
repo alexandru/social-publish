@@ -129,27 +129,11 @@ data class BlueskyUserSettings(
     val password: String,
 )
 
-@Serializable
-data class MastodonUserSettings(
-    val host: String,
-    val accessToken: String,
-)
+@Serializable data class MastodonUserSettings(val host: String, val accessToken: String)
 
 @Serializable
-data class TwitterUserSettings(
-    val oauth1ConsumerKey: String,
-    val oauth1ConsumerSecret: String,
-)
+data class TwitterUserSettings(val oauth1ConsumerKey: String, val oauth1ConsumerSecret: String)
 
-@Serializable
-data class LinkedInUserSettings(
-    val clientId: String,
-    val clientSecret: String,
-)
+@Serializable data class LinkedInUserSettings(val clientId: String, val clientSecret: String)
 
-@Serializable
-data class LlmUserSettings(
-    val apiUrl: String,
-    val apiKey: String,
-    val model: String,
-)
+@Serializable data class LlmUserSettings(val apiUrl: String, val apiKey: String, val model: String)
