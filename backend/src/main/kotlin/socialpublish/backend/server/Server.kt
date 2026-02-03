@@ -47,6 +47,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.FilesRoutes
@@ -57,6 +58,7 @@ import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.configureAuth
+import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -65,6 +67,7 @@ fun startServer(
     documentsDb: DocumentsDatabase,
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
+    usersDb: UsersDatabase,
     engine: ApplicationEngineFactory<*, *> = CIO,
 ) = resource {
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
@@ -88,8 +91,23 @@ fun startServer(
     val authRoutes =
         AuthRoutes(
             config = config.server.auth,
-            twitterAuthProvider = twitterModule?.let { { it.hasTwitterAuth() } },
-            linkedInAuthProvider = linkedInModule?.let { { it.hasLinkedInAuth() } },
+            usersDb = usersDb,
+            twitterAuthProvider =
+                twitterModule?.let {
+                    suspend {
+                        val userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+                        it.hasTwitterAuth(userUuid)
+                    }
+                },
+            linkedInAuthProvider =
+                linkedInModule?.let {
+                    suspend {
+                        val userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+                        it.hasLinkedInAuth(userUuid)
+                    }
+                },
         )
     val publishModule =
         PublishModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)
@@ -273,6 +291,12 @@ fun startServer(
 
                 // LLM alt-text generation
                 post("/api/llm/generate-alt-text") {
+                        val userUuid = call.getAuthenticatedUserUuid()
+                        if (userUuid == null) {
+                            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+                            return@post
+                        }
+
                         if (llmModule != null) {
                             val request =
                                 runCatching { call.receive<GenerateAltTextRequest>() }.getOrNull()
@@ -287,8 +311,9 @@ fun startServer(
                             when (
                                 val result =
                                     llmModule.generateAltText(
+                                        userUuid,
                                         request.imageUuid,
-                                        request.userContext,
+                                        request.userContext ?: "",
                                         request.language,
                                     )
                             ) {
@@ -525,8 +550,14 @@ fun startServer(
                     }
 
                 get("/api/twitter/status") {
+                        val userUuid = call.getAuthenticatedUserUuid()
+                        if (userUuid == null) {
+                            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+                            return@get
+                        }
+
                         if (twitterModule != null) {
-                            twitterModule.statusRoute(call)
+                            twitterModule.statusRoute(call, userUuid)
                         } else {
                             call.respond(
                                 HttpStatusCode.ServiceUnavailable,
@@ -568,8 +599,14 @@ fun startServer(
                     }
 
                 get("/api/linkedin/callback") {
+                        val userUuid = call.getAuthenticatedUserUuid()
+                        if (userUuid == null) {
+                            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+                            return@get
+                        }
+
                         if (linkedInModule != null) {
-                            linkedInModule.callbackRoute(call)
+                            linkedInModule.callbackRoute(call, userUuid)
                         } else {
                             call.respond(
                                 HttpStatusCode.ServiceUnavailable,
@@ -583,8 +620,14 @@ fun startServer(
                     }
 
                 get("/api/linkedin/status") {
+                        val userUuid = call.getAuthenticatedUserUuid()
+                        if (userUuid == null) {
+                            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+                            return@get
+                        }
+
                         if (linkedInModule != null) {
-                            linkedInModule.statusRoute(call)
+                            linkedInModule.statusRoute(call, userUuid)
                         } else {
                             call.respond(
                                 HttpStatusCode.ServiceUnavailable,

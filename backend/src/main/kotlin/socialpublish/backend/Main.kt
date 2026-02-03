@@ -305,6 +305,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                                 resources.documentsDb,
                                 resources.postsDb,
                                 resources.filesDb,
+                                resources.usersDb,
                                 engine = CIO,
                             )
                             .bind()

@@ -27,18 +27,21 @@ class PublishModule(
     private val rssModule: RssModule,
 ) {
     /** Broadcast post to multiple platforms */
-    suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
+    suspend fun broadcastPost(
+        userUuid: java.util.UUID,
+        request: NewPostRequest,
+    ): ApiResult<Map<String, NewPostResponse>> {
         val targets = request.targets?.map { it.lowercase() } ?: emptyList()
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
 
         // Only publish to RSS if explicitly requested
         if (targets.contains("rss")) {
-            tasks.add { rssModule.createPost(request) }
+            tasks.add { rssModule.createPost(userUuid, request) }
         }
 
         if (targets.contains("mastodon")) {
             tasks.add {
-                mastodonModule?.createPost(request)
+                mastodonModule?.createPost(userUuid, request)
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Mastodon integration not configured",
@@ -50,7 +53,7 @@ class PublishModule(
 
         if (targets.contains("bluesky")) {
             tasks.add {
-                blueskyModule?.createPost(request)
+                blueskyModule?.createPost(userUuid, request)
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Bluesky integration not configured",
@@ -62,7 +65,7 @@ class PublishModule(
 
         if (targets.contains("twitter")) {
             tasks.add {
-                twitterModule?.createPost(request)
+                twitterModule?.createPost(userUuid, request)
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "Twitter integration not configured",
@@ -74,7 +77,7 @@ class PublishModule(
 
         if (targets.contains("linkedin")) {
             tasks.add {
-                linkedInModule?.createPost(request)
+                linkedInModule?.createPost(userUuid, request)
                     ?: ValidationError(
                             status = 503,
                             errorMessage = "LinkedIn integration not configured",

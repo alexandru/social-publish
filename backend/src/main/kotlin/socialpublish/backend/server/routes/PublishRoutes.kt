@@ -17,6 +17,12 @@ import socialpublish.backend.modules.PublishModule
 class PublishRoutes(private val publishModule: PublishModule) {
     /** Handle broadcast POST HTTP route */
     suspend fun broadcastPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+        if (userUuid == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+            return
+        }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -53,7 +59,7 @@ class PublishRoutes(private val publishModule: PublishModule) {
                     )
                 }
 
-        when (val result = publishModule.broadcastPost(request)) {
+        when (val result = publishModule.broadcastPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

@@ -16,6 +16,12 @@ import socialpublish.backend.modules.RssModule
 class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+        if (userUuid == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Unauthorized"))
+            return
+        }
+
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -43,7 +49,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     )
                 }
 
-        when (val result = rssModule.createPost(request)) {
+        when (val result = rssModule.createPost(userUuid, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -57,16 +63,22 @@ class RssRoutes(private val rssModule: RssModule) {
 
     /** Handle RSS feed generation HTTP route */
     suspend fun generateRssRoute(call: ApplicationCall) {
+        // RSS feeds are public - use admin user for now (TODO: make configurable per user)
+        val adminUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+
         val target = call.parameters["target"]
         val filterByLinks = call.request.queryParameters["filterByLinks"]
         val filterByImages = call.request.queryParameters["filterByImages"]
 
-        val rssContent = rssModule.generateRss(filterByLinks, filterByImages, target)
+        val rssContent = rssModule.generateRss(adminUuid, filterByLinks, filterByImages, target)
         call.respondText(rssContent, ContentType.Application.Rss)
     }
 
     /** Get RSS item by UUID */
     suspend fun getRssItem(call: ApplicationCall) {
+        // RSS feeds are public - use admin user for now (TODO: make configurable per user)
+        val adminUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+
         val uuid =
             call.parameters["uuid"]
                 ?: run {
@@ -74,7 +86,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     return
                 }
 
-        val post = rssModule.getRssItemByUuid(uuid)
+        val post = rssModule.getRssItemByUuid(adminUuid, uuid)
         if (post == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
             return

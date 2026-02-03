@@ -26,9 +26,15 @@ import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
     suspend fun uploadFileRoute(call: ApplicationCall) = resourceScope {
+        val userUuid = call.getAuthenticatedUserUuid()
+        if (userUuid == null) {
+            respondJson(call, ErrorResponse("Unauthorized"), HttpStatusCode.Unauthorized)
+            return@resourceScope
+        }
+
         val result =
             when (val upload = receiveUpload(call).bind()) {
-                is Either.Right -> filesModule.uploadFile(upload.value)
+                is Either.Right -> filesModule.uploadFile(userUuid, upload.value)
                 is Either.Left -> upload
             }
 
@@ -46,6 +52,12 @@ class FilesRoutes(private val filesModule: FilesModule) {
     }
 
     suspend fun getFileRoute(call: ApplicationCall) {
+        val userUuid = call.getAuthenticatedUserUuid()
+        if (userUuid == null) {
+            respondJson(call, ErrorResponse("Unauthorized"), HttpStatusCode.Unauthorized)
+            return
+        }
+
         val uuid =
             call.parameters["uuid"]
                 ?: run {
@@ -57,7 +69,7 @@ class FilesRoutes(private val filesModule: FilesModule) {
                     return
                 }
 
-        when (val result = filesModule.getFile(uuid)) {
+        when (val result = filesModule.getFile(userUuid, uuid)) {
             is Either.Right -> respondFile(call, result.value)
             is Either.Left -> {
                 val error = result.value
