@@ -23,6 +23,7 @@ class FilesModuleTest {
         val upload1 =
             filesModule
                 .uploadFile(
+                    TEST_USER_UUID,
                     UploadedFile(
                         fileName = "flower1.jpeg",
                         source =
@@ -32,12 +33,13 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "rose",
-                    )
+                    ),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
         val upload2 =
             filesModule
                 .uploadFile(
+                    TEST_USER_UUID,
                     UploadedFile(
                         fileName = "flower2.jpeg",
                         source =
@@ -47,12 +49,12 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "tulip",
-                    )
+                    ),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
-        val processed1 = requireNotNull(filesModule.readImageFile(upload1.uuid))
-        val processed2 = requireNotNull(filesModule.readImageFile(upload2.uuid))
+        val processed1 = requireNotNull(filesModule.readImageFile(TEST_USER_UUID, upload1.uuid))
+        val processed2 = requireNotNull(filesModule.readImageFile(TEST_USER_UUID, upload2.uuid))
 
         assertEquals("rose", processed1.altText)
         assertEquals("tulip", processed2.altText)
@@ -73,7 +75,7 @@ class FilesModuleTest {
         assertEquals(stored2.height, processed2.height)
 
         // Verify readImageFile returns the same optimized image
-        val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid))
+        val retrieved = requireNotNull(filesModule.readImageFile(TEST_USER_UUID, upload1.uuid))
         val retrievedDimensions = imageDimensions(retrieved.source.readBytes())
 
         assertEquals(stored1.width, retrievedDimensions.width)
@@ -89,6 +91,7 @@ class FilesModuleTest {
         val upload =
             filesModule
                 .uploadFile(
+                    TEST_USER_UUID,
                     UploadedFile(
                         fileName = "flower1.jpeg",
                         source =
@@ -98,11 +101,11 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "rose",
-                    )
+                    ),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
-        val result = filesModule.getFile(upload.uuid)
+        val result = filesModule.getFile(TEST_USER_UUID, upload.uuid)
 
         assertTrue(result is Either.Right)
         val storedFile = (result as Either.Right).value
@@ -116,7 +119,7 @@ class FilesModuleTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
 
-        val result = filesModule.getFile("missing-uuid")
+        val result = filesModule.getFile(TEST_USER_UUID, "missing-uuid")
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -131,6 +134,7 @@ class FilesModuleTest {
 
         val result =
             filesModule.uploadFile(
+                TEST_USER_UUID,
                 UploadedFile(
                     fileName = "notes.txt",
                     source =
@@ -138,7 +142,7 @@ class FilesModuleTest {
                             ByteReadChannel("not-an-image".toByteArray()).asSource().buffered()
                         ),
                     altText = null,
-                )
+                ),
             )
 
         assertTrue(result is Either.Left)

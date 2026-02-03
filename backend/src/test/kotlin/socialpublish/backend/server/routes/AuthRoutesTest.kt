@@ -49,7 +49,7 @@ class AuthRoutesTest {
     fun setup(@TempDir tempDir: Path) = runTest {
         val db = createTestDatabase(tempDir)
         usersDb = UsersDatabase(db)
-        usersDb.createUser("testuser", "testpass")
+        val _ = usersDb.createUser("testuser", "testpass")
     }
 
     @Test

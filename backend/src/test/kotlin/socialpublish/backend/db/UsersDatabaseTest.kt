@@ -461,6 +461,7 @@ class UsersDatabaseTest {
                 uuid = UUID.randomUUID(),
                 username = "test",
                 passwordHash = "hash",
+                settings = null,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )

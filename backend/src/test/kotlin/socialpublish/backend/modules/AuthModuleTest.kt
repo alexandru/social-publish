@@ -4,6 +4,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import socialpublish.backend.testutils.TEST_USER_UUID
 
 class AuthModuleTest {
     private val jwtSecret = "test-secret"
@@ -11,7 +12,7 @@ class AuthModuleTest {
     @Test
     fun `should generate valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser")
+        val token = authModule.generateToken("testuser", TEST_USER_UUID.toString())
 
         assertNotNull(token)
         assertTrue(token.isNotEmpty())
@@ -20,7 +21,7 @@ class AuthModuleTest {
     @Test
     fun `should verify valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser")
+        val token = authModule.generateToken("testuser", TEST_USER_UUID.toString())
         val username = authModule.verifyToken(token)
 
         assertEquals("testuser", username)
@@ -39,7 +40,7 @@ class AuthModuleTest {
         val authModule1 = AuthModule("secret1")
         val authModule2 = AuthModule("secret2")
 
-        val token = authModule1.generateToken("testuser")
+        val token = authModule1.generateToken("testuser", TEST_USER_UUID.toString())
         val username = authModule2.verifyToken(token)
 
         assertEquals(null, username)
