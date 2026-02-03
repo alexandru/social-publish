@@ -15,21 +15,33 @@ class AuthModule(jwtSecret: String) {
     val verifier: JWTVerifier by lazy { JWT.require(algorithm).build() }
 
     /** Generate JWT token for authenticated user */
-    fun generateToken(username: String): String {
+    fun generateToken(username: String, userUuid: String): String {
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
+            .withClaim("user_uuid", userUuid)
             .withExpiresAt(Date(System.currentTimeMillis() + JWT_EXPIRATION_MILLIS))
             .sign(algorithm)
     }
 
-    /** Verify JWT token */
+    /** Verify JWT token and return username */
     fun verifyToken(token: String): String? {
         return try {
             val jwt = verifier.verify(token)
             jwt.getClaim("username").asString()
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify JWT token" }
+            null
+        }
+    }
+
+    /** Extract user UUID from verified JWT token */
+    fun getUserUuid(token: String): String? {
+        return try {
+            val jwt = verifier.verify(token)
+            jwt.getClaim("user_uuid").asString()
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to extract user UUID from JWT token" }
             null
         }
     }

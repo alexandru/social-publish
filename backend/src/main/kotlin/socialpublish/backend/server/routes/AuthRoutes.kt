@@ -18,6 +18,7 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
 
@@ -33,6 +34,7 @@ private val logger = KotlinLogging.logger {}
 
 class AuthRoutes(
     private val config: ServerAuthConfig,
+    private val usersDb: UsersDatabase,
     private val twitterAuthProvider: (suspend () -> Boolean)? = null,
     private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
 ) {
@@ -66,26 +68,46 @@ class AuthRoutes(
             return
         }
 
-        // Check username and verify password with BCrypt
-        val isPasswordValid =
-            try {
-                authModule.verifyPassword(request.password, config.passwordHash)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to verify password for user: ${request.username}" }
-                false
-            }
-        if (request.username == config.username && isPasswordValid) {
-            val token = authModule.generateToken(request.username)
-            val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
-            val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
-            call.respond(
-                LoginResponse(
-                    token = token,
-                    hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+        // Look up user from database and verify password
+        val userResult = usersDb.findByUsername(request.username)
+        when (userResult) {
+            is arrow.core.Either.Left -> {
+                logger.error { "Database error during login: ${userResult.value.message}" }
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse(error = "Internal server error"),
                 )
-            )
-        } else {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+                return
+            }
+            is arrow.core.Either.Right -> {
+                val user = userResult.value
+                if (user == null) {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+                    return
+                }
+
+                val isPasswordValid =
+                    try {
+                        authModule.verifyPassword(request.password, user.passwordHash)
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Failed to verify password for user: ${request.username}" }
+                        false
+                    }
+
+                if (isPasswordValid) {
+                    val token = authModule.generateToken(request.username, user.uuid.toString())
+                    val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
+                    val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
+                    call.respond(
+                        LoginResponse(
+                            token = token,
+                            hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                        )
+                    )
+                } else {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+                }
+            }
         }
     }
 
@@ -146,4 +168,15 @@ class AuthRoutes(
 
 fun Application.configureAuth(authRoutes: AuthRoutes) {
     authRoutes.configureAuth(this)
+}
+
+/**
+ * Extract the authenticated user's UUID from the JWT token in the call.
+ *
+ * @return The user UUID if authenticated, null otherwise
+ */
+fun ApplicationCall.getAuthenticatedUserUuid(): java.util.UUID? {
+    val principal = principal<JWTPrincipal>()
+    val userUuidStr = principal?.getClaim("user_uuid", String::class)
+    return userUuidStr?.let { java.util.UUID.fromString(it) }
 }
