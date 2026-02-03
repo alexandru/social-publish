@@ -62,6 +62,9 @@ import socialpublish.backend.server.routes.getAuthenticatedUserUuid
 
 private val logger = KotlinLogging.logger {}
 
+/** Admin user UUID used for OAuth provider checks and temporary operations */
+private val ADMIN_USER_UUID = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+
 fun startServer(
     config: AppConfig,
     documentsDb: DocumentsDatabase,
@@ -93,21 +96,9 @@ fun startServer(
             config = config.server.auth,
             usersDb = usersDb,
             twitterAuthProvider =
-                twitterModule?.let {
-                    suspend {
-                        val userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-                        it.hasTwitterAuth(userUuid)
-                    }
-                },
+                twitterModule?.let { suspend { it.hasTwitterAuth(ADMIN_USER_UUID) } },
             linkedInAuthProvider =
-                linkedInModule?.let {
-                    suspend {
-                        val userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-                        it.hasLinkedInAuth(userUuid)
-                    }
-                },
+                linkedInModule?.let { suspend { it.hasLinkedInAuth(ADMIN_USER_UUID) } },
         )
     val publishModule =
         PublishModule(mastodonModule, blueskyModule, twitterModule, linkedInModule, rssModule)

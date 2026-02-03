@@ -60,10 +60,10 @@ class FilesDatabase(private val db: Database) {
     suspend fun createFile(userUuid: UUID, payload: UploadPayload): Either<DBException, Upload> =
         either {
             db.transaction {
-                // Generate deterministic UUID
+                // Generate deterministic UUID based on file content
+                // Note: Not including userUuid to allow file deduplication across users
                 val uuidInput =
                     listOf(
-                            "u:${userUuid}",
                             "h:${payload.hash}",
                             "n:${payload.originalname}",
                             "a:${payload.altText ?: ""}",
@@ -75,7 +75,7 @@ class FilesDatabase(private val db: Database) {
 
                 val uuid = generateUuidV5(uuidInput).toString()
 
-                // Check if already exists
+                // Check if already exists for this user
                 val existing =
                     query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
                         setString(1, uuid)
