@@ -3,6 +3,7 @@ package socialpublish.backend.db
 import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Custom exception class for database-related errors, because we want typed exceptions in our
@@ -83,7 +84,20 @@ data class User(
     val settings: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    /** Parse and return user settings, or null if not set or invalid */
+    fun getSettings(): UserSettings? {
+        return settings?.let {
+            try {
+                json.decodeFromString<UserSettings>(it)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+}
 
 /** Generic result for create operations that may have duplicates. */
 sealed interface CreateResult<out T> {

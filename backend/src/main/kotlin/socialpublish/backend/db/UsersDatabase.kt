@@ -8,9 +8,12 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid as KotlinUuid
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import socialpublish.backend.modules.AuthModule
 
 private val logger = KotlinLogging.logger {}
+private val json = Json { ignoreUnknownKeys = true }
 
 /**
  * Generate a UUID v7 (time-based) for better sorting.
@@ -33,13 +36,13 @@ class UsersDatabase(private val db: Database) {
      *
      * @param username Unique username for the user
      * @param password Plain text password that will be hashed with BCrypt
-     * @param settings Optional user settings as JSON string
+     * @param settings Optional user settings
      * @return Either a DBException or the CreateResult<User>
      */
     suspend fun createUser(
         username: String,
         password: String,
-        settings: String? = null,
+        settings: UserSettings? = null,
     ): Either<DBException, CreateResult<User>> = either {
         db.transaction {
             // Check if user already exists
@@ -55,6 +58,7 @@ class UsersDatabase(private val db: Database) {
                 val uuid = generateUuidV7()
                 val passwordHash = AuthModule.hashPassword(password)
                 val now = db.clock.instant()
+                val settingsJson = settings?.let { json.encodeToString(it) }
 
                 query(
                     "INSERT INTO users (uuid, username, password_hash, settings, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
@@ -62,8 +66,8 @@ class UsersDatabase(private val db: Database) {
                     setString(1, uuid.toString())
                     setString(2, username)
                     setString(3, passwordHash)
-                    if (settings != null) {
-                        setString(4, settings)
+                    if (settingsJson != null) {
+                        setString(4, settingsJson)
                     } else {
                         setNull(4, java.sql.Types.VARCHAR)
                     }
@@ -80,7 +84,7 @@ class UsersDatabase(private val db: Database) {
                         uuid = uuid,
                         username = username,
                         passwordHash = passwordHash,
-                        settings = settings,
+                        settings = settingsJson,
                         createdAt = now,
                         updatedAt = now,
                     )
@@ -260,27 +264,30 @@ class UsersDatabase(private val db: Database) {
      * Update user settings.
      *
      * @param userUuid UUID of the user
-     * @param settings JSON string of user settings
+     * @param settings User settings object
      * @return Either a DBException or true if updated, false if user not found
      */
-    suspend fun updateSettings(userUuid: UUID, settings: String?): Either<DBException, Boolean> =
-        either {
-            db.transaction {
-                val now = db.clock.instant()
-                val updated =
-                    query("UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?") {
-                        if (settings != null) {
-                            setString(1, settings)
-                        } else {
-                            setNull(1, java.sql.Types.VARCHAR)
-                        }
-                        setLong(2, now.toEpochMilli())
-                        setString(3, userUuid.toString())
-                        executeUpdate()
+    suspend fun updateSettings(
+        userUuid: UUID,
+        settings: UserSettings?,
+    ): Either<DBException, Boolean> = either {
+        db.transaction {
+            val now = db.clock.instant()
+            val settingsJson = settings?.let { json.encodeToString(it) }
+            val updated =
+                query("UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?") {
+                    if (settingsJson != null) {
+                        setString(1, settingsJson)
+                    } else {
+                        setNull(1, java.sql.Types.VARCHAR)
                     }
-                updated > 0
-            }
+                    setLong(2, now.toEpochMilli())
+                    setString(3, userUuid.toString())
+                    executeUpdate()
+                }
+            updated > 0
         }
+    }
 
     /**
      * Find a user by UUID.

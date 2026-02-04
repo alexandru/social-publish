@@ -6,7 +6,6 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
@@ -14,7 +13,6 @@ import socialpublish.backend.db.UsersDatabase
 @Serializable data class UserSettingsResponse(val settings: UserSettings?)
 
 class AccountRoutes(private val usersDb: UsersDatabase) {
-    private val json = Json { ignoreUnknownKeys = true }
 
     /** GET /api/account/settings - Get current user's settings */
     suspend fun getSettings(call: ApplicationCall) {
@@ -38,7 +36,7 @@ class AccountRoutes(private val usersDb: UsersDatabase) {
                     return
                 }
 
-                val settings = user.settings?.let { json.decodeFromString<UserSettings>(it) }
+                val settings = user.getSettings()
 
                 call.respond(UserSettingsResponse(settings))
             }
@@ -63,10 +61,7 @@ class AccountRoutes(private val usersDb: UsersDatabase) {
                     return
                 }
 
-        // Serialize settings to JSON
-        val settingsJson = json.encodeToString(UserSettings.serializer(), newSettings)
-
-        when (val result = usersDb.updateSettings(userUuid, settingsJson)) {
+        when (val result = usersDb.updateSettings(userUuid, newSettings)) {
             is Either.Left -> {
                 call.respond(
                     HttpStatusCode.InternalServerError,
