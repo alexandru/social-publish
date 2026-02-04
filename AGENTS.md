@@ -22,6 +22,16 @@ Social-Publish is a multi-module polyglot project. This document defines shared 
 
 ---
 
+## Agent Skills
+
+Agents should be aware of and apply the following Scala/Cats‑Effect skills when working in the `./backend` codebase. These provide focused best practices and patterns that agents must follow for correctness and consistency.
+
+- `cats-effect-io` — Guidance for using Cats Effect `IO`: wrap side effects in `IO`, choose appropriate typeclasses (`Sync`/`Async`/`Temporal`/`Concurrent`), handle blocking I/O safely, compose fibers and concurrency without `unsafeRunSync`.
+- `cats-effect-resource` — Patterns for `Resource` lifecycle management: acquire/release safety, composing resources (including parallel acquisition), and proper cancellation semantics when working with files, streams, clients, pools, and background fibers.
+- `cats-mtl-typed-errors` — Recommendations for typed domain errors using Cats MTL `Raise/Handle`: design domain error types without pervasive `EitherT`, keep composition with Cats Effect straightforward, and prefer typed error handling over unchecked exceptions.
+
+These skills codify project expectations for effect handling, resource safety, and error design. When making edits to Scala files in `./backend`, agents must follow the conventions above and consult the corresponding skill guidance where applicable.
+
 ## Project: `./backend` (Scala 3)
 
 Exposes an HTTP API that allows the client to publish posts on social media platforms (e.g., Mastodon, Bluesky, Twitter, LinkedIn). Build in Scala 3, making use of functional programming and the Typelevel ecosystem of libraries.
