@@ -19,6 +19,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
+import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
@@ -65,7 +66,7 @@ class LlmApiModule(
     }
 
     suspend fun generateAltText(
-        userUuid: java.util.UUID,
+        userUuid: UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,

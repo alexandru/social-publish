@@ -37,6 +37,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import java.net.URLEncoder
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -108,13 +109,13 @@ class TwitterApiModule(
     }
 
     /** Check if Twitter auth exists */
-    suspend fun hasTwitterAuth(userUuid: java.util.UUID): Boolean {
+    suspend fun hasTwitterAuth(userUuid: UUID): Boolean {
         val token = restoreOauthTokenFromDb(userUuid)
         return token != null
     }
 
     /** Restore OAuth token from database */
-    private suspend fun restoreOauthTokenFromDb(userUuid: java.util.UUID): TwitterOAuthToken? {
+    private suspend fun restoreOauthTokenFromDb(userUuid: UUID): TwitterOAuthToken? {
         val doc = documentsDb.searchByKey(userUuid, "twitter-oauth-token").getOrElse { throw it }
         return if (doc != null) {
             try {
@@ -148,11 +149,7 @@ class TwitterApiModule(
     }
 
     /** Save OAuth token after callback */
-    suspend fun saveOauthToken(
-        userUuid: java.util.UUID,
-        token: String,
-        verifier: String,
-    ): ApiResult<Unit> {
+    suspend fun saveOauthToken(userUuid: UUID, token: String, verifier: String): ApiResult<Unit> {
         return try {
             // Twitter's access token endpoint doesn't require the request token secret
             // in the OAuth signature, only the oauth_token and oauth_verifier parameters
@@ -202,7 +199,7 @@ class TwitterApiModule(
 
     /** Upload media to Twitter */
     private suspend fun uploadMedia(
-        userUuid: java.util.UUID,
+        userUuid: UUID,
         token: TwitterOAuthToken,
         uuid: String,
     ): ApiResult<String> = resourceScope {
@@ -285,10 +282,7 @@ class TwitterApiModule(
     }
 
     /** Create a post on Twitter */
-    suspend fun createPost(
-        userUuid: java.util.UUID,
-        request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -424,7 +418,7 @@ class TwitterApiModule(
     }
 
     /** Handle status check HTTP route */
-    suspend fun statusRoute(call: ApplicationCall, userUuid: java.util.UUID) {
+    suspend fun statusRoute(call: ApplicationCall, userUuid: UUID) {
         val row = documentsDb.searchByKey(userUuid, "twitter-oauth-token").getOrElse { throw it }
         call.respond(
             TwitterStatusResponse(

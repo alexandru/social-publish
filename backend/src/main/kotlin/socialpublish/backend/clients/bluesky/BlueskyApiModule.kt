@@ -29,6 +29,7 @@ import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.time.Instant
+import java.util.UUID
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -115,7 +116,7 @@ class BlueskyApiModule(
 
     /** Upload image blob to Bluesky */
     private suspend fun uploadBlob(
-        userUuid: java.util.UUID,
+        userUuid: UUID,
         uuid: String,
         session: BlueskySessionResponse,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
@@ -411,10 +412,7 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(
-        userUuid: java.util.UUID,
-        request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->

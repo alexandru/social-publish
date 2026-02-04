@@ -26,6 +26,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
@@ -80,7 +81,7 @@ class MastodonApiModule(
 
     /** Upload media to Mastodon */
     private suspend fun uploadMedia(
-        userUuid: java.util.UUID,
+        userUuid: UUID,
         uuid: String,
     ): ApiResult<MastodonMediaResponse> = resourceScope {
         try {
@@ -194,10 +195,7 @@ class MastodonApiModule(
     }
 
     /** Create a post on Mastodon */
-    suspend fun createPost(
-        userUuid: java.util.UUID,
-        request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
+    suspend fun createPost(userUuid: UUID, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
