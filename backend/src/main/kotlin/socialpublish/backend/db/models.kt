@@ -151,3 +151,61 @@ data class TwitterUserSettings(val oauth1ConsumerKey: String, val oauth1Consumer
 @Serializable data class LinkedInUserSettings(val clientId: String, val clientSecret: String)
 
 @Serializable data class LlmUserSettings(val apiUrl: String, val apiKey: String, val model: String)
+
+/** Context for Bluesky API calls with user-specific settings */
+data class UserBlueskyContext(val userUuid: UUID, val settings: BlueskyUserSettings)
+
+/** Context for Mastodon API calls with user-specific settings */
+data class UserMastodonContext(val userUuid: UUID, val settings: MastodonUserSettings)
+
+/** Context for Twitter API calls with user-specific settings */
+data class UserTwitterContext(val userUuid: UUID, val settings: TwitterUserSettings)
+
+/** Context for LinkedIn API calls with user-specific settings */
+data class UserLinkedInContext(val userUuid: UUID, val settings: LinkedInUserSettings)
+
+/** Context for LLM API calls with user-specific settings */
+data class UserLlmContext(val userUuid: UUID, val settings: LlmUserSettings)
+
+/** Helper extensions for UserSettings to create context objects */
+data class UserSettingsWithUuid(val userUuid: UUID, val settings: UserSettings) {
+    val blueskyContext: UserBlueskyContext? =
+        settings.bluesky?.let { UserBlueskyContext(userUuid, it) }
+    val mastodonContext: UserMastodonContext? =
+        settings.mastodon?.let { UserMastodonContext(userUuid, it) }
+    val twitterContext: UserTwitterContext? =
+        settings.twitter?.let { UserTwitterContext(userUuid, it) }
+    val linkedInContext: UserLinkedInContext? =
+        settings.linkedin?.let { UserLinkedInContext(userUuid, it) }
+    val llmContext: UserLlmContext? = settings.llm?.let { UserLlmContext(userUuid, it) }
+
+    inline fun <R> withBlueskyContext(
+        block:
+            context(UserBlueskyContext)
+            () -> R
+    ): R? = blueskyContext?.let { ctx -> block(ctx) }
+
+    inline fun <R> withMastodonContext(
+        block:
+            context(UserMastodonContext)
+            () -> R
+    ): R? = mastodonContext?.let { ctx -> block(ctx) }
+
+    inline fun <R> withTwitterContext(
+        block:
+            context(UserTwitterContext)
+            () -> R
+    ): R? = twitterContext?.let { ctx -> block(ctx) }
+
+    inline fun <R> withLinkedInContext(
+        block:
+            context(UserLinkedInContext)
+            () -> R
+    ): R? = linkedInContext?.let { ctx -> block(ctx) }
+
+    inline fun <R> withLlmContext(
+        block:
+            context(UserLlmContext)
+            () -> R
+    ): R? = llmContext?.let { ctx -> block(ctx) }
+}
