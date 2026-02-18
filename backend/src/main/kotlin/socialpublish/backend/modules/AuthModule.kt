@@ -10,12 +10,15 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/** Verified JWT payload carrying the user's identity. */
+data class VerifiedToken(val username: String, val userUuid: UUID)
+
 class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
 
     val verifier: JWTVerifier by lazy { JWT.require(algorithm).build() }
 
-    /** Generate JWT token for authenticated user, carrying both username and userUuid */
+    /** Generate JWT token for authenticated user, carrying both username and userUuid. */
     fun generateToken(username: String, userUuid: UUID): String {
         return JWT.create()
             .withSubject(username)
@@ -25,24 +28,21 @@ class AuthModule(jwtSecret: String) {
             .sign(algorithm)
     }
 
-    /** Verify JWT token, returning the username if valid */
-    fun verifyToken(token: String): String? {
+    /**
+     * Verify a JWT token and return its payload, or null if the token is invalid/expired.
+     *
+     * The returned [VerifiedToken] carries both [VerifiedToken.username] and
+     * [VerifiedToken.userUuid].
+     */
+    fun verifyTokenPayload(token: String): VerifiedToken? {
         return try {
             val jwt = verifier.verify(token)
-            jwt.getClaim("username").asString()
+            val username = jwt.getClaim("username").asString() ?: return null
+            val userUuid =
+                jwt.getClaim("userUuid").asString()?.let { UUID.fromString(it) } ?: return null
+            VerifiedToken(username, userUuid)
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify JWT token" }
-            null
-        }
-    }
-
-    /** Extract the userUuid from a JWT token, returning null if the token is invalid */
-    fun getUserUuidFromToken(token: String): UUID? {
-        return try {
-            val jwt = verifier.verify(token)
-            jwt.getClaim("userUuid").asString()?.let { UUID.fromString(it) }
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to extract userUuid from JWT token" }
             null
         }
     }
@@ -66,19 +66,8 @@ class AuthModule(jwtSecret: String) {
     }
 
     companion object {
-        /** JWT token expiration duration in milliseconds (6 months = ~180 days) */
         private const val JWT_EXPIRATION_MILLIS = 180L * 24 * 60 * 60 * 1000
 
-        /**
-         * Generate a BCrypt hash for a password. Use this to create hashed passwords for
-         * SERVER_AUTH_PASSWORD.
-         *
-         * Example usage:
-         * ```
-         * val hash = AuthModule.hashPassword("mypassword")
-         * println("Use this as SERVER_AUTH_PASSWORD: $hash")
-         * ```
-         */
         fun hashPassword(password: String, rounds: Int = 12): String {
             return String(
                 FavreBCrypt.withDefaults().hash(rounds, password.toCharArray()),

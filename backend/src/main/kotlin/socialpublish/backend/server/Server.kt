@@ -3,7 +3,6 @@
 package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
-import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
@@ -13,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.cio.CIO
@@ -25,7 +25,6 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
-import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -34,18 +33,22 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
+import io.ktor.util.AttributeKey
 import io.ktor.utils.io.ExperimentalKtorApi
+import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
+import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
@@ -55,40 +58,25 @@ import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.ConfiguredServices
 import socialpublish.backend.server.routes.FilesRoutes
+import socialpublish.backend.server.routes.LinkedInRoutes
+import socialpublish.backend.server.routes.LlmRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.PublishRoutes
 import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
+import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.configureAuth
+import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
 
-/**
- * Extracts the authenticated user's settings from the database. Returns null (and responds with
- * 401/500) if the user cannot be resolved; defaults to an empty [UserSettings] if none are stored.
- */
-private suspend fun getUserSettings(
-    call: ApplicationCall,
-    usersDb: UsersDatabase,
-    authRoutes: AuthRoutes,
-): UserSettings? {
-    val userUuid = authRoutes.extractUserUuidOrRespond(call) ?: return null
-    return usersDb
-        .findByUuid(userUuid)
-        .getOrElse { error ->
-            logger.error(error) { "Failed to load user settings for user $userUuid" }
-            call.respond(
-                io.ktor.http.HttpStatusCode.InternalServerError,
-                socialpublish.backend.common.ErrorResponse(error = "Server error"),
-            )
-            return null
-        }
-        ?.settings ?: UserSettings()
-}
+private val UserUuidKey = AttributeKey<UUID>("userUuid")
+private val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
 
 fun startServer(
     config: AppConfig,
@@ -104,11 +92,33 @@ fun startServer(
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
-    val authRoutes = AuthRoutes(config = config.server.auth, usersDb = usersDb)
+    val authRoutes = AuthRoutes(
+        config = config.server.auth,
+        usersDb = usersDb,
+        documentsDb = documentsDb,
+    )
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
-    val settingsRoutes = SettingsRoutes(usersDb = usersDb, authRoutes = authRoutes)
+    val settingsRoutes = SettingsRoutes(usersDb = usersDb)
+
+    // Social network modules – instantiated once at startup; per-user config is passed per call.
+    val blueskyModule = BlueskyApiModule.resource(filesModule).bind()
+    val mastodonModule = MastodonApiModule.resource(filesModule).bind()
+    val twitterModule = TwitterApiModule.resource(
+        baseUrl = config.server.baseUrl,
+        documentsDb = documentsDb,
+        filesModule = filesModule,
+    ).bind()
+    val linkedInModule = LinkedInApiModule.resource(
+        baseUrl = config.server.baseUrl,
+        documentsDb = documentsDb,
+        filesModule = filesModule,
+    ).bind()
+    val llmModule = LlmApiModule.resource(filesModule).bind()
+    val twitterRoutes = TwitterRoutes(twitterModule, documentsDb)
+    val linkedInRoutes = LinkedInRoutes(linkedInModule, documentsDb)
+    val llmRoutes = LlmRoutes(llmModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
         install(CORS) {
@@ -210,6 +220,19 @@ fun startServer(
 
             // Protected routes
             authenticate("auth-jwt") {
+                // Load the authenticated user's UUID and settings into call attributes once
+                // per request, making them available to all route handlers without repeated DB queries.
+                install(createRouteScopedPlugin("UserContextPlugin") {
+                    onCall { call ->
+                        val userUuid = call.resolveUserUuid() ?: return@onCall
+                        val settings =
+                            usersDb.findByUuid(userUuid).getOrElse { null }?.settings
+                                ?: UserSettings()
+                        call.attributes.put(UserUuidKey, userUuid)
+                        call.attributes.put(UserSettingsKey, settings)
+                    }
+                })
+
                 get("/api/protected") { authRoutes.protectedRoute(call) }
                     .describe {
                         summary = "Protected route"
@@ -227,15 +250,18 @@ fun startServer(
                         }
                     }
 
-                get("/api/account/settings") { settingsRoutes.getSettingsRoute(call) }
+                get("/api/account/settings") {
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        settingsRoutes.getSettingsRoute(userUuid, call)
+                    }
                     .describe {
-                        summary = "Get user settings"
-                        description = "Retrieve the authenticated user's social network settings"
+                        summary = "Get account configuration"
+                        description = "Returns which services are configured for the user"
                         documentSecurityRequirements()
                         responses {
                             HttpStatusCode.OK {
-                                description = "User settings"
-                                schema = jsonSchema<UserSettings>()
+                                description = "Configured services"
+                                schema = jsonSchema<ConfiguredServices>()
                             }
                             HttpStatusCode.Unauthorized {
                                 description = "Not authenticated"
@@ -244,10 +270,13 @@ fun startServer(
                         }
                     }
 
-                put("/api/account/settings") { settingsRoutes.updateSettingsRoute(call) }
+                put("/api/account/settings") {
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@put
+                        settingsRoutes.updateSettingsRoute(userUuid, call)
+                    }
                     .describe {
                         summary = "Update user settings"
-                        description = "Update the authenticated user's social network settings"
+                        description = "Update the authenticated user's social network credentials"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -255,8 +284,8 @@ fun startServer(
                         }
                         responses {
                             HttpStatusCode.OK {
-                                description = "Settings updated successfully"
-                                schema = jsonSchema<UserSettings>()
+                                description = "Settings updated"
+                                schema = jsonSchema<ConfiguredServices>()
                             }
                             HttpStatusCode.Unauthorized {
                                 description = "Not authenticated"
@@ -277,7 +306,6 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-
                             ContentType.MultiPart.FormData {
                                 schema =
                                     JsonSchema(
@@ -297,8 +325,7 @@ fun startServer(
                                                     ReferenceOr.Value(
                                                         JsonSchema(
                                                             type = JsonType.STRING,
-                                                            format = "binary", // <- file upload in
-                                                            // OpenAPI
+                                                            format = "binary",
                                                             description = "Image file contents",
                                                         )
                                                     ),
@@ -320,60 +347,17 @@ fun startServer(
                                 schema = jsonSchema<ErrorResponse>()
                             }
                             HttpStatusCode.InternalServerError {
-                                description = "Internal server error (quite possible)"
+                                description = "Internal server error"
                                 schema = jsonSchema<ErrorResponse>()
                             }
                         }
                     }
 
-                // LLM alt-text generation
+                // LLM alt-text generation (extracted to LlmRoutes)
                 post("/api/llm/generate-alt-text") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        val llmSettings =
-                            userSettings.llm
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "LLM integration not configured"),
-                                    )
-                                    return@post
-                                }
-                        resourceScope {
-                            val llmModule =
-                                LlmApiModule.resource(llmSettings.toConfig(), filesModule).bind()
-                            val request =
-                                runCatching { call.receive<GenerateAltTextRequest>() }.getOrNull()
-                                    ?: run {
-                                        call.respond(
-                                            HttpStatusCode.BadRequest,
-                                            ErrorResponse(error = "Invalid request body"),
-                                        )
-                                        return@resourceScope
-                                    }
-                            when (
-                                val result =
-                                    llmModule.generateAltText(
-                                        request.imageUuid,
-                                        request.userContext,
-                                        request.language,
-                                    )
-                            ) {
-                                is Either.Right ->
-                                    call.respond(GenerateAltTextResponse(altText = result.value))
-                                is Either.Left -> {
-                                    val error = result.value
-                                    call.respond(
-                                        HttpStatusCode.fromValue(error.status),
-                                        ErrorResponse(
-                                            error =
-                                                error.errorMessage +
-                                                    (if (error.module == "llm") " (llm integration)"
-                                                    else "")
-                                        ),
-                                    )
-                                }
-                            }
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val llmConfig = call.attributes.getOrNull(UserSettingsKey)?.llm
+                        llmRoutes.generateAltTextRoute(userUuid, llmConfig, call)
                     }
                     .describe {
                         summary = "Generate alt-text for image"
@@ -432,26 +416,17 @@ fun startServer(
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        val blueskySettings =
-                            userSettings.bluesky
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Bluesky integration not configured"),
-                                    )
-                                    return@post
-                                }
-                        resourceScope {
-                            val module =
-                                BlueskyApiModule.resource(blueskySettings.toConfig(), filesModule)
-                                    .bind()
-                            module.createPostRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val blueskyConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.bluesky ?: run {
+                                call.respondWithNotConfigured("Bluesky")
+                                return@post
+                            }
+                        blueskyModule.createPostRoute(call, blueskyConfig)
                     }
                     .describe {
-                        summary = "Create Bluesky post"
-                        description = "Publish a post to Bluesky"
+                        summary = "Post to Bluesky"
+                        description = "Create a new post on Bluesky"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -464,26 +439,17 @@ fun startServer(
                     }
 
                 post("/api/mastodon/post") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        val mastodonSettings =
-                            userSettings.mastodon
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Mastodon integration not configured"),
-                                    )
-                                    return@post
-                                }
-                        resourceScope {
-                            val module =
-                                MastodonApiModule.resource(mastodonSettings.toConfig(), filesModule)
-                                    .bind()
-                            module.createPostRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val mastodonConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.mastodon ?: run {
+                                call.respondWithNotConfigured("Mastodon")
+                                return@post
+                            }
+                        mastodonModule.createPostRoute(call, mastodonConfig)
                     }
                     .describe {
-                        summary = "Create Mastodon post"
-                        description = "Publish a post to Mastodon"
+                        summary = "Post to Mastodon"
+                        description = "Create a new post on Mastodon"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -496,31 +462,17 @@ fun startServer(
                     }
 
                 post("/api/twitter/post") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        val twitterSettings =
-                            userSettings.twitter
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Twitter integration not configured"),
-                                    )
-                                    return@post
-                                }
-                        resourceScope {
-                            val module =
-                                TwitterApiModule.resource(
-                                        twitterSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.createPostRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val twitterConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
+                                call.respondWithNotConfigured("Twitter")
+                                return@post
+                            }
+                        twitterRoutes.createPostRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
-                        summary = "Create Twitter post"
-                        description = "Publish a post to Twitter/X"
+                        summary = "Post to Twitter/X"
+                        description = "Create a new post on Twitter"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -533,31 +485,17 @@ fun startServer(
                     }
 
                 post("/api/linkedin/post") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        val linkedInSettings =
-                            userSettings.linkedin
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "LinkedIn integration not configured"),
-                                    )
-                                    return@post
-                                }
-                        resourceScope {
-                            val module =
-                                LinkedInApiModule.resource(
-                                        linkedInSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.createPostRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val linkedInConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
+                                call.respondWithNotConfigured("LinkedIn")
+                                return@post
+                            }
+                        linkedInRoutes.createPostRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {
-                        summary = "Create LinkedIn post"
-                        description = "Publish a post to LinkedIn"
+                        summary = "Post to LinkedIn"
+                        description = "Create a new post on LinkedIn"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -570,46 +508,23 @@ fun startServer(
                     }
 
                 post("/api/multiple/post") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@post
-                        resourceScope {
-                            val mastodonModule =
-                                userSettings.mastodon?.let {
-                                    MastodonApiModule.resource(it.toConfig(), filesModule).bind()
-                                }
-                            val blueskyModule =
-                                userSettings.bluesky?.let {
-                                    BlueskyApiModule.resource(it.toConfig(), filesModule).bind()
-                                }
-                            val twitterModule =
-                                userSettings.twitter?.let {
-                                    TwitterApiModule.resource(
-                                            it.toConfig(),
-                                            config.server.baseUrl,
-                                            documentsDb,
-                                            filesModule,
-                                        )
-                                        .bind()
-                                }
-                            val linkedInModule =
-                                userSettings.linkedin?.let {
-                                    LinkedInApiModule.resource(
-                                            it.toConfig(),
-                                            config.server.baseUrl,
-                                            documentsDb,
-                                            filesModule,
-                                        )
-                                        .bind()
-                                }
-                            val publishModule =
-                                PublishModule(
-                                    mastodonModule,
-                                    blueskyModule,
-                                    twitterModule,
-                                    linkedInModule,
-                                    rssModule,
-                                )
-                            publishRoutes.broadcastPostRoute(call, publishModule)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userSettings =
+                            call.attributes.getOrNull(UserSettingsKey) ?: UserSettings()
+                        val publishModule =
+                            PublishModule(
+                                mastodonModule = mastodonModule,
+                                mastodonConfig = userSettings.mastodon,
+                                blueskyModule = blueskyModule,
+                                blueskyConfig = userSettings.bluesky,
+                                twitterModule = twitterModule,
+                                twitterConfig = userSettings.twitter,
+                                linkedInModule = linkedInModule,
+                                linkedInConfig = userSettings.linkedin,
+                                rssModule = rssModule,
+                                userUuid = userUuid,
+                            )
+                        publishRoutes.broadcastPostRoute(call, publishModule)
                     }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
@@ -630,36 +545,13 @@ fun startServer(
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val twitterSettings =
-                            userSettings.twitter
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Twitter integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        val token =
-                            authRoutes.extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                TwitterApiModule.resource(
-                                        twitterSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.authorizeRoute(call, token)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val twitterConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
+                                call.respondWithNotConfigured("Twitter")
+                                return@get
+                            }
+                        twitterRoutes.authorizeRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
                         summary = "Initiate Twitter OAuth authorization"
@@ -667,27 +559,13 @@ fun startServer(
                     }
 
                 get("/api/twitter/callback") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val twitterSettings =
-                            userSettings.twitter
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Twitter integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                TwitterApiModule.resource(
-                                        twitterSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.callbackRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val twitterConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
+                                call.respondWithNotConfigured("Twitter")
+                                return@get
+                            }
+                        twitterRoutes.callbackRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
                         summary = "Twitter OAuth callback"
@@ -695,27 +573,8 @@ fun startServer(
                     }
 
                 get("/api/twitter/status") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val twitterSettings =
-                            userSettings.twitter
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "Twitter integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                TwitterApiModule.resource(
-                                        twitterSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.statusRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        twitterRoutes.statusRoute(userUuid, call)
                     }
                     .describe {
                         summary = "Check Twitter authorization status"
@@ -727,36 +586,13 @@ fun startServer(
 
                 // LinkedIn OAuth flow
                 get("/api/linkedin/authorize") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val linkedInSettings =
-                            userSettings.linkedin
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "LinkedIn integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        val token =
-                            authRoutes.extractJwtToken(call)
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.Unauthorized,
-                                        ErrorResponse(error = "Unauthorized"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                LinkedInApiModule.resource(
-                                        linkedInSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.authorizeRoute(call, token)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val linkedInConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
+                                call.respondWithNotConfigured("LinkedIn")
+                                return@get
+                            }
+                        linkedInRoutes.authorizeRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {
                         summary = "Initiate LinkedIn OAuth authorization"
@@ -764,27 +600,13 @@ fun startServer(
                     }
 
                 get("/api/linkedin/callback") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val linkedInSettings =
-                            userSettings.linkedin
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "LinkedIn integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                LinkedInApiModule.resource(
-                                        linkedInSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.callbackRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val linkedInConfig =
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
+                                call.respondWithNotConfigured("LinkedIn")
+                                return@get
+                            }
+                        linkedInRoutes.callbackRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {
                         summary = "LinkedIn OAuth callback"
@@ -792,27 +614,8 @@ fun startServer(
                     }
 
                 get("/api/linkedin/status") {
-                        val userSettings = getUserSettings(call, usersDb, authRoutes) ?: return@get
-                        val linkedInSettings =
-                            userSettings.linkedin
-                                ?: run {
-                                    call.respond(
-                                        HttpStatusCode.ServiceUnavailable,
-                                        ErrorResponse(error = "LinkedIn integration not configured"),
-                                    )
-                                    return@get
-                                }
-                        resourceScope {
-                            val module =
-                                LinkedInApiModule.resource(
-                                        linkedInSettings.toConfig(),
-                                        config.server.baseUrl,
-                                        documentsDb,
-                                        filesModule,
-                                    )
-                                    .bind()
-                            module.statusRoute(call)
-                        }
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        linkedInRoutes.statusRoute(userUuid, call)
                     }
                     .describe {
                         summary = "Check LinkedIn authorization status"

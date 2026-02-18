@@ -10,6 +10,7 @@ import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
+import java.util.UUID
 import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
@@ -30,7 +31,7 @@ class RssModule(
     private val filesDb: FilesDatabase,
 ) {
     /** Create a new RSS post */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -61,7 +62,7 @@ class RssModule(
                 )
 
             val post =
-                postsDb.create(payload, request.targets ?: emptyList()).getOrElse { throw it }
+                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse { throw it }
 
             NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
         } catch (e: Exception) {

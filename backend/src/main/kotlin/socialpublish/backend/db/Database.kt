@@ -340,19 +340,11 @@ private suspend fun SafeConnection.runMigrations() {
     migrations.forEachIndexed { index, migration ->
         if (!migration.testIfApplied(this)) {
             logger.info { "Applying migration $index" }
-            migration.ddl.forEach { ddlStatement ->
-                query(ddlStatement) {
-                    execute()
-                    Unit
-                }
-            }
+            migration.execute(this)
         } else {
             logger.debug { "Migration $index already applied, skipping" }
         }
     }
-
-    // Apply data migrations (admin user creation, row ownership assignment)
-    applyDataMigrations()
 
     logger.info { "Database migrations completed" }
 }

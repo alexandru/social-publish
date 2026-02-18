@@ -20,17 +20,24 @@ import io.ktor.server.response.respond
 import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
+import socialpublish.backend.modules.VerifiedToken
 import socialpublish.backend.server.ServerAuthConfig
 
 private val logger = KotlinLogging.logger {}
 
 @Serializable data class LoginRequest(val username: String, val password: String)
 
-@Serializable data class AuthStatus(val twitter: Boolean = false, val linkedin: Boolean = false)
-
-/** Which social network services are configured for the authenticated user. */
+/**
+ * Services configured and ready to use for the authenticated user.
+ *
+ * For Mastodon and Bluesky: true when credentials are stored.
+ * For Twitter and LinkedIn: true when credentials are stored AND the OAuth flow has been completed
+ * (i.e. the OAuth token is in the database).
+ * LLM is a utility integration (alt-text generation), not a posting target.
+ */
 @Serializable
 data class ConfiguredServices(
     val mastodon: Boolean = false,
@@ -40,24 +47,18 @@ data class ConfiguredServices(
     val llm: Boolean = false,
 )
 
-@Serializable
-data class LoginResponse(
-    val token: String,
-    val hasAuth: AuthStatus,
-    val configuredServices: ConfiguredServices,
-)
+@Serializable data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
 
 @Serializable data class UserResponse(val username: String)
 
 class AuthRoutes(
     private val config: ServerAuthConfig,
     private val usersDb: UsersDatabase,
-    private val twitterAuthProvider: (suspend () -> Boolean)? = null,
-    private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
+    private val documentsDb: DocumentsDatabase,
 ) {
     val authModule = AuthModule(config.jwtSecret)
 
-    suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
+    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
         when (call.request.contentType()) {
             ContentType.Application.Json -> {
                 runCatching { call.receive<LoginRequest>() }.getOrNull()
@@ -81,7 +82,7 @@ class AuthRoutes(
     suspend fun loginRoute(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid credentials"))
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
             return
         }
 
@@ -107,29 +108,33 @@ class AuthRoutes(
                 false
             }
 
-        if (user != null && isPasswordValid) {
-            val token = authModule.generateToken(user.username, user.uuid)
-            val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
-            val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
-            val settings = user.settings
-            val configuredServices =
-                ConfiguredServices(
-                    mastodon = settings?.mastodon != null,
-                    bluesky = settings?.bluesky != null,
-                    twitter = settings?.twitter != null,
-                    linkedin = settings?.linkedin != null,
-                    llm = settings?.llm != null,
-                )
-            call.respond(
-                LoginResponse(
-                    token = token,
-                    hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
-                    configuredServices = configuredServices,
-                )
-            )
-        } else {
+        if (user == null || !isPasswordValid) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            return
         }
+
+        val token = authModule.generateToken(user.username, user.uuid)
+        val settings = user.settings
+
+        // twitter/linkedin are ready only when credentials AND OAuth token both exist
+        val twitterTokenKey = "twitter-oauth-token:${user.uuid}"
+        val linkedInTokenKey = "linkedin-oauth-token:${user.uuid}"
+        val twitterOk =
+            settings?.twitter != null &&
+                documentsDb.searchByKey(twitterTokenKey).getOrElse { null } != null
+        val linkedInOk =
+            settings?.linkedin != null &&
+                documentsDb.searchByKey(linkedInTokenKey).getOrElse { null } != null
+
+        val configuredServices =
+            ConfiguredServices(
+                mastodon = settings?.mastodon != null,
+                bluesky = settings?.bluesky != null,
+                twitter = twitterOk,
+                linkedin = linkedInOk,
+                llm = settings?.llm != null,
+            )
+        call.respond(LoginResponse(token = token, configuredServices = configuredServices))
     }
 
     suspend fun protectedRoute(call: ApplicationCall) {
@@ -143,7 +148,7 @@ class AuthRoutes(
         }
     }
 
-    /** Extract JWT token from the request (Authorization header, query param, or cookie). */
+    /** Extract a raw JWT string from the request (Authorization header, query param, or cookie). */
     fun extractJwtToken(call: ApplicationCall): String? {
         val authHeader = call.request.headers[HttpHeaders.Authorization]
         if (!authHeader.isNullOrBlank()) {
@@ -154,32 +159,18 @@ class AuthRoutes(
                 logger.warn { "Malformed Authorization header: $authHeader" }
             }
         }
-
-        call.request.queryParameters["access_token"]?.let {
-            return it
-        }
-        call.request.cookies["access_token"]?.let {
-            return it
-        }
+        call.request.queryParameters["access_token"]?.let { return it }
+        call.request.cookies["access_token"]?.let { return it }
         return null
     }
 
     /**
-     * Extract the authenticated user's UUID from the request JWT. Returns null and responds with
-     * 401 if the token is missing or invalid.
+     * Verify the JWT in the request and return the verified token payload, or null if missing /
+     * invalid.
      */
-    suspend fun extractUserUuidOrRespond(call: ApplicationCall): UUID? {
-        val token =
-            extractJwtToken(call)
-                ?: run {
-                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-                    return null
-                }
-        return authModule.getUserUuidFromToken(token)
-            ?: run {
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-                null
-            }
+    fun verifyRequest(call: ApplicationCall): VerifiedToken? {
+        val token = extractJwtToken(call) ?: return null
+        return authModule.verifyTokenPayload(token)
     }
 
     fun configureAuth(app: Application) {
@@ -208,4 +199,12 @@ class AuthRoutes(
 
 fun Application.configureAuth(authRoutes: AuthRoutes) {
     authRoutes.configureAuth(this)
+}
+
+/** Resolve the authenticated user's UUID from the Ktor JWT principal in the call. */
+fun ApplicationCall.resolveUserUuid(): UUID? {
+    val principal = principal<JWTPrincipal>() ?: return null
+    return principal.getClaim("userUuid", String::class)?.let {
+        runCatching { UUID.fromString(it) }.getOrNull()
+    }
 }

@@ -42,7 +42,6 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 class MastodonApiModule(
-    private val config: MastodonConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
 ) {
@@ -66,19 +65,18 @@ class MastodonApiModule(
         }
 
         fun resource(
-            config: MastodonConfig,
             filesModule: FilesModule,
         ): Resource<MastodonApiModule> = resource {
-            MastodonApiModule(config, filesModule, defaultHttpClient().bind())
+            MastodonApiModule(filesModule, defaultHttpClient().bind())
         }
     }
 
-    private val mediaUrlV2 = "${config.host}/api/v2/media"
-    private val mediaUrlV1 = "${config.host}/api/v1/media"
-    private val statusesUrlV1 = "${config.host}/api/v1/statuses"
+    private fun mediaUrlV2(config: MastodonConfig) = "${config.host}/api/v2/media"
+    private fun mediaUrlV1(config: MastodonConfig) = "${config.host}/api/v1/media"
+    private fun statusesUrlV1(config: MastodonConfig) = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
-    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> =
+    private suspend fun uploadMedia(config: MastodonConfig, uuid: String): ApiResult<MastodonMediaResponse> =
         resourceScope {
             try {
                 val file =
@@ -92,7 +90,7 @@ class MastodonApiModule(
 
                 val response =
                     httpClient.submitFormWithBinaryData(
-                        url = mediaUrlV2,
+                        url = mediaUrlV2(config),
                         formData =
                             formData {
                                 append(
@@ -154,7 +152,7 @@ class MastodonApiModule(
             delay(200)
 
             val response =
-                httpClient.get("$mediaUrlV1/$mediaId") {
+                httpClient.get("${mediaUrlV1(config)}/$mediaId") {
                     header("Authorization", "Bearer ${config.accessToken}")
                 }
 
@@ -191,7 +189,7 @@ class MastodonApiModule(
     }
 
     /** Create a post on Mastodon */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(config: MastodonConfig, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -222,7 +220,7 @@ class MastodonApiModule(
             // Create status
             val response =
                 httpClient.submitForm(
-                    url = statusesUrlV1,
+                    url = statusesUrlV1(config),
                     formParameters =
                         parameters {
                             append("status", content)
@@ -261,7 +259,7 @@ class MastodonApiModule(
     }
 
     /** Handle Mastodon post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
+    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -276,7 +274,7 @@ class MastodonApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

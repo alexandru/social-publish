@@ -112,7 +112,6 @@ data class LinkedInUserProfile(
 
 /** Response for LinkedIn authorization status check */
 @Serializable
-data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
 
 // ============================================================================
 // Image/Media Upload Models (Assets API)

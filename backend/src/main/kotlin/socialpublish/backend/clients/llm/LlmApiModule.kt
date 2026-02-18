@@ -31,7 +31,6 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 class LlmApiModule(
-    private val config: LlmConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
 ) {
@@ -58,13 +57,14 @@ class LlmApiModule(
             )
         }
 
-        fun resource(config: LlmConfig, filesModule: FilesModule): Resource<LlmApiModule> =
+        fun resource(filesModule: FilesModule): Resource<LlmApiModule> =
             resource {
-                LlmApiModule(config, filesModule, defaultHttpClient().bind())
+                LlmApiModule(filesModule, defaultHttpClient().bind())
             }
     }
 
     suspend fun generateAltText(
+        config: LlmConfig,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -87,7 +87,7 @@ class LlmApiModule(
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
-            generateAltTextFromApi(dataUrl, userContext, language)
+            generateAltTextFromApi(config, dataUrl, userContext, language)
         } catch (e: HttpRequestTimeoutException) {
             logger.warn(e) { "LLM request timed out for image $imageUuid" }
             CaughtException(
@@ -109,6 +109,7 @@ class LlmApiModule(
     }
 
     private suspend fun generateAltTextFromApi(
+        config: LlmConfig,
         dataUrl: String,
         extraContextOrInstructions: String?,
         language: String?,

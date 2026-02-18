@@ -9,19 +9,20 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.RssModule
+import socialpublish.backend.server.respondWithUnauthorized
 
 class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall) {
+        val userUuid = call.resolveUserUuid() ?: run { call.respondWithUnauthorized(); return }
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
-                    // If JSON receive failed, try form parameters. To avoid
-                    // RequestAlreadyConsumedException,
-                    // only attempt to read form parameters if content type is form data.
+                    // If JSON receive failed, try form parameters.
                     val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
                     val contentType = contentTypeHeader?.let { ContentType.parse(it) }
                     val params =
@@ -43,7 +44,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     )
                 }
 
-        when (val result = rssModule.createPost(request)) {
+        when (val result = rssModule.createPost(request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

@@ -1,5 +1,7 @@
 package socialpublish.backend.clients.linkedin
 
+import kotlinx.serialization.Serializable
+
 /**
  * Configuration for LinkedIn OAuth2 and API integration.
  *
@@ -27,6 +29,7 @@ package socialpublish.backend.clients.linkedin
  * @see
  *   [LinkedIn OAuth Documentation](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication)
  */
+@Serializable
 data class LinkedInConfig(
     val clientId: String,
     val clientSecret: String,

@@ -11,7 +11,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
     suspend fun create(
         payload: PostPayload,
         targets: List<String>,
-        userUuid: UUID? = null,
+        userUuid: UUID,
     ): Either<DBException, Post> = either {
         val payloadJson = json.encodeToString(PostPayload.serializer(), payload)
         val row =
@@ -19,8 +19,8 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
                 .createOrUpdate(
                     kind = "post",
                     payload = payloadJson,
-                    tags = targets.map { Tag(it, "target") },
                     userUuid = userUuid,
+                    tags = targets.map { Tag(it, "target") },
                 )
                 .bind()
         Post(
@@ -35,6 +35,10 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
         )
     }
 
+    /**
+     * Return all posts. When [userUuid] is provided only that user's posts are returned; when null,
+     * posts for all users are returned (e.g. for the public RSS feed).
+     */
     suspend fun getAll(userUuid: UUID? = null): Either<DBException, List<Post>> = either {
         val rows = docs.getAll("post", DocumentsDatabase.OrderBy.CREATED_AT_DESC, userUuid).bind()
         rows.map { row ->

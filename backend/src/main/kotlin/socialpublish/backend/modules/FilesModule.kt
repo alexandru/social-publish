@@ -9,6 +9,7 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -65,7 +66,7 @@ private constructor(
     }
 
     /** Upload and process file */
-    suspend fun uploadFile(upload: UploadedFile): ApiResult<FileUploadResponse> = resourceScope {
+    suspend fun uploadFile(upload: UploadedFile, userUuid: UUID): ApiResult<FileUploadResponse> = resourceScope {
         try {
             val originalFileTmp = upload.source.asFileResource().bind()
             val hash = originalFileTmp.calculateHash()
@@ -88,6 +89,7 @@ private constructor(
                             originalname = processed.originalname,
                             mimetype = processed.mimetype,
                             size = processed.size,
+                            userUuid = userUuid,
                             altText = processed.altText,
                             imageWidth = if (processed.width > 0) processed.width else null,
                             imageHeight = if (processed.height > 0) processed.height else null,

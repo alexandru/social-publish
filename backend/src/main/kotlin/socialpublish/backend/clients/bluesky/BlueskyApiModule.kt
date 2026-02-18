@@ -43,7 +43,6 @@ private const val BlueskyLinkDisplayLength = 24
 
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
-    private val config: BlueskyConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
     private val linkPreviewParser: LinkPreviewParser,
@@ -59,10 +58,9 @@ class BlueskyApiModule(
             }
         }
 
-        fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
+        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> =
             resource {
                 BlueskyApiModule(
-                    config = config,
                     filesModule = filesModule,
                     linkPreviewParser = LinkPreviewParser().bind(),
                     httpClient = defaultHttpClient().bind(),
@@ -71,7 +69,7 @@ class BlueskyApiModule(
     }
 
     /** Login to Bluesky and get session token */
-    private suspend fun createSession(): ApiResult<BlueskySessionResponse> {
+    private suspend fun createSession(config: BlueskyConfig): ApiResult<BlueskySessionResponse> {
         return try {
             val response =
                 httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
@@ -114,6 +112,7 @@ class BlueskyApiModule(
 
     /** Upload image blob to Bluesky */
     private suspend fun uploadBlob(
+        config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
@@ -188,6 +187,7 @@ class BlueskyApiModule(
 
     /** Upload image from URL as blob to Bluesky for link previews */
     private suspend fun uploadBlobFromUrl(
+        config: BlueskyConfig,
         imageUrl: String,
         session: BlueskySessionResponse,
     ): BlueskyBlobRef? = resourceScope {
@@ -252,7 +252,7 @@ class BlueskyApiModule(
     // ... (existing code)
 
     /** Resolve a handle to a DID using the Bluesky API */
-    private suspend fun resolveHandle(handle: String): String? {
+    private suspend fun resolveHandle(config: BlueskyConfig, handle: String): String? {
         return try {
             val response =
                 httpClient.get("${config.service}/xrpc/com.atproto.identity.resolveHandle") {
@@ -409,7 +409,7 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(config: BlueskyConfig, request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -417,7 +417,7 @@ class BlueskyApiModule(
             }
 
             val session =
-                when (val authResult = createSession()) {
+                when (val authResult = createSession(config)) {
                     is Either.Left -> return authResult.value.left()
                     is Either.Right -> authResult.value
                 }
@@ -425,7 +425,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(imageUuid, session)) {
+                        when (val uploadResult = uploadBlob(config, imageUuid, session)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -446,7 +446,7 @@ class BlueskyApiModule(
             // Upload link preview image if present
             val linkPreviewBlobRef =
                 if (linkPreview?.image != null) {
-                    uploadBlobFromUrl(linkPreview.image, session)
+                    uploadBlobFromUrl(config, linkPreview.image, session)
                 } else {
                     null
                 }
@@ -568,7 +568,7 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -583,7 +583,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
