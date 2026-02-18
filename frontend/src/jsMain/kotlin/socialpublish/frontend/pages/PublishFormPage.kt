@@ -231,18 +231,18 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         checked = formState.targets.contains("rss"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
                     )
+                }
 
-                    if (
-                        !configuredServices.mastodon &&
-                            !configuredServices.bluesky &&
-                            !configuredServices.twitter &&
-                            !configuredServices.linkedin
-                    ) {
-                        P(attrs = { classes("help") }) {
-                            Text("No social networks configured. Go to ")
-                            A(href = "/account") { Text("Account Settings") }
-                            Text(" to configure your social network credentials.")
-                        }
+                if (
+                    !configuredServices.mastodon &&
+                        !configuredServices.bluesky &&
+                        !configuredServices.twitter &&
+                        !configuredServices.linkedin
+                ) {
+                    P(attrs = { classes("help", "mt-2") }) {
+                        Text("No social networks configured yet. Go to ")
+                        A(href = "/account") { Text("Account Settings") }
+                        Text(" to add your social network credentials.")
                     }
                 }
             }

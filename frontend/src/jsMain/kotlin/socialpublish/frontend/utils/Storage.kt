@@ -125,7 +125,13 @@ object Storage {
             try {
                 Json.decodeFromString<ConfiguredServices>(stored)
             } catch (e: Exception) {
-                console.error("Error decoding ConfiguredServices from localStorage:", e)
+                console.error(
+                    "Error decoding ConfiguredServices from localStorage:",
+                    e,
+                    "stored:",
+                    stored,
+                )
+                localStorage.removeItem(CONFIGURED_SERVICES_KEY)
                 ConfiguredServices()
             }
         } else {

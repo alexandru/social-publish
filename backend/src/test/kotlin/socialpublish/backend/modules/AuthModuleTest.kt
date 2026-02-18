@@ -117,10 +117,29 @@ class AuthModuleTest {
     }
 
     @Test
-    fun `verifyPassword should return false for empty hash`() {
+    fun `getUserUuidFromToken should return the uuid embedded in the token`() {
         val authModule = AuthModule(jwtSecret)
+        val uuid = UUID.randomUUID()
+        val token = authModule.generateToken("testuser", uuid)
 
-        val verified = authModule.verifyPassword("password", "")
-        assertEquals(false, verified)
+        val extracted = authModule.getUserUuidFromToken(token)
+        assertEquals(uuid, extracted)
+    }
+
+    @Test
+    fun `getUserUuidFromToken should return null for invalid token`() {
+        val authModule = AuthModule(jwtSecret)
+        val result = authModule.getUserUuidFromToken("invalid-token")
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `getUserUuidFromToken should return null for token signed with different secret`() {
+        val authModule1 = AuthModule("secret1")
+        val authModule2 = AuthModule("secret2")
+
+        val token = authModule1.generateToken("testuser", UUID.randomUUID())
+        val result = authModule2.getUserUuidFromToken(token)
+        assertEquals(null, result)
     }
 }

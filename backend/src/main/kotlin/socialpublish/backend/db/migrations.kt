@@ -150,7 +150,7 @@ val migrations: List<Migration> =
             ddl = listOf("ALTER TABLE users ADD COLUMN settings TEXT"),
             testIfApplied = { conn -> conn.columnExists("users", "settings") },
         ),
-        // Migration 7: Add user_uuid to documents, document_tags, uploads; update existing rows
+        // Migration 7: Add user_uuid to documents and uploads; update existing rows
         Migration(
             ddl =
                 listOf(
@@ -196,25 +196,38 @@ suspend fun SafeConnection.applyDataMigrations() {
             execute()
             Unit
         }
-        logger.info {
-            "Created default admin user (uuid: $uuid). Default password is 'changeme' — change it in /account."
+        logger.warn {
+            "Created default admin user (uuid: $uuid). Default password is 'changeme' — change it immediately after first login in /account."
         }
     }
 
-    // Migration 7 data: update existing documents/uploads to belong to the admin user
-    val adminUuid =
-        query("SELECT uuid FROM users WHERE username = 'admin' LIMIT 1") {
+    // Migration 7 data: update existing documents/uploads to belong to the admin user.
+    // Only do this automatically when there is exactly one user — if there are multiple
+    // users the admin can manually sort out ownership rather than blindly overwriting.
+    val userCount2 =
+        query("SELECT COUNT(*) FROM users") {
             val rs = executeQuery()
-            if (rs.next()) rs.getString("uuid") else null
+            if (rs.next()) rs.getInt(1) else 0
         }
-    if (adminUuid != null) {
-        query("UPDATE documents SET user_uuid = ? WHERE user_uuid IS NULL") {
-            setString(1, adminUuid)
-            val _ = executeUpdate()
+    if (userCount2 > 1) {
+        logger.warn {
+            "Multiple users exist; skipping automatic user_uuid backfill for existing documents/uploads. Assign ownership manually if needed."
         }
-        query("UPDATE uploads SET user_uuid = ? WHERE user_uuid IS NULL") {
-            setString(1, adminUuid)
-            val _ = executeUpdate()
+    } else {
+        val adminUuid =
+            query("SELECT uuid FROM users WHERE username = 'admin' LIMIT 1") {
+                val rs = executeQuery()
+                if (rs.next()) rs.getString("uuid") else null
+            }
+        if (adminUuid != null) {
+            query("UPDATE documents SET user_uuid = ? WHERE user_uuid IS NULL") {
+                setString(1, adminUuid)
+                val _ = executeUpdate()
+            }
+            query("UPDATE uploads SET user_uuid = ? WHERE user_uuid IS NULL") {
+                setString(1, adminUuid)
+                val _ = executeUpdate()
+            }
         }
     }
 }

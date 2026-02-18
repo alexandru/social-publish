@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
@@ -165,11 +166,23 @@ fun AccountPage() {
 
             if (settingsSaved) {
                 Div(attrs = { classes("notification", "is-success", "is-light") }) {
+                    Button(
+                        attrs = {
+                            classes("delete")
+                            onClick { settingsSaved = false }
+                        }
+                    )
                     Text("Settings saved successfully!")
                 }
             }
             if (settingsError != null) {
                 Div(attrs = { classes("notification", "is-danger", "is-light") }) {
+                    Button(
+                        attrs = {
+                            classes("delete")
+                            onClick { settingsError = null }
+                        }
+                    )
                     Text(settingsError ?: "")
                 }
             }
@@ -307,6 +320,7 @@ private fun SettingsForm(settings: UserSettings, onSave: (UserSettings) -> Unit)
                 value = blueskyPassword,
                 onValueChange = { blueskyPassword = it },
                 placeholder = "xxxx-xxxx-xxxx-xxxx",
+                type = InputType.Password,
             )
         }
 
@@ -324,6 +338,7 @@ private fun SettingsForm(settings: UserSettings, onSave: (UserSettings) -> Unit)
                 value = mastodonToken,
                 onValueChange = { mastodonToken = it },
                 placeholder = "Your Mastodon access token",
+                type = InputType.Password,
             )
         }
 
@@ -346,6 +361,7 @@ private fun SettingsForm(settings: UserSettings, onSave: (UserSettings) -> Unit)
                 value = twitterConsumerSecret,
                 onValueChange = { twitterConsumerSecret = it },
                 placeholder = "OAuth1 Consumer Secret",
+                type = InputType.Password,
             )
         }
 
@@ -368,6 +384,7 @@ private fun SettingsForm(settings: UserSettings, onSave: (UserSettings) -> Unit)
                 value = linkedinClientSecret,
                 onValueChange = { linkedinClientSecret = it },
                 placeholder = "LinkedIn Client Secret",
+                type = InputType.Password,
             )
         }
 
@@ -385,6 +402,7 @@ private fun SettingsForm(settings: UserSettings, onSave: (UserSettings) -> Unit)
                 value = llmApiKey,
                 onValueChange = { llmApiKey = it },
                 placeholder = "sk-...",
+                type = InputType.Password,
             )
             TextInputField(
                 label = "Model",

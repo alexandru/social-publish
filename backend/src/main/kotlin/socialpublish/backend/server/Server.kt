@@ -77,7 +77,17 @@ private suspend fun getUserSettings(
     authRoutes: AuthRoutes,
 ): UserSettings? {
     val userUuid = authRoutes.extractUserUuidOrRespond(call) ?: return null
-    return usersDb.findByUuid(userUuid).getOrElse { throw it }?.settings ?: UserSettings()
+    return usersDb
+        .findByUuid(userUuid)
+        .getOrElse { error ->
+            logger.error(error) { "Failed to load user settings for user $userUuid" }
+            call.respond(
+                io.ktor.http.HttpStatusCode.InternalServerError,
+                socialpublish.backend.common.ErrorResponse(error = "Server error"),
+            )
+            return null
+        }
+        ?.settings ?: UserSettings()
 }
 
 fun startServer(

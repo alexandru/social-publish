@@ -2,7 +2,13 @@ package socialpublish.frontend.models
 
 import kotlinx.serialization.Serializable
 
-/** All per-user social network and integration settings, matching the backend UserSettings. */
+/**
+ * All per-user social network and integration settings, matching the backend UserSettings.
+ *
+ * The empty-string defaults in nested classes are used for form initialization and local UI state.
+ * The AccountPage validates that required fields are non-blank before constructing and saving these
+ * objects, so the backend only receives non-empty, meaningful values.
+ */
 @Serializable
 data class UserSettings(
     val bluesky: BlueskyUserSettings? = null,
