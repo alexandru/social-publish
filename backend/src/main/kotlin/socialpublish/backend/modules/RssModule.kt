@@ -120,7 +120,9 @@ class RssModule(
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
-                val upload = filesDb.getFileByUuid(imageUuid).getOrElse { throw it } ?: continue
+                val upload =
+                    filesDb.getFileByUuidForUser(imageUuid, userUuid).getOrElse { throw it }
+                        ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())

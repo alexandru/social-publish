@@ -19,6 +19,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
+import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
@@ -61,6 +62,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
 
     suspend fun generateAltText(
         config: LlmConfig,
+        userUuid: UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -70,7 +72,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             // Images are optimized during upload to max 1600x1600, which is sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid)
+                filesModule.readImageFile(uuid = imageUuid, userUuid = userUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",

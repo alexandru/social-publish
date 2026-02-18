@@ -226,8 +226,8 @@ private constructor(
     }
 
     /** Read image file for API posting */
-    suspend fun readImageFile(uuid: String): ProcessedUpload? {
-        val upload = db.getFileByUuid(uuid).getOrElse { throw it } ?: return null
+    suspend fun readImageFile(uuid: String, userUuid: UUID): ProcessedUpload? {
+        val upload = db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it } ?: return null
         val filePath = File(processedPath, upload.hash)
 
         val (source, size) =

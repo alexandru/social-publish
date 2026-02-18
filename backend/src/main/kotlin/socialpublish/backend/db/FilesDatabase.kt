@@ -158,4 +158,26 @@ class FilesDatabase(private val db: Database) {
             }
         }
     }
+
+    suspend fun getFileByUuidForUser(uuid: String, userUuid: UUID): Either<DBException, Upload?> =
+        either {
+            db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
+                setString(1, uuid)
+                setString(2, userUuid.toString())
+                executeQuery().safe().firstOrNull { rs ->
+                    Upload(
+                        uuid = rs.getString("uuid"),
+                        hash = rs.getString("hash"),
+                        originalname = rs.getString("originalname"),
+                        mimetype = rs.getString("mimetype"),
+                        size = rs.getLong("size"),
+                        altText = rs.getString("altText"),
+                        imageWidth = rs.getObject("imageWidth") as? Int,
+                        imageHeight = rs.getObject("imageHeight") as? Int,
+                        userUuid = UUID.fromString(rs.getString("user_uuid")),
+                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                    )
+                }
+            }
+        }
 }

@@ -29,6 +29,7 @@ import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.time.Instant
+import java.util.UUID
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -114,10 +115,11 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
+        userUuid: UUID,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, userUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -414,6 +416,7 @@ class BlueskyApiModule(
     suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
+        userUuid: UUID,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -430,7 +433,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(config, imageUuid, session)) {
+                        when (val uploadResult = uploadBlob(config, imageUuid, session, userUuid)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -573,7 +576,7 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig) {
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUID) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -588,7 +591,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(config, request)) {
+        when (val result = createPost(config, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

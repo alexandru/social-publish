@@ -204,10 +204,11 @@ class TwitterApiModule(
         config: TwitterConfig,
         token: TwitterOAuthToken,
         uuid: String,
+        userUuid: java.util.UUID,
     ): ApiResult<String> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, userUuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -309,7 +310,7 @@ class TwitterApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, token, imageUuid)) {
+                    when (val result = uploadMedia(config, token, imageUuid, userUuid)) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
                     }

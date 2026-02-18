@@ -436,7 +436,7 @@ fun startServer(
                                     call.respondWithNotConfigured("Bluesky")
                                     return@post
                                 }
-                        blueskyModule.createPostRoute(call, blueskyConfig)
+                        blueskyModule.createPostRoute(call, blueskyConfig, userUuid)
                     }
                     .describe {
                         summary = "Post to Bluesky"
@@ -460,7 +460,7 @@ fun startServer(
                                     call.respondWithNotConfigured("Mastodon")
                                     return@post
                                 }
-                        mastodonModule.createPostRoute(call, mastodonConfig)
+                        mastodonModule.createPostRoute(call, mastodonConfig, userUuid)
                     }
                     .describe {
                         summary = "Post to Mastodon"

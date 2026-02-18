@@ -29,6 +29,8 @@ import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.buildLoginRedirectPath
+import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.navigateTo
 
 @Composable
@@ -61,6 +63,16 @@ fun PublishFormPage() {
             PostForm(onError = { errorMessage = it }, onInfo = { infoContent = it })
         }
     }
+}
+
+private fun redirectToLoginIfUnauthorized(response: ApiResponse<*>, currentPath: String): Boolean {
+    if (!isUnauthorized(response)) {
+        return false
+    }
+    Storage.clearJwtToken()
+    Storage.setConfiguredServices(null)
+    navigateTo(buildLoginRedirectPath(currentPath))
+    return true
 }
 
 @Composable
@@ -101,8 +113,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 imageUUIDs.add(response.data.uuid)
                             }
                             is ApiResponse.Error -> {
-                                if (response.code == 401) {
-                                    navigateTo("/login?error=${response.code}&redirect=/form")
+                                if (redirectToLoginIfUnauthorized(response, "/form")) {
                                     return@launch
                                 }
                                 onError("Error uploading image: ${response.message}")
@@ -147,8 +158,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         }
                     }
                     is ApiResponse.Error -> {
-                        if (response.code == 401) {
-                            navigateTo("/login?error=${response.code}&redirect=/form")
+                        if (redirectToLoginIfUnauthorized(response, "/form")) {
                             return@launch
                         }
                         onError("Error submitting form: ${response.message}")
@@ -304,10 +314,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                 formState = formState.addImage(newImage)
                                             }
                                             is ApiResponse.Error -> {
-                                                if (response.code == 401) {
-                                                    navigateTo(
-                                                        "/login?error=${response.code}&redirect=/form"
-                                                    )
+                                                if (
+                                                    redirectToLoginIfUnauthorized(response, "/form")
+                                                ) {
                                                     return@launch
                                                 }
                                                 onError(

@@ -32,6 +32,7 @@ class LlmRoutes(private val llmModule: LlmApiModule) {
             val result =
                 llmModule.generateAltText(
                     llmConfig,
+                    userUuid,
                     request.imageUuid,
                     request.userContext,
                     request.language,

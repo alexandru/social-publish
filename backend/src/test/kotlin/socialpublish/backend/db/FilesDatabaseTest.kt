@@ -155,6 +155,41 @@ class FilesDatabaseTest {
     }
 
     @Test
+    fun `getFileByUuidForUser should not return another users upload`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val filesDb = FilesDatabase(db)
+                val userA = UUID.fromString("00000000-0000-0000-0000-000000000001")
+                val userB = UUID.fromString("00000000-0000-0000-0000-000000000002")
+
+                val created =
+                    filesDb
+                        .createFile(
+                            UploadPayload(
+                                hash = "ownership-test",
+                                originalname = "owner.png",
+                                mimetype = "image/png",
+                                size = 1234L,
+                                userUuid = userA,
+                            )
+                        )
+                        .getOrElse { throw it }
+
+                val ownerView =
+                    filesDb.getFileByUuidForUser(created.uuid, userA).getOrElse { throw it }
+                val otherView =
+                    filesDb.getFileByUuidForUser(created.uuid, userB).getOrElse { throw it }
+
+                assertNotNull(ownerView)
+                assertEquals(userA, ownerView.userUuid)
+                assertNull(otherView)
+            }
+        }
+
+    @Test
     fun `generateUuidV5 should be deterministic`() {
         // Same input should always produce same UUID
         val input = "test-input-123"

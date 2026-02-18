@@ -75,7 +75,7 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = "Hello bluesky")
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req)
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
             val _ = (result as Either.Right).value
@@ -151,7 +151,7 @@ class BlueskyApiTest {
                 )
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req)
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
@@ -275,7 +275,7 @@ class BlueskyApiTest {
                 )
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req)
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 
@@ -378,7 +378,7 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = "Check out this article", link = longLink)
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req)
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 
@@ -465,7 +465,7 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = content)
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req)
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 

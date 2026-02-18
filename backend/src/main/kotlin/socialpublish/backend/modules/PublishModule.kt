@@ -54,7 +54,7 @@ class PublishModule(
                 val mod = mastodonModule
                 val cfg = mastodonConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request)
+                    mod.createPost(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,
@@ -71,7 +71,7 @@ class PublishModule(
                 val mod = blueskyModule
                 val cfg = blueskyConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request)
+                    mod.createPost(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,

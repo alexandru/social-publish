@@ -13,9 +13,15 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.UploadSource
 import socialpublish.backend.common.ValidationError
-import socialpublish.backend.testutils.*
+import socialpublish.backend.testutils.createFilesModule
+import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.imageDimensions
+import socialpublish.backend.testutils.loadTestResourceBytes
 
 class FilesModuleTest {
+    private val userA = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val userB = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+
     @Test
     fun `uploads images and stores originals`(@TempDir tempDir: Path) = runTest {
         val jdbi = createTestDatabase(tempDir)
@@ -33,7 +39,7 @@ class FilesModuleTest {
                             ),
                         altText = "rose",
                     ),
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userA,
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
         val upload2 =
@@ -49,12 +55,12 @@ class FilesModuleTest {
                             ),
                         altText = "tulip",
                     ),
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userA,
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
-        val processed1 = requireNotNull(filesModule.readImageFile(upload1.uuid))
-        val processed2 = requireNotNull(filesModule.readImageFile(upload2.uuid))
+        val processed1 = requireNotNull(filesModule.readImageFile(upload1.uuid, userA))
+        val processed2 = requireNotNull(filesModule.readImageFile(upload2.uuid, userA))
 
         assertEquals("rose", processed1.altText)
         assertEquals("tulip", processed2.altText)
@@ -62,20 +68,17 @@ class FilesModuleTest {
         val stored1 = imageDimensions(processed1.source.readBytes())
         val stored2 = imageDimensions(processed2.source.readBytes())
 
-        // Images should be optimized on upload (max 1600x1600)
         assertTrue(stored1.width <= 1600)
         assertTrue(stored1.height <= 1600)
         assertTrue(stored2.width <= 1600)
         assertTrue(stored2.height <= 1600)
 
-        // Dimensions should match what's stored in the database
         assertEquals(stored1.width, processed1.width)
         assertEquals(stored1.height, processed1.height)
         assertEquals(stored2.width, processed2.width)
         assertEquals(stored2.height, processed2.height)
 
-        // Verify readImageFile returns the same optimized image
-        val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid))
+        val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid, userA))
         val retrievedDimensions = imageDimensions(retrieved.source.readBytes())
 
         assertEquals(stored1.width, retrievedDimensions.width)
@@ -101,7 +104,7 @@ class FilesModuleTest {
                             ),
                         altText = "rose",
                     ),
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userA,
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
@@ -142,7 +145,7 @@ class FilesModuleTest {
                         ),
                     altText = null,
                 ),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                userA,
             )
 
         assertTrue(result is Either.Left)
@@ -150,5 +153,33 @@ class FilesModuleTest {
         assertTrue(error is ValidationError)
         assertEquals(400, error.status)
         assertTrue(error.errorMessage.contains("Only PNG and JPEG images are supported"))
+    }
+
+    @Test
+    fun `readImageFile returns null for another users upload`(@TempDir tempDir: Path) = runTest {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val upload =
+            filesModule
+                .uploadFile(
+                    UploadedFile(
+                        fileName = "flower1.jpeg",
+                        source =
+                            UploadSource.FromSource(
+                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                    .asSource()
+                                    .buffered()
+                            ),
+                        altText = "rose",
+                    ),
+                    userA,
+                )
+                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+
+        val ownerRead = requireNotNull(filesModule.readImageFile(upload.uuid, userA))
+        val otherRead = filesModule.readImageFile(upload.uuid, userB)
+
+        assertEquals("rose", ownerRead.altText)
+        assertEquals(null, otherRead)
     }
 }

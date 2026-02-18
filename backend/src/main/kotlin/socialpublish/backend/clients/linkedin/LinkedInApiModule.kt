@@ -592,10 +592,11 @@ class LinkedInApiModule(
         accessToken: String,
         personUrn: String,
         uuid: String,
+        userUuid: UUID,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, userUuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -777,7 +778,10 @@ class LinkedInApiModule(
             val uploadedAssets = mutableListOf<UploadedAsset>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, accessToken, personUrn, imageUuid)) {
+                    when (
+                        val result =
+                            uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
+                    ) {
                         is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
                     }

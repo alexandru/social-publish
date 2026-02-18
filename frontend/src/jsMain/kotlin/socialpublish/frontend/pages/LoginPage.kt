@@ -39,6 +39,7 @@ fun LoginPage() {
             null
         }
     }
+    val reasonParam = remember { URLSearchParams(window.location.search).get("reason") }
 
     val handleSubmit: () -> Unit = {
         scope.launch {
@@ -77,7 +78,11 @@ fun LoginPage() {
         H1(attrs = { classes("title") }) { Text("Login") }
 
         // Show info notification if redirected from a protected page
-        if (redirectParam != null) {
+        if (reasonParam == "session_expired") {
+            Div(attrs = { classes("notification", "is-warning", "is-light") }) {
+                Text("Your session expired. Please log in again.")
+            }
+        } else if (redirectParam != null) {
             Div(attrs = { classes("notification", "is-info", "is-light") }) {
                 Text("You need to log in to access this page.")
             }

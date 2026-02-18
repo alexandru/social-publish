@@ -19,6 +19,9 @@ import socialpublish.frontend.models.ConfiguredServices
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.buildLoginRedirectPath
+import socialpublish.frontend.utils.isUnauthorized
+import socialpublish.frontend.utils.navigateTo
 
 @Serializable
 data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -163,7 +166,14 @@ fun AccountPage() {
                             )
                         )
                     }
-                    is ApiResponse.Error -> {}
+                    is ApiResponse.Error -> {
+                        if (isUnauthorized(response)) {
+                            Storage.clearJwtToken()
+                            Storage.setConfiguredServices(null)
+                            navigateTo(buildLoginRedirectPath("/account"))
+                            return@launch
+                        }
+                    }
                     is ApiResponse.Exception -> {}
                 }
             }
@@ -187,8 +197,15 @@ fun AccountPage() {
                             applyTwitterAuthorizationStatus(services, data.hasAuthorization)
                         )
                     }
-                    is ApiResponse.Error ->
+                    is ApiResponse.Error -> {
+                        if (isUnauthorized(response)) {
+                            Storage.clearJwtToken()
+                            Storage.setConfiguredServices(null)
+                            navigateTo(buildLoginRedirectPath("/account"))
+                            return@launch
+                        }
                         state = state.copy(twitterStatus = "Error: HTTP ${response.code}")
+                    }
                     is ApiResponse.Exception ->
                         state = state.copy(twitterStatus = "Error: ${response.message}")
                 }
@@ -215,8 +232,15 @@ fun AccountPage() {
                             applyLinkedInAuthorizationStatus(services, data.hasAuthorization)
                         )
                     }
-                    is ApiResponse.Error ->
+                    is ApiResponse.Error -> {
+                        if (isUnauthorized(response)) {
+                            Storage.clearJwtToken()
+                            Storage.setConfiguredServices(null)
+                            navigateTo(buildLoginRedirectPath("/account"))
+                            return@launch
+                        }
                         state = state.copy(linkedInStatus = "Error: HTTP ${response.code}")
+                    }
                     is ApiResponse.Exception ->
                         state = state.copy(linkedInStatus = "Error: ${response.message}")
                 }
@@ -248,11 +272,18 @@ fun AccountPage() {
                             )
                         )
                     }
-                    is ApiResponse.Error ->
+                    is ApiResponse.Error -> {
+                        if (isUnauthorized(response)) {
+                            Storage.clearJwtToken()
+                            Storage.setConfiguredServices(null)
+                            navigateTo(buildLoginRedirectPath("/account"))
+                            return@launch
+                        }
                         state =
                             state.copy(
                                 settingsError = "Failed to save settings: ${response.message}"
                             )
+                    }
                     is ApiResponse.Exception ->
                         state = state.copy(settingsError = "Error: ${response.message}")
                 }
@@ -267,6 +298,12 @@ fun AccountPage() {
                 ) {
                     is ApiResponse.Success -> window.location.href = "/api/linkedin/authorize"
                     is ApiResponse.Error -> {
+                        if (isUnauthorized(response)) {
+                            Storage.clearJwtToken()
+                            Storage.setConfiguredServices(null)
+                            navigateTo(buildLoginRedirectPath("/account"))
+                            return@launch
+                        }
                         if (response.code == 503 || response.code == 500) {
                             window.alert(
                                 "LinkedIn integration is not configured. " +
