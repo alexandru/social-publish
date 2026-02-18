@@ -192,8 +192,8 @@ class LinkedInApiModule(
     }
 
     /** Verify and consume OAuth state during callback */
-    suspend fun verifyOAuthState(state: String): String? {
-        val doc = documentsDb.searchByKey(state).getOrElse { throw it }
+    suspend fun verifyOAuthState(state: String, userUuid: UUID): String? {
+        val doc = documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
         return if (doc != null && doc.kind == "linkedin-oauth-state") {
             // State found and valid (we don't delete it, but could track usage)
             // In production, we might want to track used states to prevent replay attacks
@@ -285,7 +285,10 @@ class LinkedInApiModule(
 
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOAuthTokenFromDb(userUuid: UUID): LinkedInOAuthToken? {
-        val doc = documentsDb.searchByKey("linkedin-oauth-token:$userUuid").getOrElse { throw it }
+        val doc =
+            documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse {
+                throw it
+            }
         return if (doc != null) {
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)

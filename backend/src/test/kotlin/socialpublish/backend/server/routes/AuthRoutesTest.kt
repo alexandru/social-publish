@@ -1,5 +1,7 @@
 package socialpublish.backend.server.routes
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -397,6 +399,35 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `protectedRoute should reject token missing userUuid claim`() {
+        testApplication {
+            val tokenWithoutUserUuid =
+                JWT.create()
+                    .withSubject("testuser")
+                    .withClaim("username", "testuser")
+                    .sign(Algorithm.HMAC256(config.jwtSecret))
+
+            application {
+                install(ContentNegotiation) { json() }
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+                configureAuth(authRoutes)
+                routing {
+                    authenticate("auth-jwt") {
+                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    }
+                }
+            }
+
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $tokenWithoutUserUuid")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+    }
+
+    @Test
     fun `extractJwtToken should extract token from Bearer header`() {
         testApplication {
             val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
@@ -512,7 +543,7 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `extractJwtToken should prioritize query param over cookie`() {
+    fun `extractJwtToken should prioritize cookie over query param`() {
         testApplication {
             val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
@@ -532,7 +563,7 @@ class AuthRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("query-token"))
+            assertTrue(response.bodyAsText().contains("cookie-token"))
         }
     }
 

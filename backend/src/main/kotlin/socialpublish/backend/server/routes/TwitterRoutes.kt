@@ -27,17 +27,10 @@ class TwitterRoutes(
     suspend fun authorizeRoute(
         userUuid: UUID,
         twitterConfig: TwitterConfig,
+        callbackJwtToken: String,
         call: ApplicationCall,
     ) {
-        val jwtToken =
-            call.request.queryParameters["access_token"]
-                ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")
-                ?: call.request.cookies["access_token"]
-        if (jwtToken == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-            return
-        }
-        when (val result = twitterModule.buildAuthorizeURL(twitterConfig, jwtToken)) {
+        when (val result = twitterModule.buildAuthorizeURL(twitterConfig, callbackJwtToken)) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value
@@ -80,7 +73,7 @@ class TwitterRoutes(
 
     suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
         val row =
-            documentsDb.searchByKey("twitter-oauth-token:$userUuid").getOrElse { error ->
+            documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error)
                 return
             }

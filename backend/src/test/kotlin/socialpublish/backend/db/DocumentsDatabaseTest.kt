@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 class DocumentsDatabaseTest {
+    private val userA = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val userB = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+
     @Test
     fun `createOrUpdate should create new document`(@TempDir tempDir: Path) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
@@ -132,7 +135,7 @@ class DocumentsDatabaseTest {
                     .getOrElse { throw it }
 
             // Search for it
-            val found = documentsDb.searchByKey("find-me").getOrElse { throw it }
+            val found = documentsDb.searchByKey("find-me", userA).getOrElse { throw it }
 
             assertNotNull(found)
             assertEquals("""{"data": "searchable"}""", found.payload)
@@ -150,11 +153,41 @@ class DocumentsDatabaseTest {
             val db = Database.connect(dbPath).bind()
             val documentsDb = DocumentsDatabase(db)
 
-            val notFound = documentsDb.searchByKey("does-not-exist").getOrElse { throw it }
+            val notFound = documentsDb.searchByKey("does-not-exist", userA).getOrElse { throw it }
 
             assertNull(notFound)
         }
     }
+
+    @Test
+    fun `searchByKey should only return document for the requested user`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val documentsDb = DocumentsDatabase(db)
+
+                val _ =
+                    documentsDb
+                        .createOrUpdate(
+                            kind = "test",
+                            userUuid = userA,
+                            payload = """{"owner": "a"}""",
+                            searchKey = "shared-key",
+                        )
+                        .getOrElse { throw it }
+
+                val foundForOwner =
+                    documentsDb.searchByKey("shared-key", userA).getOrElse { throw it }
+                val foundForOtherUser =
+                    documentsDb.searchByKey("shared-key", userB).getOrElse { throw it }
+
+                assertNotNull(foundForOwner)
+                assertEquals(userA, foundForOwner.userUuid)
+                assertNull(foundForOtherUser)
+            }
+        }
 
     @Test
     fun `searchByUuid should find document by UUID`(@TempDir tempDir: Path) = runTest {

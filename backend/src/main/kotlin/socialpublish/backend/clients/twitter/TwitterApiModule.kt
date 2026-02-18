@@ -109,7 +109,10 @@ class TwitterApiModule(
 
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOauthTokenFromDb(userUuid: java.util.UUID): TwitterOAuthToken? {
-        val doc = documentsDb.searchByKey("twitter-oauth-token:$userUuid").getOrElse { throw it }
+        val doc =
+            documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse {
+                throw it
+            }
         return if (doc != null) {
             try {
                 Json.decodeFromString<TwitterOAuthToken>(doc.payload)

@@ -116,7 +116,7 @@ class RssModule(
                 continue
             }
 
-            val guid = "$baseUrl/rss/${post.uuid}"
+            val guid = "$baseUrl/rss/$userUuid/${post.uuid}"
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {

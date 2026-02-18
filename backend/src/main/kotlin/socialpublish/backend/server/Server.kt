@@ -13,6 +13,8 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.plugins.calllogging.CallLogging
@@ -561,13 +563,23 @@ fun startServer(
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val username =
+                            call.principal<JWTPrincipal>()?.getClaim("username", String::class)
+                                ?: return@get
                         val twitterConfig =
                             call.attributes.getOrNull(UserSettingsKey)?.twitter
                                 ?: run {
                                     call.respondWithNotConfigured("Twitter")
                                     return@get
                                 }
-                        twitterRoutes.authorizeRoute(userUuid, twitterConfig, call)
+                        val callbackJwtToken =
+                            authRoutes.authModule.generateToken(username, userUuid)
+                        twitterRoutes.authorizeRoute(
+                            userUuid,
+                            twitterConfig,
+                            callbackJwtToken,
+                            call,
+                        )
                     }
                     .describe {
                         summary = "Initiate Twitter OAuth authorization"
@@ -604,13 +616,23 @@ fun startServer(
                 // LinkedIn OAuth flow
                 get("/api/linkedin/authorize") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val username =
+                            call.principal<JWTPrincipal>()?.getClaim("username", String::class)
+                                ?: return@get
                         val linkedInConfig =
                             call.attributes.getOrNull(UserSettingsKey)?.linkedin
                                 ?: run {
                                     call.respondWithNotConfigured("LinkedIn")
                                     return@get
                                 }
-                        linkedInRoutes.authorizeRoute(userUuid, linkedInConfig, call)
+                        val callbackJwtToken =
+                            authRoutes.authModule.generateToken(username, userUuid)
+                        linkedInRoutes.authorizeRoute(
+                            userUuid,
+                            linkedInConfig,
+                            callbackJwtToken,
+                            call,
+                        )
                     }
                     .describe {
                         summary = "Initiate LinkedIn OAuth authorization"

@@ -28,17 +28,13 @@ class LinkedInRoutes(
     suspend fun authorizeRoute(
         userUuid: UUID,
         linkedInConfig: LinkedInConfig,
+        callbackJwtToken: String,
         call: ApplicationCall,
     ) {
-        val jwtToken =
-            call.request.queryParameters["access_token"]
-                ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")
-                ?: call.request.cookies["access_token"]
-        if (jwtToken == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-            return
-        }
-        when (val result = linkedInModule.buildAuthorizeURL(linkedInConfig, jwtToken, userUuid)) {
+        when (
+            val result =
+                linkedInModule.buildAuthorizeURL(linkedInConfig, callbackJwtToken, userUuid)
+        ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value
@@ -73,7 +69,7 @@ class LinkedInRoutes(
         }
 
         if (state != null) {
-            val storedJwtToken = linkedInModule.verifyOAuthState(state)
+            val storedJwtToken = linkedInModule.verifyOAuthState(state, userUuid)
             if (storedJwtToken == null) {
                 val msg =
                     URLEncoder.encode(
@@ -127,7 +123,7 @@ class LinkedInRoutes(
 
     suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
         val row =
-            documentsDb.searchByKey("linkedin-oauth-token:$userUuid").getOrElse { error ->
+            documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error)
                 return
             }

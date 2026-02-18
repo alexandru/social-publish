@@ -169,6 +169,20 @@ class RssModuleTest {
     }
 
     @Test
+    fun `generateRss item link for local posts includes user UUID`() = runTest {
+        val result =
+            rssModule.createPost(NewPostRequest(content = "No external link"), testUserUuid)
+        assertTrue(result is Either.Right)
+
+        val posts = postsDb.getAllForUser(testUserUuid)
+        assertTrue(posts is Either.Right)
+        val postUuid = (posts as Either.Right).value.first().uuid
+
+        val rssContent = rssModule.generateRss(testUserUuid)
+        assertTrue(rssContent.contains("http://localhost:3000/rss/$testUserUuid/$postUuid"))
+    }
+
+    @Test
     fun `generateRss filters by links when filterByLinks is include`() = runTest {
         // Post with link
         val result1 =

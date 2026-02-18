@@ -126,10 +126,10 @@ class AuthRoutes(
         val linkedInTokenKey = "linkedin-oauth-token:${user.uuid}"
         val twitterOk =
             settings?.twitter != null &&
-                documentsDb?.searchByKey(twitterTokenKey)?.getOrElse { null } != null
+                documentsDb?.searchByKey(twitterTokenKey, user.uuid)?.getOrElse { null } != null
         val linkedInOk =
             settings?.linkedin != null &&
-                documentsDb?.searchByKey(linkedInTokenKey)?.getOrElse { null } != null
+                documentsDb?.searchByKey(linkedInTokenKey, user.uuid)?.getOrElse { null } != null
 
         val configuredServices =
             ConfiguredServices(
@@ -164,10 +164,10 @@ class AuthRoutes(
                 logger.warn { "Malformed Authorization header: $authHeader" }
             }
         }
-        call.request.queryParameters["access_token"]?.let {
+        call.request.cookies["access_token"]?.let {
             return it
         }
-        call.request.cookies["access_token"]?.let {
+        call.request.queryParameters["access_token"]?.let {
             return it
         }
         return null
@@ -192,7 +192,8 @@ class AuthRoutes(
                 verifier(authModule.verifier)
                 validate { credential ->
                     val username = credential.payload.getClaim("username").asString()
-                    if (username != null) {
+                    val userUuid = credential.payload.getClaim("userUuid").asString()
+                    if (username != null && userUuid != null) {
                         JWTPrincipal(credential.payload)
                     } else {
                         null

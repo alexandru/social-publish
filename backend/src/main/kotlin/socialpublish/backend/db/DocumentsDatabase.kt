@@ -114,32 +114,34 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
-    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> = either {
-        db.transaction {
-            val docData =
-                query("SELECT * FROM documents WHERE search_key = ?") {
-                    setString(1, searchKey)
-                    executeQuery().safe().firstOrNull { rs ->
-                        Pair(
-                            rs.getString("uuid"),
-                            Document(
-                                uuid = rs.getString("uuid"),
-                                kind = rs.getString("kind"),
-                                payload = rs.getString("payload"),
-                                searchKey = rs.getString("search_key"),
-                                tags = emptyList(),
-                                userUuid = UUID.fromString(rs.getString("user_uuid")),
-                                createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                            ),
-                        )
+    suspend fun searchByKey(searchKey: String, userUuid: UUID): Either<DBException, Document?> =
+        either {
+            db.transaction {
+                val docData =
+                    query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
+                        setString(1, searchKey)
+                        setString(2, userUuid.toString())
+                        executeQuery().safe().firstOrNull { rs ->
+                            Pair(
+                                rs.getString("uuid"),
+                                Document(
+                                    uuid = rs.getString("uuid"),
+                                    kind = rs.getString("kind"),
+                                    payload = rs.getString("payload"),
+                                    searchKey = rs.getString("search_key"),
+                                    tags = emptyList(),
+                                    userUuid = UUID.fromString(rs.getString("user_uuid")),
+                                    createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                                ),
+                            )
+                        }
                     }
+                docData?.let { (uuid, doc) ->
+                    val tags = getDocumentTags(uuid)
+                    doc.copy(tags = tags)
                 }
-            docData?.let { (uuid, doc) ->
-                val tags = getDocumentTags(uuid)
-                doc.copy(tags = tags)
             }
         }
-    }
 
     suspend fun searchByUuid(uuid: String): Either<DBException, Document?> = either {
         db.transaction {
