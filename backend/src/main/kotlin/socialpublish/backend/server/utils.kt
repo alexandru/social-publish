@@ -1,12 +1,48 @@
 package socialpublish.backend.server
 
+import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
+import io.ktor.util.AttributeKey
+import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UserSettings
+import socialpublish.backend.db.UsersDatabase
+import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
+internal val UserUuidKey = AttributeKey<UUID>("userUuid")
+internal val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
+
+internal suspend fun ApplicationCall.requireUserUuid(): UUID? {
+    attributes.getOrNull(UserUuidKey)?.let {
+        return it
+    }
+
+    val resolved = resolveUserUuid()
+    if (resolved == null) {
+        respondWithUnauthorized()
+        return null
+    }
+
+    attributes.put(UserUuidKey, resolved)
+    return resolved
+}
+
+internal suspend fun ApplicationCall.requireUserSettings(
+    usersDb: UsersDatabase,
+    userUuid: UUID,
+): UserSettings {
+    attributes.getOrNull(UserSettingsKey)?.let {
+        return it
+    }
+
+    val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
+    attributes.put(UserSettingsKey, settings)
+    return settings
+}
 
 /** Respond with 500 Internal Server Error and log the exception. */
 suspend fun ApplicationCall.respondWithInternalServerError(cause: Throwable, context: String = "") {

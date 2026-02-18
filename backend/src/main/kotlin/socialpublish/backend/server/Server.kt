@@ -33,9 +33,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
-import io.ktor.util.AttributeKey
 import io.ktor.utils.io.ExperimentalKtorApi
-import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import org.slf4j.event.Level
@@ -73,37 +71,6 @@ import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
-
-private val UserUuidKey = AttributeKey<UUID>("userUuid")
-private val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
-
-private suspend fun io.ktor.server.application.ApplicationCall.requireUserUuid(): UUID? {
-    attributes.getOrNull(UserUuidKey)?.let {
-        return it
-    }
-
-    val resolved = resolveUserUuid()
-    if (resolved == null) {
-        respondWithUnauthorized()
-        return null
-    }
-
-    attributes.put(UserUuidKey, resolved)
-    return resolved
-}
-
-private suspend fun io.ktor.server.application.ApplicationCall.requireUserSettings(
-    usersDb: UsersDatabase,
-    userUuid: UUID,
-): UserSettings {
-    attributes.getOrNull(UserSettingsKey)?.let {
-        return it
-    }
-
-    val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
-    attributes.put(UserSettingsKey, settings)
-    return settings
-}
 
 fun startServer(
     config: AppConfig,
