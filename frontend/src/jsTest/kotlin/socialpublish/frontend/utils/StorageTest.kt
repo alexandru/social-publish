@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
-import socialpublish.frontend.models.AuthStatus
+import socialpublish.frontend.models.ConfiguredServices
 
 class StorageTest {
 
@@ -173,111 +173,113 @@ class StorageTest {
         assertNotNull(Storage.getJwtToken())
     }
 
-    // localStorage / AuthStatus tests
+    // localStorage / ConfiguredServices tests
     @Test
-    fun testSetAndGetAuthStatus() {
-        val authStatus = AuthStatus(twitter = true)
-        Storage.setAuthStatus(authStatus)
+    fun testSetAndGetConfiguredServices() {
+        val services = ConfiguredServices(twitter = true)
+        Storage.setConfiguredServices(services)
 
-        val retrieved = Storage.getAuthStatus()
-        assertEquals(authStatus, retrieved)
+        val retrieved = Storage.getConfiguredServices()
+        assertEquals(services, retrieved)
         assertTrue(retrieved.twitter)
     }
 
     @Test
-    fun testGetAuthStatusReturnsDefaultWhenNotSet() {
-        val retrieved = Storage.getAuthStatus()
+    fun testGetConfiguredServicesReturnsDefaultWhenNotSet() {
+        val retrieved = Storage.getConfiguredServices()
 
-        assertEquals(AuthStatus(), retrieved)
+        assertEquals(ConfiguredServices(), retrieved)
         assertFalse(retrieved.twitter)
     }
 
     @Test
-    fun testSetAuthStatusNull() {
+    fun testSetConfiguredServicesNull() {
         // First set a value
-        Storage.setAuthStatus(AuthStatus(twitter = true))
-        assertTrue(Storage.getAuthStatus().twitter)
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
+        assertTrue(Storage.getConfiguredServices().twitter)
 
         // Then clear it
-        Storage.setAuthStatus(null)
-        val retrieved = Storage.getAuthStatus()
+        Storage.setConfiguredServices(null)
+        val retrieved = Storage.getConfiguredServices()
 
-        assertEquals(AuthStatus(), retrieved)
+        assertEquals(ConfiguredServices(), retrieved)
         assertFalse(retrieved.twitter)
     }
 
     @Test
-    fun testUpdateAuthStatus() {
+    fun testUpdateConfiguredServices() {
         // Set initial status
-        Storage.setAuthStatus(AuthStatus(twitter = false))
+        Storage.setConfiguredServices(ConfiguredServices(twitter = false))
 
         // Update it
-        Storage.updateAuthStatus { AuthStatus(twitter = true) }
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
 
-        val retrieved = Storage.getAuthStatus()
+        val retrieved = Storage.getConfiguredServices()
         assertTrue(retrieved.twitter)
     }
 
     @Test
-    fun testUpdateAuthStatusWithTransformation() {
-        Storage.setAuthStatus(AuthStatus(twitter = false))
+    fun testUpdateConfiguredServicesWithTransformation() {
+        val initial = ConfiguredServices(twitter = false)
+        Storage.setConfiguredServices(initial)
 
-        Storage.updateAuthStatus { current -> current.copy(twitter = !current.twitter) }
+        val updated = initial.copy(twitter = !initial.twitter)
+        Storage.setConfiguredServices(updated)
 
-        assertTrue(Storage.getAuthStatus().twitter)
+        assertTrue(Storage.getConfiguredServices().twitter)
     }
 
     @Test
-    fun testAuthStatusPersistenceInLocalStorage() {
-        val authStatus = AuthStatus(twitter = true)
-        Storage.setAuthStatus(authStatus)
+    fun testConfiguredServicesPersistenceInLocalStorage() {
+        val services = ConfiguredServices(twitter = true)
+        Storage.setConfiguredServices(services)
 
         // Verify it's stored in localStorage
-        val stored = localStorage.getItem("hasAuth")
+        val stored = localStorage.getItem("configuredServices")
         assertNotNull(stored)
         assertTrue(stored.contains("twitter"))
     }
 
     @Test
-    fun testGetAuthStatusHandlesCorruptedData() {
+    fun testGetConfiguredServicesHandlesCorruptedData() {
         // Manually set invalid JSON in localStorage
-        localStorage.setItem("hasAuth", "invalid-json-{{{")
+        localStorage.setItem("configuredServices", "invalid-json-{{{")
 
-        // Should return default AuthStatus without throwing
-        val retrieved = Storage.getAuthStatus()
-        assertEquals(AuthStatus(), retrieved)
+        // Should return default ConfiguredServices without throwing
+        val retrieved = Storage.getConfiguredServices()
+        assertEquals(ConfiguredServices(), retrieved)
         assertFalse(retrieved.twitter)
     }
 
     @Test
-    fun testSetAuthStatusNullRemovesFromLocalStorage() {
-        Storage.setAuthStatus(AuthStatus(twitter = true))
-        assertNotNull(localStorage.getItem("hasAuth"))
+    fun testSetConfiguredServicesNullRemovesFromLocalStorage() {
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
+        assertNotNull(localStorage.getItem("configuredServices"))
 
-        Storage.setAuthStatus(null)
-        assertNull(localStorage.getItem("hasAuth"))
+        Storage.setConfiguredServices(null)
+        assertNull(localStorage.getItem("configuredServices"))
     }
 
     // Integration tests
     @Test
     fun testCompleteAuthenticationFlow() {
-        // Initial state: no token, no auth status
+        // Initial state: no token, no configured services
         assertFalse(Storage.hasJwtToken())
-        assertEquals(AuthStatus(), Storage.getAuthStatus())
+        assertEquals(ConfiguredServices(), Storage.getConfiguredServices())
 
-        // Login: set token and auth status
+        // Login: set token and configured services
         Storage.setJwtToken("user-session-token")
-        Storage.setAuthStatus(AuthStatus(twitter = true))
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
 
         assertTrue(Storage.hasJwtToken())
-        assertTrue(Storage.getAuthStatus().twitter)
+        assertTrue(Storage.getConfiguredServices().twitter)
 
         // Logout: clear everything
         Storage.clearJwtToken()
-        Storage.setAuthStatus(null)
+        Storage.setConfiguredServices(null)
 
         assertFalse(Storage.hasJwtToken())
-        assertEquals(AuthStatus(), Storage.getAuthStatus())
+        assertEquals(ConfiguredServices(), Storage.getConfiguredServices())
     }
 
     @Test
@@ -285,18 +287,18 @@ class StorageTest {
         // JWT tokens use cookies
         Storage.setJwtToken("cookie-token")
 
-        // Auth status uses localStorage
-        Storage.setAuthStatus(AuthStatus(twitter = true))
+        // Configured services use localStorage
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
 
         // Both should be independent
         assertTrue(Storage.hasJwtToken())
-        assertTrue(Storage.getAuthStatus().twitter)
+        assertTrue(Storage.getConfiguredServices().twitter)
 
         // Clearing one shouldn't affect the other
         Storage.clearJwtToken()
-        assertTrue(Storage.getAuthStatus().twitter)
+        assertTrue(Storage.getConfiguredServices().twitter)
 
-        Storage.setAuthStatus(null)
+        Storage.setConfiguredServices(null)
         assertFalse(Storage.hasJwtToken())
     }
 }

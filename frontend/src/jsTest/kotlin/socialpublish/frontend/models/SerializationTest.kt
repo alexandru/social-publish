@@ -33,47 +33,51 @@ class SerializationTest {
 
     @Test
     fun testLoginResponseSerializationRoundTrip() {
-        val original = LoginResponse(token = "jwt-token-123", hasAuth = AuthStatus(twitter = true))
+        val original =
+            LoginResponse(
+                token = "jwt-token-123",
+                configuredServices = ConfiguredServices(twitter = true),
+            )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
         assertEquals(original, decoded)
         assertEquals("jwt-token-123", decoded.token)
-        assertTrue(decoded.hasAuth.twitter)
+        assertTrue(decoded.configuredServices.twitter)
     }
 
     @Test
     fun testLoginResponseDeserialization() {
-        val jsonString = """{"token":"abc123","hasAuth":{"twitter":true}}"""
+        val jsonString = """{"token":"abc123","configuredServices":{"twitter":true}}"""
         val decoded = json.decodeFromString<LoginResponse>(jsonString)
 
         assertEquals("abc123", decoded.token)
-        assertTrue(decoded.hasAuth.twitter)
+        assertTrue(decoded.configuredServices.twitter)
     }
 
     @Test
-    fun testAuthStatusSerializationRoundTrip() {
-        val original = AuthStatus(twitter = true)
+    fun testConfiguredServicesSerializationRoundTrip() {
+        val original = ConfiguredServices(twitter = true)
         val encoded = json.encodeToString(original)
-        val decoded = json.decodeFromString<AuthStatus>(encoded)
+        val decoded = json.decodeFromString<ConfiguredServices>(encoded)
 
         assertEquals(original, decoded)
         assertTrue(decoded.twitter)
     }
 
     @Test
-    fun testAuthStatusDeserializationWithDefaults() {
+    fun testConfiguredServicesDeserializationWithDefaults() {
         val jsonString = """{}"""
-        val decoded = json.decodeFromString<AuthStatus>(jsonString)
+        val decoded = json.decodeFromString<ConfiguredServices>(jsonString)
 
-        assertEquals(AuthStatus(), decoded)
+        assertEquals(ConfiguredServices(), decoded)
         assertEquals(false, decoded.twitter)
     }
 
     @Test
-    fun testAuthStatusDeserializationWithTwitterEnabled() {
+    fun testConfiguredServicesDeserializationWithTwitterEnabled() {
         val jsonString = """{"twitter":true}"""
-        val decoded = json.decodeFromString<AuthStatus>(jsonString)
+        val decoded = json.decodeFromString<ConfiguredServices>(jsonString)
 
         assertTrue(decoded.twitter)
     }
@@ -208,12 +212,13 @@ class SerializationTest {
     @Test
     fun testComplexNestedSerialization() {
         // Test nested object serialization
-        val response = LoginResponse(token = "token", hasAuth = AuthStatus(twitter = true))
+        val response =
+            LoginResponse(token = "token", configuredServices = ConfiguredServices(twitter = true))
         val encoded = json.encodeToString(response)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
-        assertNotNull(decoded.hasAuth)
-        assertTrue(decoded.hasAuth.twitter)
+        assertNotNull(decoded.configuredServices)
+        assertTrue(decoded.configuredServices.twitter)
     }
 
     @Test
