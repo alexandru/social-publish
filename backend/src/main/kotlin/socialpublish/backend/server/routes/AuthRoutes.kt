@@ -96,8 +96,13 @@ class AuthRoutes(
                 return
             }
 
+        if (user == null) {
+            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Invalid credentials"))
+            return
+        }
+
         val isPasswordValid =
-            if (user != null) {
+            if (user.passwordHash != null) {
                 try {
                     authModule.verifyPassword(request.password, user.passwordHash)
                 } catch (e: Exception) {
@@ -108,7 +113,7 @@ class AuthRoutes(
                 false
             }
 
-        if (user == null || !isPasswordValid) {
+        if (!isPasswordValid) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
             return
         }

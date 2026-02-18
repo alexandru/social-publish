@@ -279,7 +279,7 @@ fun startServer(
                     .describe {
                         summary = "Partially update user settings"
                         description =
-                            "Partially updates the user's settings. A null section removes that integration. Within a section, sending \"****\" for a sensitive field keeps the existing value."
+                            "Partially updates the user's settings. A null section removes that integration. Omit fields to keep existing values unchanged."
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -648,12 +648,15 @@ fun startServer(
             // -----------------------------------------------------------
             // Public RSS feed
 
-            get("/rss") { rssRoutes.generateRssRoute(call) }
+            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
                 .describe {
-                    summary = "Get RSS feed"
-                    description =
-                        "Generate and retrieve the RSS feed containing all published posts"
+                    summary = "Get user RSS feed"
+                    description = "Generate and retrieve the RSS feed for a specific user"
                     parameters {
+                        path("userUuid") {
+                            required = true
+                            description = "UUID of the user whose RSS feed should be returned"
+                        }
                         query("filterByLinks") {
                             required = false
                             description = "Filter to only include posts with links (true/false)"
@@ -675,13 +678,17 @@ fun startServer(
                     }
                 }
 
-            get("/rss/target/{target}") { rssRoutes.generateRssRoute(call) }
+            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
                 .describe {
-                    summary = "Get RSS feed for specific target"
+                    summary = "Get user RSS feed for specific target"
                     description =
-                        "Generate and retrieve the RSS feed filtered by target platform " +
+                        "Generate and retrieve a user's RSS feed filtered by target platform " +
                             "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
                     parameters {
+                        path("userUuid") {
+                            required = true
+                            description = "UUID of the user whose RSS feed should be returned"
+                        }
                         path("target") {
                             required = true
                             description =
@@ -708,11 +715,15 @@ fun startServer(
                     }
                 }
 
-            get("/rss/{uuid}") { rssRoutes.getRssItem(call) }
+            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
                 .describe {
-                    summary = "Get RSS item by UUID"
-                    description = "Retrieve a specific RSS post/item by its UUID"
+                    summary = "Get user RSS item by UUID"
+                    description = "Retrieve a specific RSS post/item by user UUID and post UUID"
                     parameters {
+                        path("userUuid") {
+                            required = true
+                            description = "UUID of the user who owns the post"
+                        }
                         path("uuid") {
                             required = true
                             description = "UUID of the post to retrieve"

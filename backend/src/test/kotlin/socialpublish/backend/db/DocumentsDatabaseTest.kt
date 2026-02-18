@@ -244,7 +244,13 @@ class DocumentsDatabaseTest {
                     .getOrElse { throw it }
 
             // Get all blogs
-            val blogs = documentsDb.getAll("blog").getOrElse { throw it }
+            val blogs =
+                documentsDb
+                    .getAllForUser(
+                        kind = "blog",
+                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    )
+                    .getOrElse { throw it }
 
             assertEquals(2, blogs.size)
             assert(blogs.all { it.kind == "blog" })
@@ -294,7 +300,12 @@ class DocumentsDatabaseTest {
 
                 val all =
                     documentsDb
-                        .getAll("test", DocumentsDatabase.OrderBy.CREATED_AT_DESC)
+                        .getAllForUser(
+                            kind = "test",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            orderBy = DocumentsDatabase.OrderBy.CREATED_AT_DESC,
+                        )
                         .getOrElse { throw it }
 
                 assertEquals(3, all.size)
@@ -317,7 +328,13 @@ class DocumentsDatabaseTest {
             val db = Database.connect(dbPath).bind()
             val documentsDb = DocumentsDatabase(db)
 
-            val result = documentsDb.getAll("non-existent").getOrElse { throw it }
+            val result =
+                documentsDb
+                    .getAllForUser(
+                        kind = "non-existent",
+                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    )
+                    .getOrElse { throw it }
 
             assertEquals(0, result.size)
         }

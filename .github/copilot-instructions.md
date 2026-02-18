@@ -140,6 +140,9 @@ Use the following installed skills when relevant:
   - Components should receive state as parameters and communicate changes via callback functions
   - Avoid internal mutable state in components when that state needs to be shared or persisted
   - See https://developer.android.com/develop/ui/compose/state for guidance
+- **JSON Parsing Policy**: Frontend JSON parsing must use Kotlin Serialization with `@Serializable` typed data classes.
+  - Do not use `js("JSON.parse")`, dynamic casts, or ad-hoc JavaScript JSON parsing helpers.
+  - Prefer `Json.decodeFromString`, `Json.parseToJsonElement`, and typed serializers for all payload handling.
 
 ## Development Strategy
 

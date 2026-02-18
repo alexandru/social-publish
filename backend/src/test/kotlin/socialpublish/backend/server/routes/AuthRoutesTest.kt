@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UsersDatabase
+import socialpublish.backend.db.query
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
 
@@ -38,6 +39,17 @@ class AuthRoutesTest {
         val db = Database.connectUnmanaged(":memory:")
         val usersDb = UsersDatabase(db)
         val _ = usersDb.createUser("testuser", password)
+        return usersDb
+    }
+
+    private suspend fun testUsersDbWithDisabledPassword(): UsersDatabase {
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val _ = usersDb.createUser("testuser", "testpass")
+        val _ = db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+            setString(1, "testuser")
+            executeUpdate()
+        }
         return usersDb
     }
 
@@ -110,6 +122,28 @@ class AuthRoutesTest {
                 client.post("/api/login") {
                     header(HttpHeaders.ContentType, ContentType.Application.Json)
                     setBody("""{"username":"wronguser","password":"testpass"}""")
+                }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+        }
+    }
+
+    @Test
+    fun `login should reject users with disabled password`() {
+        testApplication {
+            val usersDb = testUsersDbWithDisabledPassword()
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing { post("/api/login") { authRoute.loginRoute(call) } }
+            }
+
+            val response =
+                client.post("/api/login") {
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)

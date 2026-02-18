@@ -137,7 +137,13 @@ fun AccountPage() {
                 when (val response = ApiClient.get<AccountSettingsView>("/api/account/settings")) {
                     is ApiResponse.Success -> {
                         state = state.copy(formState = response.data.toFormState())
-                        Storage.setConfiguredServices(response.data.toConfiguredServices())
+                        val current = Storage.getConfiguredServices()
+                        Storage.setConfiguredServices(
+                            response.data.toConfiguredServices().copy(
+                                twitter = current.twitter,
+                                linkedin = current.linkedin,
+                            )
+                        )
                     }
                     is ApiResponse.Error -> {}
                     is ApiResponse.Exception -> {}
@@ -159,9 +165,7 @@ fun AccountPage() {
                                     } else "Not connected"
                             )
                         val services = Storage.getConfiguredServices()
-                        Storage.setConfiguredServices(
-                            services.copy(twitter = data.hasAuthorization && services.twitter)
-                        )
+                        Storage.setConfiguredServices(services.copy(twitter = data.hasAuthorization))
                     }
                     is ApiResponse.Error ->
                         state = state.copy(twitterStatus = "Error: HTTP ${response.code}")
@@ -188,7 +192,7 @@ fun AccountPage() {
                             )
                         val services = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
-                            services.copy(linkedin = data.hasAuthorization && services.linkedin)
+                            services.copy(linkedin = data.hasAuthorization)
                         )
                     }
                     is ApiResponse.Error ->
@@ -216,7 +220,13 @@ fun AccountPage() {
                                 settingsSaved = true,
                                 formState = response.data.toFormState(),
                             )
-                        Storage.setConfiguredServices(response.data.toConfiguredServices())
+                        val current = Storage.getConfiguredServices()
+                        Storage.setConfiguredServices(
+                            response.data.toConfiguredServices().copy(
+                                twitter = current.twitter,
+                                linkedin = current.linkedin,
+                            )
+                        )
                     }
                     is ApiResponse.Error ->
                         state =
@@ -335,8 +345,8 @@ private fun AccountSettingsView.toConfiguredServices() =
     socialpublish.frontend.models.ConfiguredServices(
         mastodon = mastodon != null,
         bluesky = bluesky != null,
-        twitter = twitter != null,
-        linkedin = linkedin != null,
+        twitter = false,
+        linkedin = false,
         llm = llm != null,
     )
 

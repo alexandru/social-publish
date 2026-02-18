@@ -32,6 +32,7 @@ class TwitterRoutes(
         val jwtToken =
             call.request.queryParameters["access_token"]
                 ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")
+                ?: call.request.cookies["access_token"]
         if (jwtToken == null) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             return

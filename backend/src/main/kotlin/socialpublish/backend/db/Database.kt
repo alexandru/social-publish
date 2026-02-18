@@ -135,6 +135,8 @@ private fun createHikariConfig(dbPath: String): HikariConfig =
         // Keep pool size low for SQLite
         maximumPoolSize = 3
         minimumIdle = 1
+        // Allow SQLite to wait briefly when the DB file is locked by another writer.
+        connectionInitSql = "PRAGMA busy_timeout = 5000"
         // Instructs HikariCP to not throw if the pool cannot be seeded
         // with an initial connection
         initializationFailTimeout = 0

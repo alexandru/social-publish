@@ -183,8 +183,10 @@ class UsersDatabase(private val db: Database) {
             }
 
             val result =
-                FavreBCrypt.verifyer()
-                    .verify(password.toCharArray(), user.passwordHash.toCharArray())
+                user.passwordHash?.let {
+                    FavreBCrypt.verifyer().verify(password.toCharArray(), it.toCharArray())
+                }
+                    ?: return@either false
             result.verified
         }
 

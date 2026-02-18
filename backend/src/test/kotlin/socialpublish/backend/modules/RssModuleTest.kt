@@ -18,6 +18,7 @@ class RssModuleTest {
     private lateinit var rssModule: RssModule
     private lateinit var postsDb: PostsDatabase
     private lateinit var filesDb: FilesDatabase
+    private val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
 
     @BeforeEach
     fun setup(@TempDir tempDir: Path) = runTest {
@@ -38,10 +39,7 @@ class RssModuleTest {
             )
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
         val response = (result as Either.Right).value
@@ -59,15 +57,12 @@ class RssModuleTest {
             )
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
         // Verify the post was created with tags by retrieving all posts
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
         val postsList = (posts as Either.Right).value
         assertEquals(1, postsList.size)
@@ -82,10 +77,7 @@ class RssModuleTest {
         val request = NewPostRequest(content = "", targets = listOf("rss"))
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -99,10 +91,7 @@ class RssModuleTest {
         val request = NewPostRequest(content = longContent, targets = listOf("rss"))
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -119,14 +108,11 @@ class RssModuleTest {
             )
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
         val postsList = (posts as Either.Right).value
         assertEquals(1, postsList.size)
@@ -140,14 +126,11 @@ class RssModuleTest {
             NewPostRequest(content = htmlContent, targets = listOf("rss"), cleanupHtml = false)
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
         val postsList = (posts as Either.Right).value
         assertEquals(1, postsList.size)
@@ -164,14 +147,11 @@ class RssModuleTest {
             )
 
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
         val postsList = (posts as Either.Right).value
         assertEquals(1, postsList.size)
@@ -185,13 +165,10 @@ class RssModuleTest {
         // Create a test post first
         val request = NewPostRequest(content = "Test RSS post", targets = listOf("rss"))
         val createResult =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
         assertTrue(createResult is Either.Right)
 
-        val rssContent = rssModule.generateRss()
+        val rssContent = rssModule.generateRss(testUserUuid)
 
         assertTrue(rssContent.contains("<?xml"))
         assertTrue(rssContent.contains("<rss"))
@@ -205,18 +182,18 @@ class RssModuleTest {
         val result1 =
             rssModule.createPost(
                 NewPostRequest(content = "Post with link", link = "https://example.com"),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
             rssModule.createPost(
                 NewPostRequest(content = "Post without link"),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(filterByLinks = "include")
+        val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "include")
 
         assertTrue(rssContent.contains("Post with link"))
         assertFalse(rssContent.contains("Post without link"))
@@ -228,18 +205,18 @@ class RssModuleTest {
         val result1 =
             rssModule.createPost(
                 NewPostRequest(content = "Post with link", link = "https://example.com"),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
             rssModule.createPost(
                 NewPostRequest(content = "Post without link"),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(filterByLinks = "exclude")
+        val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "exclude")
 
         assertFalse(rssContent.contains("Post with link"))
         assertTrue(rssContent.contains("Post without link"))
@@ -250,17 +227,17 @@ class RssModuleTest {
         val result1 =
             rssModule.createPost(
                 NewPostRequest(content = "Twitter post", targets = listOf("twitter")),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         val result2 =
             rssModule.createPost(
                 NewPostRequest(content = "Mastodon post", targets = listOf("mastodon")),
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                testUserUuid,
             )
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(target = "twitter")
+        val rssContent = rssModule.generateRss(testUserUuid, target = "twitter")
 
         assertTrue(rssContent.contains("Twitter post"))
         assertFalse(rssContent.contains("Mastodon post"))
@@ -270,16 +247,13 @@ class RssModuleTest {
     fun `getRssItemByUuid returns post when found`() = runTest {
         val request = NewPostRequest(content = "Test post")
         val result =
-            rssModule.createPost(
-                request,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+            rssModule.createPost(request, testUserUuid)
         assertTrue(result is Either.Right)
 
-        val posts = postsDb.getAll()
+        val posts = postsDb.getAllForUser(testUserUuid)
         val uuid = (posts as Either.Right).value[0].uuid
 
-        val post = rssModule.getRssItemByUuid(uuid)
+        val post = rssModule.getRssItemByUuid(testUserUuid, uuid)
 
         assertNotNull(post)
         assertEquals("Test post", post?.content)
@@ -287,7 +261,7 @@ class RssModuleTest {
 
     @Test
     fun `getRssItemByUuid returns null when not found`() = runTest {
-        val post = rssModule.getRssItemByUuid("nonexistent-uuid")
+        val post = rssModule.getRssItemByUuid(testUserUuid, "nonexistent-uuid")
 
         assertNull(post)
     }

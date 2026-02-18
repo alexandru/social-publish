@@ -275,4 +275,34 @@ class FilesDatabaseTest {
             assert(upload1.uuid != upload2.uuid)
         }
     }
+
+    @Test
+    fun `createFile should not deduplicate uploads across users`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val filesDb = FilesDatabase(db)
+
+            val payloadForUserA =
+                UploadPayload(
+                    hash = "same-hash",
+                    originalname = "same.jpg",
+                    mimetype = "image/jpeg",
+                    size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                )
+            val payloadForUserB =
+                payloadForUserA.copy(
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+                )
+
+            val uploadA = filesDb.createFile(payloadForUserA).getOrElse { throw it }
+            val uploadB = filesDb.createFile(payloadForUserB).getOrElse { throw it }
+
+            assert(uploadA.uuid != uploadB.uuid)
+            assertEquals(payloadForUserA.userUuid, uploadA.userUuid)
+            assertEquals(payloadForUserB.userUuid, uploadB.userUuid)
+        }
+    }
 }

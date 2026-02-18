@@ -169,34 +169,16 @@ class DocumentsDatabase(private val db: Database) {
         CREATED_AT_DESC("created_at DESC")
     }
 
-    /**
-     * Return documents of the given [kind]. When [userUuid] is provided only that user's documents
-     * are returned; when null, documents for all users are returned (e.g. for the public RSS feed).
-     */
-    suspend fun getAll(
+    suspend fun getAllForUser(
         kind: String,
+        userUuid: UUID,
         orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
-        userUuid: UUID? = null,
     ): Either<DBException, List<Document>> = either {
         db.transaction {
-            val (sql, setParams) =
-                if (userUuid != null) {
-                    Pair(
-                        "SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}",
-                        { stmt: java.sql.PreparedStatement ->
-                            stmt.setString(1, kind)
-                            stmt.setString(2, userUuid.toString())
-                        },
-                    )
-                } else {
-                    Pair(
-                        "SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}",
-                        { stmt: java.sql.PreparedStatement -> stmt.setString(1, kind) },
-                    )
-                }
             val docs =
-                query(sql) {
-                    setParams(this)
+                query("SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}") {
+                    setString(1, kind)
+                    setString(2, userUuid.toString())
                     executeQuery().safe().toList { rs ->
                         Document(
                             uuid = rs.getString("uuid"),
@@ -215,4 +197,5 @@ class DocumentsDatabase(private val db: Database) {
             }
         }
     }
+
 }

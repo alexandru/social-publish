@@ -15,6 +15,15 @@ import socialpublish.frontend.models.ConfiguredServices
 
 class StorageTest {
 
+    private fun base64Url(input: String): String =
+        window.btoa(input).replace('+', '-').replace('/', '_').trimEnd('=')
+
+    private fun jwtWithPayload(payloadJson: String): String {
+        val header = base64Url("""{"alg":"HS256","typ":"JWT"}""")
+        val payload = base64Url(payloadJson)
+        return "$header.$payload.signature"
+    }
+
     @BeforeTest
     fun setup() {
         // Clear all cookies and localStorage before each test
@@ -171,6 +180,29 @@ class StorageTest {
         val isHttps = window.location.protocol == "https:"
         // We can verify the token exists but can't directly verify the secure flag from JS
         assertNotNull(Storage.getJwtToken())
+    }
+
+    @Test
+    fun testGetJwtUserUuidFromTokenPayload() {
+        val token = jwtWithPayload("""{"userUuid":"00000000-0000-0000-0000-000000000123"}""")
+        Storage.setJwtToken(token)
+
+        assertEquals("00000000-0000-0000-0000-000000000123", Storage.getJwtUserUuid())
+    }
+
+    @Test
+    fun testGetJwtUserUuidReturnsNullForMalformedToken() {
+        Storage.setJwtToken("not-a-jwt")
+
+        assertNull(Storage.getJwtUserUuid())
+    }
+
+    @Test
+    fun testGetJwtUserUuidReturnsNullWhenClaimMissing() {
+        val token = jwtWithPayload("""{"username":"alice"}""")
+        Storage.setJwtToken(token)
+
+        assertNull(Storage.getJwtUserUuid())
     }
 
     // localStorage / ConfiguredServices tests

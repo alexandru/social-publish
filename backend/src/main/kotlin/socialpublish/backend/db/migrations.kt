@@ -1,8 +1,6 @@
 package socialpublish.backend.db
 
-import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -12,12 +10,6 @@ private val logger = KotlinLogging.logger {}
 
 @OptIn(ExperimentalUuidApi::class)
 private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
-
-private fun generateRandomPassword(length: Int = 16): String {
-    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*"
-    val rng = SecureRandom()
-    return (1..length).map { chars[rng.nextInt(chars.length)] }.joinToString("")
-}
 
 /**
  * A database migration with an idempotency check and an execution function.
@@ -132,7 +124,7 @@ val migrations: List<Migration> =
                     CREATE TABLE IF NOT EXISTS users (
                         uuid VARCHAR(36) NOT NULL PRIMARY KEY,
                         username VARCHAR(255) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
+                        password_hash VARCHAR(255),
                         created_at INTEGER NOT NULL,
                         updated_at INTEGER NOT NULL
                     )
@@ -178,27 +170,21 @@ val migrations: List<Migration> =
             },
             execute = { conn ->
                 val uuid = generateUuidV7()
-                val password = generateRandomPassword()
-                val passwordHash =
-                    String(
-                        FavreBCrypt.withDefaults().hash(12, password.toCharArray()),
-                        Charsets.UTF_8,
-                    )
                 val now = Instant.now().toEpochMilli()
                 conn.query(
                     "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
                 ) {
                     setString(1, uuid.toString())
                     setString(2, "admin")
-                    setString(3, passwordHash)
+                    setNull(3, java.sql.Types.VARCHAR)
                     setLong(4, now)
                     setLong(5, now)
                     execute()
                     Unit
                 }
-                logger.warn {
-                    "Created default admin user (uuid: $uuid). " +
-                        "Generated password: $password — change it immediately via the /account page or the change-password CLI command."
+                logger.info {
+                    "Created default admin user (uuid: $uuid) with password authentication disabled. " +
+                        "Set a password via the change-password CLI command."
                 }
             },
         ),
@@ -311,6 +297,43 @@ val migrations: List<Migration> =
                 conn.ddl("DROP TABLE uploads")
                 conn.ddl("ALTER TABLE uploads_new RENAME TO uploads")
                 conn.ddl("CREATE INDEX uploads_user_uuid ON uploads(user_uuid, createdAt)")
+            },
+        ),
+        // Migration 8: Make users.password_hash nullable.
+        Migration(
+            testIfApplied = { conn ->
+                conn.query("PRAGMA table_info('users')") {
+                    val rs = executeQuery()
+                    var nullable = false
+                    while (rs.next()) {
+                        if (rs.getString("name") == "password_hash" && rs.getInt("notnull") == 0) {
+                            nullable = true
+                            break
+                        }
+                    }
+                    nullable
+                }
+            },
+            execute = { conn ->
+                conn.ddl(
+                    """
+                    CREATE TABLE users_new (
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255),
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        settings TEXT
+                    )
+                    """
+                        .trimIndent()
+                )
+                conn.ddl(
+                    "INSERT INTO users_new (uuid, username, password_hash, created_at, updated_at, settings) " +
+                        "SELECT uuid, username, password_hash, created_at, updated_at, settings FROM users"
+                )
+                conn.ddl("DROP TABLE users")
+                conn.ddl("ALTER TABLE users_new RENAME TO users")
             },
         ),
     )

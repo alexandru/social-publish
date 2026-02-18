@@ -63,6 +63,7 @@ class FilesDatabase(private val db: Database) {
         db.transaction {
             val uuidInput =
                 listOf(
+                        "u:${payload.userUuid}",
                         "h:${payload.hash}",
                         "n:${payload.originalname}",
                         "a:${payload.altText ?: ""}",

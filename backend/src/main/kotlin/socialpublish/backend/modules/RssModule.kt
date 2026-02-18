@@ -66,7 +66,7 @@ class RssModule(
                     throw it
                 }
 
-            NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
+            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save RSS item" }
             CaughtException(
@@ -80,11 +80,12 @@ class RssModule(
 
     /** Generate RSS feed */
     suspend fun generateRss(
+        userUuid: UUID,
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAll().getOrElse { throw it }
+        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
@@ -177,8 +178,8 @@ class RssModule(
     }
 
     /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(uuid: String): Post? {
-        return postsDb.searchByUuid(uuid).getOrElse { throw it }
+    suspend fun getRssItemByUuid(userUuid: UUID, uuid: String): Post? {
+        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
     }
 
     private fun cleanupHtml(html: String): String {

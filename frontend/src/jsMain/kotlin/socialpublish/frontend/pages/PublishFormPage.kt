@@ -68,6 +68,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val configuredServices = Storage.getConfiguredServices()
+    val rssFeedHref = Storage.getJwtUserUuid()?.let { "/rss/$it" } ?: "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -138,7 +139,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 P { Text("New post created successfully!") }
                                 P {
                                     Text("View the ")
-                                    A(href = "/rss", attrs = { attr("target", "_blank") }) {
+                                    A(href = rssFeedHref, attrs = { attr("target", "_blank") }) {
                                         Text("RSS feed?")
                                     }
                                 }

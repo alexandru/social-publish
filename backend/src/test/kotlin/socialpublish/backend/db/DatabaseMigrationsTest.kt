@@ -5,6 +5,7 @@ import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -40,13 +41,29 @@ class DatabaseMigrationsTest {
             val admin = usersDb.findByUsername("admin").getOrElse { throw it }
             assertNotNull(admin, "Admin user should be created on first run")
             assertEquals("admin", admin.username)
-            // Verify the default password is hashed (BCrypt)
-            assertTrue(
-                admin.passwordHash.startsWith("\$2a\$") ||
-                    admin.passwordHash.startsWith("\$2b\$") ||
-                    admin.passwordHash.startsWith("\$2y\$"),
-                "Admin password hash should be a valid BCrypt hash",
-            )
+            assertNull(admin.passwordHash)
+        }
+    }
+
+    @Test
+    fun `users password_hash column is nullable`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val notNullFlag =
+                db.query("PRAGMA table_info(users)") {
+                    val rs = executeQuery()
+                    var value = -1
+                    while (rs.next()) {
+                        if (rs.getString("name") == "password_hash") {
+                            value = rs.getInt("notnull")
+                            break
+                        }
+                    }
+                    value
+                }
+            assertEquals(0, notNullFlag)
         }
     }
 

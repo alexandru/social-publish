@@ -56,16 +56,28 @@ class RssRoutes(private val rssModule: RssModule) {
 
     /** Handle RSS feed generation HTTP route */
     suspend fun generateRssRoute(call: ApplicationCall) {
+        val userUuid =
+            call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: run {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing userUuid"))
+                    return
+                }
         val target = call.parameters["target"]
         val filterByLinks = call.request.queryParameters["filterByLinks"]
         val filterByImages = call.request.queryParameters["filterByImages"]
 
-        val rssContent = rssModule.generateRss(filterByLinks, filterByImages, target)
+        val rssContent = rssModule.generateRss(userUuid, filterByLinks, filterByImages, target)
         call.respondText(rssContent, ContentType.Application.Rss)
     }
 
     /** Get RSS item by UUID */
     suspend fun getRssItem(call: ApplicationCall) {
+        val userUuid =
+            call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: run {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing userUuid"))
+                    return
+                }
         val uuid =
             call.parameters["uuid"]
                 ?: run {
@@ -73,7 +85,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     return
                 }
 
-        val post = rssModule.getRssItemByUuid(uuid)
+        val post = rssModule.getRssItemByUuid(userUuid, uuid)
         if (post == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
             return

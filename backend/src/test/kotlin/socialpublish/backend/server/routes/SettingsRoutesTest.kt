@@ -258,6 +258,36 @@ class SettingsRoutesTest {
             assertEquals(HttpStatusCode.BadRequest, response.status)
         }
     }
+
+    @Test
+    fun `PATCH settings rejects masked sentinel in sensitive fields`() {
+        testApplication {
+            val (usersDb, userUuid) = setupDb()
+            val authRoutes = AuthRoutes(config, usersDb, null)
+            val settingsRoutes = SettingsRoutes(usersDb)
+
+            application {
+                install(ContentNegotiation) { json() }
+                authRoutes.configureAuth(this)
+                routing {
+                    authenticate("auth-jwt") {
+                        patch("/api/account/settings") {
+                            settingsRoutes.patchSettingsRoute(userUuid, call)
+                        }
+                    }
+                }
+            }
+
+            val response =
+                client.patch("/api/account/settings") {
+                    header(HttpHeaders.Authorization, "Bearer ${authToken(userUuid)}")
+                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    setBody("""{"mastodon":{"accessToken":"****"}}""")
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+        }
+    }
 }
 
 class MergeSettingsPatchTest {

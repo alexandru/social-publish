@@ -148,6 +148,15 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
                     )
                     return
                 }
+
+        if (containsMaskedSecretValue(patch)) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(error = "Masked values are not allowed in PATCH payload"),
+            )
+            return
+        }
+
         val user =
             usersDb.findByUuid(userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
@@ -174,6 +183,28 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
         call.respond(merged.toView())
     }
 }
+
+private fun containsMaskedSecretValue(patch: UserSettingsPatch): Boolean =
+    containsMaskedField(patch.bluesky, BlueskySettingsPatch::password) ||
+        containsMaskedField(patch.mastodon, MastodonSettingsPatch::accessToken) ||
+        containsMaskedField(patch.twitter, TwitterSettingsPatch::oauth1ConsumerSecret) ||
+        containsMaskedField(patch.linkedin, LinkedInSettingsPatch::clientSecret) ||
+        containsMaskedField(patch.llm, LlmSettingsPatch::apiKey)
+
+private fun <T> containsMaskedField(
+    patchedSection: Patched<T>,
+    secretSelector: (T) -> Patched<String>,
+): Boolean =
+    when (patchedSection) {
+        Patched.Undefined -> false
+        is Patched.Some -> {
+            val section = patchedSection.value ?: return false
+            when (val secret = secretSelector(section)) {
+                Patched.Undefined -> false
+                is Patched.Some -> secret.value == MASKED_VALUE
+            }
+        }
+    }
 
 // ---------------------------------------------------------------------------
 // View helpers

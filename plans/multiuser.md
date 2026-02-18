@@ -80,14 +80,14 @@ These items come from PR review `#pullrequestreview-3819353783` and should be ve
 - [x] Verify migration 5 creates initial admin user directly inside migration execution (`discussion_r2821836435`)
 - [x] Verify migrations backfill ownership before enforcing `user_uuid NOT NULL` (`discussion_r2821836435`)
 - [x] Verify old unscoped `documents`/`uploads` indexes are dropped and only `user_uuid`-scoped indexes remain (`discussion_r2821839470`)
-- [x] Verify initial admin password is random, logged once, and no insecure static default remains (`discussion_r2821847803`)
-- [ ] Verify `change-password` CLI command exists and works (`discussion_r2821847803`)
-- [ ] Verify `userUuid` is mandatory/non-null across schema, models, DB methods, and callers (`discussion_r2821852449`, `discussion_r2821855624`, `discussion_r2821857516`, `discussion_r2821859256`, `discussion_r2821860580`, `discussion_r2821863118`, `discussion_r2821867526`, `discussion_r2821868460`)
+- [x] Verify initial admin user is created with `password_hash = NULL` and no generated default password is logged (`updated requirement`)
+- [x] Verify `change-password` CLI command exists and works (`discussion_r2821847803`)
+- [x] Verify `userUuid` is mandatory/non-null across schema, models, DB methods, and callers (`discussion_r2821852449`, `discussion_r2821855624`, `discussion_r2821857516`, `discussion_r2821859256`, `discussion_r2821860580`, `discussion_r2821863118`, `discussion_r2821867526`, `discussion_r2821868460`)
 - [x] Verify settings parse failures in `UsersDatabase` log at `error` level (not `warn`) (`discussion_r2821871984`)
 - [x] Verify `UserSettings` uses config types directly and does not duplicate mirror `*UserSettings` config wrappers (`discussion_r2821906798`)
-- [ ] Verify `UserSettings` location/organization aligns with requested module boundaries and current conventions (`discussion_r2822180011`)
+- [x] Verify `UserSettings` location/organization aligns with requested module boundaries and current conventions (`discussion_r2822180011`)
 - [x] Verify token helpers are consolidated into a single payload method (e.g. `verifyTokenPayload`) returning username + user UUID (`discussion_r2821913018`)
-- [ ] Verify login unknown-user path returns `403 Forbidden` and not `500` (`discussion_r2821922702`)
+- [x] Verify login unknown-user path returns `403 Forbidden` and not `500` (`discussion_r2821922702`)
 - [x] Verify login response exposes `configuredServices` semantics only (no stale `hasAuth`/`AuthStatus`) (`discussion_r2822151945`)
 - [x] Verify route auth extraction is pure and route dependencies are decoupled (`SettingsRoutes` not depending on `AuthRoutes`) (`discussion_r2822163550`, `discussion_r2822225532`, `discussion_r2822230154`)
 - [x] Verify reusable response helpers are used from `server/utils.kt` (`discussion_r2822214254`)
@@ -99,7 +99,7 @@ These items come from PR review `#pullrequestreview-3819353783` and should be ve
 - [x] Verify Twitter OAuth persistence/search keys are strictly user-scoped and never use nullable/default user IDs (`discussion_r2822320840`)
 - [x] Verify LinkedIn route/module boundary is clean: no `ApplicationCall` in module API and HTTP logic moved to `LinkedInRoutes.kt` (`discussion_r2822338907`)
 - [x] Verify LinkedIn OAuth persistence/search keys are strictly user-scoped and never use nullable/default user IDs (`discussion_r2822338907`)
-- [ ] Verify `DocumentsDatabase` has no nullable/default `userUuid` in write/query APIs (`discussion_r2822324356`, `discussion_r2822325762`)
+- [x] Verify `DocumentsDatabase` has no nullable/default `userUuid` in write/query APIs (`discussion_r2822324356`, `discussion_r2822325762`)
 - [x] Verify obsolete/non-actionable historical comment was removed from `ServerConfig.kt` (`discussion_r2822341771`)
 - [x] Verify frontend does not define/store credential-bearing `UserSettings` models (`models/UserSettings.kt` removed and no equivalent leaks) (`discussion_r2822353132`, `discussion_r2822355137`)
 - [x] Verify `/account` UI uses state hoisting with a single immutable form state object (not many independent remembered vars) (`discussion_r2822360794`, `discussion_r2822362512`, `discussion_r2822369315`)
@@ -119,25 +119,45 @@ Rules for execution:
   - mark the corresponding checklist item(s) in `Review-Driven Verification Checklist` as `[x]`
 - Do not remove existing comments authored by the user.
 
+### Current Progress Snapshot (updated in-session)
+
+- Done:
+  - `users.password_hash` is nullable; migration 5 creates admin with null password; no generated password logging.
+  - login unknown-user returns `403`; null-password users are rejected.
+  - `change-password` CLI covered by tests, including enabling auth for null-password users.
+  - OAuth start routes accept JWT from query/header/cookie.
+  - `DocumentsDatabase`/`PostsDatabase` user scoping tightened; nullable/default `userUuid` query APIs removed.
+  - RSS is per-user end-to-end (routes/module/data access) and frontend RSS link includes user UUID.
+  - file dedup UUID input is user-scoped and has regression test.
+  - frontend JSON parsing moved to Kotlin Serialization typed model for JWT payload extraction.
+  - frontend JSON parsing policy added to `AGENTS.md`.
+- Remaining:
+  - add dedicated tests for OAuth cookie-start routes.
+  - complete strict PATCH semantics verification via frontend serialization tests (`Patched` / omitted keys).
+  - complete frontend OAuth readiness tests for `/account` state/storage flow.
+  - run full `:backend:test` cleanly (targeted modified-area suites pass; LinkedIn multi-image test intermittently surfaces upload error payload -> JSON decode failure).
+
 ### Scope Summary (must all be implemented)
 
 1. Finish remaining checklist items that are still unchecked.
 2. Implement the new auth requirement: `users.password_hash` nullable; null means disabled login.
 3. Address additional review `#pullrequestreview-3821349420` comments if valid.
 4. Address already-identified functional gaps (masked secret overwrite, upload user-scope dedup, frontend OAuth readiness race/state mismatch).
+5. Make RSS strictly per-user: no global/all-users feed; user identity must be part of RSS endpoints.
+6. Frontend JSON parsing must be fully type-safe via Kotlin Serialization (no `js("JSON.parse")` usage).
 
 ### Review `#pullrequestreview-3821349420` (investigate + fix)
 
 - `discussion_r2823641232`: Twitter authorize route should also accept JWT from cookie on browser redirect flow.
 - `discussion_r2823641239`: LinkedIn authorize route should also accept JWT from cookie on browser redirect flow.
-- `discussion_r2823641243`: Settings PATCH must preserve existing secret when payload contains masked sentinel (`"****"`).
+- `discussion_r2823641243`: Frontend must not send masked sentinel (`"****"`) in PATCH payload; unchanged sensitive fields must be omitted via `Patched.Undefined`.
 - `discussion_r2823641249`: Frontend configured-service state for Twitter/LinkedIn must represent OAuth readiness, not only credential presence.
 
 ### Work Plan by Phase
 
 #### Phase 0 - Baseline and safety checks
 
-- [ ] Capture baseline failing/passing status of targeted tests (auth routes, settings routes, db migrations, files db, account page logic tests if present).
+- [x] Capture baseline failing/passing status of targeted tests (auth routes, settings routes, db migrations, files db, account page logic tests if present).
 - [ ] Create a mapping table in notes/commit message drafts from each unchecked checklist item to concrete file changes.
 
 #### Phase 1 - Password-nullability architecture change (new requirement)
@@ -155,18 +175,18 @@ Primary files to inspect/update:
 
 Tasks:
 
-- [ ] Add/adjust migration(s) so `users.password_hash` is nullable in all supported DB states.
+- [x] Add/adjust migration(s) so `users.password_hash` is nullable in all supported DB states.
   - Existing DBs with non-null column must migrate safely.
   - Fresh DB path must end with nullable column.
-- [ ] Update migration 5 behavior:
+- [x] Update migration 5 behavior:
   - create initial `admin` user with `password_hash = NULL`
   - remove random password generation and password logging.
-- [ ] Update domain/data model to allow nullable password hash where required.
-- [ ] Update login/auth logic:
+- [x] Update domain/data model to allow nullable password hash where required.
+- [x] Update login/auth logic:
   - if user exists but password hash is null => deny authentication (use expected status semantics below)
   - no BCrypt verification attempted on null hash.
-- [ ] Ensure `change-password` command can set password for users with null hash.
-- [ ] Decide and implement exact response contract for disabled-password users (documented in tests).
+- [x] Ensure `change-password` command can set password for users with null hash.
+- [x] Decide and implement exact response contract for disabled-password users (documented in tests).
 
 Acceptance criteria:
 
@@ -178,37 +198,43 @@ Acceptance criteria:
 
 ##### 2.1 `change-password` command exists and works
 
-- [ ] Add/expand tests around `ChangePasswordCommand` behavior (success, unknown user, nullable-password user).
-- [ ] Add reproducible verification steps in plan notes or test names.
-- [ ] After validation, mark checklist item `discussion_r2821847803` done.
+- [x] Add/expand tests around `ChangePasswordCommand` behavior (success, unknown user, nullable-password user).
+- [x] Add reproducible verification steps in plan notes or test names.
+- [x] After validation, mark checklist item `discussion_r2821847803` done.
 
 ##### 2.2 Unknown username login returns 403
 
-- [ ] Add failing test in auth route tests asserting unknown username => `403 Forbidden`.
-- [ ] Implement route behavior in `AuthRoutes` while preserving no-user-enumeration policy decisions documented by project owner.
-- [ ] Verify no `500` path for unknown username case.
-- [ ] Mark checklist item `discussion_r2821922702` done.
+- [x] Add failing test in auth route tests asserting unknown username => `403 Forbidden`.
+- [x] Implement route behavior in `AuthRoutes` while preserving no-user-enumeration policy decisions documented by project owner.
+- [x] Verify no `500` path for unknown username case.
+- [x] Mark checklist item `discussion_r2821922702` done.
 
 ##### 2.3 Mandatory user ownership and `DocumentsDatabase` nullable/default cleanup
 
-- [ ] Audit DB APIs for nullable/default `userUuid` in write/query flows (especially `DocumentsDatabase`, `PostsDatabase`, files access paths).
-- [ ] Remove nullable/default user UUID parameters except intentionally public read paths (if any).
-- [ ] For any intentional exception (e.g. public RSS), replace nullable argument with explicit dedicated method to avoid ambiguous API.
-- [ ] Update all callers and tests.
-- [ ] Mark checklist items tied to `discussion_r2821852449` ... `discussion_r2821868460` and `discussion_r2822324356`, `discussion_r2822325762` done.
+- [x] Audit DB APIs for nullable/default `userUuid` in write/query flows (especially `DocumentsDatabase`, `PostsDatabase`, files access paths).
+- [x] Remove nullable/default user UUID parameters except intentionally public read paths (if any).
+- [x] For any intentional exception (e.g. public RSS), replace nullable argument with explicit dedicated method to avoid ambiguous API.
+- [x] Update all callers and tests.
+- [x] Mark checklist items tied to `discussion_r2821852449` ... `discussion_r2821868460` and `discussion_r2822324356`, `discussion_r2822325762` done.
+- [x] RSS scoping requirement:
+  - remove global "all users" RSS queries
+  - require user identity in RSS routes (path-based user id)
+  - ensure RSS item fetch is scoped to that same user
+  - update frontend RSS links/routes to include user UUID in URLs
+  - update tests and any frontend links/callers
 
 ##### 2.4 `UserSettings` location and module boundaries
 
-- [ ] Verify placement against AGENTS architecture guidance and reviewer request (`discussion_r2822180011`).
-- [ ] If refactor needed, move with minimal churn and update imports/tests.
-- [ ] Mark checklist item done once justified by code and conventions.
+- [x] Verify placement against AGENTS architecture guidance and reviewer request (`discussion_r2822180011`).
+- [x] If refactor needed, move with minimal churn and update imports/tests.
+- [x] Mark checklist item done once justified by code and conventions.
 
 #### Phase 3 - Address latest review + known functional bugs
 
 ##### 3.1 OAuth authorize routes must accept cookie JWT
 
 - [ ] Add failing tests for Twitter and LinkedIn authorize routes where JWT is provided via cookie only.
-- [ ] Update token extraction logic in routes to accept cookie source consistently with existing auth extraction helper.
+- [x] Update token extraction logic in routes to accept cookie source consistently with existing auth extraction helper.
 - [ ] Confirm no regression for header/query token flows.
 - [ ] Addresses `discussion_r2823641232`, `discussion_r2823641239`.
 
@@ -220,33 +246,39 @@ Acceptance criteria:
   - `"****"` should not be bound as input `value`; use placeholder/help text only.
 - [ ] Add/update frontend tests for `toPatchBody()` (or equivalent) asserting unchanged secret fields are absent (undefined/missing key), not `null`, not `"****"`.
 - [ ] Add/update frontend UI tests (or deterministic component checks) asserting masked state is represented as placeholder/hint only.
-- [ ] Keep backend merge behavior aligned with `Patched` semantics:
+- [x] Keep backend merge behavior aligned with `Patched` semantics:
   - absent field => keep existing
   - explicit `null` => clear/remove section as currently designed
   - explicit value => update
-- [ ] Optional hardening (recommended): if backend receives literal `"****"` in secret fields, reject with `400` validation error to catch client bugs early.
+- [x] Optional hardening (recommended): if backend receives literal `"****"` in secret fields, reject with `400` validation error to catch client bugs early.
 - [ ] Addresses `discussion_r2823641243`.
 
 ##### 3.3 Frontend configured-service semantics for OAuth readiness
 
 - [ ] Add/update frontend tests for `/account` state updates to ensure Twitter/LinkedIn readiness remains false until OAuth status confirms authorized.
-- [ ] Remove race-prone or contradictory writes to storage from settings-only responses.
+- [x] Remove race-prone or contradictory writes to storage from settings-only responses.
 - [ ] Ensure save/load flows produce consistent `configuredServices` semantics with backend `LoginResponse` and status endpoints.
 - [ ] Addresses `discussion_r2823641249`.
 
+##### 3.5 Frontend JSON parsing policy enforcement
+
+- [x] Remove any `js("JSON.parse")` or equivalent dynamic JSON parsing in frontend code.
+- [x] Parse all frontend JSON using Kotlin Serialization typed models (`@Serializable`) and `Json` helpers.
+- [x] Add/update tests for any affected parsing utility to verify expected fields decode correctly and invalid payloads fail safely.
+
 ##### 3.4 File dedup user scoping
 
-- [ ] Add failing backend DB test reproducing cross-user dedup collision in `FilesDatabase.createFile`.
+- [x] Add failing backend DB test reproducing cross-user dedup collision in `FilesDatabase.createFile`.
 - [ ] Decide policy:
   - default required policy: per-user dedup (recommended for current architecture)
   - if shared dedup is intentionally desired, implement explicit ownership/authorization model and document it.
-- [ ] Implement chosen policy and update tests.
+- [x] Implement chosen policy and update tests.
 
 #### Phase 4 - Final verification and checklist closure
 
-- [ ] Run focused tests during each phase; then run full suites:
+- [x] Run focused tests during each phase; then run full suites:
   - `./gradlew :backend:test`
-  - `./gradlew :frontend:test`
+  - `./gradlew :frontend:jsTest`
 - [ ] Run formatting/lint checks and fix issues:
   - `make format`
   - `make lint`
@@ -255,11 +287,11 @@ Acceptance criteria:
 
 ### Traceability Matrix (Checklist -> Implementation)
 
-- [ ] `discussion_r2821847803` -> Phase 1 + Phase 2.1
-- [ ] `discussion_r2821852449`..`discussion_r2821868460` -> Phase 2.3
-- [ ] `discussion_r2822180011` -> Phase 2.4
-- [ ] `discussion_r2821922702` -> Phase 2.2
-- [ ] `discussion_r2822324356`, `discussion_r2822325762` -> Phase 2.3
+- [x] `discussion_r2821847803` -> Phase 1 + Phase 2.1
+- [x] `discussion_r2821852449`..`discussion_r2821868460` -> Phase 2.3
+- [x] `discussion_r2822180011` -> Phase 2.4
+- [x] `discussion_r2821922702` -> Phase 2.2
+- [x] `discussion_r2822324356`, `discussion_r2822325762` -> Phase 2.3
 - [ ] `discussion_r2823641232`, `discussion_r2823641239` -> Phase 3.1
 - [ ] `discussion_r2823641243` -> Phase 3.2
 - [ ] `discussion_r2823641249` -> Phase 3.3
