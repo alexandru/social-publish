@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
+import socialpublish.backend.db.UpdateUsernameResult
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
@@ -39,6 +40,7 @@ class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
             StartServerCommand(),
             GenBcryptHashCommand(),
             ChangePasswordCommand(),
+            ChangeUsernameCommand(),
             CreateUserCommand(),
         )
     }
@@ -216,6 +218,63 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
                         } else {
                             echo("Error: User '$username' not found", err = true)
                             throw ProgramResult(1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Subcommand to change a user's username in the database. */
+class ChangeUsernameCommand : CliktCommand(name = "change-username") {
+    override fun help(context: com.github.ajalt.clikt.core.Context) =
+        "Change a user's username in the database"
+
+    private val dbPath: String by
+        option(
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
+            )
+            .required()
+
+    private val currentUsername by
+        option("--current-username", "-u", help = "Current username of the account")
+            .prompt("Enter current username")
+
+    private val newUsername by
+        option("--new-username", "-n", help = "New username for the account")
+            .prompt("Enter new username")
+
+    override fun run() {
+        runBlocking {
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
+
+                when (val result = usersDb.updateUsername(currentUsername, newUsername)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error changing username: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        when (result.value) {
+                            is UpdateUsernameResult.Success -> {
+                                echo()
+                                echo(
+                                    "✓ Username changed successfully from '$currentUsername' to '$newUsername'"
+                                )
+                                echo()
+                            }
+                            is UpdateUsernameResult.UserNotFound -> {
+                                echo("Error: User '$currentUsername' not found", err = true)
+                                throw ProgramResult(1)
+                            }
+                            is UpdateUsernameResult.UsernameAlreadyExists -> {
+                                echo("Error: Username '$newUsername' already exists", err = true)
+                                throw ProgramResult(1)
+                            }
                         }
                     }
                 }
