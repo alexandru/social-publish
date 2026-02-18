@@ -54,6 +54,7 @@ fun LoginPage() {
                     is ApiResponse.Success -> {
                         Storage.setJwtToken(response.data.token)
                         Storage.setAuthStatus(response.data.hasAuth)
+                        Storage.setConfiguredServices(response.data.configuredServices)
                         navigateTo(redirectParam ?: "/form")
                     }
                     is ApiResponse.Error -> {

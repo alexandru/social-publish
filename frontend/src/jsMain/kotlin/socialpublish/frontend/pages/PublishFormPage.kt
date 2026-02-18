@@ -68,6 +68,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val hasAuth = Storage.getAuthStatus()
+    val configuredServices = Storage.getConfiguredServices()
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -185,37 +186,64 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
             // Distribution channels box
             Div(attrs = { classes("box", "mb-4") }) {
                 Div(attrs = { classes("checkboxes") }) {
-                    ServiceCheckboxField(
-                        serviceName = "Mastodon",
-                        checked = formState.targets.contains("mastodon"),
-                        onCheckedChange = { _ -> formState = formState.toggleTarget("mastodon") },
-                    )
+                    if (configuredServices.mastodon) {
+                        ServiceCheckboxField(
+                            serviceName = "Mastodon",
+                            checked = formState.targets.contains("mastodon"),
+                            onCheckedChange = { _ ->
+                                formState = formState.toggleTarget("mastodon")
+                            },
+                        )
+                    }
 
-                    ServiceCheckboxField(
-                        serviceName = "Bluesky",
-                        checked = formState.targets.contains("bluesky"),
-                        onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
-                    )
+                    if (configuredServices.bluesky) {
+                        ServiceCheckboxField(
+                            serviceName = "Bluesky",
+                            checked = formState.targets.contains("bluesky"),
+                            onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
+                        )
+                    }
 
-                    ServiceCheckboxField(
-                        serviceName = "Twitter",
-                        checked = formState.targets.contains("twitter"),
-                        onCheckedChange = { _ -> formState = formState.toggleTarget("twitter") },
-                        disabled = !hasAuth.twitter,
-                    )
+                    if (configuredServices.twitter) {
+                        ServiceCheckboxField(
+                            serviceName = "Twitter",
+                            checked = formState.targets.contains("twitter"),
+                            onCheckedChange = { _ ->
+                                formState = formState.toggleTarget("twitter")
+                            },
+                            disabled = !hasAuth.twitter,
+                        )
+                    }
 
-                    ServiceCheckboxField(
-                        serviceName = "LinkedIn",
-                        checked = formState.targets.contains("linkedin"),
-                        onCheckedChange = { _ -> formState = formState.toggleTarget("linkedin") },
-                        disabled = !hasAuth.linkedin,
-                    )
+                    if (configuredServices.linkedin) {
+                        ServiceCheckboxField(
+                            serviceName = "LinkedIn",
+                            checked = formState.targets.contains("linkedin"),
+                            onCheckedChange = { _ ->
+                                formState = formState.toggleTarget("linkedin")
+                            },
+                            disabled = !hasAuth.linkedin,
+                        )
+                    }
 
                     ServiceCheckboxField(
                         serviceName = "RSS feed",
                         checked = formState.targets.contains("rss"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
                     )
+
+                    if (
+                        !configuredServices.mastodon &&
+                            !configuredServices.bluesky &&
+                            !configuredServices.twitter &&
+                            !configuredServices.linkedin
+                    ) {
+                        P(attrs = { classes("help") }) {
+                            Text("No social networks configured. Go to ")
+                            A(href = "/account") { Text("Account Settings") }
+                            Text(" to configure your social network credentials.")
+                        }
+                    }
                 }
             }
 

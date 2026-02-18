@@ -6,10 +6,12 @@ import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
 import socialpublish.frontend.models.AuthStatus
+import socialpublish.frontend.models.ConfiguredServices
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
     private const val AUTH_STATUS_KEY = "hasAuth"
+    private const val CONFIGURED_SERVICES_KEY = "configuredServices"
 
     // Cookie utilities
     fun cookies(): Map<String, String> {
@@ -106,5 +108,28 @@ object Storage {
     fun updateAuthStatus(f: (AuthStatus) -> AuthStatus) {
         val current = getAuthStatus()
         setAuthStatus(f(current))
+    }
+
+    // Configured services management (using localStorage)
+    fun setConfiguredServices(services: ConfiguredServices?) {
+        if (services == null) {
+            localStorage.removeItem(CONFIGURED_SERVICES_KEY)
+        } else {
+            localStorage[CONFIGURED_SERVICES_KEY] = Json.encodeToString(services)
+        }
+    }
+
+    fun getConfiguredServices(): ConfiguredServices {
+        val stored = localStorage[CONFIGURED_SERVICES_KEY]
+        return if (stored != null) {
+            try {
+                Json.decodeFromString<ConfiguredServices>(stored)
+            } catch (e: Exception) {
+                console.error("Error decoding ConfiguredServices from localStorage:", e)
+                ConfiguredServices()
+            }
+        } else {
+            ConfiguredServices()
+        }
     }
 }
