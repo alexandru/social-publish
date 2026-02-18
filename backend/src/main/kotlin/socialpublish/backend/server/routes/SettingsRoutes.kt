@@ -7,16 +7,13 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import java.util.UUID
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.Patched
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.respondWithInternalServerError
@@ -25,8 +22,8 @@ import socialpublish.backend.server.respondWithNotFound
 /**
  * Sentinel returned in GET responses for sensitive fields that have a stored value.
  *
- * This is only used in the response body — it is never expected or processed in PATCH requests.
- * PATCH uses standard JSON Merge Patch (RFC 7396): absent field = keep existing, null = remove.
+ * This value is only used in GET/PATCH *responses*. PATCH *requests* use standard JSON Merge Patch
+ * semantics via [Patched]: absent field = keep existing, `null` field = remove/clear.
  */
 const val MASKED_VALUE = "****"
 
@@ -58,6 +55,58 @@ data class TwitterSettingsView(val oauth1ConsumerKey: String, val oauth1Consumer
 
 @Serializable data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
 
+// ---------------------------------------------------------------------------
+// PATCH request body DTOs — each field uses Patched<T> so that:
+//   absent key  → Patched.Undefined  (keep existing value)
+//   null value  → Patched.Some(null) (clear / remove section)
+//   present key → Patched.Some(T)    (update to new value)
+// ---------------------------------------------------------------------------
+
+@Serializable
+data class UserSettingsPatch(
+    val bluesky: Patched<BlueskySettingsPatch> = Patched.Undefined,
+    val mastodon: Patched<MastodonSettingsPatch> = Patched.Undefined,
+    val twitter: Patched<TwitterSettingsPatch> = Patched.Undefined,
+    val linkedin: Patched<LinkedInSettingsPatch> = Patched.Undefined,
+    val llm: Patched<LlmSettingsPatch> = Patched.Undefined,
+)
+
+@Serializable
+data class BlueskySettingsPatch(
+    val service: Patched<String> = Patched.Undefined,
+    val username: Patched<String> = Patched.Undefined,
+    val password: Patched<String> = Patched.Undefined,
+)
+
+@Serializable
+data class MastodonSettingsPatch(
+    val host: Patched<String> = Patched.Undefined,
+    val accessToken: Patched<String> = Patched.Undefined,
+)
+
+@Serializable
+data class TwitterSettingsPatch(
+    val oauth1ConsumerKey: Patched<String> = Patched.Undefined,
+    val oauth1ConsumerSecret: Patched<String> = Patched.Undefined,
+)
+
+@Serializable
+data class LinkedInSettingsPatch(
+    val clientId: Patched<String> = Patched.Undefined,
+    val clientSecret: Patched<String> = Patched.Undefined,
+)
+
+@Serializable
+data class LlmSettingsPatch(
+    val apiUrl: Patched<String> = Patched.Undefined,
+    val apiKey: Patched<String> = Patched.Undefined,
+    val model: Patched<String> = Patched.Undefined,
+)
+
+// ---------------------------------------------------------------------------
+// Route handlers
+// ---------------------------------------------------------------------------
+
 class SettingsRoutes(private val usersDb: UsersDatabase) {
     /**
      * GET /api/account/settings – returns the user's settings.
@@ -79,20 +128,19 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
     }
 
     /**
-     * PATCH /api/account/settings – partially updates the user's settings via JSON Merge Patch
-     * (RFC 7396).
+     * PATCH /api/account/settings – partially updates the user's settings.
      *
-     * Top-level section semantics:
-     * - Absent key → section is unchanged
-     * - `null` → section is removed
-     * - Object → section fields are merged: absent field = keep existing, present field = update
+     * Uses JSON Merge Patch semantics (RFC 7396) via [Patched]:
+     * - Absent key at the top level → section is unchanged.
+     * - `null` value at the top level → section is removed.
+     * - Object value at the top level → field-level merge within that section.
      *
-     * Sensitive fields (passwords, tokens, keys) left absent in the request are preserved from the
-     * existing stored values.
+     * Within a section, absent field → keep existing, present field → update, `null` field → clear
+     * (which drops the section when it affects a required field).
      */
     suspend fun patchSettingsRoute(userUuid: UUID, call: ApplicationCall) {
         val patch =
-            runCatching { call.receive<JsonObject>() }.getOrNull()
+            runCatching { call.receive<UserSettingsPatch>() }.getOrNull()
                 ?: run {
                     call.respond(
                         HttpStatusCode.BadRequest,
@@ -128,10 +176,10 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// View helpers
 // ---------------------------------------------------------------------------
 
-/** Builds a view of [UserSettings] safe to expose over the API. */
+/** Builds a view of [UserSettings] safe to expose over the API (sensitive fields masked). */
 internal fun UserSettings?.toView(): AccountSettingsView =
     AccountSettingsView(
         bluesky =
@@ -163,92 +211,91 @@ internal fun UserSettings?.toView(): AccountSettingsView =
             },
     )
 
+// ---------------------------------------------------------------------------
+// Merge helpers
+// ---------------------------------------------------------------------------
+
 /**
- * Returns the string value of [key] in this [JsonObject] if present and non-blank, the
- * [fallback] if the key is absent, or `null` if the key is present with a blank/null value.
+ * Resolves a patched string field:
+ * - [Patched.Undefined] → keep [existing] value (null if there is none)
+ * - [Patched.Some]`(blank/null)` → treat as absent/cleared → null
+ * - [Patched.Some]`(value)` → use new value
  */
-private fun JsonObject.resolveString(key: String, fallback: String?): String? =
-    if (key !in this) {
-        fallback
-    } else {
-        this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+private fun resolveField(patched: Patched<String>, existing: String?): String? =
+    when (patched) {
+        Patched.Undefined -> existing?.takeIf { it.isNotBlank() }
+        is Patched.Some -> patched.value?.takeIf { it.isNotBlank() }
     }
 
-private fun patchBluesky(existing: BlueskyConfig?, patch: JsonObject): BlueskyConfig? {
-    val service =
-        patch.resolveString("service", existing?.service) ?: "https://bsky.social"
-    val username = patch.resolveString("username", existing?.username) ?: return null
-    val password = patch.resolveString("password", existing?.password) ?: return null
+private fun patchBluesky(existing: BlueskyConfig?, patch: BlueskySettingsPatch): BlueskyConfig? {
+    val service = resolveField(patch.service, existing?.service) ?: "https://bsky.social"
+    val username = resolveField(patch.username, existing?.username) ?: return null
+    val password = resolveField(patch.password, existing?.password) ?: return null
     return existing?.copy(service = service, username = username, password = password)
         ?: BlueskyConfig(service = service, username = username, password = password)
 }
 
-private fun patchMastodon(existing: MastodonConfig?, patch: JsonObject): MastodonConfig? {
-    val host = patch.resolveString("host", existing?.host) ?: return null
-    val accessToken = patch.resolveString("accessToken", existing?.accessToken) ?: return null
+private fun patchMastodon(existing: MastodonConfig?, patch: MastodonSettingsPatch): MastodonConfig? {
+    val host = resolveField(patch.host, existing?.host) ?: return null
+    val accessToken = resolveField(patch.accessToken, existing?.accessToken) ?: return null
     return MastodonConfig(host = host, accessToken = accessToken)
 }
 
-private fun patchTwitter(existing: TwitterConfig?, patch: JsonObject): TwitterConfig? {
-    val key = patch.resolveString("oauth1ConsumerKey", existing?.oauth1ConsumerKey) ?: return null
+private fun patchTwitter(existing: TwitterConfig?, patch: TwitterSettingsPatch): TwitterConfig? {
+    val key = resolveField(patch.oauth1ConsumerKey, existing?.oauth1ConsumerKey) ?: return null
     val secret =
-        patch.resolveString("oauth1ConsumerSecret", existing?.oauth1ConsumerSecret) ?: return null
+        resolveField(patch.oauth1ConsumerSecret, existing?.oauth1ConsumerSecret) ?: return null
     return existing?.copy(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
         ?: TwitterConfig(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
 }
 
-private fun patchLinkedIn(existing: LinkedInConfig?, patch: JsonObject): LinkedInConfig? {
-    val clientId = patch.resolveString("clientId", existing?.clientId) ?: return null
-    val clientSecret = patch.resolveString("clientSecret", existing?.clientSecret) ?: return null
+private fun patchLinkedIn(existing: LinkedInConfig?, patch: LinkedInSettingsPatch): LinkedInConfig? {
+    val clientId = resolveField(patch.clientId, existing?.clientId) ?: return null
+    val clientSecret = resolveField(patch.clientSecret, existing?.clientSecret) ?: return null
     return existing?.copy(clientId = clientId, clientSecret = clientSecret)
         ?: LinkedInConfig(clientId = clientId, clientSecret = clientSecret)
 }
 
-private fun patchLlm(existing: LlmConfig?, patch: JsonObject): LlmConfig? {
-    val apiUrl = patch.resolveString("apiUrl", existing?.apiUrl) ?: return null
-    val apiKey = patch.resolveString("apiKey", existing?.apiKey) ?: return null
-    val model = patch.resolveString("model", existing?.model) ?: ""
+private fun patchLlm(existing: LlmConfig?, patch: LlmSettingsPatch): LlmConfig? {
+    val apiUrl = resolveField(patch.apiUrl, existing?.apiUrl) ?: return null
+    val apiKey = resolveField(patch.apiKey, existing?.apiKey) ?: return null
+    val model = resolveField(patch.model, existing?.model) ?: ""
     return LlmConfig(apiUrl = apiUrl, apiKey = apiKey, model = model)
 }
 
 /**
- * Applies a JSON Merge Patch to [existing] settings.
+ * Applies [patch] to [existing] settings using JSON Merge Patch semantics.
  *
- * - Absent key at the top level → keep existing section
- * - `null` at the top level → remove section
- * - Object at the top level → field-level merge (absent field = keep existing, present = update)
+ * Top-level section rules:
+ * - [Patched.Undefined] → keep existing section unchanged
+ * - [Patched.Some]`(null)` → remove section
+ * - [Patched.Some]`(patch)` → merge field-by-field
  */
-internal fun mergeSettingsPatch(existing: UserSettings?, patch: JsonObject): UserSettings =
+internal fun mergeSettingsPatch(existing: UserSettings?, patch: UserSettingsPatch): UserSettings =
     UserSettings(
         bluesky =
-            when {
-                "bluesky" !in patch -> existing?.bluesky
-                patch["bluesky"] is JsonNull -> null
-                else -> patchBluesky(existing?.bluesky, patch["bluesky"]!!.jsonObject)
+            when (val p = patch.bluesky) {
+                Patched.Undefined -> existing?.bluesky
+                is Patched.Some -> p.value?.let { patchBluesky(existing?.bluesky, it) }
             },
         mastodon =
-            when {
-                "mastodon" !in patch -> existing?.mastodon
-                patch["mastodon"] is JsonNull -> null
-                else -> patchMastodon(existing?.mastodon, patch["mastodon"]!!.jsonObject)
+            when (val p = patch.mastodon) {
+                Patched.Undefined -> existing?.mastodon
+                is Patched.Some -> p.value?.let { patchMastodon(existing?.mastodon, it) }
             },
         twitter =
-            when {
-                "twitter" !in patch -> existing?.twitter
-                patch["twitter"] is JsonNull -> null
-                else -> patchTwitter(existing?.twitter, patch["twitter"]!!.jsonObject)
+            when (val p = patch.twitter) {
+                Patched.Undefined -> existing?.twitter
+                is Patched.Some -> p.value?.let { patchTwitter(existing?.twitter, it) }
             },
         linkedin =
-            when {
-                "linkedin" !in patch -> existing?.linkedin
-                patch["linkedin"] is JsonNull -> null
-                else -> patchLinkedIn(existing?.linkedin, patch["linkedin"]!!.jsonObject)
+            when (val p = patch.linkedin) {
+                Patched.Undefined -> existing?.linkedin
+                is Patched.Some -> p.value?.let { patchLinkedIn(existing?.linkedin, it) }
             },
         llm =
-            when {
-                "llm" !in patch -> existing?.llm
-                patch["llm"] is JsonNull -> null
-                else -> patchLlm(existing?.llm, patch["llm"]!!.jsonObject)
+            when (val p = patch.llm) {
+                Patched.Undefined -> existing?.llm
+                is Patched.Some -> p.value?.let { patchLlm(existing?.llm, it) }
             },
     )
-

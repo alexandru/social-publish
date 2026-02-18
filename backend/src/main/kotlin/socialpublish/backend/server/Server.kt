@@ -67,6 +67,7 @@ import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.server.routes.UserResponse
+import socialpublish.backend.server.routes.UserSettingsPatch
 import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.server.routes.resolveUserUuid
 
@@ -283,7 +284,7 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<UserSettings>() }
+                            ContentType.Application.Json { schema = jsonSchema<UserSettingsPatch>() }
                         }
                         responses {
                             HttpStatusCode.OK {

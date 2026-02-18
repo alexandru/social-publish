@@ -210,11 +210,15 @@ class RssModuleTest {
         val result1 =
             rssModule.createPost(
                 NewPostRequest(content = "Twitter post", targets = listOf("twitter"))
+            ,
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
             )
         assertTrue(result1 is Either.Right)
         val result2 =
             rssModule.createPost(
                 NewPostRequest(content = "Mastodon post", targets = listOf("mastodon"))
+            ,
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
             )
         assertTrue(result2 is Either.Right)
 

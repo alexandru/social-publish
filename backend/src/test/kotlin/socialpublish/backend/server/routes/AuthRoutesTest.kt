@@ -138,7 +138,7 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.hasAuth.twitter)
+            assertTrue(body.configuredServices.twitter)
         }
     }
 
@@ -163,7 +163,7 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.hasAuth.linkedin)
+            assertTrue(body.configuredServices.linkedin)
         }
     }
 
@@ -507,8 +507,7 @@ class AuthRoutesTest {
                 AuthRoutes(
                     config,
                     usersDb,
-                    documentsDb = DocumentsDatabase(testDb), twitterAuthProvider = { true },
-                    linkedInAuthProvider = { true },
+                    null,
                 )
 
             application {
@@ -526,8 +525,8 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.hasAuth.twitter)
-            assertTrue(body.hasAuth.linkedin)
+            assertTrue(body.configuredServices.twitter)
+            assertTrue(body.configuredServices.linkedin)
         }
     }
 
@@ -539,8 +538,7 @@ class AuthRoutesTest {
                 AuthRoutes(
                     config,
                     usersDb,
-                    documentsDb = DocumentsDatabase(testDb), twitterAuthProvider = { false },
-                    linkedInAuthProvider = { false },
+                    null,
                 )
 
             application {
@@ -558,8 +556,8 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertEquals(false, body.hasAuth.twitter)
-            assertEquals(false, body.hasAuth.linkedin)
+            assertEquals(false, body.configuredServices.twitter)
+            assertEquals(false, body.configuredServices.linkedin)
         }
     }
 }
