@@ -77,6 +77,34 @@ private val logger = KotlinLogging.logger {}
 private val UserUuidKey = AttributeKey<UUID>("userUuid")
 private val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
 
+private suspend fun io.ktor.server.application.ApplicationCall.requireUserUuid(): UUID? {
+    attributes.getOrNull(UserUuidKey)?.let {
+        return it
+    }
+
+    val resolved = resolveUserUuid()
+    if (resolved == null) {
+        respondWithUnauthorized()
+        return null
+    }
+
+    attributes.put(UserUuidKey, resolved)
+    return resolved
+}
+
+private suspend fun io.ktor.server.application.ApplicationCall.requireUserSettings(
+    usersDb: UsersDatabase,
+    userUuid: UUID,
+): UserSettings {
+    attributes.getOrNull(UserSettingsKey)?.let {
+        return it
+    }
+
+    val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
+    attributes.put(UserSettingsKey, settings)
+    return settings
+}
+
 fun startServer(
     config: AppConfig,
     documentsDb: DocumentsDatabase,
@@ -254,7 +282,7 @@ fun startServer(
                     }
 
                 get("/api/account/settings") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         settingsRoutes.getSettingsRoute(userUuid, call)
                     }
                     .describe {
@@ -275,7 +303,7 @@ fun startServer(
                     }
 
                 patch("/api/account/settings") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@patch
+                        val userUuid = call.requireUserUuid() ?: return@patch
                         settingsRoutes.patchSettingsRoute(userUuid, call)
                     }
                     .describe {
@@ -307,7 +335,7 @@ fun startServer(
 
                 // File upload
                 post("/api/files/upload") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         filesRoutes.uploadFileRoute(userUuid, call)
                     }
                     .describe {
@@ -365,8 +393,8 @@ fun startServer(
 
                 // LLM alt-text generation (extracted to LlmRoutes)
                 post("/api/llm/generate-alt-text") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
-                        val llmConfig = call.attributes.getOrNull(UserSettingsKey)?.llm
+                        val userUuid = call.requireUserUuid() ?: return@post
+                        val llmConfig = call.requireUserSettings(usersDb, userUuid).llm
                         llmRoutes.generateAltTextRoute(userUuid, llmConfig, call)
                     }
                     .describe {
@@ -410,7 +438,7 @@ fun startServer(
 
                 // RSS post creation
                 post("/api/rss/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         rssRoutes.createPostRoute(userUuid, call)
                     }
                     .describe {
@@ -429,9 +457,9 @@ fun startServer(
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         val blueskyConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.bluesky
+                            call.requireUserSettings(usersDb, userUuid).bluesky
                                 ?: run {
                                     call.respondWithNotConfigured("Bluesky")
                                     return@post
@@ -453,9 +481,9 @@ fun startServer(
                     }
 
                 post("/api/mastodon/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         val mastodonConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.mastodon
+                            call.requireUserSettings(usersDb, userUuid).mastodon
                                 ?: run {
                                     call.respondWithNotConfigured("Mastodon")
                                     return@post
@@ -477,9 +505,9 @@ fun startServer(
                     }
 
                 post("/api/twitter/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                            call.requireUserSettings(usersDb, userUuid).twitter
                                 ?: run {
                                     call.respondWithNotConfigured("Twitter")
                                     return@post
@@ -501,9 +529,9 @@ fun startServer(
                     }
 
                 post("/api/linkedin/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        val userUuid = call.requireUserUuid() ?: return@post
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                            call.requireUserSettings(usersDb, userUuid).linkedin
                                 ?: run {
                                     call.respondWithNotConfigured("LinkedIn")
                                     return@post
@@ -525,9 +553,8 @@ fun startServer(
                     }
 
                 post("/api/multiple/post") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
-                        val userSettings =
-                            call.attributes.getOrNull(UserSettingsKey) ?: UserSettings()
+                        val userUuid = call.requireUserUuid() ?: return@post
+                        val userSettings = call.requireUserSettings(usersDb, userUuid)
                         val publishModule =
                             PublishModule(
                                 mastodonModule = mastodonModule,
@@ -562,12 +589,12 @@ fun startServer(
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         val username =
                             call.principal<JWTPrincipal>()?.getClaim("username", String::class)
                                 ?: return@get
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                            call.requireUserSettings(usersDb, userUuid).twitter
                                 ?: run {
                                     call.respondWithNotConfigured("Twitter")
                                     return@get
@@ -587,9 +614,9 @@ fun startServer(
                     }
 
                 get("/api/twitter/callback") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                            call.requireUserSettings(usersDb, userUuid).twitter
                                 ?: run {
                                     call.respondWithNotConfigured("Twitter")
                                     return@get
@@ -602,7 +629,7 @@ fun startServer(
                     }
 
                 get("/api/twitter/status") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         twitterRoutes.statusRoute(userUuid, call)
                     }
                     .describe {
@@ -615,12 +642,12 @@ fun startServer(
 
                 // LinkedIn OAuth flow
                 get("/api/linkedin/authorize") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         val username =
                             call.principal<JWTPrincipal>()?.getClaim("username", String::class)
                                 ?: return@get
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                            call.requireUserSettings(usersDb, userUuid).linkedin
                                 ?: run {
                                     call.respondWithNotConfigured("LinkedIn")
                                     return@get
@@ -640,9 +667,9 @@ fun startServer(
                     }
 
                 get("/api/linkedin/callback") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                            call.requireUserSettings(usersDb, userUuid).linkedin
                                 ?: run {
                                     call.respondWithNotConfigured("LinkedIn")
                                     return@get
@@ -655,7 +682,7 @@ fun startServer(
                     }
 
                 get("/api/linkedin/status") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
+                        val userUuid = call.requireUserUuid() ?: return@get
                         linkedInRoutes.statusRoute(userUuid, call)
                     }
                     .describe {

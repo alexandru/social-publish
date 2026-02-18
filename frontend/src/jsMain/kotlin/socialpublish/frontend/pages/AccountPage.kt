@@ -249,43 +249,47 @@ fun AccountPage() {
 
         val saveSettings: (SettingsFormState) -> Unit = { formState ->
             scope.launch {
-                state = state.copy(settingsSaved = false, settingsError = null)
-                val patchBody = formState.toPatchBody()
-                when (
-                    val response =
-                        ApiClient.patch<AccountSettingsView, JsonObject>(
-                            "/api/account/settings",
-                            patchBody,
-                        )
-                ) {
-                    is ApiResponse.Success -> {
-                        state =
-                            state.copy(
-                                settingsSaved = true,
-                                formState = response.data.toFormState(),
+                try {
+                    state = state.copy(settingsSaved = false, settingsError = null)
+                    val patchBody = formState.toPatchBody()
+                    when (
+                        val response =
+                            ApiClient.patch<AccountSettingsView, JsonObject>(
+                                "/api/account/settings",
+                                patchBody,
                             )
-                        val current = Storage.getConfiguredServices()
-                        Storage.setConfiguredServices(
-                            mergeConfiguredServicesFromSettings(
-                                current,
-                                response.data.toConfiguredServices(),
+                    ) {
+                        is ApiResponse.Success -> {
+                            state =
+                                state.copy(
+                                    settingsSaved = true,
+                                    formState = response.data.toFormState(),
+                                )
+                            val current = Storage.getConfiguredServices()
+                            Storage.setConfiguredServices(
+                                mergeConfiguredServicesFromSettings(
+                                    current,
+                                    response.data.toConfiguredServices(),
+                                )
                             )
-                        )
-                    }
-                    is ApiResponse.Error -> {
-                        if (isUnauthorized(response)) {
-                            Storage.clearJwtToken()
-                            Storage.setConfiguredServices(null)
-                            navigateTo(buildLoginRedirectPath("/account"))
-                            return@launch
                         }
-                        state =
-                            state.copy(
-                                settingsError = "Failed to save settings: ${response.message}"
-                            )
+                        is ApiResponse.Error -> {
+                            if (isUnauthorized(response)) {
+                                Storage.clearJwtToken()
+                                Storage.setConfiguredServices(null)
+                                navigateTo(buildLoginRedirectPath("/account"))
+                                return@launch
+                            }
+                            state =
+                                state.copy(
+                                    settingsError = "Failed to save settings: ${response.message}"
+                                )
+                        }
+                        is ApiResponse.Exception ->
+                            state = state.copy(settingsError = "Error: ${response.message}")
                     }
-                    is ApiResponse.Exception ->
-                        state = state.copy(settingsError = "Error: ${response.message}")
+                } finally {
+                    window.scrollTo(0.0, 0.0)
                 }
             }
         }

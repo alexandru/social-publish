@@ -193,7 +193,9 @@ class AuthRoutes(
                 validate { credential ->
                     val username = credential.payload.getClaim("username").asString()
                     val userUuid = credential.payload.getClaim("userUuid").asString()
-                    if (username != null && userUuid != null) {
+                    val isValidUuid =
+                        userUuid?.let { runCatching { UUID.fromString(it) }.isSuccess } == true
+                    if (username != null && isValidUuid) {
                         JWTPrincipal(credential.payload)
                     } else {
                         null

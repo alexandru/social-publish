@@ -428,6 +428,36 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `protectedRoute should reject token with malformed userUuid claim`() {
+        testApplication {
+            val malformedUuidToken =
+                JWT.create()
+                    .withSubject("testuser")
+                    .withClaim("username", "testuser")
+                    .withClaim("userUuid", "not-a-uuid")
+                    .sign(Algorithm.HMAC256(config.jwtSecret))
+
+            application {
+                install(ContentNegotiation) { json() }
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+                configureAuth(authRoutes)
+                routing {
+                    authenticate("auth-jwt") {
+                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    }
+                }
+            }
+
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $malformedUuidToken")
+                }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+    }
+
+    @Test
     fun `extractJwtToken should extract token from Bearer header`() {
         testApplication {
             val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
