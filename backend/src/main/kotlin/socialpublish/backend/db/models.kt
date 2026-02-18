@@ -103,6 +103,18 @@ sealed interface CreateResult<out T> {
             }
 }
 
+/** Result for username update operations. */
+sealed interface UpdateUsernameResult {
+    /** Username was updated successfully. */
+    data object Success : UpdateUsernameResult
+
+    /** User with the specified username was not found. */
+    data object UserNotFound : UpdateUsernameResult
+
+    /** New username already exists for another user. */
+    data object UsernameAlreadyExists : UpdateUsernameResult
+}
+
 /** User session for JWT authentication with optional refresh token support. */
 data class UserSession(
     val uuid: UUID,

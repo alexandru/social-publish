@@ -456,6 +456,92 @@ class UsersDatabaseTest {
         }
 
     @Test
+    fun `updateUsername should update username successfully`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val usersDb = UsersDatabase(db)
+
+            // Create user
+            val createResult =
+                usersDb.createUser(username = "oldusername", password = "password").getOrElse {
+                    throw it
+                }
+            assertTrue(createResult is CreateResult.Created)
+
+            // Update username
+            val updateResult =
+                usersDb.updateUsername("oldusername", "newusername").getOrElse { throw it }
+
+            assertTrue(updateResult is UpdateUsernameResult.Success)
+
+            // Verify old username no longer exists
+            val oldNotFound = usersDb.findByUsername("oldusername").getOrElse { throw it }
+            assertNull(oldNotFound)
+
+            // Verify new username exists
+            val found = usersDb.findByUsername("newusername").getOrElse { throw it }
+            assertNotNull(found)
+            assertEquals("newusername", found.username)
+        }
+    }
+
+    @Test
+    fun `updateUsername should return UserNotFound for non-existent user`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
+
+                val result =
+                    usersDb.updateUsername("nonexistent", "newusername").getOrElse { throw it }
+
+                assertTrue(result is UpdateUsernameResult.UserNotFound)
+            }
+        }
+
+    @Test
+    fun `updateUsername should return UsernameAlreadyExists when new username exists`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val usersDb = UsersDatabase(db)
+
+            // Create two users
+            @Suppress("UNUSED_VARIABLE")
+            val user1 =
+                usersDb.createUser(username = "user1", password = "password1").getOrElse {
+                    throw it
+                }
+            @Suppress("UNUSED_VARIABLE")
+            val user2 =
+                usersDb.createUser(username = "user2", password = "password2").getOrElse {
+                    throw it
+                }
+
+            // Try to change user1's username to user2's username
+            val result = usersDb.updateUsername("user1", "user2").getOrElse { throw it }
+
+            assertTrue(result is UpdateUsernameResult.UsernameAlreadyExists)
+
+            // Verify both users still have their original usernames
+            val found1 = usersDb.findByUsername("user1").getOrElse { throw it }
+            assertNotNull(found1)
+            assertEquals("user1", found1.username)
+
+            val found2 = usersDb.findByUsername("user2").getOrElse { throw it }
+            assertNotNull(found2)
+            assertEquals("user2", found2.username)
+        }
+    }
+
+    @Test
     fun `CreateResult toNullable should work correctly`() {
         val user =
             User(
