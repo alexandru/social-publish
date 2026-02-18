@@ -15,6 +15,7 @@ data class UploadPayload(
     val altText: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val userUuid: UUID? = null,
 )
 
 data class Upload(
@@ -26,6 +27,7 @@ data class Upload(
     val altText: String?,
     val imageWidth: Int?,
     val imageHeight: Int?,
+    val userUuid: UUID?,
     val createdAt: Instant,
 )
 
@@ -87,6 +89,7 @@ class FilesDatabase(private val db: Database) {
                             altText = rs.getString("altText"),
                             imageWidth = rs.getObject("imageWidth") as? Int,
                             imageHeight = rs.getObject("imageHeight") as? Int,
+                            userUuid = rs.getString("user_uuid")?.let { UUID.fromString(it) },
                             createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                         )
                     }
@@ -107,14 +110,15 @@ class FilesDatabase(private val db: Database) {
                     altText = payload.altText,
                     imageWidth = payload.imageWidth,
                     imageHeight = payload.imageHeight,
+                    userUuid = payload.userUuid,
                     createdAt = now,
                 )
 
             query(
                 """
                 INSERT INTO uploads
-                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                     .trimIndent()
             ) {
@@ -126,7 +130,9 @@ class FilesDatabase(private val db: Database) {
                 setString(6, upload.altText)
                 upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, java.sql.Types.INTEGER)
                 upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
-                setLong(9, upload.createdAt.toEpochMilli())
+                if (upload.userUuid != null) setString(9, upload.userUuid.toString())
+                else setNull(9, java.sql.Types.VARCHAR)
+                setLong(10, upload.createdAt.toEpochMilli())
                 execute()
                 Unit
             }
@@ -148,6 +154,7 @@ class FilesDatabase(private val db: Database) {
                     altText = rs.getString("altText"),
                     imageWidth = rs.getObject("imageWidth") as? Int,
                     imageHeight = rs.getObject("imageHeight") as? Int,
+                    userUuid = rs.getString("user_uuid")?.let { UUID.fromString(it) },
                     createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                 )
             }

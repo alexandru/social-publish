@@ -6,6 +6,7 @@ import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
+import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
@@ -14,22 +15,34 @@ class AuthModule(jwtSecret: String) {
 
     val verifier: JWTVerifier by lazy { JWT.require(algorithm).build() }
 
-    /** Generate JWT token for authenticated user */
-    fun generateToken(username: String): String {
+    /** Generate JWT token for authenticated user, carrying both username and userUuid */
+    fun generateToken(username: String, userUuid: UUID): String {
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
+            .withClaim("userUuid", userUuid.toString())
             .withExpiresAt(Date(System.currentTimeMillis() + JWT_EXPIRATION_MILLIS))
             .sign(algorithm)
     }
 
-    /** Verify JWT token */
+    /** Verify JWT token, returning the username if valid */
     fun verifyToken(token: String): String? {
         return try {
             val jwt = verifier.verify(token)
             jwt.getClaim("username").asString()
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify JWT token" }
+            null
+        }
+    }
+
+    /** Extract the userUuid from a JWT token, returning null if the token is invalid */
+    fun getUserUuidFromToken(token: String): UUID? {
+        return try {
+            val jwt = verifier.verify(token)
+            jwt.getClaim("userUuid").asString()?.let { UUID.fromString(it) }
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to extract userUuid from JWT token" }
             null
         }
     }

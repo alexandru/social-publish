@@ -1,5 +1,6 @@
 package socialpublish.backend.server.routes
 
+import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -16,8 +17,10 @@ import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
 
@@ -27,16 +30,32 @@ private val logger = KotlinLogging.logger {}
 
 @Serializable data class AuthStatus(val twitter: Boolean = false, val linkedin: Boolean = false)
 
-@Serializable data class LoginResponse(val token: String, val hasAuth: AuthStatus)
+/** Which social network services are configured for the authenticated user. */
+@Serializable
+data class ConfiguredServices(
+    val mastodon: Boolean = false,
+    val bluesky: Boolean = false,
+    val twitter: Boolean = false,
+    val linkedin: Boolean = false,
+    val llm: Boolean = false,
+)
+
+@Serializable
+data class LoginResponse(
+    val token: String,
+    val hasAuth: AuthStatus,
+    val configuredServices: ConfiguredServices,
+)
 
 @Serializable data class UserResponse(val username: String)
 
 class AuthRoutes(
     private val config: ServerAuthConfig,
+    private val usersDb: UsersDatabase,
     private val twitterAuthProvider: (suspend () -> Boolean)? = null,
     private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
 ) {
-    private val authModule = AuthModule(config.jwtSecret)
+    val authModule = AuthModule(config.jwtSecret)
 
     suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
         when (call.request.contentType()) {
@@ -66,22 +85,46 @@ class AuthRoutes(
             return
         }
 
-        // Check username and verify password with BCrypt
+        val user =
+            usersDb.findByUsername(request.username).getOrElse {
+                logger.error(it) { "DB error during login for ${request.username}" }
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse(error = "Server error"),
+                )
+                return
+            }
+
         val isPasswordValid =
-            try {
-                authModule.verifyPassword(request.password, config.passwordHash)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to verify password for user: ${request.username}" }
+            if (user != null) {
+                try {
+                    authModule.verifyPassword(request.password, user.passwordHash)
+                } catch (e: Exception) {
+                    logger.warn(e) { "Failed to verify password for user: ${request.username}" }
+                    false
+                }
+            } else {
                 false
             }
-        if (request.username == config.username && isPasswordValid) {
-            val token = authModule.generateToken(request.username)
+
+        if (user != null && isPasswordValid) {
+            val token = authModule.generateToken(user.username, user.uuid)
             val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
             val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
+            val settings = user.settings
+            val configuredServices =
+                ConfiguredServices(
+                    mastodon = settings?.mastodon != null,
+                    bluesky = settings?.bluesky != null,
+                    twitter = settings?.twitter != null,
+                    linkedin = settings?.linkedin != null,
+                    llm = settings?.llm != null,
+                )
             call.respond(
                 LoginResponse(
                     token = token,
                     hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
+                    configuredServices = configuredServices,
                 )
             )
         } else {
@@ -100,6 +143,7 @@ class AuthRoutes(
         }
     }
 
+    /** Extract JWT token from the request (Authorization header, query param, or cookie). */
     fun extractJwtToken(call: ApplicationCall): String? {
         val authHeader = call.request.headers[HttpHeaders.Authorization]
         if (!authHeader.isNullOrBlank()) {
@@ -118,6 +162,24 @@ class AuthRoutes(
             return it
         }
         return null
+    }
+
+    /**
+     * Extract the authenticated user's UUID from the request JWT. Returns null and responds with
+     * 401 if the token is missing or invalid.
+     */
+    suspend fun extractUserUuidOrRespond(call: ApplicationCall): UUID? {
+        val token =
+            extractJwtToken(call)
+                ?: run {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                    return null
+                }
+        return authModule.getUserUuidFromToken(token)
+            ?: run {
+                call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+                null
+            }
     }
 
     fun configureAuth(app: Application) {

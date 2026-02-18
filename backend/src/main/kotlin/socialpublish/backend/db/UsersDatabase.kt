@@ -8,6 +8,7 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid as KotlinUuid
+import kotlinx.serialization.json.Json
 import socialpublish.backend.modules.AuthModule
 
 private val logger = KotlinLogging.logger {}
@@ -20,6 +21,8 @@ private val logger = KotlinLogging.logger {}
 @OptIn(ExperimentalUuidApi::class)
 private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
 
+private val settingsJson = Json { ignoreUnknownKeys = true }
+
 /**
  * Database access layer for users and user sessions.
  *
@@ -27,6 +30,18 @@ private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toS
  * tokens is planned.
  */
 class UsersDatabase(private val db: Database) {
+
+    private fun parseSettings(raw: String?): UserSettings? =
+        if (raw != null) {
+            try {
+                settingsJson.decodeFromString<UserSettings>(raw)
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to parse user settings" }
+                null
+            }
+        } else {
+            null
+        }
 
     /**
      * Create a new user with the given username and password.
@@ -73,6 +88,7 @@ class UsersDatabase(private val db: Database) {
                         uuid = uuid,
                         username = username,
                         passwordHash = passwordHash,
+                        settings = null,
                         createdAt = now,
                         updatedAt = now,
                     )
@@ -96,6 +112,7 @@ class UsersDatabase(private val db: Database) {
                         uuid = UUID.fromString(rs.getString("uuid")),
                         username = rs.getString("username"),
                         passwordHash = rs.getString("password_hash"),
+                        settings = parseSettings(rs.getString("settings")),
                         createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
                     )
@@ -103,6 +120,53 @@ class UsersDatabase(private val db: Database) {
             }
         }
     }
+
+    /**
+     * Find a user by UUID.
+     *
+     * @param uuid UUID of the user
+     * @return Either a DBException or the User (null if not found)
+     */
+    suspend fun findByUuid(uuid: UUID): Either<DBException, User?> = either {
+        db.transaction {
+            query("SELECT * FROM users WHERE uuid = ?") {
+                setString(1, uuid.toString())
+                executeQuery().safe().firstOrNull { rs ->
+                    User(
+                        uuid = UUID.fromString(rs.getString("uuid")),
+                        username = rs.getString("username"),
+                        passwordHash = rs.getString("password_hash"),
+                        settings = parseSettings(rs.getString("settings")),
+                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Update a user's settings.
+     *
+     * @param uuid UUID of the user
+     * @param settings New settings to store
+     * @return Either a DBException or true if updated, false if user not found
+     */
+    suspend fun updateSettings(uuid: UUID, settings: UserSettings): Either<DBException, Boolean> =
+        either {
+            db.transaction {
+                val now = db.clock.instant()
+                val settingsJson = settingsJson.encodeToString(settings)
+                val updated =
+                    query("UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?") {
+                        setString(1, settingsJson)
+                        setLong(2, now.toEpochMilli())
+                        setString(3, uuid.toString())
+                        executeUpdate()
+                    }
+                updated > 0
+            }
+        }
 
     /**
      * Verify a password against a user's stored hash.

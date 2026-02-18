@@ -43,6 +43,7 @@ class DocumentsDatabase(private val db: Database) {
         payload: String,
         searchKey: String? = null,
         tags: List<Tag> = emptyList(),
+        userUuid: UUID? = null,
     ): Either<DBException, Document> = either {
         db.transaction {
             val existing =
@@ -66,6 +67,7 @@ class DocumentsDatabase(private val db: Database) {
                             payload = existingPayload,
                             searchKey = key,
                             tags = tagsForRow,
+                            userUuid = userUuid,
                             createdAt = createdAt,
                         )
                     }
@@ -91,19 +93,21 @@ class DocumentsDatabase(private val db: Database) {
             val now = db.clock.instant()
 
             query(
-                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)"
+                "INSERT INTO documents (uuid, search_key, kind, payload, user_uuid, created_at) VALUES (?, ?, ?, ?, ?, ?)"
             ) {
                 setString(1, uuid)
                 setString(2, finalSearchKey)
                 setString(3, kind)
                 setString(4, payload)
-                setLong(5, now.toEpochMilli())
+                if (userUuid != null) setString(5, userUuid.toString())
+                else setNull(5, java.sql.Types.VARCHAR)
+                setLong(6, now.toEpochMilli())
                 execute()
                 Unit
             }
             setDocumentTags(uuid, tags)
 
-            Document(uuid, finalSearchKey, kind, tags, payload, now)
+            Document(uuid, finalSearchKey, kind, tags, payload, userUuid, now)
         }
     }
 
@@ -121,6 +125,7 @@ class DocumentsDatabase(private val db: Database) {
                                 payload = rs.getString("payload"),
                                 searchKey = rs.getString("search_key"),
                                 tags = emptyList(), // Fetch tags separately
+                                userUuid = rs.getString("user_uuid")?.let { UUID.fromString(it) },
                                 createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                             ),
                         )
@@ -145,6 +150,7 @@ class DocumentsDatabase(private val db: Database) {
                             payload = rs.getString("payload"),
                             searchKey = rs.getString("search_key"),
                             tags = emptyList(), // Fetch tags separately
+                            userUuid = rs.getString("user_uuid")?.let { UUID.fromString(it) },
                             createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         )
                     }
@@ -164,11 +170,27 @@ class DocumentsDatabase(private val db: Database) {
     suspend fun getAll(
         kind: String,
         orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
+        userUuid: UUID? = null,
     ): Either<DBException, List<Document>> = either {
         db.transaction {
+            val (sql, setParams) =
+                if (userUuid != null) {
+                    Pair(
+                        "SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}",
+                        { stmt: java.sql.PreparedStatement ->
+                            stmt.setString(1, kind)
+                            stmt.setString(2, userUuid.toString())
+                        },
+                    )
+                } else {
+                    Pair(
+                        "SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}",
+                        { stmt: java.sql.PreparedStatement -> stmt.setString(1, kind) },
+                    )
+                }
             val docs =
-                query("SELECT * FROM documents WHERE kind = ? ORDER BY ${orderBy.sql}") {
-                    setString(1, kind)
+                query(sql) {
+                    setParams(this)
                     executeQuery().safe().toList { rs ->
                         Document(
                             uuid = rs.getString("uuid"),
@@ -176,6 +198,7 @@ class DocumentsDatabase(private val db: Database) {
                             payload = rs.getString("payload"),
                             searchKey = rs.getString("search_key"),
                             tags = emptyList(), // Fetch tags separately
+                            userUuid = rs.getString("user_uuid")?.let { UUID.fromString(it) },
                             createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         )
                     }

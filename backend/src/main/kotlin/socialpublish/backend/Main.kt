@@ -20,11 +20,6 @@ import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
-import socialpublish.backend.clients.bluesky.BlueskyConfig
-import socialpublish.backend.clients.linkedin.LinkedInConfig
-import socialpublish.backend.clients.llm.LlmConfig
-import socialpublish.backend.clients.mastodon.MastodonConfig
-import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
@@ -85,24 +80,6 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .file(mustExist = false, canBeDir = true, canBeFile = false)
             .multiple()
 
-    // Server authentication configuration
-    private val serverAuthUsername: String by
-        option(
-                "--server-auth-username",
-                help = "Username for server authentication (env: SERVER_AUTH_USERNAME)",
-                envvar = "SERVER_AUTH_USERNAME",
-            )
-            .required()
-
-    private val serverAuthPassword: String by
-        option(
-                "--server-auth-password",
-                help =
-                    "Password for server authentication, BCrypt hash (env: SERVER_AUTH_PASSWORD)",
-                envvar = "SERVER_AUTH_PASSWORD",
-            )
-            .required()
-
     private val serverAuthJwtSecret: String by
         option(
                 "--server-auth-jwt-secret",
@@ -121,104 +98,8 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .file(mustExist = false, canBeDir = true, canBeFile = false)
             .required()
 
-    // Bluesky integration (optional)
-    private val blueskyService: String by
-        option(
-                "--bluesky-service",
-                help = "URL of the Bluesky service (env: BSKY_SERVICE)",
-                envvar = "BSKY_SERVICE",
-            )
-            .default("https://bsky.social")
-
-    private val blueskyUsername: String? by
-        option(
-            "--bluesky-username",
-            help = "Username for Bluesky authentication (env: BSKY_USERNAME)",
-            envvar = "BSKY_USERNAME",
-        )
-
-    private val blueskyPassword: String? by
-        option(
-            "--bluesky-password",
-            help = "Password for Bluesky authentication (env: BSKY_PASSWORD)",
-            envvar = "BSKY_PASSWORD",
-        )
-
-    // Mastodon integration (optional)
-    private val mastodonHost: String? by
-        option(
-            "--mastodon-host",
-            help = "Mastodon instance host URL (env: MASTODON_HOST)",
-            envvar = "MASTODON_HOST",
-        )
-
-    private val mastodonAccessToken: String? by
-        option(
-            "--mastodon-access-token",
-            help = "Mastodon API access token (env: MASTODON_ACCESS_TOKEN)",
-            envvar = "MASTODON_ACCESS_TOKEN",
-        )
-
-    // Twitter integration (optional)
-    private val twitterOauth1ConsumerKey: String? by
-        option(
-            "--twitter-oauth1-consumer-key",
-            help = "Twitter OAuth1 consumer key (env: TWITTER_OAUTH1_CONSUMER_KEY)",
-            envvar = "TWITTER_OAUTH1_CONSUMER_KEY",
-        )
-
-    private val twitterOauth1ConsumerSecret: String? by
-        option(
-            "--twitter-oauth1-consumer-secret",
-            help = "Twitter OAuth1 consumer secret (env: TWITTER_OAUTH1_CONSUMER_SECRET)",
-            envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
-        )
-
-    // LinkedIn integration (optional)
-    private val linkedinClientId: String? by
-        option(
-            "--linkedin-client-id",
-            help = "LinkedIn OAuth2 client ID (env: LINKEDIN_CLIENT_ID)",
-            envvar = "LINKEDIN_CLIENT_ID",
-        )
-
-    private val linkedinClientSecret: String? by
-        option(
-            "--linkedin-client-secret",
-            help = "LinkedIn OAuth2 client secret (env: LINKEDIN_CLIENT_SECRET)",
-            envvar = "LINKEDIN_CLIENT_SECRET",
-        )
-
-    // LLM integration for alt-text generation (optional)
-    private val llmApiUrl: String? by
-        option(
-            "--llm-api-url",
-            help =
-                "LLM API endpoint URL (e.g., 'https://api.openai.com/v1/chat/completions') (env: LLM_API_URL)",
-            envvar = "LLM_API_URL",
-        )
-
-    private val llmApiKey: String? by
-        option(
-            "--llm-api-key",
-            help = "API key for LLM provider (env: LLM_API_KEY)",
-            envvar = "LLM_API_KEY",
-        )
-
-    private val llmModel: String? by
-        option(
-            "--llm-model",
-            help = "LLM model to use (e.g., 'gpt-4o-mini', 'pixtral-12b-2409') (env: LLM_MODEL)",
-            envvar = "LLM_MODEL",
-        )
-
     override fun run() {
-        val serverAuthConfig =
-            ServerAuthConfig(
-                username = serverAuthUsername,
-                passwordHash = serverAuthPassword,
-                jwtSecret = serverAuthJwtSecret,
-            )
+        val serverAuthConfig = ServerAuthConfig(jwtSecret = serverAuthJwtSecret)
 
         val serverConfig =
             ServerConfig(
@@ -231,59 +112,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
 
         val filesConfig = FilesConfig(uploadedFilesPath = uploadedFilesPath, baseUrl = baseUrl)
 
-        // Build optional integration configs only if credentials are provided
-        val blueskyConfig =
-            if (blueskyUsername != null && blueskyPassword != null) {
-                BlueskyConfig(
-                    service = blueskyService,
-                    username = blueskyUsername!!,
-                    password = blueskyPassword!!,
-                )
-            } else {
-                null
-            }
-
-        val mastodonConfig =
-            if (mastodonHost != null && mastodonAccessToken != null) {
-                MastodonConfig(host = mastodonHost!!, accessToken = mastodonAccessToken!!)
-            } else {
-                null
-            }
-
-        val twitterConfig =
-            if (twitterOauth1ConsumerKey != null && twitterOauth1ConsumerSecret != null) {
-                TwitterConfig(
-                    oauth1ConsumerKey = twitterOauth1ConsumerKey!!,
-                    oauth1ConsumerSecret = twitterOauth1ConsumerSecret!!,
-                )
-            } else {
-                null
-            }
-
-        val linkedinConfig =
-            if (linkedinClientId != null && linkedinClientSecret != null) {
-                LinkedInConfig(clientId = linkedinClientId!!, clientSecret = linkedinClientSecret!!)
-            } else {
-                null
-            }
-
-        val llmConfig =
-            if (llmApiUrl != null && llmApiKey != null && llmModel != null) {
-                LlmConfig(apiUrl = llmApiUrl!!, apiKey = llmApiKey!!, model = llmModel!!)
-            } else {
-                null
-            }
-
-        val config =
-            AppConfig(
-                server = serverConfig,
-                files = filesConfig,
-                bluesky = blueskyConfig,
-                mastodon = mastodonConfig,
-                twitter = twitterConfig,
-                linkedin = linkedinConfig,
-                llm = llmConfig,
-            )
+        val config = AppConfig(server = serverConfig, files = filesConfig)
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot
         // be inside SuspendApp
@@ -305,6 +134,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                                 resources.documentsDb,
                                 resources.postsDb,
                                 resources.filesDb,
+                                resources.usersDb,
                                 engine = CIO,
                             )
                             .bind()

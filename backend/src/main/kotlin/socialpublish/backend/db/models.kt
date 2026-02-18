@@ -51,6 +51,7 @@ data class Document(
     val kind: String,
     val tags: List<Tag>,
     val payload: String,
+    val userUuid: UUID?,
     val createdAt: Instant,
 )
 
@@ -80,6 +81,7 @@ data class User(
     val uuid: UUID,
     val username: String,
     val passwordHash: String,
+    val settings: UserSettings?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )

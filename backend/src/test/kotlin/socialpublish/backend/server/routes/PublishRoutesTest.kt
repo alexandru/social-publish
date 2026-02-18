@@ -32,11 +32,13 @@ class PublishRoutesTest {
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
         val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
         val publishModule = PublishModule(null, null, null, null, rssModule)
-        val publishRoutes = PublishRoutes(publishModule)
+        val publishRoutes = PublishRoutes()
 
         application {
             install(ContentNegotiation) { json() }
-            routing { post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) } }
+            routing {
+                post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call, publishModule) }
+            }
         }
 
         val client = createClient {
@@ -77,11 +79,15 @@ class PublishRoutesTest {
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
             val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
             val publishModule = PublishModule(null, null, null, null, rssModule)
-            val publishRoutes = PublishRoutes(publishModule)
+            val publishRoutes = PublishRoutes()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) } }
+                routing {
+                    post("/api/multiple/post") {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
+                }
             }
 
             val client = createClient {
@@ -121,11 +127,15 @@ class PublishRoutesTest {
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
             val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
             val publishModule = PublishModule(null, null, null, null, rssModule)
-            val publishRoutes = PublishRoutes(publishModule)
+            val publishRoutes = PublishRoutes()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call) } }
+                routing {
+                    post("/api/multiple/post") {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
+                }
             }
 
             val client = createClient {

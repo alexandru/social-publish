@@ -351,5 +351,8 @@ private suspend fun SafeConnection.runMigrations() {
         }
     }
 
+    // Apply data migrations (admin user creation, row ownership assignment)
+    applyDataMigrations()
+
     logger.info { "Database migrations completed" }
 }
