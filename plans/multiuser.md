@@ -95,6 +95,17 @@ These items come from PR review `#pullrequestreview-3819353783` and should be ve
 - [ ] Verify per-request user context loading avoids repeated DB lookups in route handlers (`discussion_r2822256611`, `discussion_r2822262583`, `discussion_r2822268205`)
 - [ ] Verify service modules are startup-singletons and not reconstructed per-request in route handlers (`discussion_r2822279207`, `discussion_r2822291883`, `discussion_r2822295718`)
 - [ ] Verify `PublishRoutes` signature and internals consistently use provided dependencies and no dead parameters remain (`discussion_r2822169489`)
+- [ ] Verify Twitter route/module boundary is clean: no `ApplicationCall` in module API and HTTP logic moved to `TwitterRoutes.kt` (`discussion_r2822312687`)
+- [ ] Verify Twitter OAuth persistence/search keys are strictly user-scoped and never use nullable/default user IDs (`discussion_r2822320840`)
+- [ ] Verify LinkedIn route/module boundary is clean: no `ApplicationCall` in module API and HTTP logic moved to `LinkedInRoutes.kt` (`discussion_r2822338907`)
+- [ ] Verify LinkedIn OAuth persistence/search keys are strictly user-scoped and never use nullable/default user IDs (`discussion_r2822338907`)
+- [ ] Verify `DocumentsDatabase` has no nullable/default `userUuid` in write/query APIs (`discussion_r2822324356`, `discussion_r2822325762`)
+- [ ] Verify obsolete/non-actionable historical comment was removed from `ServerConfig.kt` (`discussion_r2822341771`)
+- [ ] Verify frontend does not define/store credential-bearing `UserSettings` models (`models/UserSettings.kt` removed and no equivalent leaks) (`discussion_r2822353132`, `discussion_r2822355137`)
+- [ ] Verify `/account` UI uses state hoisting with a single immutable form state object (not many independent remembered vars) (`discussion_r2822360794`, `discussion_r2822362512`, `discussion_r2822369315`)
+- [ ] Verify publish form keeps all service checkboxes visible and disables unconfigured services (instead of hiding) (`discussion_r2822377160`)
+- [ ] Verify publish form does not show an incorrect "no services configured" warning given RSS availability (`discussion_r2822380411`)
+- [ ] Verify frontend storage/auth model relies on `configuredServices` only and does not keep redundant `hasAuth` (`discussion_r2822385702`)
 
 ## Remaining Future Work (Beyond Current PR Scope)
 
