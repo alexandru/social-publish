@@ -11,6 +11,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
@@ -26,6 +27,8 @@ import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
+    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
     @Test
     fun `creates post without images`(@TempDir tempDir: Path) = runTest {
         testApplication {
@@ -92,7 +95,7 @@ class BlueskyApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
                     post("/xrpc/com.atproto.server.createSession") {
                         call.respondText(
                             "{" +

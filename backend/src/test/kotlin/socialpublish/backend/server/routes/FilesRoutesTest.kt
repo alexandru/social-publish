@@ -13,6 +13,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,13 +25,19 @@ import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.uploadTestImage
 
 class FilesRoutesTest {
+    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
     @Test
     fun `upload route processes file uploads`(@TempDir tempDir: Path) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val filesRoutes = FilesRoutes(filesModule)
 
-        application { routing { post("/api/files/upload") { filesRoutes.uploadFileRoute(call) } } }
+        application {
+            routing {
+                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+            }
+        }
 
         val client = createClient {
             install(ClientContentNegotiation) {
@@ -55,7 +62,11 @@ class FilesRoutesTest {
         val filesModule = createFilesModule(tempDir, jdbi)
         val filesRoutes = FilesRoutes(filesModule)
 
-        application { routing { post("/api/files/upload") { filesRoutes.uploadFileRoute(call) } } }
+        application {
+            routing {
+                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+            }
+        }
 
         val client = createClient {
             install(ClientContentNegotiation) {
@@ -101,7 +112,7 @@ class FilesRoutesTest {
 
         application {
             routing {
-                post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
                 get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
             }
         }

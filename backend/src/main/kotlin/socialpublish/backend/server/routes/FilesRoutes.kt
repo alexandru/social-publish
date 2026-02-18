@@ -18,21 +18,15 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
+import java.util.UUID
 import socialpublish.backend.common.*
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
-import socialpublish.backend.server.respondWithUnauthorized
 import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
-    suspend fun uploadFileRoute(call: ApplicationCall) = resourceScope {
-        val userUuid =
-            call.resolveUserUuid()
-                ?: run {
-                    call.respondWithUnauthorized()
-                    return@resourceScope
-                }
+    suspend fun uploadFileRoute(userUuid: UUID, call: ApplicationCall) = resourceScope {
         val result =
             when (val upload = receiveUpload(call).bind()) {
                 is Either.Right -> filesModule.uploadFile(upload.value, userUuid)

@@ -15,7 +15,11 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -34,6 +38,8 @@ import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
 
 class LinkedInApiTest {
+    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
     @Test
     fun `buildAuthorizeURL generates correct OAuth URL with state parameter`(
         @TempDir tempDir: Path
@@ -360,7 +366,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
+                    post("/api/files/upload") {
+                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                    }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -661,7 +669,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
+                    post("/api/files/upload") {
+                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                    }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -702,9 +712,14 @@ class LinkedInApiTest {
             }
             val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
 
-            val upload1 = uploadTestImage(linkedInClient, "flower1.jpeg", "test1")
-            val upload2 = uploadTestImage(linkedInClient, "flower1.jpeg", "test2")
-            val upload3 = uploadTestImage(linkedInClient, "flower1.jpeg", "test3")
+            val uploads = coroutineScope {
+                listOf(
+                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test1") },
+                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test2") },
+                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test3") },
+                    )
+                    .awaitAll()
+            }
 
             val config =
                 LinkedInConfig(
@@ -726,7 +741,7 @@ class LinkedInApiTest {
                 NewPostRequest(
                     content = "Post with multiple images",
                     targets = listOf("linkedin"),
-                    images = listOf(upload1.uuid, upload2.uuid, upload3.uuid),
+                    images = uploads.map { it.uuid },
                 )
 
             val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
@@ -1400,7 +1415,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
+                    post("/api/files/upload") {
+                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                    }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",
@@ -1515,7 +1532,9 @@ class LinkedInApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { FilesRoutes(filesModule).uploadFileRoute(call) }
+                    post("/api/files/upload") {
+                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                    }
                     get("/v2/userinfo") {
                         call.respondText(
                             """{"sub":"urn:li:person:test123"}""",

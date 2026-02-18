@@ -304,7 +304,10 @@ fun startServer(
                     }
 
                 // File upload
-                post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                post("/api/files/upload") {
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        filesRoutes.uploadFileRoute(userUuid, call)
+                    }
                     .describe {
                         summary = "Upload file"
                         description = "Upload a file for use in posts"
