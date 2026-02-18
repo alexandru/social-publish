@@ -157,6 +157,8 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Generate a BCrypt hash for a password"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val quiet by
         option("--quiet", "-q", help = "Only output the hash without any messages").flag()
 
@@ -165,6 +167,8 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
             .prompt("Enter password", hideInput = true, requireConfirmation = false)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         val hash = AuthModule.hashPassword(password)
 
         if (quiet) {
@@ -183,6 +187,8 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Change a user's password in the database"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val dbPath: String by
         option(
                 "--db-path",
@@ -200,6 +206,8 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
             .prompt("Enter new password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         runBlocking {
             resourceScope {
                 val db = Database.connect(dbPath).bind()
@@ -231,6 +239,8 @@ class ChangeUsernameCommand : CliktCommand(name = "change-username") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Change a user's username in the database"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val dbPath: String by
         option(
                 "--db-path",
@@ -248,6 +258,8 @@ class ChangeUsernameCommand : CliktCommand(name = "change-username") {
             .prompt("Enter new username")
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         runBlocking {
             resourceScope {
                 val db = Database.connect(dbPath).bind()
@@ -287,6 +299,8 @@ class ChangeUsernameCommand : CliktCommand(name = "change-username") {
 class CreateUserCommand : CliktCommand(name = "create-user") {
     override fun help(context: com.github.ajalt.clikt.core.Context) = "Create a new user account"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val dbPath: String by
         option(
                 "--db-path",
@@ -303,6 +317,8 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
             .prompt("Enter password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         runBlocking {
             resourceScope {
                 val db = Database.connect(dbPath).bind()
