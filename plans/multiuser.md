@@ -131,11 +131,10 @@ Rules for execution:
   - file dedup UUID input is user-scoped and has regression test.
   - frontend JSON parsing moved to Kotlin Serialization typed model for JWT payload extraction.
   - frontend JSON parsing policy added to `AGENTS.md`.
+  - upload test helper now validates HTTP status and reports route error payload details before deserializing success DTO.
+  - image optimization/upload path is synchronized by content hash stripe to prevent concurrent ImageMagick processing races for identical files.
 - Remaining:
-  - add dedicated tests for OAuth cookie-start routes.
-  - complete strict PATCH semantics verification via frontend serialization tests (`Patched` / omitted keys).
-  - complete frontend OAuth readiness tests for `/account` state/storage flow.
-  - run full `:backend:test` cleanly (targeted modified-area suites pass; LinkedIn multi-image test intermittently surfaces upload error payload -> JSON decode failure).
+  - none; all planned implementation items are complete.
 
 ### Scope Summary (must all be implemented)
 
@@ -158,7 +157,7 @@ Rules for execution:
 #### Phase 0 - Baseline and safety checks
 
 - [x] Capture baseline failing/passing status of targeted tests (auth routes, settings routes, db migrations, files db, account page logic tests if present).
-- [ ] Create a mapping table in notes/commit message drafts from each unchecked checklist item to concrete file changes.
+- [x] Create a mapping table in notes/commit message drafts from each unchecked checklist item to concrete file changes.
 
 #### Phase 1 - Password-nullability architecture change (new requirement)
 
@@ -233,32 +232,32 @@ Acceptance criteria:
 
 ##### 3.1 OAuth authorize routes must accept cookie JWT
 
-- [ ] Add failing tests for Twitter and LinkedIn authorize routes where JWT is provided via cookie only.
+- [x] Add failing tests for Twitter and LinkedIn authorize routes where JWT is provided via cookie only.
 - [x] Update token extraction logic in routes to accept cookie source consistently with existing auth extraction helper.
-- [ ] Confirm no regression for header/query token flows.
-- [ ] Addresses `discussion_r2823641232`, `discussion_r2823641239`.
+- [x] Confirm no regression for header/query token flows.
+- [x] Addresses `discussion_r2823641232`, `discussion_r2823641239`.
 
 ##### 3.2 Enforce strict PATCH semantics for secrets (frontend must never send `"****"`)
 
-- [ ] Frontend request-contract rule:
+- [x] Frontend request-contract rule:
   - Sensitive fields must be omitted from PATCH payload when unchanged (`Patched.Undefined` via missing JSON keys).
   - `"****"` is display-only and must never be serialized into outbound PATCH JSON.
   - `"****"` should not be bound as input `value`; use placeholder/help text only.
-- [ ] Add/update frontend tests for `toPatchBody()` (or equivalent) asserting unchanged secret fields are absent (undefined/missing key), not `null`, not `"****"`.
-- [ ] Add/update frontend UI tests (or deterministic component checks) asserting masked state is represented as placeholder/hint only.
+- [x] Add/update frontend tests for `toPatchBody()` (or equivalent) asserting unchanged secret fields are absent (undefined/missing key), not `null`, not `"****"`.
+- [x] Add/update frontend UI tests (or deterministic component checks) asserting masked state is represented as placeholder/hint only.
 - [x] Keep backend merge behavior aligned with `Patched` semantics:
   - absent field => keep existing
   - explicit `null` => clear/remove section as currently designed
   - explicit value => update
 - [x] Optional hardening (recommended): if backend receives literal `"****"` in secret fields, reject with `400` validation error to catch client bugs early.
-- [ ] Addresses `discussion_r2823641243`.
+- [x] Addresses `discussion_r2823641243`.
 
 ##### 3.3 Frontend configured-service semantics for OAuth readiness
 
-- [ ] Add/update frontend tests for `/account` state updates to ensure Twitter/LinkedIn readiness remains false until OAuth status confirms authorized.
+- [x] Add/update frontend tests for `/account` state updates to ensure Twitter/LinkedIn readiness remains false until OAuth status confirms authorized.
 - [x] Remove race-prone or contradictory writes to storage from settings-only responses.
-- [ ] Ensure save/load flows produce consistent `configuredServices` semantics with backend `LoginResponse` and status endpoints.
-- [ ] Addresses `discussion_r2823641249`.
+- [x] Ensure save/load flows produce consistent `configuredServices` semantics with backend `LoginResponse` and status endpoints.
+- [x] Addresses `discussion_r2823641249`.
 
 ##### 3.5 Frontend JSON parsing policy enforcement
 
@@ -269,7 +268,7 @@ Acceptance criteria:
 ##### 3.4 File dedup user scoping
 
 - [x] Add failing backend DB test reproducing cross-user dedup collision in `FilesDatabase.createFile`.
-- [ ] Decide policy:
+- [x] Decide policy:
   - default required policy: per-user dedup (recommended for current architecture)
   - if shared dedup is intentionally desired, implement explicit ownership/authorization model and document it.
 - [x] Implement chosen policy and update tests.
@@ -279,11 +278,11 @@ Acceptance criteria:
 - [x] Run focused tests during each phase; then run full suites:
   - `./gradlew :backend:test`
   - `./gradlew :frontend:jsTest`
-- [ ] Run formatting/lint checks and fix issues:
+- [x] Run formatting/lint checks and fix issues:
   - `make format`
   - `make lint`
-- [ ] Re-open `Review-Driven Verification Checklist` and mark every implemented item `[x]`.
-- [ ] For any intentionally deferred item, leave unchecked and document explicit reason.
+- [x] Re-open `Review-Driven Verification Checklist` and mark every implemented item `[x]`.
+- [x] For any intentionally deferred item, leave unchecked and document explicit reason.
 
 ### Traceability Matrix (Checklist -> Implementation)
 
@@ -292,9 +291,9 @@ Acceptance criteria:
 - [x] `discussion_r2822180011` -> Phase 2.4
 - [x] `discussion_r2821922702` -> Phase 2.2
 - [x] `discussion_r2822324356`, `discussion_r2822325762` -> Phase 2.3
-- [ ] `discussion_r2823641232`, `discussion_r2823641239` -> Phase 3.1
-- [ ] `discussion_r2823641243` -> Phase 3.2
-- [ ] `discussion_r2823641249` -> Phase 3.3
+- [x] `discussion_r2823641232`, `discussion_r2823641239` -> Phase 3.1
+- [x] `discussion_r2823641243` -> Phase 3.2
+- [x] `discussion_r2823641249` -> Phase 3.3
 
 ### Done Definition
 

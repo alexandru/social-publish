@@ -176,7 +176,9 @@ class DocumentsDatabase(private val db: Database) {
     ): Either<DBException, List<Document>> = either {
         db.transaction {
             val docs =
-                query("SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}") {
+                query(
+                    "SELECT * FROM documents WHERE kind = ? AND user_uuid = ? ORDER BY ${orderBy.sql}"
+                ) {
                     setString(1, kind)
                     setString(2, userUuid.toString())
                     executeQuery().safe().toList { rs ->
@@ -197,5 +199,4 @@ class DocumentsDatabase(private val db: Database) {
             }
         }
     }
-
 }

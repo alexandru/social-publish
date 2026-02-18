@@ -201,7 +201,8 @@ class RssRoutesTest {
         }
 
         // Get RSS with filterByLinks=include
-        val response = client.get("/rss/$testUserUuidPath") { parameter("filterByLinks", "include") }
+        val response =
+            client.get("/rss/$testUserUuidPath") { parameter("filterByLinks", "include") }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()

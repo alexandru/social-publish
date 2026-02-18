@@ -1,8 +1,8 @@
 package socialpublish.backend
 
-import com.github.ajalt.clikt.testing.test
 import arrow.core.getOrElse
 import arrow.fx.coroutines.resourceScope
+import com.github.ajalt.clikt.testing.test
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -109,10 +109,11 @@ class CliCommandsTest {
             val db = Database.connect(dbPath).bind()
             val usersDb = UsersDatabase(db)
             val _ = usersDb.createUser("bob", "initial").getOrElse { throw it }
-            val _ = db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-                setString(1, "bob")
-                executeUpdate()
-            }
+            val _ =
+                db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+                    setString(1, "bob")
+                    executeUpdate()
+                }
 
             val before = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
             assertFalse(before)

@@ -15,6 +15,7 @@ import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
+import socialpublish.frontend.models.ConfiguredServices
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
@@ -30,28 +31,28 @@ data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: 
 // ---------------------------------------------------------------------------
 
 @Serializable
-private data class BlueskySettingsView(
+internal data class BlueskySettingsView(
     val service: String,
     val username: String,
     val password: String,
 )
 
-@Serializable private data class MastodonSettingsView(val host: String, val accessToken: String)
+@Serializable internal data class MastodonSettingsView(val host: String, val accessToken: String)
 
 @Serializable
-private data class TwitterSettingsView(
+internal data class TwitterSettingsView(
     val oauth1ConsumerKey: String,
     val oauth1ConsumerSecret: String,
 )
 
 @Serializable
-private data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+internal data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
 
 @Serializable
-private data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
+internal data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
 
 @Serializable
-private data class AccountSettingsView(
+internal data class AccountSettingsView(
     val bluesky: BlueskySettingsView? = null,
     val mastodon: MastodonSettingsView? = null,
     val twitter: TwitterSettingsView? = null,
@@ -72,7 +73,7 @@ private data class AccountSettingsView(
  *
  * Non-sensitive fields (URLs, usernames, IDs) are pre-populated from the server response.
  */
-private data class SettingsFormState(
+internal data class SettingsFormState(
     val blueskyService: String = "https://bsky.social",
     val blueskyUsername: String = "",
     val blueskyPasswordIsSet: Boolean = false,
@@ -92,7 +93,7 @@ private data class SettingsFormState(
     val llmModel: String = "",
 )
 
-private fun AccountSettingsView.toFormState(): SettingsFormState =
+internal fun AccountSettingsView.toFormState(): SettingsFormState =
     SettingsFormState(
         blueskyService = bluesky?.service ?: "https://bsky.social",
         blueskyUsername = bluesky?.username ?: "",
@@ -122,6 +123,23 @@ private data class AccountPageState(
     val settingsError: String? = null,
 )
 
+internal const val MASKED_SECRET_SENTINEL = "****"
+
+internal fun mergeConfiguredServicesFromSettings(
+    current: ConfiguredServices,
+    fromSettings: ConfiguredServices,
+): ConfiguredServices = fromSettings.copy(twitter = current.twitter, linkedin = current.linkedin)
+
+internal fun applyTwitterAuthorizationStatus(
+    current: ConfiguredServices,
+    hasAuthorization: Boolean,
+): ConfiguredServices = current.copy(twitter = hasAuthorization)
+
+internal fun applyLinkedInAuthorizationStatus(
+    current: ConfiguredServices,
+    hasAuthorization: Boolean,
+): ConfiguredServices = current.copy(linkedin = hasAuthorization)
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -139,9 +157,9 @@ fun AccountPage() {
                         state = state.copy(formState = response.data.toFormState())
                         val current = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
-                            response.data.toConfiguredServices().copy(
-                                twitter = current.twitter,
-                                linkedin = current.linkedin,
+                            mergeConfiguredServicesFromSettings(
+                                current,
+                                response.data.toConfiguredServices(),
                             )
                         )
                     }
@@ -165,7 +183,9 @@ fun AccountPage() {
                                     } else "Not connected"
                             )
                         val services = Storage.getConfiguredServices()
-                        Storage.setConfiguredServices(services.copy(twitter = data.hasAuthorization))
+                        Storage.setConfiguredServices(
+                            applyTwitterAuthorizationStatus(services, data.hasAuthorization)
+                        )
                     }
                     is ApiResponse.Error ->
                         state = state.copy(twitterStatus = "Error: HTTP ${response.code}")
@@ -192,7 +212,7 @@ fun AccountPage() {
                             )
                         val services = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
-                            services.copy(linkedin = data.hasAuthorization)
+                            applyLinkedInAuthorizationStatus(services, data.hasAuthorization)
                         )
                     }
                     is ApiResponse.Error ->
@@ -222,9 +242,9 @@ fun AccountPage() {
                             )
                         val current = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
-                            response.data.toConfiguredServices().copy(
-                                twitter = current.twitter,
-                                linkedin = current.linkedin,
+                            mergeConfiguredServicesFromSettings(
+                                current,
+                                response.data.toConfiguredServices(),
                             )
                         )
                     }
@@ -365,14 +385,16 @@ private fun AccountSettingsView.toConfiguredServices() =
  * both the identifying non-sensitive field AND leave the sensitive field blank; in that case we
  * send the section as explicit `null`.
  */
-private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
+internal fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
     // Bluesky — username is the required identifier
     when {
         blueskyUsername.isNotBlank() ->
             putJsonObject("bluesky") {
                 put("service", blueskyService.ifBlank { "https://bsky.social" })
                 put("username", blueskyUsername)
-                if (blueskyPassword.isNotBlank()) put("password", blueskyPassword)
+                if (blueskyPassword.isNotBlank() && blueskyPassword != MASKED_SECRET_SENTINEL) {
+                    put("password", blueskyPassword)
+                }
             }
         // User cleared the username (and it was previously set) → remove the section
         blueskyPasswordIsSet || blueskyUsername.isBlank() && blueskyService.isNotBlank() ->
@@ -385,7 +407,9 @@ private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
         mastodonHost.isNotBlank() ->
             putJsonObject("mastodon") {
                 put("host", mastodonHost)
-                if (mastodonToken.isNotBlank()) put("accessToken", mastodonToken)
+                if (mastodonToken.isNotBlank() && mastodonToken != MASKED_SECRET_SENTINEL) {
+                    put("accessToken", mastodonToken)
+                }
             }
         mastodonTokenIsSet -> put("mastodon", JsonNull)
     }
@@ -395,7 +419,10 @@ private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
         twitterConsumerKey.isNotBlank() ->
             putJsonObject("twitter") {
                 put("oauth1ConsumerKey", twitterConsumerKey)
-                if (twitterConsumerSecret.isNotBlank())
+                if (
+                    twitterConsumerSecret.isNotBlank() &&
+                        twitterConsumerSecret != MASKED_SECRET_SENTINEL
+                )
                     put("oauth1ConsumerSecret", twitterConsumerSecret)
             }
         twitterConsumerSecretIsSet -> put("twitter", JsonNull)
@@ -406,7 +433,12 @@ private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
         linkedinClientId.isNotBlank() ->
             putJsonObject("linkedin") {
                 put("clientId", linkedinClientId)
-                if (linkedinClientSecret.isNotBlank()) put("clientSecret", linkedinClientSecret)
+                if (
+                    linkedinClientSecret.isNotBlank() &&
+                        linkedinClientSecret != MASKED_SECRET_SENTINEL
+                ) {
+                    put("clientSecret", linkedinClientSecret)
+                }
             }
         linkedinClientSecretIsSet -> put("linkedin", JsonNull)
     }
@@ -416,7 +448,9 @@ private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
         llmApiUrl.isNotBlank() ->
             putJsonObject("llm") {
                 put("apiUrl", llmApiUrl)
-                if (llmApiKey.isNotBlank()) put("apiKey", llmApiKey)
+                if (llmApiKey.isNotBlank() && llmApiKey != MASKED_SECRET_SENTINEL) {
+                    put("apiKey", llmApiKey)
+                }
                 put("model", llmModel)
             }
         llmApiKeyIsSet -> put("llm", JsonNull)

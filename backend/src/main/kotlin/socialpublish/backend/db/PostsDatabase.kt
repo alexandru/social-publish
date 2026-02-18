@@ -36,7 +36,8 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
     }
 
     suspend fun getAllForUser(userUuid: UUID): Either<DBException, List<Post>> = either {
-        val rows = docs.getAllForUser("post", userUuid, DocumentsDatabase.OrderBy.CREATED_AT_DESC).bind()
+        val rows =
+            docs.getAllForUser("post", userUuid, DocumentsDatabase.OrderBy.CREATED_AT_DESC).bind()
         rows.map { row ->
             val payload = json.decodeFromString<PostPayload>(row.payload)
             Post(

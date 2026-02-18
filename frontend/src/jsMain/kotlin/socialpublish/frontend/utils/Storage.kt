@@ -3,8 +3,8 @@ package socialpublish.frontend.utils
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
 import socialpublish.frontend.models.ConfiguredServices
@@ -90,16 +90,13 @@ object Storage {
         if (parts.size < 2) return null
 
         val payloadBase64 =
-            parts[1]
-                .replace('-', '+')
-                .replace('_', '/')
-                .let { segment ->
-                    when (segment.length % 4) {
-                        2 -> "$segment=="
-                        3 -> "$segment="
-                        else -> segment
-                    }
+            parts[1].replace('-', '+').replace('_', '/').let { segment ->
+                when (segment.length % 4) {
+                    2 -> "$segment=="
+                    3 -> "$segment="
+                    else -> segment
                 }
+            }
 
         return runCatching {
                 val payloadJson = window.atob(payloadBase64)

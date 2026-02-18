@@ -59,7 +59,10 @@ class RssRoutes(private val rssModule: RssModule) {
         val userUuid =
             call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing userUuid"))
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(error = "Missing userUuid"),
+                    )
                     return
                 }
         val target = call.parameters["target"]
@@ -75,7 +78,10 @@ class RssRoutes(private val rssModule: RssModule) {
         val userUuid =
             call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Missing userUuid"))
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(error = "Missing userUuid"),
+                    )
                     return
                 }
         val uuid =

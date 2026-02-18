@@ -46,10 +46,11 @@ class AuthRoutesTest {
         val db = Database.connectUnmanaged(":memory:")
         val usersDb = UsersDatabase(db)
         val _ = usersDb.createUser("testuser", "testpass")
-        val _ = db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-            setString(1, "testuser")
-            executeUpdate()
-        }
+        val _ =
+            db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+                setString(1, "testuser")
+                executeUpdate()
+            }
         return usersDb
     }
 
