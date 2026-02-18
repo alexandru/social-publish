@@ -124,7 +124,7 @@ val migrations: List<Migration> =
                     CREATE TABLE IF NOT EXISTS users (
                         uuid VARCHAR(36) NOT NULL PRIMARY KEY,
                         username VARCHAR(255) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255),
+                        password_hash VARCHAR(255) NOT NULL,
                         created_at INTEGER NOT NULL,
                         updated_at INTEGER NOT NULL
                     )
@@ -160,7 +160,49 @@ val migrations: List<Migration> =
                 )
             },
         ),
-        // Migration 5: Create default admin user (only if no users exist)
+        // Migration 5: Add settings column to users table
+        Migration(
+            testIfApplied = { conn -> conn.columnExists("users", "settings") },
+            execute = { conn -> conn.ddl("ALTER TABLE users ADD COLUMN settings TEXT") },
+        ),
+        // Migration 6: Make users.password_hash nullable.
+        Migration(
+            testIfApplied = { conn ->
+                conn.query("PRAGMA table_info('users')") {
+                    val rs = executeQuery()
+                    var nullable = false
+                    while (rs.next()) {
+                        if (rs.getString("name") == "password_hash" && rs.getInt("notnull") == 0) {
+                            nullable = true
+                            break
+                        }
+                    }
+                    nullable
+                }
+            },
+            execute = { conn ->
+                conn.ddl(
+                    """
+                    CREATE TABLE users_new (
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        username VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash VARCHAR(255),
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        settings TEXT
+                    )
+                    """
+                        .trimIndent()
+                )
+                conn.ddl(
+                    "INSERT INTO users_new (uuid, username, password_hash, created_at, updated_at, settings) " +
+                        "SELECT uuid, username, password_hash, created_at, updated_at, settings FROM users"
+                )
+                conn.ddl("DROP TABLE users")
+                conn.ddl("ALTER TABLE users_new RENAME TO users")
+            },
+        ),
+        // Migration 7: Create default admin user (only if no users exist)
         Migration(
             testIfApplied = { conn ->
                 conn.query("SELECT COUNT(*) FROM users") {
@@ -188,12 +230,7 @@ val migrations: List<Migration> =
                 }
             },
         ),
-        // Migration 6: Add settings column to users table
-        Migration(
-            testIfApplied = { conn -> conn.columnExists("users", "settings") },
-            execute = { conn -> conn.ddl("ALTER TABLE users ADD COLUMN settings TEXT") },
-        ),
-        // Migration 7: Add user_uuid (NOT NULL) to documents and uploads.
+        // Migration 8: Add user_uuid (NOT NULL) to documents and uploads.
         // - Adds column (nullable) if absent, backfills rows to the single existing user,
         //   drops the old indexes without user_uuid, recreates tables with NOT NULL, then
         //   recreates the new indexes.
@@ -224,7 +261,7 @@ val migrations: List<Migration> =
                 }
 
                 // Step 2: backfill — assign existing rows to the sole user in the DB.
-                // At this point we know there is exactly one user (created by migration 5).
+                // At this point we know there is exactly one user (created by migration 7).
                 val adminUuid =
                     conn.query("SELECT uuid FROM users LIMIT 1") {
                         val rs = executeQuery()
@@ -297,43 +334,6 @@ val migrations: List<Migration> =
                 conn.ddl("DROP TABLE uploads")
                 conn.ddl("ALTER TABLE uploads_new RENAME TO uploads")
                 conn.ddl("CREATE INDEX uploads_user_uuid ON uploads(user_uuid, createdAt)")
-            },
-        ),
-        // Migration 8: Make users.password_hash nullable.
-        Migration(
-            testIfApplied = { conn ->
-                conn.query("PRAGMA table_info('users')") {
-                    val rs = executeQuery()
-                    var nullable = false
-                    while (rs.next()) {
-                        if (rs.getString("name") == "password_hash" && rs.getInt("notnull") == 0) {
-                            nullable = true
-                            break
-                        }
-                    }
-                    nullable
-                }
-            },
-            execute = { conn ->
-                conn.ddl(
-                    """
-                    CREATE TABLE users_new (
-                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
-                        username VARCHAR(255) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255),
-                        created_at INTEGER NOT NULL,
-                        updated_at INTEGER NOT NULL,
-                        settings TEXT
-                    )
-                    """
-                        .trimIndent()
-                )
-                conn.ddl(
-                    "INSERT INTO users_new (uuid, username, password_hash, created_at, updated_at, settings) " +
-                        "SELECT uuid, username, password_hash, created_at, updated_at, settings FROM users"
-                )
-                conn.ddl("DROP TABLE users")
-                conn.ddl("ALTER TABLE users_new RENAME TO users")
             },
         ),
     )
