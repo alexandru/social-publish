@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import socialpublish.backend.db.Database
+import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.server.ServerAuthConfig
@@ -49,7 +50,8 @@ class AuthRoutesTest {
     fun `login should work with correct password`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb)
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -74,7 +76,8 @@ class AuthRoutesTest {
     fun `login should reject wrong password`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb)
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -95,7 +98,8 @@ class AuthRoutesTest {
     fun `login should reject wrong username`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb)
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -116,7 +120,8 @@ class AuthRoutesTest {
     fun `login should return twitter auth status`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb, twitterAuthProvider = { true })
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -141,7 +146,7 @@ class AuthRoutesTest {
     fun `login should return linkedin auth status`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb, linkedInAuthProvider = { true })
+            val authRoute = AuthRoutes(config, usersDb, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -166,7 +171,8 @@ class AuthRoutesTest {
     fun `login should work with form-urlencoded data`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb)
+            val tempDb = Database.connectUnmanaged(":memory:")
+            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -190,7 +196,7 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb())
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -209,7 +215,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject malformed JSON`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb())
+            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -229,7 +235,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject unsupported content type`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb())
+            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -249,7 +255,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing username`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb())
+            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -269,7 +275,7 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing password`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb())
+            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -291,7 +297,7 @@ class AuthRoutesTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb())
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -311,7 +317,7 @@ class AuthRoutesTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb())
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -336,7 +342,7 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb())
+                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -356,7 +362,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should extract token from Bearer header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
             application {
                 install(ContentNegotiation) { json() }
                 routing {
@@ -378,7 +384,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should extract token from cookie`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -401,7 +407,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should return null for malformed Authorization header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -424,7 +430,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should return null when no token present`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -446,7 +452,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should prioritize Bearer header over query param`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -471,7 +477,7 @@ class AuthRoutesTest {
     @Test
     fun `extractJwtToken should prioritize query param over cookie`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb())
+            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -501,7 +507,7 @@ class AuthRoutesTest {
                 AuthRoutes(
                     config,
                     usersDb,
-                    twitterAuthProvider = { true },
+                    documentsDb = DocumentsDatabase(testDb), twitterAuthProvider = { true },
                     linkedInAuthProvider = { true },
                 )
 
@@ -533,7 +539,7 @@ class AuthRoutesTest {
                 AuthRoutes(
                     config,
                     usersDb,
-                    twitterAuthProvider = { false },
+                    documentsDb = DocumentsDatabase(testDb), twitterAuthProvider = { false },
                     linkedInAuthProvider = { false },
                 )
 

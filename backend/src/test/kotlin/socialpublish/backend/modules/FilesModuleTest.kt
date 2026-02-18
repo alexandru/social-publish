@@ -32,7 +32,8 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "rose",
-                    )
+                    ),
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
         val upload2 =
@@ -47,7 +48,8 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "tulip",
-                    )
+                    ),
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
@@ -98,7 +100,8 @@ class FilesModuleTest {
                                     .buffered()
                             ),
                         altText = "rose",
-                    )
+                    ),
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
                 .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
 
@@ -138,7 +141,8 @@ class FilesModuleTest {
                             ByteReadChannel("not-an-image".toByteArray()).asSource().buffered()
                         ),
                     altText = null,
-                )
+                ),
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
             )
 
         assertTrue(result is Either.Left)

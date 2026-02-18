@@ -27,6 +27,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
 import io.ktor.server.routing.openapi.describe
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
@@ -52,6 +53,7 @@ import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
+import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.ConfiguredServices
 import socialpublish.backend.server.routes.FilesRoutes
@@ -254,13 +256,14 @@ fun startServer(
                         settingsRoutes.getSettingsRoute(userUuid, call)
                     }
                     .describe {
-                        summary = "Get account configuration"
-                        description = "Returns which services are configured for the user"
+                        summary = "Get account settings"
+                        description =
+                            "Returns the user's settings. Non-sensitive fields contain real values; sensitive fields (passwords, tokens, keys) contain \"****\" when a value is stored."
                         documentSecurityRequirements()
                         responses {
                             HttpStatusCode.OK {
-                                description = "Configured services"
-                                schema = jsonSchema<ConfiguredServices>()
+                                description = "Account settings view"
+                                schema = jsonSchema<AccountSettingsView>()
                             }
                             HttpStatusCode.Unauthorized {
                                 description = "Not authenticated"
@@ -269,13 +272,14 @@ fun startServer(
                         }
                     }
 
-                put("/api/account/settings") {
-                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@put
-                        settingsRoutes.updateSettingsRoute(userUuid, call)
+                patch("/api/account/settings") {
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@patch
+                        settingsRoutes.patchSettingsRoute(userUuid, call)
                     }
                     .describe {
-                        summary = "Update user settings"
-                        description = "Update the authenticated user's social network credentials"
+                        summary = "Partially update user settings"
+                        description =
+                            "Partially updates the user's settings. A null section removes that integration. Within a section, sending \"****\" for a sensitive field keeps the existing value."
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -283,8 +287,8 @@ fun startServer(
                         }
                         responses {
                             HttpStatusCode.OK {
-                                description = "Settings updated"
-                                schema = jsonSchema<ConfiguredServices>()
+                                description = "Updated settings view"
+                                schema = jsonSchema<AccountSettingsView>()
                             }
                             HttpStatusCode.Unauthorized {
                                 description = "Not authenticated"

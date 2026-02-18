@@ -4,13 +4,17 @@ import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
-import socialpublish.frontend.models.ConfiguredServices
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
@@ -21,52 +25,85 @@ data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: L
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
 
-// PUT body matching backend UserSettings (BlueskyConfig / MastodonConfig / etc.)
+// ---------------------------------------------------------------------------
+// DTOs — GET response (AccountSettingsView from the backend)
+// ---------------------------------------------------------------------------
+
 @Serializable
-private data class BlueskySettingsBody(
-    val service: String,
-    val username: String,
-    val password: String,
+private data class BlueskySettingsView(val service: String, val username: String, val password: String)
+
+@Serializable private data class MastodonSettingsView(val host: String, val accessToken: String)
+
+@Serializable
+private data class TwitterSettingsView(val oauth1ConsumerKey: String, val oauth1ConsumerSecret: String)
+
+@Serializable private data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+
+@Serializable
+private data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
+
+@Serializable
+private data class AccountSettingsView(
+    val bluesky: BlueskySettingsView? = null,
+    val mastodon: MastodonSettingsView? = null,
+    val twitter: TwitterSettingsView? = null,
+    val linkedin: LinkedInSettingsView? = null,
+    val llm: LlmSettingsView? = null,
 )
 
-@Serializable private data class MastodonSettingsBody(val host: String, val accessToken: String)
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
-@Serializable
-private data class TwitterSettingsBody(
-    val oauth1ConsumerKey: String,
-    val oauth1ConsumerSecret: String,
-)
-
-@Serializable
-private data class LinkedInSettingsBody(val clientId: String, val clientSecret: String)
-
-@Serializable
-private data class LlmSettingsBody(val apiUrl: String, val apiKey: String, val model: String)
-
-@Serializable
-private data class UserSettingsBody(
-    val bluesky: BlueskySettingsBody? = null,
-    val mastodon: MastodonSettingsBody? = null,
-    val twitter: TwitterSettingsBody? = null,
-    val linkedin: LinkedInSettingsBody? = null,
-    val llm: LlmSettingsBody? = null,
-)
-
-/** All form field values for the settings form. Kept as a single immutable state. */
+/**
+ * All form field values.
+ *
+ * Sensitive fields (passwords, tokens, secrets, API keys) start empty. The server returns "****"
+ * for sensitive fields that have stored values — this is surfaced as a `*IsSet` flag so the UI can
+ * show a "value is stored; leave blank to keep" hint without pre-filling the input.
+ *
+ * Non-sensitive fields (URLs, usernames, IDs) are pre-populated from the server response.
+ */
 private data class SettingsFormState(
     val blueskyService: String = "https://bsky.social",
     val blueskyUsername: String = "",
+    val blueskyPasswordIsSet: Boolean = false,
     val blueskyPassword: String = "",
     val mastodonHost: String = "",
+    val mastodonTokenIsSet: Boolean = false,
     val mastodonToken: String = "",
     val twitterConsumerKey: String = "",
+    val twitterConsumerSecretIsSet: Boolean = false,
     val twitterConsumerSecret: String = "",
     val linkedinClientId: String = "",
+    val linkedinClientSecretIsSet: Boolean = false,
     val linkedinClientSecret: String = "",
     val llmApiUrl: String = "",
+    val llmApiKeyIsSet: Boolean = false,
     val llmApiKey: String = "",
     val llmModel: String = "",
 )
+
+private fun AccountSettingsView.toFormState(): SettingsFormState =
+    SettingsFormState(
+        blueskyService = bluesky?.service ?: "https://bsky.social",
+        blueskyUsername = bluesky?.username ?: "",
+        blueskyPasswordIsSet = bluesky?.password?.isNotBlank() == true,
+        blueskyPassword = "",
+        mastodonHost = mastodon?.host ?: "",
+        mastodonTokenIsSet = mastodon?.accessToken?.isNotBlank() == true,
+        mastodonToken = "",
+        twitterConsumerKey = twitter?.oauth1ConsumerKey ?: "",
+        twitterConsumerSecretIsSet = twitter?.oauth1ConsumerSecret?.isNotBlank() == true,
+        twitterConsumerSecret = "",
+        linkedinClientId = linkedin?.clientId ?: "",
+        linkedinClientSecretIsSet = linkedin?.clientSecret?.isNotBlank() == true,
+        linkedinClientSecret = "",
+        llmApiUrl = llm?.apiUrl ?: "",
+        llmApiKeyIsSet = llm?.apiKey?.isNotBlank() == true,
+        llmApiKey = "",
+        llmModel = llm?.model ?: "",
+    )
 
 /** Page-level state for the Account page. */
 private data class AccountPageState(
@@ -77,6 +114,10 @@ private data class AccountPageState(
     val settingsError: String? = null,
 )
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 @Composable
 fun AccountPage() {
     Authorize {
@@ -85,20 +126,30 @@ fun AccountPage() {
 
         LaunchedEffect(Unit) {
             scope.launch {
+                when (val response = ApiClient.get<AccountSettingsView>("/api/account/settings")) {
+                    is ApiResponse.Success -> {
+                        state = state.copy(formState = response.data.toFormState())
+                        Storage.setConfiguredServices(response.data.toConfiguredServices())
+                    }
+                    is ApiResponse.Error -> {}
+                    is ApiResponse.Exception -> {}
+                }
+            }
+
+            scope.launch {
                 when (val response = ApiClient.get<TwitterStatusResponse>("/api/twitter/status")) {
                     is ApiResponse.Success -> {
                         val data = response.data
-                        val status =
-                            if (data.hasAuthorization) {
-                                "Connected" +
-                                    (data.createdAt?.let {
-                                        " at ${kotlin.js.Date(it).toLocaleString()}"
-                                    } ?: "")
-                            } else {
-                                "Not connected"
-                            }
-                        state = state.copy(twitterStatus = status)
-                        // Reflect OAuth status in configured services
+                        state =
+                            state.copy(
+                                twitterStatus =
+                                    if (data.hasAuthorization) {
+                                        "Connected" +
+                                            (data.createdAt?.let {
+                                                " at ${kotlin.js.Date(it).toLocaleString()}"
+                                            } ?: "")
+                                    } else "Not connected"
+                            )
                         val services = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
                             services.copy(twitter = data.hasAuthorization && services.twitter)
@@ -117,16 +168,16 @@ fun AccountPage() {
                 ) {
                     is ApiResponse.Success -> {
                         val data = response.data
-                        val status =
-                            if (data.hasAuthorization) {
-                                "Connected" +
-                                    (data.createdAt?.let {
-                                        " at ${kotlin.js.Date(it).toLocaleString()}"
-                                    } ?: "")
-                            } else {
-                                "Not connected"
-                            }
-                        state = state.copy(linkedInStatus = status)
+                        state =
+                            state.copy(
+                                linkedInStatus =
+                                    if (data.hasAuthorization) {
+                                        "Connected" +
+                                            (data.createdAt?.let {
+                                                " at ${kotlin.js.Date(it).toLocaleString()}"
+                                            } ?: "")
+                                    } else "Not connected"
+                            )
                         val services = Storage.getConfiguredServices()
                         Storage.setConfiguredServices(
                             services.copy(linkedin = data.hasAuthorization && services.linkedin)
@@ -143,71 +194,21 @@ fun AccountPage() {
         val saveSettings: (SettingsFormState) -> Unit = { formState ->
             scope.launch {
                 state = state.copy(settingsSaved = false, settingsError = null)
-                val body =
-                    UserSettingsBody(
-                        bluesky =
-                            if (
-                                formState.blueskyUsername.isNotBlank() &&
-                                    formState.blueskyPassword.isNotBlank()
-                            )
-                                BlueskySettingsBody(
-                                    service =
-                                        formState.blueskyService.ifBlank { "https://bsky.social" },
-                                    username = formState.blueskyUsername,
-                                    password = formState.blueskyPassword,
-                                )
-                            else null,
-                        mastodon =
-                            if (
-                                formState.mastodonHost.isNotBlank() &&
-                                    formState.mastodonToken.isNotBlank()
-                            )
-                                MastodonSettingsBody(
-                                    host = formState.mastodonHost,
-                                    accessToken = formState.mastodonToken,
-                                )
-                            else null,
-                        twitter =
-                            if (
-                                formState.twitterConsumerKey.isNotBlank() &&
-                                    formState.twitterConsumerSecret.isNotBlank()
-                            )
-                                TwitterSettingsBody(
-                                    oauth1ConsumerKey = formState.twitterConsumerKey,
-                                    oauth1ConsumerSecret = formState.twitterConsumerSecret,
-                                )
-                            else null,
-                        linkedin =
-                            if (
-                                formState.linkedinClientId.isNotBlank() &&
-                                    formState.linkedinClientSecret.isNotBlank()
-                            )
-                                LinkedInSettingsBody(
-                                    clientId = formState.linkedinClientId,
-                                    clientSecret = formState.linkedinClientSecret,
-                                )
-                            else null,
-                        llm =
-                            if (
-                                formState.llmApiUrl.isNotBlank() && formState.llmApiKey.isNotBlank()
-                            )
-                                LlmSettingsBody(
-                                    apiUrl = formState.llmApiUrl,
-                                    apiKey = formState.llmApiKey,
-                                    model = formState.llmModel,
-                                )
-                            else null,
-                    )
+                val patchBody = formState.toPatchBody()
                 when (
                     val response =
-                        ApiClient.put<ConfiguredServices, UserSettingsBody>(
+                        ApiClient.patch<AccountSettingsView, JsonObject>(
                             "/api/account/settings",
-                            body,
+                            patchBody,
                         )
                 ) {
                     is ApiResponse.Success -> {
-                        state = state.copy(settingsSaved = true)
-                        Storage.setConfiguredServices(response.data)
+                        state =
+                            state.copy(
+                                settingsSaved = true,
+                                formState = response.data.toFormState(),
+                            )
+                        Storage.setConfiguredServices(response.data.toConfiguredServices())
                     }
                     is ApiResponse.Error ->
                         state =
@@ -318,6 +319,80 @@ fun AccountPage() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+private fun AccountSettingsView.toConfiguredServices() =
+    socialpublish.frontend.models.ConfiguredServices(
+        mastodon = mastodon != null,
+        bluesky = bluesky != null,
+        twitter = twitter != null,
+        linkedin = linkedin != null,
+        llm = llm != null,
+    )
+
+/**
+ * Builds a JSON Merge Patch body (RFC 7396) from the current form state.
+ *
+ * - Absent key in the resulting JSON → server keeps existing value (used for sensitive fields left
+ *   blank by the user)
+ * - `null` value → server removes that section (not currently used by the form UI, but supported
+ *   by the API)
+ * - Present non-null value → server updates to the new value
+ *
+ * A section is included only if at least one of its identifying fields is non-blank. Within a
+ * section, sensitive fields (passwords, tokens, keys, secrets) are included only when the user has
+ * typed a new value; if left blank, the key is omitted so the server preserves the existing value.
+ */
+private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
+    val hasBluesky = blueskyUsername.isNotBlank() || blueskyService.isNotBlank() || blueskyPassword.isNotBlank()
+    if (hasBluesky) {
+        putJsonObject("bluesky") {
+            put("service", blueskyService.ifBlank { "https://bsky.social" })
+            if (blueskyUsername.isNotBlank()) put("username", blueskyUsername)
+            if (blueskyPassword.isNotBlank()) put("password", blueskyPassword)
+        }
+    }
+
+    val hasMastodon = mastodonHost.isNotBlank() || mastodonToken.isNotBlank()
+    if (hasMastodon) {
+        putJsonObject("mastodon") {
+            if (mastodonHost.isNotBlank()) put("host", mastodonHost)
+            if (mastodonToken.isNotBlank()) put("accessToken", mastodonToken)
+        }
+    }
+
+    val hasTwitter = twitterConsumerKey.isNotBlank() || twitterConsumerSecret.isNotBlank()
+    if (hasTwitter) {
+        putJsonObject("twitter") {
+            if (twitterConsumerKey.isNotBlank()) put("oauth1ConsumerKey", twitterConsumerKey)
+            if (twitterConsumerSecret.isNotBlank()) put("oauth1ConsumerSecret", twitterConsumerSecret)
+        }
+    }
+
+    val hasLinkedIn = linkedinClientId.isNotBlank() || linkedinClientSecret.isNotBlank()
+    if (hasLinkedIn) {
+        putJsonObject("linkedin") {
+            if (linkedinClientId.isNotBlank()) put("clientId", linkedinClientId)
+            if (linkedinClientSecret.isNotBlank()) put("clientSecret", linkedinClientSecret)
+        }
+    }
+
+    val hasLlm = llmApiUrl.isNotBlank() || llmApiKey.isNotBlank()
+    if (hasLlm) {
+        putJsonObject("llm") {
+            if (llmApiUrl.isNotBlank()) put("apiUrl", llmApiUrl)
+            if (llmApiKey.isNotBlank()) put("apiKey", llmApiKey)
+            put("model", llmModel)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Settings form
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun SettingsForm(
     state: SettingsFormState,
@@ -351,7 +426,7 @@ private fun SettingsForm(
                 label = "App Password",
                 value = state.blueskyPassword,
                 onValueChange = { onStateChange(state.copy(blueskyPassword = it)) },
-                placeholder = "xxxx-xxxx-xxxx-xxxx",
+                placeholder = if (state.blueskyPasswordIsSet) "leave blank to keep existing" else "xxxx-xxxx-xxxx-xxxx",
                 type = InputType.Password,
             )
         }
@@ -369,7 +444,7 @@ private fun SettingsForm(
                 label = "Access Token",
                 value = state.mastodonToken,
                 onValueChange = { onStateChange(state.copy(mastodonToken = it)) },
-                placeholder = "Your Mastodon access token",
+                placeholder = if (state.mastodonTokenIsSet) "leave blank to keep existing" else "Your Mastodon access token",
                 type = InputType.Password,
             )
         }
@@ -392,7 +467,7 @@ private fun SettingsForm(
                 label = "Consumer Secret",
                 value = state.twitterConsumerSecret,
                 onValueChange = { onStateChange(state.copy(twitterConsumerSecret = it)) },
-                placeholder = "OAuth1 Consumer Secret",
+                placeholder = if (state.twitterConsumerSecretIsSet) "leave blank to keep existing" else "OAuth1 Consumer Secret",
                 type = InputType.Password,
             )
         }
@@ -415,7 +490,7 @@ private fun SettingsForm(
                 label = "Client Secret",
                 value = state.linkedinClientSecret,
                 onValueChange = { onStateChange(state.copy(linkedinClientSecret = it)) },
-                placeholder = "LinkedIn Client Secret",
+                placeholder = if (state.linkedinClientSecretIsSet) "leave blank to keep existing" else "LinkedIn Client Secret",
                 type = InputType.Password,
             )
         }
@@ -433,7 +508,7 @@ private fun SettingsForm(
                 label = "API Key",
                 value = state.llmApiKey,
                 onValueChange = { onStateChange(state.copy(llmApiKey = it)) },
-                placeholder = "sk-...",
+                placeholder = if (state.llmApiKeyIsSet) "leave blank to keep existing" else "sk-...",
                 type = InputType.Password,
             )
             TextInputField(

@@ -54,7 +54,7 @@ data class LoginResponse(val token: String, val configuredServices: ConfiguredSe
 class AuthRoutes(
     private val config: ServerAuthConfig,
     private val usersDb: UsersDatabase,
-    private val documentsDb: DocumentsDatabase,
+    private val documentsDb: DocumentsDatabase?,
 ) {
     val authModule = AuthModule(config.jwtSecret)
 
@@ -121,10 +121,10 @@ class AuthRoutes(
         val linkedInTokenKey = "linkedin-oauth-token:${user.uuid}"
         val twitterOk =
             settings?.twitter != null &&
-                documentsDb.searchByKey(twitterTokenKey).getOrElse { null } != null
+                documentsDb?.searchByKey(twitterTokenKey)?.getOrElse { null } != null
         val linkedInOk =
             settings?.linkedin != null &&
-                documentsDb.searchByKey(linkedInTokenKey).getOrElse { null } != null
+                documentsDb?.searchByKey(linkedInTokenKey)?.getOrElse { null } != null
 
         val configuredServices =
             ConfiguredServices(

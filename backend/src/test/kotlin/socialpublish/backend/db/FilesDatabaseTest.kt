@@ -26,6 +26,7 @@ class FilesDatabaseTest {
                     originalname = "test.jpg",
                     mimetype = "image/jpeg",
                     size = 1024L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Test image",
                     imageWidth = 800,
                     imageHeight = 600,
@@ -60,6 +61,7 @@ class FilesDatabaseTest {
                         originalname = "duplicate.png",
                         mimetype = "image/png",
                         size = 2048L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     )
 
                 // Create first time
@@ -90,6 +92,7 @@ class FilesDatabaseTest {
                     originalname = "minimal.jpg",
                     mimetype = "image/jpeg",
                     size = 512L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = null,
                     imageWidth = null,
                     imageHeight = null,
@@ -119,6 +122,7 @@ class FilesDatabaseTest {
                     originalname = "retrieve.png",
                     mimetype = "image/png",
                     size = 1500L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Retrieval test",
                 )
 
@@ -209,6 +213,7 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -220,6 +225,7 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -248,6 +254,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val payload2 =
@@ -256,6 +263,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val upload1 = filesDb.createFile(payload1).getOrElse { throw it }

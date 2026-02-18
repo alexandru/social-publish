@@ -83,13 +83,13 @@ class MastodonApiTest {
 
             val mastodonModule =
                 MastodonApiModule(
-                    MastodonConfig(host = "http://localhost", accessToken = "token"),
                     filesModule,
                     mastodonClient,
                 )
 
             val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
-            val result = mastodonModule.createPost(req)
+            val mastodonConfig = MastodonConfig(host = "http://localhost", accessToken = "token")
+            val result = mastodonModule.createPost(mastodonConfig, req)
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value as NewMastodonPostResponse

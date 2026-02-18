@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
+import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
@@ -122,7 +123,6 @@ class TwitterApiTest {
             val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
             val twitterModule =
                 TwitterApiModule(
-                    twitterConfig,
                     "http://localhost",
                     documentsDb,
                     filesModule,
@@ -140,7 +140,8 @@ class TwitterApiTest {
                                 secret = "sec",
                             ),
                         ),
-                    searchKey = "twitter-oauth-token",
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -152,7 +153,8 @@ class TwitterApiTest {
                     content = "Hello twitter",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
-            val result = twitterModule.createPost(req)
+            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
             assertTrue(result.isRight())
 
             assertEquals(2, uploadedImages.size)
@@ -225,7 +227,6 @@ class TwitterApiTest {
             val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
             val twitterModule =
                 TwitterApiModule(
-                    twitterConfig,
                     "http://localhost",
                     documentsDb,
                     filesModule,
@@ -243,7 +244,8 @@ class TwitterApiTest {
                                 secret = "sec",
                             ),
                         ),
-                    searchKey = "twitter-oauth-token",
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -252,7 +254,8 @@ class TwitterApiTest {
                     content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
                     cleanupHtml = true,
                 )
-            val result = twitterModule.createPost(req)
+            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
             assertTrue(result.isRight())
 
             // Jsoup properly decodes HTML entities and removes tags
@@ -293,7 +296,6 @@ class TwitterApiTest {
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
                     TwitterApiModule(
-                        twitterConfig,
                         "http://localhost",
                         documentsDb,
                         filesModule,
@@ -313,7 +315,8 @@ class TwitterApiTest {
                                     secret = "sec",
                                 ),
                             ),
-                        searchKey = "twitter-oauth-token",
+                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                         tags = emptyList(),
                     )
 
@@ -326,7 +329,7 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                    routing { get("/api/twitter/status") { TwitterRoutes(twitterModule, documentsDb).statusRoute(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"), call) } }
                 }
 
                 // Make request and verify it doesn't throw serialization error
@@ -376,7 +379,6 @@ class TwitterApiTest {
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
                     TwitterApiModule(
-                        twitterConfig,
                         "http://localhost",
                         documentsDb,
                         filesModule,
@@ -392,7 +394,7 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { twitterModule.statusRoute(call) } }
+                    routing { get("/api/twitter/status") { TwitterRoutes(twitterModule, documentsDb).statusRoute(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"), call) } }
                 }
 
                 // Make request without any token in database

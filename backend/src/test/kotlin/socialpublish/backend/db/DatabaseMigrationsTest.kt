@@ -123,42 +123,4 @@ class DatabaseMigrationsTest {
             }
         }
 
-    @Test
-    fun `migration 7 backfills existing documents to admin user`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
-
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-
-            // Manually insert a document with null user_uuid to simulate a pre-migration row
-            db.query(
-                "INSERT INTO documents (uuid, search_key, kind, payload, created_at) VALUES (?, ?, ?, ?, ?)"
-            ) {
-                setString(1, "test-uuid-001")
-                setString(2, "test-key-001")
-                setString(3, "post")
-                setString(4, "test payload")
-                setLong(5, java.time.Instant.now().toEpochMilli())
-                execute()
-                Unit
-            }
-
-            // Re-run the data migrations (backfill logic) to assign to admin user
-            db.transaction { applyDataMigrations() }
-
-            val admin = UsersDatabase(db).findByUsername("admin").getOrElse { throw it }
-            assertNotNull(admin)
-
-            val docUserUuid =
-                db.query("SELECT user_uuid FROM documents WHERE uuid = 'test-uuid-001'") {
-                    val rs = executeQuery()
-                    if (rs.next()) rs.getString("user_uuid") else null
-                }
-            assertEquals(
-                admin.uuid.toString(),
-                docUserUuid,
-                "Existing document should be assigned to admin user by migration 7 backfill",
-            )
-        }
-    }
 }

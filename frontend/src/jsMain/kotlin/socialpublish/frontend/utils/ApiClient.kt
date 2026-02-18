@@ -83,6 +83,36 @@ object ApiClient {
         }
     }
 
+    suspend inline fun <reified T, reified B> patch(url: String, body: B? = null): ApiResponse<T> {
+        return try {
+            val requestInit =
+                RequestInit(
+                    method = "PATCH",
+                    headers = createHeaders(),
+                    body = body?.let { json.encodeToString(it) },
+                )
+
+            val response: Response = window.fetch(url, requestInit).await()
+            val text = response.text().await()
+
+            if (response.ok) {
+                val data = json.decodeFromString<T>(text)
+                ApiResponse.Success(data)
+            } else {
+                try {
+                    val error = json.decodeFromString<ErrorResponse>(text)
+                    ApiResponse.Error(error.error, response.status.toInt())
+                } catch (e: Exception) {
+                    console.warn("Failed to decode error response from $url:", e)
+                    ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
+                }
+            }
+        } catch (e: Throwable) {
+            console.error("ApiClient.patch exception:", e)
+            ApiResponse.Exception(e.message ?: "Unknown error")
+        }
+    }
+
     suspend inline fun <reified T> get(url: String): ApiResponse<T> {
         return try {
             val requestInit = RequestInit(method = "GET", headers = createHeaders())

@@ -22,6 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import socialpublish.backend.db.Database
+import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.ServerAuthConfig
 import socialpublish.backend.server.routes.AuthRoutes
@@ -44,7 +45,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -64,7 +66,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -89,7 +92,8 @@ class EndpointSecurityTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -111,7 +115,8 @@ class EndpointSecurityTest {
         testApplication {
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -136,7 +141,8 @@ class EndpointSecurityTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -164,7 +170,8 @@ class EndpointSecurityTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -187,7 +194,8 @@ class EndpointSecurityTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, testUsersDb())
+                val db = Database.connectUnmanaged(":memory:")
+                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -217,11 +225,11 @@ class EndpointSecurityTest {
         assertTrue(token1 != token2)
 
         // But both should verify correctly with their respective usernames
-        val username1 = authModule.verifyToken(token1)
-        val username2 = authModule.verifyToken(token2)
+        val username1 = authModule.verifyTokenPayload(token1)
+        val username2 = authModule.verifyTokenPayload(token2)
 
-        assertEquals("user1", username1)
-        assertEquals("user2", username2)
+        assertEquals("user1", username1?.username)
+        assertEquals("user2", username2?.username)
     }
 
     @Test
@@ -233,12 +241,12 @@ class EndpointSecurityTest {
         val token = authModule.generateToken("testuser", UUID.randomUUID())
 
         // Token should verify immediately
-        val username = authModule.verifyToken(token)
-        assertEquals("testuser", username)
+        val username = authModule.verifyTokenPayload(token)
+        assertEquals("testuser", username?.username)
 
         // The token is valid for 6 months, so it should still be valid
-        val usernameAgain = authModule.verifyToken(token)
-        assertEquals("testuser", usernameAgain)
+        val usernameAgain = authModule.verifyTokenPayload(token)
+        assertEquals("testuser", usernameAgain?.username)
     }
 
     @Test
@@ -249,7 +257,7 @@ class EndpointSecurityTest {
         // Tamper with the token by changing one character
         val tamperedToken = validToken.dropLast(1) + "X"
 
-        val username = authModule.verifyToken(tamperedToken)
+        val username = authModule.verifyTokenPayload(tamperedToken)
         assertEquals(null, username)
     }
 }

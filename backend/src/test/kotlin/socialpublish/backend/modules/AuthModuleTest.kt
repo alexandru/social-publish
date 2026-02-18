@@ -2,6 +2,7 @@ package socialpublish.backend.modules
 
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
@@ -22,17 +23,17 @@ class AuthModuleTest {
     fun `should verify valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
         val token = authModule.generateToken("testuser", UUID.randomUUID())
-        val username = authModule.verifyToken(token)
+        val result = authModule.verifyTokenPayload(token)
 
-        assertEquals("testuser", username)
+        assertEquals("testuser", result?.username)
     }
 
     @Test
     fun `should reject invalid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("invalid-token")
+        val result = authModule.verifyTokenPayload("invalid-token")
 
-        assertEquals(null, username)
+        assertNull(result)
     }
 
     @Test
@@ -41,25 +42,25 @@ class AuthModuleTest {
         val authModule2 = AuthModule("secret2")
 
         val token = authModule1.generateToken("testuser", UUID.randomUUID())
-        val username = authModule2.verifyToken(token)
+        val result = authModule2.verifyTokenPayload(token)
 
-        assertEquals(null, username)
+        assertNull(result)
     }
 
     @Test
     fun `verifyToken should reject malformed token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("not.a.valid.jwt.token")
+        val result = authModule.verifyTokenPayload("not.a.valid.jwt.token")
 
-        assertEquals(null, username)
+        assertNull(result)
     }
 
     @Test
     fun `verifyToken should reject empty token`() {
         val authModule = AuthModule(jwtSecret)
-        val username = authModule.verifyToken("")
+        val result = authModule.verifyTokenPayload("")
 
-        assertEquals(null, username)
+        assertNull(result)
     }
 
     @Test
@@ -122,14 +123,14 @@ class AuthModuleTest {
         val uuid = UUID.randomUUID()
         val token = authModule.generateToken("testuser", uuid)
 
-        val extracted = authModule.getUserUuidFromToken(token)
-        assertEquals(uuid, extracted)
+        val extracted = authModule.verifyTokenPayload(token)
+        assertEquals(uuid, extracted?.userUuid)
     }
 
     @Test
     fun `getUserUuidFromToken should return null for invalid token`() {
         val authModule = AuthModule(jwtSecret)
-        val result = authModule.getUserUuidFromToken("invalid-token")
+        val result = authModule.verifyTokenPayload("invalid-token")
         assertEquals(null, result)
     }
 
@@ -139,7 +140,7 @@ class AuthModuleTest {
         val authModule2 = AuthModule("secret2")
 
         val token = authModule1.generateToken("testuser", UUID.randomUUID())
-        val result = authModule2.getUserUuidFromToken(token)
+        val result = authModule2.verifyTokenPayload(token)
         assertEquals(null, result)
     }
 }
