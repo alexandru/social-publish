@@ -342,6 +342,7 @@ class LinkedInApiModule(
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
+        config: LinkedInConfig,
         code: String,
         redirectUri: String,
     ): ApiResult<LinkedInOAuthToken> {

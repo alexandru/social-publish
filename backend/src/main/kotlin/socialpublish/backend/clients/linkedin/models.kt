@@ -110,9 +110,6 @@ data class LinkedInUserProfile(
 // Status Response Model
 // ============================================================================
 
-/** Response for LinkedIn authorization status check */
-@Serializable
-
 // ============================================================================
 // Image/Media Upload Models (Assets API)
 // ============================================================================

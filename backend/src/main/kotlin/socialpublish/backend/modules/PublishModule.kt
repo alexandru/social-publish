@@ -132,15 +132,12 @@ class PublishModule(
                         is Either.Left ->
                             CompositeErrorResponse(
                                 type = "error",
-                                error =
-                                    CompositeError(
-                                        module = result.value.module,
-                                        errorMessage = result.value.errorMessage,
-                                    ),
+                                module = result.value.module,
+                                error = result.value.errorMessage,
                             )
                     }
                 }
-            CompositeError(
+            return CompositeError(
                     module = "publish",
                     errorMessage = "Some platforms failed",
                     responses = responsePayloads,
@@ -150,7 +147,7 @@ class PublishModule(
         } else {
             val successResults =
                 results.filterIsInstance<Either.Right<NewPostResponse>>().map { it.value }
-            buildMap {
+            return buildMap {
                     targets.zip(successResults).forEach { (target, result) -> put(target, result) }
                 }
                 .right()

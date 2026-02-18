@@ -311,7 +311,7 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun detectMentionsAndTags(text: String): List<JsonObject> {
+    private suspend fun detectMentionsAndTags(config: BlueskyConfig, text: String): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
 
         // 1. Detect Mentions (@handle.bsky.social)
@@ -320,7 +320,7 @@ class BlueskyApiModule(
             val handle = match.value.substring(1) // Remove '@'
             // Only resolve if it looks like a valid handle (has at least one dot)
             if (handle.contains(".")) {
-                val did = resolveHandle(handle)
+                val did = resolveHandle(config, handle)
                 if (did != null) {
                     val byteStart = utf8Length(text.substring(0, match.range.first))
                     val byteEnd = byteStart + utf8Length(match.value)
@@ -376,7 +376,7 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun buildRichText(text: String): RichTextPayload {
+    private suspend fun buildRichText(config: BlueskyConfig, text: String): RichTextPayload {
         val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
         val facets = mutableListOf<JsonObject>()
         val builder = StringBuilder()
@@ -404,7 +404,7 @@ class BlueskyApiModule(
         }
 
         val finalText = builder.toString()
-        val mentionAndTagFacets = detectMentionsAndTags(finalText)
+        val mentionAndTagFacets = detectMentionsAndTags(config, finalText)
         return RichTextPayload(finalText, facets + mentionAndTagFacets)
     }
 
@@ -463,7 +463,7 @@ class BlueskyApiModule(
                 } + if (url != null) "\n\n$url" else ""
 
             // Detect facets (mentions, links, hashtags) and shorten link display text
-            val richText = buildRichText(text)
+            val richText = buildRichText(config, text)
 
             logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
 

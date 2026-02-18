@@ -24,9 +24,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import socialpublish.backend.db.BlueskyUserSettings
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.db.Database
-import socialpublish.backend.db.MastodonUserSettings
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
@@ -51,18 +50,20 @@ class SettingsRoutesTest {
     }
 
     @Test
-    fun `GET settings returns empty UserSettings when none are stored`() {
+    fun `GET settings returns ConfiguredServices when none are stored`() {
         testApplication {
             val (usersDb, userUuid) = setupDb()
-            val authRoutes = AuthRoutes(config, usersDb)
-            val settingsRoutes = SettingsRoutes(usersDb, authRoutes)
+            val authRoutes = AuthRoutes(config, usersDb, null)
+            val settingsRoutes = SettingsRoutes(usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
                 authRoutes.configureAuth(this)
                 routing {
                     authenticate("auth-jwt") {
-                        get("/api/account/settings") { settingsRoutes.getSettingsRoute(call) }
+                        get("/api/account/settings") {
+                            settingsRoutes.getSettingsRoute(userUuid, call)
+                        }
                     }
                 }
             }
@@ -73,47 +74,47 @@ class SettingsRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
-            val settings = json.decodeFromString<UserSettings>(response.bodyAsText())
-            assertNull(settings.bluesky)
-            assertNull(settings.mastodon)
-            assertNull(settings.twitter)
-            assertNull(settings.linkedin)
-            assertNull(settings.llm)
+            val result = json.decodeFromString<ConfiguredServices>(response.bodyAsText())
+            assertEquals(false, result.bluesky)
+            assertEquals(false, result.mastodon)
+            assertEquals(false, result.twitter)
+            assertEquals(false, result.linkedin)
+            assertEquals(false, result.llm)
         }
     }
 
     @Test
-    fun `PUT settings persists and GET retrieves them`() {
+    fun `PUT settings persists and GET reflects configuration`() {
         testApplication {
             val (usersDb, userUuid) = setupDb()
-            val authRoutes = AuthRoutes(config, usersDb)
-            val settingsRoutes = SettingsRoutes(usersDb, authRoutes)
+            val authRoutes = AuthRoutes(config, usersDb, null)
+            val settingsRoutes = SettingsRoutes(usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
                 authRoutes.configureAuth(this)
                 routing {
                     authenticate("auth-jwt") {
-                        get("/api/account/settings") { settingsRoutes.getSettingsRoute(call) }
-                        put("/api/account/settings") { settingsRoutes.updateSettingsRoute(call) }
+                        get("/api/account/settings") {
+                            settingsRoutes.getSettingsRoute(userUuid, call)
+                        }
+                        put("/api/account/settings") {
+                            settingsRoutes.updateSettingsRoute(userUuid, call)
+                        }
                     }
                 }
             }
 
             val newSettings =
                 UserSettings(
-                    mastodon =
-                        MastodonUserSettings(
-                            host = "https://mastodon.social",
-                            accessToken = "abc123",
-                        )
+                    mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "abc123")
                 )
 
             val putResponse =
                 client.put("/api/account/settings") {
                     header(HttpHeaders.Authorization, "Bearer ${authToken(userUuid)}")
                     header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody(json.encodeToString(newSettings))
+                    setBody(Json.encodeToString(UserSettings.serializer(), newSettings))
                 }
 
             assertEquals(HttpStatusCode.OK, putResponse.status)
@@ -124,57 +125,9 @@ class SettingsRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, getResponse.status)
-            val retrieved = json.decodeFromString<UserSettings>(getResponse.bodyAsText())
-            val mastodon = retrieved.mastodon
-            assertNotNull(mastodon)
-            assertEquals("https://mastodon.social", mastodon.host)
-            assertEquals("abc123", mastodon.accessToken)
-        }
-    }
-
-    @Test
-    fun `PUT settings with partial data clears unset integrations`() {
-        testApplication {
-            val (usersDb, userUuid) = setupDb()
-            val authRoutes = AuthRoutes(config, usersDb)
-            val settingsRoutes = SettingsRoutes(usersDb, authRoutes)
-
-            application {
-                install(ContentNegotiation) { json() }
-                authRoutes.configureAuth(this)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/account/settings") { settingsRoutes.getSettingsRoute(call) }
-                        put("/api/account/settings") { settingsRoutes.updateSettingsRoute(call) }
-                    }
-                }
-            }
-
-            // Save settings with bluesky only
-            val settings =
-                UserSettings(
-                    bluesky =
-                        BlueskyUserSettings(
-                            service = "https://bsky.social",
-                            username = "user.bsky.social",
-                            password = "app-pass",
-                        )
-                )
-            val _ =
-                client.put("/api/account/settings") {
-                    header(HttpHeaders.Authorization, "Bearer ${authToken(userUuid)}")
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody(json.encodeToString(settings))
-                }
-
-            val getResponse =
-                client.get("/api/account/settings") {
-                    header(HttpHeaders.Authorization, "Bearer ${authToken(userUuid)}")
-                }
-
-            val retrieved = json.decodeFromString<UserSettings>(getResponse.bodyAsText())
-            assertNotNull(retrieved.bluesky)
-            assertNull(retrieved.mastodon)
+            val configured = json.decodeFromString<ConfiguredServices>(getResponse.bodyAsText())
+            assertEquals(true, configured.mastodon)
+            assertEquals(false, configured.bluesky)
         }
     }
 
@@ -182,15 +135,17 @@ class SettingsRoutesTest {
     fun `GET settings returns 401 without auth token`() {
         testApplication {
             val (usersDb, _) = setupDb()
-            val authRoutes = AuthRoutes(config, usersDb)
-            val settingsRoutes = SettingsRoutes(usersDb, authRoutes)
+            val authRoutes = AuthRoutes(config, usersDb, null)
+            val settingsRoutes = SettingsRoutes(usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
                 authRoutes.configureAuth(this)
                 routing {
                     authenticate("auth-jwt") {
-                        get("/api/account/settings") { settingsRoutes.getSettingsRoute(call) }
+                        get("/api/account/settings") {
+                            settingsRoutes.getSettingsRoute(UUID.randomUUID(), call)
+                        }
                     }
                 }
             }
@@ -204,15 +159,17 @@ class SettingsRoutesTest {
     fun `PUT settings returns 400 for invalid JSON`() {
         testApplication {
             val (usersDb, userUuid) = setupDb()
-            val authRoutes = AuthRoutes(config, usersDb)
-            val settingsRoutes = SettingsRoutes(usersDb, authRoutes)
+            val authRoutes = AuthRoutes(config, usersDb, null)
+            val settingsRoutes = SettingsRoutes(usersDb)
 
             application {
                 install(ContentNegotiation) { json() }
                 authRoutes.configureAuth(this)
                 routing {
                     authenticate("auth-jwt") {
-                        put("/api/account/settings") { settingsRoutes.updateSettingsRoute(call) }
+                        put("/api/account/settings") {
+                            settingsRoutes.updateSettingsRoute(userUuid, call)
+                        }
                     }
                 }
             }

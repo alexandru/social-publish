@@ -118,7 +118,7 @@ class MastodonApiModule(
                     202 -> {
                         // Async upload - poll for completion
                         val initialData = response.body<MastodonMediaResponse>()
-                        waitForMediaProcessing(initialData.id)
+                        waitForMediaProcessing(config, initialData.id)
                     }
                     else -> {
                         val errorBody = response.bodyAsText()
@@ -146,7 +146,7 @@ class MastodonApiModule(
         }
 
     /** Poll for media processing completion */
-    private suspend fun waitForMediaProcessing(mediaId: String): ApiResult<MastodonMediaResponse> {
+    private suspend fun waitForMediaProcessing(config: MastodonConfig, mediaId: String): ApiResult<MastodonMediaResponse> {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
             delay(200)
@@ -200,7 +200,7 @@ class MastodonApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(imageUuid)) {
+                    when (val result = uploadMedia(config, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
                     }
