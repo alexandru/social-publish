@@ -404,7 +404,10 @@ fun startServer(
                     }
 
                 // RSS post creation
-                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
+                post("/api/rss/post") {
+                        val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
+                        rssRoutes.createPostRoute(userUuid, call)
+                    }
                     .describe {
                         summary = "Create RSS post"
                         description = "Create a new RSS feed post"

@@ -214,11 +214,18 @@ val migrations: List<Migration> =
         // testIfApplied: true only when user_uuid is already NOT NULL in documents.
         Migration(
             testIfApplied = { conn ->
-                conn.query(
-                    "SELECT notnull FROM pragma_table_info('documents') WHERE name = 'user_uuid'"
-                ) {
+                // Check that user_uuid exists AND is NOT NULL in documents.
+                // We iterate PRAGMA results to avoid quoting issues with the 'notnull' column name.
+                conn.query("PRAGMA table_info('documents')") {
                     val rs = executeQuery()
-                    rs.next() && rs.getInt(1) == 1
+                    var isNotNull = false
+                    while (rs.next()) {
+                        if (rs.getString("name") == "user_uuid" && rs.getInt("notnull") == 1) {
+                            isNotNull = true
+                            break
+                        }
+                    }
+                    isNotNull
                 }
             },
             execute = { conn ->

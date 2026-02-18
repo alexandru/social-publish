@@ -137,7 +137,7 @@ class PublishModule(
                 }
             return CompositeError(
                     module = "publish",
-                    errorMessage = "Some platforms failed",
+                    errorMessage = "Failed to publish to some platforms",
                     responses = responsePayloads,
                     status = status,
                 )

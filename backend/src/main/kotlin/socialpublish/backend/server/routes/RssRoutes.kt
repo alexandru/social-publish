@@ -9,20 +9,14 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.RssModule
-import socialpublish.backend.server.respondWithUnauthorized
 
 class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
-        val userUuid =
-            call.resolveUserUuid()
-                ?: run {
-                    call.respondWithUnauthorized()
-                    return
-                }
+    suspend fun createPostRoute(userUuid: UUID, call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {

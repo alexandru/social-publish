@@ -201,7 +201,7 @@ class PublishRoutesTest {
             val body = response.bodyAsText()
             // Should contain composite error with responses array
             assertTrue(body.contains("responses"))
-            assertTrue(body.contains("Failed to create post"))
+            assertTrue(body.contains("Failed to publish"))
 
             client.close()
         }

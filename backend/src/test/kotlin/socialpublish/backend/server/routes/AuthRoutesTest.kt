@@ -138,7 +138,8 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.configuredServices.twitter)
+            // User has no OAuth token stored → twitter should be false
+            assertEquals(false, body.configuredServices.twitter)
         }
     }
 
@@ -163,7 +164,8 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.configuredServices.linkedin)
+            // User has no OAuth token stored → linkedin should be false
+            assertEquals(false, body.configuredServices.linkedin)
         }
     }
 
@@ -500,7 +502,7 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `login should return auth status with both providers true`() {
+    fun `login should return auth status with both providers false when no oauth`() {
         testApplication {
             val usersDb = testUsersDb()
             val authRoute = AuthRoutes(config, usersDb, null)
@@ -520,8 +522,8 @@ class AuthRoutesTest {
 
             val json = Json { ignoreUnknownKeys = true }
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertTrue(body.configuredServices.twitter)
-            assertTrue(body.configuredServices.linkedin)
+            assertEquals(false, body.configuredServices.twitter)
+            assertEquals(false, body.configuredServices.linkedin)
         }
     }
 
