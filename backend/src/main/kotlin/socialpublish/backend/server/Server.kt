@@ -126,6 +126,10 @@ fun startServer(
             allowHeader(io.ktor.http.HttpHeaders.ContentType)
             allowHeader(io.ktor.http.HttpHeaders.Authorization)
             allowCredentials = true
+            allowMethod(io.ktor.http.HttpMethod.Get)
+            allowMethod(io.ktor.http.HttpMethod.Post)
+            allowMethod(io.ktor.http.HttpMethod.Patch)
+            allowMethod(io.ktor.http.HttpMethod.Options)
         }
 
         install(ContentNegotiation) { json(serverJson()) }
