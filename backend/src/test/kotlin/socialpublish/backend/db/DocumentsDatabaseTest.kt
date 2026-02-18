@@ -23,8 +23,9 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"message": "Hello"}""",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"message": "Hello"}""",
                         searchKey = "test-key-1",
                         tags = listOf(Tag("tag1", "kind1"), Tag("tag2", "kind2")),
                     )
@@ -54,8 +55,9 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"message": "Original"}""",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"message": "Original"}""",
                             searchKey = "update-test",
                             tags = listOf(Tag("original", "tag")),
                         )
@@ -66,8 +68,9 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"message": "Updated"}""",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"message": "Updated"}""",
                             searchKey = "update-test",
                             tags = listOf(Tag("new", "tag")),
                         )
@@ -92,8 +95,12 @@ class DocumentsDatabaseTest {
 
                 val doc =
                     documentsDb
-                        .createOrUpdate(kind = "test", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"message": "Auto key"}""")
+                        .createOrUpdate(
+                            kind = "test",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"message": "Auto key"}""",
+                        )
                         .getOrElse { throw it }
 
                 assertNotNull(doc.searchKey)
@@ -116,8 +123,9 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"data": "searchable"}""",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"data": "searchable"}""",
                         searchKey = "find-me",
                         tags = listOf(Tag("searchable", "test")),
                     )
@@ -161,8 +169,9 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"uuid": "test"}""",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"uuid": "test"}""",
                         tags = listOf(Tag("uuid-tag", "test")),
                     )
                     .getOrElse { throw it }
@@ -206,20 +215,32 @@ class DocumentsDatabaseTest {
             @Suppress("UNUSED_VARIABLE")
             val post1 =
                 documentsDb
-                    .createOrUpdate(kind = "blog", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"title": "Post 1"}""")
+                    .createOrUpdate(
+                        kind = "blog",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"title": "Post 1"}""",
+                    )
                     .getOrElse { throw it }
             @Suppress("UNUSED_VARIABLE")
             val post2 =
                 documentsDb
-                    .createOrUpdate(kind = "blog", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"title": "Post 2"}""")
+                    .createOrUpdate(
+                        kind = "blog",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"title": "Post 2"}""",
+                    )
                     .getOrElse { throw it }
             @Suppress("UNUSED_VARIABLE")
             val note1 =
                 documentsDb
-                    .createOrUpdate(kind = "note", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"title": "Note 1"}""")
+                    .createOrUpdate(
+                        kind = "note",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"title": "Note 1"}""",
+                    )
                     .getOrElse { throw it }
 
             // Get all blogs
@@ -242,21 +263,33 @@ class DocumentsDatabaseTest {
                 // Create documents in sequence
                 val first =
                     documentsDb
-                        .createOrUpdate(kind = "test", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"order": 1}""")
+                        .createOrUpdate(
+                            kind = "test",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"order": 1}""",
+                        )
                         .getOrElse { throw it }
                 // Small delay to ensure different timestamps (DB stores millis precision)
                 @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
                 val second =
                     documentsDb
-                        .createOrUpdate(kind = "test", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"order": 2}""")
+                        .createOrUpdate(
+                            kind = "test",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"order": 2}""",
+                        )
                         .getOrElse { throw it }
                 @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
                 val third =
                     documentsDb
-                        .createOrUpdate(kind = "test", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"order": 3}""")
+                        .createOrUpdate(
+                            kind = "test",
+                            userUuid =
+                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            payload = """{"order": 3}""",
+                        )
                         .getOrElse { throw it }
 
                 val all =
@@ -302,8 +335,13 @@ class DocumentsDatabaseTest {
 
             val created =
                 documentsDb
-                    .createOrUpdate(kind = "tagged", userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"tagged": true}""", tags = tags)
+                    .createOrUpdate(
+                        kind = "tagged",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"tagged": true}""",
+                        tags = tags,
+                    )
                     .getOrElse { throw it }
 
             assertEquals(3, created.tags.size)
@@ -332,8 +370,9 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"v": 1}""",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"v": 1}""",
                         searchKey = "tag-update",
                         tags = listOf(Tag("old1", "kind"), Tag("old2", "kind")),
                     )
@@ -344,8 +383,9 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    payload = """{"v": 2}""",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        payload = """{"v": 2}""",
                         searchKey = "tag-update",
                         tags = listOf(Tag("new1", "kind")),
                     )

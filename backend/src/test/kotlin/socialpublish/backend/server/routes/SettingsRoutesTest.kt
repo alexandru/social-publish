@@ -104,7 +104,8 @@ class SettingsRoutesTest {
             }
 
             // Use JSON Merge Patch – just provide the fields we want to set
-            val patchBody = """{"mastodon":{"host":"https://mastodon.social","accessToken":"abc123"}}"""
+            val patchBody =
+                """{"mastodon":{"host":"https://mastodon.social","accessToken":"abc123"}}"""
 
             val patchResponse =
                 client.patch("/api/account/settings") {
@@ -136,12 +137,14 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(usersDb)
 
             // Seed existing settings with a real token
-            val _ = usersDb.updateSettings(
-                userUuid,
-                UserSettings(
-                    mastodon = MastodonConfig(host = "https://old.host", accessToken = "real-token")
-                ),
-            )
+            val _ =
+                usersDb.updateSettings(
+                    userUuid,
+                    UserSettings(
+                        mastodon =
+                            MastodonConfig(host = "https://old.host", accessToken = "real-token")
+                    ),
+                )
 
             application {
                 install(ContentNegotiation) { json() }
@@ -172,12 +175,14 @@ class SettingsRoutesTest {
             val (usersDb, userUuid) = setupDb()
             val settingsRoutes = SettingsRoutes(usersDb)
 
-            val _ = usersDb.updateSettings(
-                userUuid,
-                UserSettings(
-                    mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "tok")
-                ),
-            )
+            val _ =
+                usersDb.updateSettings(
+                    userUuid,
+                    UserSettings(
+                        mastodon =
+                            MastodonConfig(host = "https://mastodon.social", accessToken = "tok")
+                    ),
+                )
 
             application {
                 install(ContentNegotiation) { json() }
@@ -255,11 +260,10 @@ class SettingsRoutesTest {
     }
 }
 
-
 class MergeSettingsPatchTest {
     private val existing =
         UserSettings(
-            mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real-token"),
+            mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real-token")
         )
 
     @Test
@@ -284,8 +288,7 @@ class MergeSettingsPatchTest {
                 mastodon =
                     socialpublish.backend.common.Patched.Some(
                         MastodonSettingsPatch(
-                            host =
-                                socialpublish.backend.common.Patched.Some("https://new.host"),
+                            host = socialpublish.backend.common.Patched.Some("https://new.host")
                             // accessToken absent → Patched.Undefined → keep existing
                         )
                     )

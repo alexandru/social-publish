@@ -83,14 +83,15 @@ class LlmApiTest {
             val upload = uploadTestImage(client, "flower1.jpeg", "")
 
             // Create LLM module with config pointing to mock server
-            val llmModule =
-                LlmApiModule(
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
             // Generate alt-text
-            val llmConfig = LlmConfig(apiUrl = "/v1/chat/completions", apiKey = "test-key", model = "gpt-4o-mini")
+            val llmConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "gpt-4o-mini",
+                )
             val result = llmModule.generateAltText(llmConfig, upload.uuid)
 
             // Verify result
@@ -177,14 +178,15 @@ class LlmApiTest {
             val upload = uploadTestImage(client, "flower2.jpeg", "")
 
             // Create LLM module with Mistral config pointing to mock server
-            val llmModule =
-                LlmApiModule(
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
             // Generate alt-text
-            val llmConfig = LlmConfig(apiUrl = "/v1/chat/completions", apiKey = "test-key", model = "pixtral-12b-2409")
+            val llmConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "pixtral-12b-2409",
+                )
             val result = llmModule.generateAltText(llmConfig, upload.uuid)
 
             // Verify result
@@ -211,13 +213,14 @@ class LlmApiTest {
                 }
             }
 
-            val llmModule =
-                LlmApiModule(
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
-            val dummyConfig = LlmConfig(apiUrl = "/v1/chat/completions", apiKey = "test-key", model = "gpt-4o-mini")
+            val dummyConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "gpt-4o-mini",
+                )
             val result = llmModule.generateAltText(dummyConfig, "non-existent-uuid")
 
             assertTrue(result is Either.Left, "Expected error result")

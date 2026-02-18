@@ -67,7 +67,12 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result = module.buildAuthorizeURL(config, "test-jwt-token", java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))
+            val result =
+                module.buildAuthorizeURL(
+                    config,
+                    "test-jwt-token",
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                )
 
             assertTrue(result is Either.Right)
             val url = (result as Either.Right).value
@@ -134,7 +139,8 @@ class LinkedInApiTest {
                         linkPreview,
                     )
 
-                val result = module.exchangeCodeForToken(config, "test-code", "http://localhost/callback")
+                val result =
+                    module.exchangeCodeForToken(config, "test-code", "http://localhost/callback")
 
                 assertTrue(result is Either.Right)
                 val token = (result as Either.Right).value
@@ -518,7 +524,10 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val hasAuth = module.hasLinkedInAuth(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))
+            val hasAuth =
+                module.hasLinkedInAuth(
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+                )
 
             assertTrue(hasAuth)
 
@@ -556,7 +565,10 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val hasAuth = module.hasLinkedInAuth(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))
+            val hasAuth =
+                module.hasLinkedInAuth(
+                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+                )
 
             assertFalse(hasAuth)
 
@@ -751,7 +763,8 @@ class LinkedInApiTest {
                     documentsDb.createOrUpdate(
                         kind = "linkedin-oauth-token",
                         payload = Json.encodeToString(token),
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                         tags = emptyList(),
                     )
@@ -853,7 +866,7 @@ class LinkedInApiTest {
                     )
 
                 val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+                val result = module.createPost(config, request, testUserUuid)
 
                 assertTrue(result is Either.Right)
                 // Thumbnail download/upload removed: ensure post was created
@@ -1287,7 +1300,8 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result = module.exchangeCodeForToken(config, "invalid-code", "http://localhost/callback")
+            val result =
+                module.exchangeCodeForToken(config, "invalid-code", "http://localhost/callback")
 
             assertTrue(result is Either.Left, "Should return error for invalid code")
             val error = (result as Either.Left).value

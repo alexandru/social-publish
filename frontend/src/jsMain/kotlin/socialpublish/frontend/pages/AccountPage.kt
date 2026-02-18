@@ -30,14 +30,22 @@ data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: 
 // ---------------------------------------------------------------------------
 
 @Serializable
-private data class BlueskySettingsView(val service: String, val username: String, val password: String)
+private data class BlueskySettingsView(
+    val service: String,
+    val username: String,
+    val password: String,
+)
 
 @Serializable private data class MastodonSettingsView(val host: String, val accessToken: String)
 
 @Serializable
-private data class TwitterSettingsView(val oauth1ConsumerKey: String, val oauth1ConsumerSecret: String)
+private data class TwitterSettingsView(
+    val oauth1ConsumerKey: String,
+    val oauth1ConsumerSecret: String,
+)
 
-@Serializable private data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+@Serializable
+private data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
 
 @Serializable
 private data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
@@ -333,59 +341,75 @@ private fun AccountSettingsView.toConfiguredServices() =
     )
 
 /**
- * Builds a JSON Merge Patch body (RFC 7396) from the current form state.
+ * Builds the JSON body for PATCH /api/account/settings using JSON Merge Patch semantics.
  *
- * - Absent key in the resulting JSON → server keeps existing value (used for sensitive fields left
- *   blank by the user)
- * - `null` value → server removes that section (not currently used by the form UI, but supported
- *   by the API)
- * - Present non-null value → server updates to the new value
+ * Rules encoded here:
+ * - Section key **absent** → backend keeps existing section (Patched.Undefined)
+ * - Section key = **null** → backend removes the section (Patched.Some(null))
+ * - Section key = **object** → backend merges fields:
+ *     - Field **absent** → keep existing (Patched.Undefined on the backend)
+ *     - Field **present** → update to new value (Patched.Some(value))
  *
- * A section is included only if at least one of its identifying fields is non-blank. Within a
- * section, sensitive fields (passwords, tokens, keys, secrets) are included only when the user has
- * typed a new value; if left blank, the key is omitted so the server preserves the existing value.
+ * Sensitive fields (password, token, key, secret) are left out of the object when blank, so the
+ * backend keeps the existing credential unchanged. To remove a whole section the user must clear
+ * both the identifying non-sensitive field AND leave the sensitive field blank; in that case we
+ * send the section as explicit `null`.
  */
 private fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
-    val hasBluesky = blueskyUsername.isNotBlank() || blueskyService.isNotBlank() || blueskyPassword.isNotBlank()
-    if (hasBluesky) {
-        putJsonObject("bluesky") {
-            put("service", blueskyService.ifBlank { "https://bsky.social" })
-            if (blueskyUsername.isNotBlank()) put("username", blueskyUsername)
-            if (blueskyPassword.isNotBlank()) put("password", blueskyPassword)
-        }
+    // Bluesky — username is the required identifier
+    when {
+        blueskyUsername.isNotBlank() ->
+            putJsonObject("bluesky") {
+                put("service", blueskyService.ifBlank { "https://bsky.social" })
+                put("username", blueskyUsername)
+                if (blueskyPassword.isNotBlank()) put("password", blueskyPassword)
+            }
+        // User cleared the username (and it was previously set) → remove the section
+        blueskyPasswordIsSet || blueskyUsername.isBlank() && blueskyService.isNotBlank() ->
+            put("bluesky", JsonNull)
+    // else: section was never configured and user left it empty → omit (no change)
     }
 
-    val hasMastodon = mastodonHost.isNotBlank() || mastodonToken.isNotBlank()
-    if (hasMastodon) {
-        putJsonObject("mastodon") {
-            if (mastodonHost.isNotBlank()) put("host", mastodonHost)
-            if (mastodonToken.isNotBlank()) put("accessToken", mastodonToken)
-        }
+    // Mastodon — host is the required identifier
+    when {
+        mastodonHost.isNotBlank() ->
+            putJsonObject("mastodon") {
+                put("host", mastodonHost)
+                if (mastodonToken.isNotBlank()) put("accessToken", mastodonToken)
+            }
+        mastodonTokenIsSet -> put("mastodon", JsonNull)
     }
 
-    val hasTwitter = twitterConsumerKey.isNotBlank() || twitterConsumerSecret.isNotBlank()
-    if (hasTwitter) {
-        putJsonObject("twitter") {
-            if (twitterConsumerKey.isNotBlank()) put("oauth1ConsumerKey", twitterConsumerKey)
-            if (twitterConsumerSecret.isNotBlank()) put("oauth1ConsumerSecret", twitterConsumerSecret)
-        }
+    // Twitter — consumer key is the required identifier
+    when {
+        twitterConsumerKey.isNotBlank() ->
+            putJsonObject("twitter") {
+                put("oauth1ConsumerKey", twitterConsumerKey)
+                if (twitterConsumerSecret.isNotBlank())
+                    put("oauth1ConsumerSecret", twitterConsumerSecret)
+            }
+        twitterConsumerSecretIsSet -> put("twitter", JsonNull)
     }
 
-    val hasLinkedIn = linkedinClientId.isNotBlank() || linkedinClientSecret.isNotBlank()
-    if (hasLinkedIn) {
-        putJsonObject("linkedin") {
-            if (linkedinClientId.isNotBlank()) put("clientId", linkedinClientId)
-            if (linkedinClientSecret.isNotBlank()) put("clientSecret", linkedinClientSecret)
-        }
+    // LinkedIn — client ID is the required identifier
+    when {
+        linkedinClientId.isNotBlank() ->
+            putJsonObject("linkedin") {
+                put("clientId", linkedinClientId)
+                if (linkedinClientSecret.isNotBlank()) put("clientSecret", linkedinClientSecret)
+            }
+        linkedinClientSecretIsSet -> put("linkedin", JsonNull)
     }
 
-    val hasLlm = llmApiUrl.isNotBlank() || llmApiKey.isNotBlank()
-    if (hasLlm) {
-        putJsonObject("llm") {
-            if (llmApiUrl.isNotBlank()) put("apiUrl", llmApiUrl)
-            if (llmApiKey.isNotBlank()) put("apiKey", llmApiKey)
-            put("model", llmModel)
-        }
+    // LLM — API URL is the required identifier
+    when {
+        llmApiUrl.isNotBlank() ->
+            putJsonObject("llm") {
+                put("apiUrl", llmApiUrl)
+                if (llmApiKey.isNotBlank()) put("apiKey", llmApiKey)
+                put("model", llmModel)
+            }
+        llmApiKeyIsSet -> put("llm", JsonNull)
     }
 }
 
@@ -426,7 +450,9 @@ private fun SettingsForm(
                 label = "App Password",
                 value = state.blueskyPassword,
                 onValueChange = { onStateChange(state.copy(blueskyPassword = it)) },
-                placeholder = if (state.blueskyPasswordIsSet) "leave blank to keep existing" else "xxxx-xxxx-xxxx-xxxx",
+                placeholder =
+                    if (state.blueskyPasswordIsSet) "leave blank to keep existing"
+                    else "xxxx-xxxx-xxxx-xxxx",
                 type = InputType.Password,
             )
         }
@@ -444,7 +470,9 @@ private fun SettingsForm(
                 label = "Access Token",
                 value = state.mastodonToken,
                 onValueChange = { onStateChange(state.copy(mastodonToken = it)) },
-                placeholder = if (state.mastodonTokenIsSet) "leave blank to keep existing" else "Your Mastodon access token",
+                placeholder =
+                    if (state.mastodonTokenIsSet) "leave blank to keep existing"
+                    else "Your Mastodon access token",
                 type = InputType.Password,
             )
         }
@@ -467,7 +495,9 @@ private fun SettingsForm(
                 label = "Consumer Secret",
                 value = state.twitterConsumerSecret,
                 onValueChange = { onStateChange(state.copy(twitterConsumerSecret = it)) },
-                placeholder = if (state.twitterConsumerSecretIsSet) "leave blank to keep existing" else "OAuth1 Consumer Secret",
+                placeholder =
+                    if (state.twitterConsumerSecretIsSet) "leave blank to keep existing"
+                    else "OAuth1 Consumer Secret",
                 type = InputType.Password,
             )
         }
@@ -490,7 +520,9 @@ private fun SettingsForm(
                 label = "Client Secret",
                 value = state.linkedinClientSecret,
                 onValueChange = { onStateChange(state.copy(linkedinClientSecret = it)) },
-                placeholder = if (state.linkedinClientSecretIsSet) "leave blank to keep existing" else "LinkedIn Client Secret",
+                placeholder =
+                    if (state.linkedinClientSecretIsSet) "leave blank to keep existing"
+                    else "LinkedIn Client Secret",
                 type = InputType.Password,
             )
         }
@@ -508,7 +540,8 @@ private fun SettingsForm(
                 label = "API Key",
                 value = state.llmApiKey,
                 onValueChange = { onStateChange(state.copy(llmApiKey = it)) },
-                placeholder = if (state.llmApiKeyIsSet) "leave blank to keep existing" else "sk-...",
+                placeholder =
+                    if (state.llmApiKeyIsSet) "leave blank to keep existing" else "sk-...",
                 type = InputType.Password,
             )
             TextInputField(

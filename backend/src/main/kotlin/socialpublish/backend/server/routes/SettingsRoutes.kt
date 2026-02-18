@@ -31,8 +31,8 @@ const val MASKED_VALUE = "****"
  * Settings view returned by GET and PATCH responses.
  *
  * Non-sensitive fields (URLs, usernames, IDs) contain their real stored values. Sensitive fields
- * (passwords, tokens, keys, secrets) contain [MASKED_VALUE] when a value is stored, so the
- * frontend knows a value exists without receiving the actual credential.
+ * (passwords, tokens, keys, secrets) contain [MASKED_VALUE] when a value is stored, so the frontend
+ * knows a value exists without receiving the actual credential.
  */
 @Serializable
 data class AccountSettingsView(
@@ -235,7 +235,10 @@ private fun patchBluesky(existing: BlueskyConfig?, patch: BlueskySettingsPatch):
         ?: BlueskyConfig(service = service, username = username, password = password)
 }
 
-private fun patchMastodon(existing: MastodonConfig?, patch: MastodonSettingsPatch): MastodonConfig? {
+private fun patchMastodon(
+    existing: MastodonConfig?,
+    patch: MastodonSettingsPatch,
+): MastodonConfig? {
     val host = resolveField(patch.host, existing?.host) ?: return null
     val accessToken = resolveField(patch.accessToken, existing?.accessToken) ?: return null
     return MastodonConfig(host = host, accessToken = accessToken)
@@ -249,7 +252,10 @@ private fun patchTwitter(existing: TwitterConfig?, patch: TwitterSettingsPatch):
         ?: TwitterConfig(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
 }
 
-private fun patchLinkedIn(existing: LinkedInConfig?, patch: LinkedInSettingsPatch): LinkedInConfig? {
+private fun patchLinkedIn(
+    existing: LinkedInConfig?,
+    patch: LinkedInSettingsPatch,
+): LinkedInConfig? {
     val clientId = resolveField(patch.clientId, existing?.clientId) ?: return null
     val clientSecret = resolveField(patch.clientSecret, existing?.clientSecret) ?: return null
     return existing?.copy(clientId = clientId, clientSecret = clientSecret)

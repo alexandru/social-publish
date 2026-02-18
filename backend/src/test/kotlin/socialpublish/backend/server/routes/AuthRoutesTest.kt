@@ -503,12 +503,7 @@ class AuthRoutesTest {
     fun `login should return auth status with both providers true`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute =
-                AuthRoutes(
-                    config,
-                    usersDb,
-                    null,
-                )
+            val authRoute = AuthRoutes(config, usersDb, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -534,12 +529,7 @@ class AuthRoutesTest {
     fun `login should return auth status with both providers false`() {
         testApplication {
             val usersDb = testUsersDb()
-            val authRoute =
-                AuthRoutes(
-                    config,
-                    usersDb,
-                    null,
-                )
+            val authRoute = AuthRoutes(config, usersDb, null)
 
             application {
                 install(ContentNegotiation) { json() }

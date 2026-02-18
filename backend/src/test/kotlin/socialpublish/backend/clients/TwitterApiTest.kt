@@ -25,10 +25,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
-import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.server.routes.FilesRoutes
+import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
@@ -122,12 +122,7 @@ class TwitterApiTest {
 
             val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
             val twitterModule =
-                TwitterApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    twitterClient,
-                )
+                TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
 
             val _ =
                 documentsDb.createOrUpdate(
@@ -226,12 +221,7 @@ class TwitterApiTest {
 
             val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
             val twitterModule =
-                TwitterApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    twitterClient,
-                )
+                TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
 
             val _ =
                 documentsDb.createOrUpdate(
@@ -295,12 +285,7 @@ class TwitterApiTest {
 
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
-                    TwitterApiModule(
-                        "http://localhost",
-                        documentsDb,
-                        filesModule,
-                        twitterClient,
-                    )
+                    TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
 
                 // Create a Twitter OAuth token in the database
                 val _ =
@@ -315,8 +300,9 @@ class TwitterApiTest {
                                     secret = "sec",
                                 ),
                             ),
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                         tags = emptyList(),
                     )
 
@@ -329,7 +315,17 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { TwitterRoutes(twitterModule, documentsDb).statusRoute(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"), call) } }
+                    routing {
+                        get("/api/twitter/status") {
+                            TwitterRoutes(twitterModule, documentsDb)
+                                .statusRoute(
+                                    java.util.UUID.fromString(
+                                        "00000000-0000-0000-0000-000000000001"
+                                    ),
+                                    call,
+                                )
+                        }
+                    }
                 }
 
                 // Make request and verify it doesn't throw serialization error
@@ -378,12 +374,7 @@ class TwitterApiTest {
 
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
-                    TwitterApiModule(
-                        "http://localhost",
-                        documentsDb,
-                        filesModule,
-                        twitterClient,
-                    )
+                    TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
 
                 application {
                     install(ContentNegotiation) {
@@ -394,7 +385,17 @@ class TwitterApiTest {
                             }
                         )
                     }
-                    routing { get("/api/twitter/status") { TwitterRoutes(twitterModule, documentsDb).statusRoute(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"), call) } }
+                    routing {
+                        get("/api/twitter/status") {
+                            TwitterRoutes(twitterModule, documentsDb)
+                                .statusRoute(
+                                    java.util.UUID.fromString(
+                                        "00000000-0000-0000-0000-000000000001"
+                                    ),
+                                    call,
+                                )
+                        }
+                    }
                 }
 
                 // Make request without any token in database

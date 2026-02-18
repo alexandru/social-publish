@@ -81,11 +81,7 @@ class MastodonApiTest {
             val upload1 = uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
             val upload2 = uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
 
-            val mastodonModule =
-                MastodonApiModule(
-                    filesModule,
-                    mastodonClient,
-                )
+            val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
 
             val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
             val mastodonConfig = MastodonConfig(host = "http://localhost", accessToken = "token")

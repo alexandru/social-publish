@@ -55,7 +55,6 @@ import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
-import socialpublish.backend.server.routes.ConfiguredServices
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LinkedInRoutes
 import socialpublish.backend.server.routes.LlmRoutes
@@ -284,7 +283,9 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<UserSettingsPatch>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<UserSettingsPatch>()
+                            }
                         }
                         responses {
                             HttpStatusCode.OK {

@@ -2,8 +2,8 @@ package socialpublish.backend.modules
 
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 

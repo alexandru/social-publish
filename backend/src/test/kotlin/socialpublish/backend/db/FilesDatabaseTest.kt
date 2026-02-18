@@ -61,7 +61,7 @@ class FilesDatabaseTest {
                         originalname = "duplicate.png",
                         mimetype = "image/png",
                         size = 2048L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     )
 
                 // Create first time
@@ -213,7 +213,8 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -225,7 +226,8 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
