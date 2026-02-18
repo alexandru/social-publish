@@ -38,7 +38,7 @@ fun App() {
     Div {
         NavBar(currentPath = currentPath) {
             Storage.clearJwtToken()
-            Storage.setAuthStatus(null)
+            Storage.setConfiguredServices(null)
             navigateTo("/login")
         }
 

@@ -49,7 +49,11 @@ class LinkedInRoutes(
         }
     }
 
-    suspend fun callbackRoute(userUuid: UUID, linkedInConfig: LinkedInConfig, call: ApplicationCall) {
+    suspend fun callbackRoute(
+        userUuid: UUID,
+        linkedInConfig: LinkedInConfig,
+        call: ApplicationCall,
+    ) {
         val code = call.request.queryParameters["code"]
         val state = call.request.queryParameters["state"]
         val accessToken = call.request.queryParameters["access_token"]
@@ -63,17 +67,18 @@ class LinkedInRoutes(
                     "user_cancelled_authorize" -> "You declined the LinkedIn authorization request"
                     else -> errorDescription ?: "LinkedIn authorization failed: $error"
                 }
-            call.respondRedirect(
-                "/account?error=${URLEncoder.encode(userMessage, "UTF-8")}"
-            )
+            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, "UTF-8")}")
             return
         }
 
         if (state != null) {
             val storedJwtToken = linkedInModule.verifyOAuthState(state)
             if (storedJwtToken == null) {
-                val msg = URLEncoder.encode(
-                    "Authorization failed: Invalid state parameter. Please try again.", "UTF-8")
+                val msg =
+                    URLEncoder.encode(
+                        "Authorization failed: Invalid state parameter. Please try again.",
+                        "UTF-8",
+                    )
                 call.respondRedirect("/account?error=$msg")
                 return
             }
@@ -92,11 +97,16 @@ class LinkedInRoutes(
                 "${linkedInModule.baseUrl}/api/linkedin/callback"
             }
 
-        when (val tokenResult = linkedInModule.exchangeCodeForToken(linkedInConfig, code, redirectUri)) {
+        when (
+            val tokenResult = linkedInModule.exchangeCodeForToken(linkedInConfig, code, redirectUri)
+        ) {
             is arrow.core.Either.Right -> {
                 when (val saveResult = linkedInModule.saveOAuthToken(tokenResult.value, userUuid)) {
                     is arrow.core.Either.Right -> {
-                        call.response.header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+                        call.response.header(
+                            "Cache-Control",
+                            "no-store, no-cache, must-revalidate, private",
+                        )
                         call.response.header("Pragma", "no-cache")
                         call.response.header("Expires", "0")
                         call.respondRedirect("/account")

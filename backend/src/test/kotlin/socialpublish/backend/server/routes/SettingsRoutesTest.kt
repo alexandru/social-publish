@@ -19,8 +19,6 @@ import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
@@ -107,7 +105,8 @@ class SettingsRoutesTest {
 
             val newSettings =
                 UserSettings(
-                    mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "abc123")
+                    mastodon =
+                        MastodonConfig(host = "https://mastodon.social", accessToken = "abc123")
                 )
 
             val putResponse =

@@ -33,10 +33,9 @@ private val logger = KotlinLogging.logger {}
 /**
  * Services configured and ready to use for the authenticated user.
  *
- * For Mastodon and Bluesky: true when credentials are stored.
- * For Twitter and LinkedIn: true when credentials are stored AND the OAuth flow has been completed
- * (i.e. the OAuth token is in the database).
- * LLM is a utility integration (alt-text generation), not a posting target.
+ * For Mastodon and Bluesky: true when credentials are stored. For Twitter and LinkedIn: true when
+ * credentials are stored AND the OAuth flow has been completed (i.e. the OAuth token is in the
+ * database). LLM is a utility integration (alt-text generation), not a posting target.
  */
 @Serializable
 data class ConfiguredServices(
@@ -47,7 +46,8 @@ data class ConfiguredServices(
     val llm: Boolean = false,
 )
 
-@Serializable data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
+@Serializable
+data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
 
 @Serializable data class UserResponse(val username: String)
 
@@ -159,8 +159,12 @@ class AuthRoutes(
                 logger.warn { "Malformed Authorization header: $authHeader" }
             }
         }
-        call.request.queryParameters["access_token"]?.let { return it }
-        call.request.cookies["access_token"]?.let { return it }
+        call.request.queryParameters["access_token"]?.let {
+            return it
+        }
+        call.request.cookies["access_token"]?.let {
+            return it
+        }
         return null
     }
 

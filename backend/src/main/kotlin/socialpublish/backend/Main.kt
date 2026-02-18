@@ -38,7 +38,7 @@ class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
         subcommands(
             StartServerCommand(),
             GenBcryptHashCommand(),
-            CheckPasswordCommand(),
+            ChangePasswordCommand(),
             CreateUserCommand(),
         )
     }
@@ -172,47 +172,54 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
             echo("BCrypt hash:")
             echo(hash)
             echo()
-            echo(
-                "You can use this hash as the value for SERVER_AUTH_PASSWORD environment variable or --server-auth-password option."
-            )
         }
     }
 }
 
-/** Subcommand to check a password against the stored BCrypt hash. */
-class CheckPasswordCommand : CliktCommand(name = "check-password") {
+/** Subcommand to change a user's password in the database. */
+class ChangePasswordCommand : CliktCommand(name = "change-password") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
-        "Check if a password matches the stored BCrypt hash"
+        "Change a user's password in the database"
 
-    private val serverAuthPassword: String by
+    private val dbPath: String by
         option(
-                "--server-auth-password",
-                help = "BCrypt hash to check against (env: SERVER_AUTH_PASSWORD)",
-                envvar = "SERVER_AUTH_PASSWORD",
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
             )
             .required()
 
-    private val password by
-        option("--password", "-p", help = "Password to check (will prompt if not provided)")
-            .prompt("Enter password to check", hideInput = true, requireConfirmation = false)
+    private val username by
+        option("--username", "-u", help = "Username of the account to update")
+            .prompt("Enter username")
+
+    private val newPassword by
+        option("--new-password", "-p", help = "New password (will prompt if not provided)")
+            .prompt("Enter new password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
-        val authModule = AuthModule("dummy")
+        runBlocking {
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
 
-        // Use reflection to access the private verifyPassword method
-        val verifyMethod =
-            AuthModule::class
-                .java
-                .getDeclaredMethod("verifyPassword", String::class.java, String::class.java)
-        verifyMethod.isAccessible = true
-        val matches =
-            verifyMethod.invoke(authModule, password, serverAuthPassword.trim()) as Boolean
-
-        if (matches) {
-            echo("✓ Password matches the hash")
-        } else {
-            echo("✗ Password does NOT match the hash")
-            throw ProgramResult(1)
+                when (val result = usersDb.updatePassword(username, newPassword)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error changing password: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        if (result.value) {
+                            echo()
+                            echo("✓ Password changed successfully for user '$username'")
+                            echo()
+                        } else {
+                            echo("Error: User '$username' not found", err = true)
+                            throw ProgramResult(1)
+                        }
+                    }
+                }
+            }
         }
     }
 }

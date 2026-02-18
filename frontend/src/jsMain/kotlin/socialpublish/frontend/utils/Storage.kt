@@ -5,12 +5,10 @@ import kotlinx.browser.localStorage
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
-import socialpublish.frontend.models.AuthStatus
 import socialpublish.frontend.models.ConfiguredServices
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
-    private const val AUTH_STATUS_KEY = "hasAuth"
     private const val CONFIGURED_SERVICES_KEY = "configuredServices"
 
     // Cookie utilities
@@ -80,34 +78,6 @@ object Storage {
 
     fun hasJwtToken(): Boolean {
         return getJwtToken() != null
-    }
-
-    // Auth status management (using localStorage)
-    fun setAuthStatus(hasAuth: AuthStatus?) {
-        if (hasAuth == null) {
-            localStorage.removeItem(AUTH_STATUS_KEY)
-        } else {
-            localStorage[AUTH_STATUS_KEY] = Json.encodeToString(hasAuth)
-        }
-    }
-
-    fun getAuthStatus(): AuthStatus {
-        val stored = localStorage[AUTH_STATUS_KEY]
-        return if (stored != null) {
-            try {
-                Json.decodeFromString<AuthStatus>(stored)
-            } catch (e: Exception) {
-                console.error("Error decoding AuthStatus from localStorage:", e)
-                AuthStatus()
-            }
-        } else {
-            AuthStatus()
-        }
-    }
-
-    fun updateAuthStatus(f: (AuthStatus) -> AuthStatus) {
-        val current = getAuthStatus()
-        setAuthStatus(f(current))
     }
 
     // Configured services management (using localStorage)

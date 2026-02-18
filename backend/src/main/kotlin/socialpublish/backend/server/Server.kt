@@ -5,13 +5,11 @@ package socialpublish.backend.server
 import arrow.continuations.ktor.server
 import arrow.core.getOrElse
 import arrow.fx.coroutines.resource
-import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
@@ -25,7 +23,6 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
-import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
@@ -42,13 +39,11 @@ import org.slf4j.event.Level
 import socialpublish.backend.AppConfig
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
-import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
-import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
@@ -92,11 +87,8 @@ fun startServer(
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
-    val authRoutes = AuthRoutes(
-        config = config.server.auth,
-        usersDb = usersDb,
-        documentsDb = documentsDb,
-    )
+    val authRoutes =
+        AuthRoutes(config = config.server.auth, usersDb = usersDb, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
@@ -105,16 +97,20 @@ fun startServer(
     // Social network modules – instantiated once at startup; per-user config is passed per call.
     val blueskyModule = BlueskyApiModule.resource(filesModule).bind()
     val mastodonModule = MastodonApiModule.resource(filesModule).bind()
-    val twitterModule = TwitterApiModule.resource(
-        baseUrl = config.server.baseUrl,
-        documentsDb = documentsDb,
-        filesModule = filesModule,
-    ).bind()
-    val linkedInModule = LinkedInApiModule.resource(
-        baseUrl = config.server.baseUrl,
-        documentsDb = documentsDb,
-        filesModule = filesModule,
-    ).bind()
+    val twitterModule =
+        TwitterApiModule.resource(
+                baseUrl = config.server.baseUrl,
+                documentsDb = documentsDb,
+                filesModule = filesModule,
+            )
+            .bind()
+    val linkedInModule =
+        LinkedInApiModule.resource(
+                baseUrl = config.server.baseUrl,
+                documentsDb = documentsDb,
+                filesModule = filesModule,
+            )
+            .bind()
     val llmModule = LlmApiModule.resource(filesModule).bind()
     val twitterRoutes = TwitterRoutes(twitterModule, documentsDb)
     val linkedInRoutes = LinkedInRoutes(linkedInModule, documentsDb)
@@ -221,17 +217,20 @@ fun startServer(
             // Protected routes
             authenticate("auth-jwt") {
                 // Load the authenticated user's UUID and settings into call attributes once
-                // per request, making them available to all route handlers without repeated DB queries.
-                install(createRouteScopedPlugin("UserContextPlugin") {
-                    onCall { call ->
-                        val userUuid = call.resolveUserUuid() ?: return@onCall
-                        val settings =
-                            usersDb.findByUuid(userUuid).getOrElse { null }?.settings
-                                ?: UserSettings()
-                        call.attributes.put(UserUuidKey, userUuid)
-                        call.attributes.put(UserSettingsKey, settings)
+                // per request, making them available to all route handlers without repeated DB
+                // queries.
+                install(
+                    createRouteScopedPlugin("UserContextPlugin") {
+                        onCall { call ->
+                            val userUuid = call.resolveUserUuid() ?: return@onCall
+                            val settings =
+                                usersDb.findByUuid(userUuid).getOrElse { null }?.settings
+                                    ?: UserSettings()
+                            call.attributes.put(UserUuidKey, userUuid)
+                            call.attributes.put(UserSettingsKey, settings)
+                        }
                     }
-                })
+                )
 
                 get("/api/protected") { authRoutes.protectedRoute(call) }
                     .describe {
@@ -418,10 +417,11 @@ fun startServer(
                 post("/api/bluesky/post") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
                         val blueskyConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.bluesky ?: run {
-                                call.respondWithNotConfigured("Bluesky")
-                                return@post
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.bluesky
+                                ?: run {
+                                    call.respondWithNotConfigured("Bluesky")
+                                    return@post
+                                }
                         blueskyModule.createPostRoute(call, blueskyConfig)
                     }
                     .describe {
@@ -441,10 +441,11 @@ fun startServer(
                 post("/api/mastodon/post") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
                         val mastodonConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.mastodon ?: run {
-                                call.respondWithNotConfigured("Mastodon")
-                                return@post
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.mastodon
+                                ?: run {
+                                    call.respondWithNotConfigured("Mastodon")
+                                    return@post
+                                }
                         mastodonModule.createPostRoute(call, mastodonConfig)
                     }
                     .describe {
@@ -464,10 +465,11 @@ fun startServer(
                 post("/api/twitter/post") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
-                                call.respondWithNotConfigured("Twitter")
-                                return@post
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                                ?: run {
+                                    call.respondWithNotConfigured("Twitter")
+                                    return@post
+                                }
                         twitterRoutes.createPostRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
@@ -487,10 +489,11 @@ fun startServer(
                 post("/api/linkedin/post") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@post
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
-                                call.respondWithNotConfigured("LinkedIn")
-                                return@post
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                                ?: run {
+                                    call.respondWithNotConfigured("LinkedIn")
+                                    return@post
+                                }
                         linkedInRoutes.createPostRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {
@@ -547,10 +550,11 @@ fun startServer(
                 get("/api/twitter/authorize") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
-                                call.respondWithNotConfigured("Twitter")
-                                return@get
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                                ?: run {
+                                    call.respondWithNotConfigured("Twitter")
+                                    return@get
+                                }
                         twitterRoutes.authorizeRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
@@ -561,10 +565,11 @@ fun startServer(
                 get("/api/twitter/callback") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
                         val twitterConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.twitter ?: run {
-                                call.respondWithNotConfigured("Twitter")
-                                return@get
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.twitter
+                                ?: run {
+                                    call.respondWithNotConfigured("Twitter")
+                                    return@get
+                                }
                         twitterRoutes.callbackRoute(userUuid, twitterConfig, call)
                     }
                     .describe {
@@ -588,10 +593,11 @@ fun startServer(
                 get("/api/linkedin/authorize") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
-                                call.respondWithNotConfigured("LinkedIn")
-                                return@get
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                                ?: run {
+                                    call.respondWithNotConfigured("LinkedIn")
+                                    return@get
+                                }
                         linkedInRoutes.authorizeRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {
@@ -602,10 +608,11 @@ fun startServer(
                 get("/api/linkedin/callback") {
                         val userUuid = call.attributes.getOrNull(UserUuidKey) ?: return@get
                         val linkedInConfig =
-                            call.attributes.getOrNull(UserSettingsKey)?.linkedin ?: run {
-                                call.respondWithNotConfigured("LinkedIn")
-                                return@get
-                            }
+                            call.attributes.getOrNull(UserSettingsKey)?.linkedin
+                                ?: run {
+                                    call.respondWithNotConfigured("LinkedIn")
+                                    return@get
+                                }
                         linkedInRoutes.callbackRoute(userUuid, linkedInConfig, call)
                     }
                     .describe {

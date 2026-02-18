@@ -46,8 +46,8 @@ private suspend fun SafeConnection.ddl(sql: String) {
 /**
  * All database migrations in order.
  *
- * Each migration is self-contained and idempotent: [Migration.testIfApplied] determines whether
- * the migration needs to run, and [Migration.execute] performs the changes.
+ * Each migration is self-contained and idempotent: [Migration.testIfApplied] determines whether the
+ * migration needs to run, and [Migration.execute] performs the changes.
  */
 val migrations: List<Migration> =
     listOf(

@@ -62,7 +62,9 @@ class RssModule(
                 )
 
             val post =
-                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse { throw it }
+                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse {
+                    throw it
+                }
 
             NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
         } catch (e: Exception) {

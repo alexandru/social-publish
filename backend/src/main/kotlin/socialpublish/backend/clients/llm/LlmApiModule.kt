@@ -30,10 +30,7 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class LlmApiModule(
-    private val filesModule: FilesModule,
-    private val httpClient: HttpClient,
-) {
+class LlmApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
@@ -57,10 +54,9 @@ class LlmApiModule(
             )
         }
 
-        fun resource(filesModule: FilesModule): Resource<LlmApiModule> =
-            resource {
-                LlmApiModule(filesModule, defaultHttpClient().bind())
-            }
+        fun resource(filesModule: FilesModule): Resource<LlmApiModule> = resource {
+            LlmApiModule(filesModule, defaultHttpClient().bind())
+        }
     }
 
     suspend fun generateAltText(

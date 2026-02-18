@@ -29,7 +29,13 @@ class LlmRoutes(private val llmModule: LlmApiModule) {
                     return
                 }
         when (
-            val result = llmModule.generateAltText(llmConfig, request.imageUuid, request.userContext, request.language)
+            val result =
+                llmModule.generateAltText(
+                    llmConfig,
+                    request.imageUuid,
+                    request.userContext,
+                    request.language,
+                )
         ) {
             is Either.Right -> call.respond(GenerateAltTextResponse(altText = result.value))
             is Either.Left -> {

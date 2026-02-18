@@ -58,14 +58,13 @@ class BlueskyApiModule(
             }
         }
 
-        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> =
-            resource {
-                BlueskyApiModule(
-                    filesModule = filesModule,
-                    linkPreviewParser = LinkPreviewParser().bind(),
-                    httpClient = defaultHttpClient().bind(),
-                )
-            }
+        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> = resource {
+            BlueskyApiModule(
+                filesModule = filesModule,
+                linkPreviewParser = LinkPreviewParser().bind(),
+                httpClient = defaultHttpClient().bind(),
+            )
+        }
     }
 
     /** Login to Bluesky and get session token */
@@ -311,7 +310,10 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun detectMentionsAndTags(config: BlueskyConfig, text: String): List<JsonObject> {
+    private suspend fun detectMentionsAndTags(
+        config: BlueskyConfig,
+        text: String,
+    ): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
 
         // 1. Detect Mentions (@handle.bsky.social)
@@ -409,7 +411,10 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(config: BlueskyConfig, request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        config: BlueskyConfig,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->

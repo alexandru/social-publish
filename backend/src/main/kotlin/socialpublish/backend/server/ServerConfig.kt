@@ -10,5 +10,4 @@ data class ServerConfig(
     val auth: ServerAuthConfig,
 )
 
-/** Server authentication config. Username and password are now stored in the database. */
 data class ServerAuthConfig(val jwtSecret: String)

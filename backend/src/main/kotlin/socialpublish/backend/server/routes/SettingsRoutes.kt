@@ -19,10 +19,11 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
             usersDb.findByUuid(userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
                 return
-            } ?: run {
-                call.respondWithNotFound("User")
-                return
             }
+                ?: run {
+                    call.respondWithNotFound("User")
+                    return
+                }
         // Return which services are configured, not the credentials themselves.
         call.respond(
             ConfiguredServices(
@@ -48,7 +49,10 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
                 }
         val updated =
             usersDb.updateSettings(userUuid, newSettings).getOrElse { error ->
-                call.respondWithInternalServerError(error, "Failed to update settings for $userUuid")
+                call.respondWithInternalServerError(
+                    error,
+                    "Failed to update settings for $userUuid",
+                )
                 return
             }
         if (!updated) {

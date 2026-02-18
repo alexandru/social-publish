@@ -24,9 +24,14 @@ class TwitterRoutes(
     private val twitterModule: TwitterApiModule,
     private val documentsDb: DocumentsDatabase,
 ) {
-    suspend fun authorizeRoute(userUuid: UUID, twitterConfig: TwitterConfig, call: ApplicationCall) {
-        val jwtToken = call.request.queryParameters["access_token"]
-            ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")
+    suspend fun authorizeRoute(
+        userUuid: UUID,
+        twitterConfig: TwitterConfig,
+        call: ApplicationCall,
+    ) {
+        val jwtToken =
+            call.request.queryParameters["access_token"]
+                ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")
         if (jwtToken == null) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             return
@@ -54,7 +59,10 @@ class TwitterRoutes(
 
         when (val result = twitterModule.saveOauthToken(twitterConfig, token, verifier, userUuid)) {
             is arrow.core.Either.Right -> {
-                call.response.header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+                call.response.header(
+                    "Cache-Control",
+                    "no-store, no-cache, must-revalidate, private",
+                )
                 call.response.header("Pragma", "no-cache")
                 call.response.header("Expires", "0")
                 call.respondRedirect("/account")

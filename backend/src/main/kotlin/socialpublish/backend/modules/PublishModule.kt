@@ -117,9 +117,7 @@ class PublishModule(
             }
         }
 
-        val results = coroutineScope {
-            tasks.map { task -> async { task() } }.awaitAll()
-        }
+        val results = coroutineScope { tasks.map { task -> async { task() } }.awaitAll() }
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {

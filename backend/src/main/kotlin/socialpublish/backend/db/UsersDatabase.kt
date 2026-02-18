@@ -36,7 +36,7 @@ class UsersDatabase(private val db: Database) {
             try {
                 settingsJson.decodeFromString<UserSettings>(raw)
             } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse user settings" }
+                logger.error(e) { "Failed to parse user settings" }
                 null
             }
         } else {
@@ -187,6 +187,31 @@ class UsersDatabase(private val db: Database) {
                     .verify(password.toCharArray(), user.passwordHash.toCharArray())
             result.verified
         }
+
+    /**
+     * Update a user's password.
+     *
+     * @param username Username of the user
+     * @param newPassword New plain text password (will be hashed)
+     * @return Either a DBException or true if updated, false if user not found
+     */
+    suspend fun updatePassword(
+        username: String,
+        newPassword: String,
+    ): Either<DBException, Boolean> = either {
+        val now = db.clock.instant()
+        val passwordHash = AuthModule.hashPassword(newPassword)
+        db.transaction {
+            val updated =
+                query("UPDATE users SET password_hash = ?, updated_at = ? WHERE username = ?") {
+                    setString(1, passwordHash)
+                    setLong(2, now.toEpochMilli())
+                    setString(3, username)
+                    executeUpdate()
+                }
+            updated > 0
+        }
+    }
 
     /**
      * Create a new user session.

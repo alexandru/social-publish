@@ -314,7 +314,11 @@ class LinkedInApiModule(
      * @param jwtToken JWT token to include in callback URL for state verification
      * @return Authorization URL to redirect the user to, or an error
      */
-    suspend fun buildAuthorizeURL(config: LinkedInConfig, jwtToken: String, userUuid: UUID): ApiResult<String> {
+    suspend fun buildAuthorizeURL(
+        config: LinkedInConfig,
+        jwtToken: String,
+        userUuid: UUID,
+    ): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
             val state = generateOAuthState()
@@ -394,7 +398,10 @@ class LinkedInApiModule(
     }
 
     /** Refresh access token using refresh token */
-    suspend fun refreshAccessToken(config: LinkedInConfig, refreshToken: String): ApiResult<LinkedInOAuthToken> {
+    suspend fun refreshAccessToken(
+        config: LinkedInConfig,
+        refreshToken: String,
+    ): ApiResult<LinkedInOAuthToken> {
         return try {
             val response =
                 httpClient.submitForm(
@@ -482,7 +489,10 @@ class LinkedInApiModule(
      * @param accessToken OAuth2 access token with `openid` and `profile` scopes
      * @return User profile containing the subject identifier, or an error
      */
-    suspend fun getUserProfile(config: LinkedInConfig, accessToken: String): ApiResult<LinkedInUserProfile> {
+    suspend fun getUserProfile(
+        config: LinkedInConfig,
+        accessToken: String,
+    ): ApiResult<LinkedInUserProfile> {
         return try {
             val response =
                 httpClient.get("${config.apiBase}/userinfo") {
@@ -515,7 +525,10 @@ class LinkedInApiModule(
     }
 
     /** Get valid access token, refreshing if needed. Returns (accessToken, personUrn) */
-    suspend fun getValidToken(config: LinkedInConfig, userUuid: UUID): ApiResult<Pair<String, String>> {
+    suspend fun getValidToken(
+        config: LinkedInConfig,
+        userUuid: UUID,
+    ): ApiResult<Pair<String, String>> {
         val token =
             restoreOAuthTokenFromDb(userUuid)
                 ?: return ValidationError(
@@ -727,7 +740,11 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
-    suspend fun createPost(config: LinkedInConfig, request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        config: LinkedInConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->

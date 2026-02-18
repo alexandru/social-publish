@@ -66,62 +66,63 @@ private constructor(
     }
 
     /** Upload and process file */
-    suspend fun uploadFile(upload: UploadedFile, userUuid: UUID): ApiResult<FileUploadResponse> = resourceScope {
-        try {
-            val originalFileTmp = upload.source.asFileResource().bind()
-            val hash = originalFileTmp.calculateHash()
-            val processedFilePath = File(processedPath, hash)
-            val processed =
-                processFile(
-                        upload.copy(source = UploadSource.FromFile(originalFileTmp)),
-                        saveToFile = processedFilePath,
-                    )
-                    .bind()
-                    .getOrElse {
-                        return@resourceScope it.left()
-                    }
-
-            // Save to database
-            val upload =
-                db.createFile(
-                        UploadPayload(
-                            hash = hash,
-                            originalname = processed.originalname,
-                            mimetype = processed.mimetype,
-                            size = processed.size,
-                            userUuid = userUuid,
-                            altText = processed.altText,
-                            imageWidth = if (processed.width > 0) processed.width else null,
-                            imageHeight = if (processed.height > 0) processed.height else null,
+    suspend fun uploadFile(upload: UploadedFile, userUuid: UUID): ApiResult<FileUploadResponse> =
+        resourceScope {
+            try {
+                val originalFileTmp = upload.source.asFileResource().bind()
+                val hash = originalFileTmp.calculateHash()
+                val processedFilePath = File(processedPath, hash)
+                val processed =
+                    processFile(
+                            upload.copy(source = UploadSource.FromFile(originalFileTmp)),
+                            saveToFile = processedFilePath,
                         )
+                        .bind()
+                        .getOrElse {
+                            return@resourceScope it.left()
+                        }
+
+                // Save to database
+                val upload =
+                    db.createFile(
+                            UploadPayload(
+                                hash = hash,
+                                originalname = processed.originalname,
+                                mimetype = processed.mimetype,
+                                size = processed.size,
+                                userUuid = userUuid,
+                                altText = processed.altText,
+                                imageWidth = if (processed.width > 0) processed.width else null,
+                                imageHeight = if (processed.height > 0) processed.height else null,
+                            )
+                        )
+                        .getOrElse { throw it }
+
+                // Save both original and processed files to disk
+                runInterruptible(Dispatchers.LoomIO) {
+                    // Save original unprocessed file
+                    val originalFilePath = File(originalPath, upload.hash)
+                    // copy from temporary file to permanent location
+                    originalFileTmp.copyTo(originalFilePath, overwrite = true)
+                }
+
+                logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
+                FileUploadResponse(
+                        uuid = upload.uuid,
+                        url = "${config.baseUrl}/files/${upload.uuid}",
+                        mimeType = upload.mimetype,
                     )
-                    .getOrElse { throw it }
-
-            // Save both original and processed files to disk
-            runInterruptible(Dispatchers.LoomIO) {
-                // Save original unprocessed file
-                val originalFilePath = File(originalPath, upload.hash)
-                // copy from temporary file to permanent location
-                originalFileTmp.copyTo(originalFilePath, overwrite = true)
+                    .right()
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to upload file" }
+                CaughtException(
+                        status = 500,
+                        module = "files",
+                        errorMessage = "Failed to upload file: ${e.message}",
+                    )
+                    .left()
             }
-
-            logger.info { "File uploaded: ${upload.uuid} (${upload.originalname})" }
-            FileUploadResponse(
-                    uuid = upload.uuid,
-                    url = "${config.baseUrl}/files/${upload.uuid}",
-                    mimeType = upload.mimetype,
-                )
-                .right()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to upload file" }
-            CaughtException(
-                    status = 500,
-                    module = "files",
-                    errorMessage = "Failed to upload file: ${e.message}",
-                )
-                .left()
         }
-    }
 
     /** Process an uploaded file without saving it. */
     fun processFile(
