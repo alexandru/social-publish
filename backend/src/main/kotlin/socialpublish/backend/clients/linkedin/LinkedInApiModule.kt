@@ -62,16 +62,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.header
-import io.ktor.server.response.respond
-import io.ktor.server.response.respondRedirect
 import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
+import java.util.UUID
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -126,8 +121,7 @@ private val logger = KotlinLogging.logger {}
  * @property linkPreviewParser Parser for extracting link preview metadata
  */
 class LinkedInApiModule(
-    private val config: LinkedInConfig,
-    private val baseUrl: String,
+    val baseUrl: String,
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
     private val httpClientEngine: HttpClientEngine,
@@ -158,14 +152,13 @@ class LinkedInApiModule(
         private const val AUTH_TOKEN_PREVIEW_LENGTH = 20
 
         fun resource(
-            config: LinkedInConfig,
             baseUrl: String,
             documentsDb: DocumentsDatabase,
             filesModule: FilesModule,
         ): Resource<LinkedInApiModule> = resource {
             val engine = install({ CIO.create() }) { engine, _ -> engine.close() }
             val linkPreviewParser = LinkPreviewParser().bind()
-            LinkedInApiModule(config, baseUrl, documentsDb, filesModule, engine, linkPreviewParser)
+            LinkedInApiModule(baseUrl, documentsDb, filesModule, engine, linkPreviewParser)
         }
     }
 
@@ -187,19 +180,20 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(state: String, jwtToken: String) {
+    private suspend fun saveOAuthState(state: String, jwtToken: String, userUuid: UUID) {
         val _ =
             documentsDb.createOrUpdate(
                 kind = "linkedin-oauth-state",
                 payload = """{"state":"$state","jwtToken":"$jwtToken"}""",
+                userUuid = userUuid,
                 searchKey = state,
                 tags = emptyList(),
             )
     }
 
     /** Verify and consume OAuth state during callback */
-    private suspend fun verifyOAuthState(state: String): String? {
-        val doc = documentsDb.searchByKey(state).getOrElse { throw it }
+    suspend fun verifyOAuthState(state: String, userUuid: UUID): String? {
+        val doc = documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
         return if (doc != null && doc.kind == "linkedin-oauth-state") {
             // State found and valid (we don't delete it, but could track usage)
             // In production, we might want to track used states to prevent replay attacks
@@ -283,15 +277,18 @@ class LinkedInApiModule(
         return sb.toString()
     }
 
-    /** Check if LinkedIn auth exists */
-    suspend fun hasLinkedInAuth(): Boolean {
-        val token = restoreOAuthTokenFromDb()
+    /** Check if LinkedIn auth exists for the given user */
+    suspend fun hasLinkedInAuth(userUuid: UUID): Boolean {
+        val token = restoreOAuthTokenFromDb(userUuid)
         return token != null
     }
 
-    /** Restore OAuth token from database */
-    private suspend fun restoreOAuthTokenFromDb(): LinkedInOAuthToken? {
-        val doc = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
+    /** Restore OAuth token from database (scoped to the user) */
+    private suspend fun restoreOAuthTokenFromDb(userUuid: UUID): LinkedInOAuthToken? {
+        val doc =
+            documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse {
+                throw it
+            }
         return if (doc != null) {
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
@@ -320,13 +317,17 @@ class LinkedInApiModule(
      * @param jwtToken JWT token to include in callback URL for state verification
      * @return Authorization URL to redirect the user to, or an error
      */
-    suspend fun buildAuthorizeURL(jwtToken: String): ApiResult<String> {
+    suspend fun buildAuthorizeURL(
+        config: LinkedInConfig,
+        jwtToken: String,
+        userUuid: UUID,
+    ): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
             val state = generateOAuthState()
 
             // Save state for verification during callback
-            saveOAuthState(state, jwtToken)
+            saveOAuthState(state, jwtToken, userUuid)
 
             val authUrl =
                 "${config.authorizationUrl}?response_type=code" +
@@ -348,6 +349,7 @@ class LinkedInApiModule(
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
+        config: LinkedInConfig,
         code: String,
         redirectUri: String,
     ): ApiResult<LinkedInOAuthToken> {
@@ -399,7 +401,10 @@ class LinkedInApiModule(
     }
 
     /** Refresh access token using refresh token */
-    suspend fun refreshAccessToken(refreshToken: String): ApiResult<LinkedInOAuthToken> {
+    suspend fun refreshAccessToken(
+        config: LinkedInConfig,
+        refreshToken: String,
+    ): ApiResult<LinkedInOAuthToken> {
         return try {
             val response =
                 httpClient.submitForm(
@@ -446,14 +451,15 @@ class LinkedInApiModule(
         }
     }
 
-    /** Save OAuth token to database */
-    suspend fun saveOAuthToken(token: LinkedInOAuthToken): ApiResult<Unit> {
+    /** Save OAuth token to database (scoped to the user) */
+    suspend fun saveOAuthToken(token: LinkedInOAuthToken, userUuid: UUID): ApiResult<Unit> {
         return try {
             val _ =
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(LinkedInOAuthToken.serializer(), token),
-                    searchKey = "linkedin-oauth-token",
+                    userUuid = userUuid,
+                    searchKey = "linkedin-oauth-token:$userUuid",
                     tags = emptyList(),
                 )
             Unit.right()
@@ -486,7 +492,10 @@ class LinkedInApiModule(
      * @param accessToken OAuth2 access token with `openid` and `profile` scopes
      * @return User profile containing the subject identifier, or an error
      */
-    suspend fun getUserProfile(accessToken: String): ApiResult<LinkedInUserProfile> {
+    suspend fun getUserProfile(
+        config: LinkedInConfig,
+        accessToken: String,
+    ): ApiResult<LinkedInUserProfile> {
         return try {
             val response =
                 httpClient.get("${config.apiBase}/userinfo") {
@@ -519,9 +528,12 @@ class LinkedInApiModule(
     }
 
     /** Get valid access token, refreshing if needed. Returns (accessToken, personUrn) */
-    suspend fun getValidToken(): ApiResult<Pair<String, String>> {
+    suspend fun getValidToken(
+        config: LinkedInConfig,
+        userUuid: UUID,
+    ): ApiResult<Pair<String, String>> {
         val token =
-            restoreOAuthTokenFromDb()
+            restoreOAuthTokenFromDb(userUuid)
                 ?: return ValidationError(
                         status = 401,
                         errorMessage = "Unauthorized: Missing LinkedIn OAuth token!",
@@ -542,10 +554,10 @@ class LinkedInApiModule(
                 }
 
                 logger.info { "LinkedIn token expired, refreshing..." }
-                when (val result = refreshAccessToken(token.refreshToken)) {
+                when (val result = refreshAccessToken(config, token.refreshToken)) {
                     is Either.Right -> {
                         val newToken = result.value
-                        when (val saveResult = saveOAuthToken(newToken)) {
+                        when (val saveResult = saveOAuthToken(newToken, userUuid)) {
                             is Either.Right -> newToken
                             is Either.Left -> return saveResult.value.left()
                         }
@@ -557,7 +569,7 @@ class LinkedInApiModule(
             }
 
         // Get person URN from user profile
-        when (val profileResult = getUserProfile(validToken.accessToken)) {
+        when (val profileResult = getUserProfile(config, validToken.accessToken)) {
             is Either.Right -> {
                 // The OIDC /userinfo endpoint returns the subject ID in "sub" field
                 // Normalize to always use the full URN format
@@ -576,13 +588,15 @@ class LinkedInApiModule(
 
     /** Upload media to LinkedIn */
     private suspend fun uploadMedia(
+        config: LinkedInConfig,
         accessToken: String,
         personUrn: String,
         uuid: String,
+        userUuid: UUID,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, userUuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -591,6 +605,7 @@ class LinkedInApiModule(
                         .left()
 
             uploadMediaFromBytes(
+                config = config,
                 accessToken = accessToken,
                 personUrn = personUrn,
                 fileSource = file.source,
@@ -609,6 +624,7 @@ class LinkedInApiModule(
     }
 
     private suspend fun uploadMediaFromBytes(
+        config: LinkedInConfig,
         accessToken: String,
         personUrn: String,
         fileSource: UploadSource,
@@ -728,7 +744,11 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        config: LinkedInConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -737,7 +757,7 @@ class LinkedInApiModule(
 
             // Get valid OAuth token and person URN
             val (accessToken, personUrn) =
-                when (val result = getValidToken()) {
+                when (val result = getValidToken(config, userUuid)) {
                     is Either.Right -> result.value
                     is Either.Left -> return result.value.left()
                 }
@@ -758,7 +778,10 @@ class LinkedInApiModule(
             val uploadedAssets = mutableListOf<UploadedAsset>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(accessToken, personUrn, imageUuid)) {
+                    when (
+                        val result =
+                            uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
+                    ) {
                         is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
@@ -916,172 +939,6 @@ class LinkedInApiModule(
                     errorMessage = "Failed to post to LinkedIn: ${e.message}",
                 )
                 .left()
-        }
-    }
-
-    /** Handle authorize redirect HTTP route */
-    suspend fun authorizeRoute(call: ApplicationCall, jwtToken: String) {
-        when (val result = buildAuthorizeURL(jwtToken)) {
-            is Either.Right -> call.respondRedirect(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
-        }
-    }
-
-    /**
-     * Handle OAuth2 callback from LinkedIn after user authorization.
-     *
-     * This route processes the authorization code returned by LinkedIn, verifies the state
-     * parameter to prevent CSRF attacks, exchanges the code for an access token and refresh token,
-     * and stores them in the database.
-     *
-     * **Flow:**
-     * 1. Verifies the state parameter matches the original (CSRF protection)
-     * 2. Receives authorization code from LinkedIn redirect
-     * 3. Exchanges code for access token via token endpoint
-     * 4. Stores tokens in database for future use
-     * 5. Redirects user back to account page
-     *
-     * **Error Handling:**
-     * - `user_cancelled_login` - The member declined to log in
-     * - `user_cancelled_authorize` - The member refused permissions
-     * - State mismatch - Possible CSRF attack, returns 401
-     *
-     * **API Reference:**
-     * - [Authorization Code
-     *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
-     */
-    suspend fun callbackRoute(call: ApplicationCall) {
-        val code = call.request.queryParameters["code"]
-        val state = call.request.queryParameters["state"]
-        val accessToken = call.request.queryParameters["access_token"]
-        val error = call.request.queryParameters["error"]
-        val errorDescription = call.request.queryParameters["error_description"]
-
-        // Check if LinkedIn returned an error
-        if (error != null) {
-            // Map LinkedIn error codes to user-friendly messages
-            val userMessage =
-                when (error) {
-                    "user_cancelled_login" -> "You cancelled the LinkedIn login"
-                    "user_cancelled_authorize" -> "You declined the LinkedIn authorization request"
-                    else -> errorDescription ?: "LinkedIn authorization failed: $error"
-                }
-            val errorMsg = URLEncoder.encode(userMessage, "UTF-8")
-            logger.warn { "LinkedIn OAuth error: $error, description: $errorDescription" }
-            call.respondRedirect("/account?error=$errorMsg")
-            return
-        }
-
-        // Verify state parameter to prevent CSRF attacks
-        if (state != null) {
-            val storedJwtToken = verifyOAuthState(state)
-            if (storedJwtToken == null) {
-                logger.warn { "LinkedIn OAuth state mismatch - possible CSRF attack" }
-                val errorMsg =
-                    URLEncoder.encode(
-                        "Authorization failed: Invalid state parameter. Please try again.",
-                        "UTF-8",
-                    )
-                call.respondRedirect("/account?error=$errorMsg")
-                return
-            }
-        }
-
-        if (code == null) {
-            val errorMsg =
-                URLEncoder.encode(
-                    "LinkedIn authorization failed: missing authorization code",
-                    "UTF-8",
-                )
-            logger.warn { "LinkedIn callback missing code parameter" }
-            call.respondRedirect("/account?error=$errorMsg")
-            return
-        }
-
-        logger.info { "LinkedIn auth callback: code received, state verified" }
-
-        // Reconstruct the original redirect_uri (must match the one used in authorization)
-        val redirectUri =
-            if (accessToken != null) {
-                "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, "UTF-8")}"
-            } else {
-                "$baseUrl/api/linkedin/callback"
-            }
-
-        when (val tokenResult = exchangeCodeForToken(code, redirectUri)) {
-            is Either.Right -> {
-                val token = tokenResult.value
-                when (val saveResult = saveOAuthToken(token)) {
-                    is Either.Right -> {
-                        call.response.header(
-                            "Cache-Control",
-                            "no-store, no-cache, must-revalidate, private",
-                        )
-                        call.response.header("Pragma", "no-cache")
-                        call.response.header("Expires", "0")
-                        call.respondRedirect("/account")
-                    }
-                    is Either.Left -> {
-                        val saveError = saveResult.value
-                        val errorMsg = URLEncoder.encode(saveError.errorMessage, "UTF-8")
-                        logger.error { "Failed to save LinkedIn token: ${saveError.errorMessage}" }
-                        call.respondRedirect("/account?error=$errorMsg")
-                    }
-                }
-            }
-            is Either.Left -> {
-                val tokenError = tokenResult.value
-                val errorMsg = URLEncoder.encode(tokenError.errorMessage, "UTF-8")
-                logger.error {
-                    "Failed to exchange LinkedIn code for token: ${tokenError.errorMessage}"
-                }
-                call.respondRedirect("/account?error=$errorMsg")
-            }
-        }
-    }
-
-    /** Handle status check HTTP route */
-    suspend fun statusRoute(call: ApplicationCall) {
-        val row = documentsDb.searchByKey("linkedin-oauth-token").getOrElse { throw it }
-        call.respond(
-            LinkedInStatusResponse(
-                hasAuthorization = row != null,
-                createdAt = row?.createdAt?.toEpochMilli(),
-            )
-        )
-    }
-
-    /** Handle LinkedIn post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
-
-        when (val result = createPost(request)) {
-            is Either.Right -> call.respond(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
         }
     }
 

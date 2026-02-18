@@ -14,9 +14,9 @@ import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.PublishModule
 
-class PublishRoutes(private val publishModule: PublishModule) {
+class PublishRoutes {
     /** Handle broadcast POST HTTP route */
-    suspend fun broadcastPostRoute(call: ApplicationCall) {
+    suspend fun broadcastPostRoute(call: ApplicationCall, publishModule: PublishModule) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {

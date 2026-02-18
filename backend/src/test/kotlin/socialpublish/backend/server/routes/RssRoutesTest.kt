@@ -17,6 +17,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -27,6 +28,9 @@ import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
 
 @Serializable data class RssPostResponse(val uri: String, val module: String)
+
+private val testUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+private val testUserUuidPath = testUserUuid.toString()
 
 class RssRoutesTest {
     @Test
@@ -40,7 +44,7 @@ class RssRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { post("/api/rss/post") { rssRoutes.createPostRoute(call) } }
+            routing { post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) } }
         }
 
         val client = createClient {
@@ -81,7 +85,7 @@ class RssRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { post("/api/rss/post") { rssRoutes.createPostRoute(call) } }
+            routing { post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) } }
         }
 
         val client = createClient {
@@ -122,8 +126,8 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
-                get("/rss") { rssRoutes.generateRssRoute(call) }
+                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
             }
         }
 
@@ -145,7 +149,7 @@ class RssRoutesTest {
         }
 
         // Get the RSS feed
-        val response = client.get("/rss")
+        val response = client.get("/rss/$testUserUuidPath")
 
         assertEquals(HttpStatusCode.OK, response.status)
         // Check content type starts with application/rss+xml (may have charset)
@@ -170,8 +174,8 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
-                get("/rss") { rssRoutes.generateRssRoute(call) }
+                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
             }
         }
 
@@ -197,7 +201,8 @@ class RssRoutesTest {
         }
 
         // Get RSS with filterByLinks=include
-        val response = client.get("/rss") { parameter("filterByLinks", "include") }
+        val response =
+            client.get("/rss/$testUserUuidPath") { parameter("filterByLinks", "include") }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
@@ -219,8 +224,8 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
-                get("/rss/target/{target}") { rssRoutes.generateRssRoute(call) }
+                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
             }
         }
 
@@ -246,7 +251,7 @@ class RssRoutesTest {
         }
 
         // Get RSS for twitter target
-        val response = client.get("/rss/target/twitter")
+        val response = client.get("/rss/$testUserUuidPath/target/twitter")
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
@@ -268,8 +273,8 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(call) }
-                get("/rss/{uuid}") { rssRoutes.getRssItem(call) }
+                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
             }
         }
 
@@ -292,12 +297,12 @@ class RssRoutesTest {
             }
         val createBody = createResponse.bodyAsText()
         // Extract UUID from the response URI
-        val uuidMatch = Regex("""/rss/([a-f0-9-]+)""").find(createBody)
+        val uuidMatch = Regex("""/rss/[a-f0-9-]+/([a-f0-9-]+)""").find(createBody)
         assertNotNull(uuidMatch)
         val uuid = uuidMatch!!.groupValues[1]
 
         // Get the post by UUID
-        val response = client.get("/rss/$uuid")
+        val response = client.get("/rss/$testUserUuidPath/$uuid")
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
@@ -318,10 +323,10 @@ class RssRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { get("/rss/{uuid}") { rssRoutes.getRssItem(call) } }
+            routing { get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) } }
         }
 
-        val response = client.get("/rss/nonexistent-uuid")
+        val response = client.get("/rss/$testUserUuidPath/nonexistent-uuid")
 
         assertEquals(HttpStatusCode.NotFound, response.status)
         val body = response.bodyAsText()
@@ -344,11 +349,11 @@ class RssRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     // This simulates a route without the uuid parameter
-                    get("/rss/") { rssRoutes.getRssItem(call) }
+                    get("/rss/{userUuid}/") { rssRoutes.getRssItem(call) }
                 }
             }
 
-            val response = client.get("/rss/")
+            val response = client.get("/rss/$testUserUuidPath/")
 
             assertEquals(HttpStatusCode.BadRequest, response.status)
             val body = response.bodyAsText()

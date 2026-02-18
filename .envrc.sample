@@ -1,6 +1,5 @@
-# Environment for local development of backend
-# Only required values are set to reasonable local defaults.
-# Commented variables are optional clients — uncomment and fill when needed.
+# Environment for local backend development.
+# Social integrations are user-scoped now and configured from /account settings.
 
 # Database
 export DB_PATH="/tmp/social-publish.kt/socialpublish.db"
@@ -11,35 +10,14 @@ export BASE_URL="http://localhost:3000"
 # If you want to serve static files from a directory, set this (can be provided multiple times):
 # export STATIC_CONTENT_PATH=
 
-# Server auth (required)
-export SERVER_AUTH_USERNAME="admin"
-export SERVER_AUTH_PASSWORD="adminpass"
+# Auth (required)
 export JWT_SECRET="dev-jwt-secret-change-me"
 
 # Files storage (required)
 export UPLOADED_FILES_PATH="/tmp/social-publish.kt/uploads"
 
-# Bluesky (optional; service has a sensible default)
-export BSKY_SERVICE="https://bsky.social"
-# export BSKY_USERNAME=""
-# export BSKY_PASSWORD=""
-
-# Mastodon (optional)
-# export MASTODON_HOST=""
-# export MASTODON_ACCESS_TOKEN=""
-
-# Twitter (optional)
-# export TWITTER_OAUTH1_CONSUMER_KEY=""
-# export TWITTER_OAUTH1_CONSUMER_SECRET=""
-
-# LLM for alt-text generation (optional)
-# Configure the API endpoint, key, and model for your LLM provider
-# For OpenAI:
-# export LLM_API_URL="https://api.openai.com/v1/chat/completions"
-# export LLM_API_KEY="your-openai-api-key"
-# export LLM_MODEL="gpt-4o-mini"
-# For Mistral:
-# export LLM_API_URL="https://api.mistral.ai/v1/chat/completions"
-# export LLM_API_KEY="your-mistral-api-key"
-# export LLM_MODEL="pixtral-12b-2409"
-
+# Notes:
+# - STATIC_CONTENT_PATH is optional and can be repeated to serve multiple directories.
+# - To create/reset local users, use:
+#   ./gradlew :backend:run --args="create-user --db-path $DB_PATH"
+#   ./gradlew :backend:run --args="change-password --db-path $DB_PATH"

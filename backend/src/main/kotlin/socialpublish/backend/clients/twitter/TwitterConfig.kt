@@ -1,5 +1,8 @@
 package socialpublish.backend.clients.twitter
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class TwitterConfig(
     val oauth1ConsumerKey: String,
     val oauth1ConsumerSecret: String,

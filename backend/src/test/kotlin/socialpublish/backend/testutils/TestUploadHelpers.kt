@@ -7,6 +7,7 @@ import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
 import socialpublish.backend.clients.imagemagick.ImageMagick
+import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.LoomIO
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
@@ -26,6 +28,7 @@ import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
+private val errorJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 internal data class ImageDimensions(val width: Int, val height: Int)
 
@@ -86,8 +89,8 @@ internal suspend fun uploadTestImage(
     uploadEndpoint: String = UPLOAD_ENDPOINT,
 ): FileUploadResponse {
     val bytes = loadTestResourceBytes(resourceName)
-    return client
-        .submitFormWithBinaryData(
+    val response =
+        client.submitFormWithBinaryData(
             url = uploadEndpoint,
             formData =
                 io.ktor.client.request.forms.formData {
@@ -102,7 +105,20 @@ internal suspend fun uploadTestImage(
                     )
                 },
         )
-        .body()
+
+    if (response.status != HttpStatusCode.OK) {
+        val rawBody = response.body<String>()
+        val parsedError =
+            runCatching { errorJson.decodeFromString(ErrorResponse.serializer(), rawBody).error }
+                .getOrNull()
+        val details = parsedError ?: rawBody
+        error(
+            "Upload request failed for '$resourceName' with HTTP ${response.status.value} at $uploadEndpoint. " +
+                "Response body: $details"
+        )
+    }
+
+    return response.body()
 }
 
 internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {

@@ -19,6 +19,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
+import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
@@ -30,11 +31,7 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class LlmApiModule(
-    private val config: LlmConfig,
-    private val filesModule: FilesModule,
-    private val httpClient: HttpClient,
-) {
+class LlmApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
@@ -58,13 +55,14 @@ class LlmApiModule(
             )
         }
 
-        fun resource(config: LlmConfig, filesModule: FilesModule): Resource<LlmApiModule> =
-            resource {
-                LlmApiModule(config, filesModule, defaultHttpClient().bind())
-            }
+        fun resource(filesModule: FilesModule): Resource<LlmApiModule> = resource {
+            LlmApiModule(filesModule, defaultHttpClient().bind())
+        }
     }
 
     suspend fun generateAltText(
+        config: LlmConfig,
+        userUuid: UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -74,7 +72,7 @@ class LlmApiModule(
             // Images are optimized during upload to max 1600x1600, which is sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid)
+                filesModule.readImageFile(uuid = imageUuid, userUuid = userUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",
@@ -87,7 +85,7 @@ class LlmApiModule(
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
-            generateAltTextFromApi(dataUrl, userContext, language)
+            generateAltTextFromApi(config, dataUrl, userContext, language)
         } catch (e: HttpRequestTimeoutException) {
             logger.warn(e) { "LLM request timed out for image $imageUuid" }
             CaughtException(
@@ -109,6 +107,7 @@ class LlmApiModule(
     }
 
     private suspend fun generateAltTextFromApi(
+        config: LlmConfig,
         dataUrl: String,
         extraContextOrInstructions: String?,
         language: String?,

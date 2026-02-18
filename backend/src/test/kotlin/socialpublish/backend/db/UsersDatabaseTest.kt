@@ -32,12 +32,13 @@ class UsersDatabaseTest {
             val user = result.value
             assertNotNull(user.uuid)
             assertEquals("testuser", user.username)
-            assertNotNull(user.passwordHash)
+            val passwordHash = user.passwordHash
+            assertNotNull(passwordHash)
             // BCrypt hashes start with $2a$, $2b$, or $2y$
             assertTrue(
-                user.passwordHash.startsWith("\$2a\$") ||
-                    user.passwordHash.startsWith("\$2b\$") ||
-                    user.passwordHash.startsWith("\$2y\$")
+                passwordHash.startsWith("\$2a\$") ||
+                    passwordHash.startsWith("\$2b\$") ||
+                    passwordHash.startsWith("\$2y\$")
             )
             assertNotNull(user.createdAt)
             assertNotNull(user.updatedAt)
@@ -461,6 +462,7 @@ class UsersDatabaseTest {
                 uuid = UUID.randomUUID(),
                 username = "test",
                 passwordHash = "hash",
+                settings = null,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )

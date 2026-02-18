@@ -2,14 +2,18 @@ package socialpublish.frontend.utils
 
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
+import kotlinx.browser.window
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.w3c.dom.get
 import org.w3c.dom.set
-import socialpublish.frontend.models.AuthStatus
+import socialpublish.frontend.models.ConfiguredServices
+
+@Serializable private data class JwtPayload(val userUuid: String? = null)
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
-    private const val AUTH_STATUS_KEY = "hasAuth"
+    private const val CONFIGURED_SERVICES_KEY = "configuredServices"
 
     // Cookie utilities
     fun cookies(): Map<String, String> {
@@ -80,31 +84,53 @@ object Storage {
         return getJwtToken() != null
     }
 
-    // Auth status management (using localStorage)
-    fun setAuthStatus(hasAuth: AuthStatus?) {
-        if (hasAuth == null) {
-            localStorage.removeItem(AUTH_STATUS_KEY)
+    fun getJwtUserUuid(): String? {
+        val token = getJwtToken() ?: return null
+        val parts = token.split(".")
+        if (parts.size < 2) return null
+
+        val payloadBase64 =
+            parts[1].replace('-', '+').replace('_', '/').let { segment ->
+                when (segment.length % 4) {
+                    2 -> "$segment=="
+                    3 -> "$segment="
+                    else -> segment
+                }
+            }
+
+        return runCatching {
+                val payloadJson = window.atob(payloadBase64)
+                Json.decodeFromString<JwtPayload>(payloadJson).userUuid
+            }
+            .getOrNull()
+    }
+
+    // Configured services management (using localStorage)
+    fun setConfiguredServices(services: ConfiguredServices?) {
+        if (services == null) {
+            localStorage.removeItem(CONFIGURED_SERVICES_KEY)
         } else {
-            localStorage[AUTH_STATUS_KEY] = Json.encodeToString(hasAuth)
+            localStorage[CONFIGURED_SERVICES_KEY] = Json.encodeToString(services)
         }
     }
 
-    fun getAuthStatus(): AuthStatus {
-        val stored = localStorage[AUTH_STATUS_KEY]
+    fun getConfiguredServices(): ConfiguredServices {
+        val stored = localStorage[CONFIGURED_SERVICES_KEY]
         return if (stored != null) {
             try {
-                Json.decodeFromString<AuthStatus>(stored)
+                Json.decodeFromString<ConfiguredServices>(stored)
             } catch (e: Exception) {
-                console.error("Error decoding AuthStatus from localStorage:", e)
-                AuthStatus()
+                console.error(
+                    "Error decoding ConfiguredServices from localStorage:",
+                    e,
+                    "stored:",
+                    stored,
+                )
+                localStorage.removeItem(CONFIGURED_SERVICES_KEY)
+                ConfiguredServices()
             }
         } else {
-            AuthStatus()
+            ConfiguredServices()
         }
-    }
-
-    fun updateAuthStatus(f: (AuthStatus) -> AuthStatus) {
-        val current = getAuthStatus()
-        setAuthStatus(f(current))
     }
 }

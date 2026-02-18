@@ -29,6 +29,8 @@ import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
+import socialpublish.frontend.utils.buildLoginRedirectPath
+import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.navigateTo
 
 @Composable
@@ -63,11 +65,22 @@ fun PublishFormPage() {
     }
 }
 
+private fun redirectToLoginIfUnauthorized(response: ApiResponse<*>, currentPath: String): Boolean {
+    if (!isUnauthorized(response)) {
+        return false
+    }
+    Storage.clearJwtToken()
+    Storage.setConfiguredServices(null)
+    navigateTo(buildLoginRedirectPath(currentPath))
+    return true
+}
+
 @Composable
 private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit) -> Unit) {
     var formState by remember { mutableStateOf(PublishFormState()) }
 
-    val hasAuth = Storage.getAuthStatus()
+    val configuredServices = Storage.getConfiguredServices()
+    val rssFeedHref = Storage.getJwtUserUuid()?.let { "/rss/$it" } ?: "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -100,8 +113,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 imageUUIDs.add(response.data.uuid)
                             }
                             is ApiResponse.Error -> {
-                                if (response.code == 401) {
-                                    navigateTo("/login?error=${response.code}&redirect=/form")
+                                if (redirectToLoginIfUnauthorized(response, "/form")) {
                                     return@launch
                                 }
                                 onError("Error uploading image: ${response.message}")
@@ -138,7 +150,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 P { Text("New post created successfully!") }
                                 P {
                                     Text("View the ")
-                                    A(href = "/rss", attrs = { attr("target", "_blank") }) {
+                                    A(href = rssFeedHref, attrs = { attr("target", "_blank") }) {
                                         Text("RSS feed?")
                                     }
                                 }
@@ -146,8 +158,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         }
                     }
                     is ApiResponse.Error -> {
-                        if (response.code == 401) {
-                            navigateTo("/login?error=${response.code}&redirect=/form")
+                        if (redirectToLoginIfUnauthorized(response, "/form")) {
                             return@launch
                         }
                         onError("Error submitting form: ${response.message}")
@@ -189,26 +200,28 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         serviceName = "Mastodon",
                         checked = formState.targets.contains("mastodon"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("mastodon") },
+                        disabled = !configuredServices.mastodon,
                     )
 
                     ServiceCheckboxField(
                         serviceName = "Bluesky",
                         checked = formState.targets.contains("bluesky"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("bluesky") },
+                        disabled = !configuredServices.bluesky,
                     )
 
                     ServiceCheckboxField(
                         serviceName = "Twitter",
                         checked = formState.targets.contains("twitter"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("twitter") },
-                        disabled = !hasAuth.twitter,
+                        disabled = !configuredServices.twitter,
                     )
 
                     ServiceCheckboxField(
                         serviceName = "LinkedIn",
                         checked = formState.targets.contains("linkedin"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("linkedin") },
-                        disabled = !hasAuth.linkedin,
+                        disabled = !configuredServices.linkedin,
                     )
 
                     ServiceCheckboxField(
@@ -301,10 +314,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                                 formState = formState.addImage(newImage)
                                             }
                                             is ApiResponse.Error -> {
-                                                if (response.code == 401) {
-                                                    navigateTo(
-                                                        "/login?error=${response.code}&redirect=/form"
-                                                    )
+                                                if (
+                                                    redirectToLoginIfUnauthorized(response, "/form")
+                                                ) {
                                                     return@launch
                                                 }
                                                 onError(

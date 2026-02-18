@@ -10,4 +10,4 @@ data class ServerConfig(
     val auth: ServerAuthConfig,
 )
 
-data class ServerAuthConfig(val username: String, val passwordHash: String, val jwtSecret: String)
+data class ServerAuthConfig(val jwtSecret: String)
