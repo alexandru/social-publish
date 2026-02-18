@@ -20,9 +20,14 @@ import io.ktor.server.testing.testApplication
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import socialpublish.backend.clients.bluesky.BlueskyConfig
+import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.common.Patched
+import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
@@ -37,8 +42,7 @@ class SettingsRoutesTest {
         val db = Database.connectUnmanaged(":memory:")
         val usersDb = UsersDatabase(db)
         val result = usersDb.createUser("settingsuser", "settingspass")
-        val user =
-            (result.getOrElse { throw it } as socialpublish.backend.db.CreateResult.Created).value
+        val user = (result.getOrElse { throw it } as CreateResult.Created).value
         return Pair(usersDb, user.uuid)
     }
 
@@ -306,7 +310,7 @@ class MergeSettingsPatchTest {
 
     @Test
     fun `Patched Some null removes section`() {
-        val patch = UserSettingsPatch(mastodon = socialpublish.backend.common.Patched.Some(null))
+        val patch = UserSettingsPatch(mastodon = Patched.Some(null))
         val result = mergeSettingsPatch(existing, patch)
         assertNull(result.mastodon)
     }
@@ -316,9 +320,9 @@ class MergeSettingsPatchTest {
         val patch =
             UserSettingsPatch(
                 mastodon =
-                    socialpublish.backend.common.Patched.Some(
+                    Patched.Some(
                         MastodonSettingsPatch(
-                            host = socialpublish.backend.common.Patched.Some("https://new.host")
+                            host = Patched.Some("https://new.host")
                             // accessToken absent → Patched.Undefined → keep existing
                         )
                     )
@@ -333,14 +337,112 @@ class MergeSettingsPatchTest {
         val patch =
             UserSettingsPatch(
                 mastodon =
-                    socialpublish.backend.common.Patched.Some(
+                    Patched.Some(
                         MastodonSettingsPatch(
-                            host = socialpublish.backend.common.Patched.Some("https://new.host"),
-                            accessToken = socialpublish.backend.common.Patched.Some("new-token"),
+                            host = Patched.Some("https://new.host"),
+                            accessToken = Patched.Some("new-token"),
                         )
                     )
             )
         val result = mergeSettingsPatch(existing, patch)
         assertEquals("new-token", result.mastodon?.accessToken)
+    }
+
+    @Test
+    fun `toView masks all sensitive values`() {
+        val settings =
+            UserSettings(
+                bluesky =
+                    BlueskyConfig(
+                        service = "https://bsky.social",
+                        username = "alice.bsky.social",
+                        password = "real-password",
+                    ),
+                mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real"),
+                llm =
+                    LlmConfig(
+                        apiUrl = "https://llm.example.com",
+                        apiKey = "secret-key",
+                        model = "gpt-4o-mini",
+                    ),
+            )
+
+        val view = settings.toView()
+
+        assertEquals(MASKED_VALUE, view.bluesky?.password)
+        assertEquals(MASKED_VALUE, view.mastodon?.accessToken)
+        assertEquals(MASKED_VALUE, view.llm?.apiKey)
+    }
+
+    @Test
+    fun `toView returns empty sections for null settings`() {
+        val view = (null as UserSettings?).toView()
+
+        assertNull(view.bluesky)
+        assertNull(view.mastodon)
+        assertNull(view.twitter)
+        assertNull(view.linkedin)
+        assertNull(view.llm)
+    }
+
+    @Test
+    fun `Patched Some bluesky with blank service defaults to official host`() {
+        val patch =
+            UserSettingsPatch(
+                bluesky =
+                    Patched.Some(
+                        BlueskySettingsPatch(
+                            service = Patched.Some(""),
+                            username = Patched.Some("alice.bsky.social"),
+                            password = Patched.Some("app-password"),
+                        )
+                    )
+            )
+
+        val result = mergeSettingsPatch(existing = null, patch = patch)
+        assertEquals("https://bsky.social", result.bluesky?.service)
+    }
+
+    @Test
+    fun `Patched Some llm with undefined model defaults to empty string`() {
+        val patch =
+            UserSettingsPatch(
+                llm =
+                    Patched.Some(
+                        LlmSettingsPatch(
+                            apiUrl = Patched.Some("https://llm.example.com"),
+                            apiKey = Patched.Some("secret"),
+                        )
+                    )
+            )
+
+        val result = mergeSettingsPatch(existing = null, patch = patch)
+        assertEquals("", result.llm?.model)
+    }
+
+    @Test
+    fun `Patched Some bluesky with blank required fields removes section`() {
+        val existingWithBluesky =
+            UserSettings(
+                bluesky =
+                    BlueskyConfig(
+                        service = "https://bsky.social",
+                        username = "alice.bsky.social",
+                        password = "real-password",
+                    )
+            )
+        val patch =
+            UserSettingsPatch(
+                bluesky =
+                    Patched.Some(
+                        BlueskySettingsPatch(
+                            username = Patched.Some("   "),
+                            password = Patched.Some("   "),
+                        )
+                    )
+            )
+
+        val result = mergeSettingsPatch(existingWithBluesky, patch)
+        assertTrue(result.bluesky == null)
     }
 }
