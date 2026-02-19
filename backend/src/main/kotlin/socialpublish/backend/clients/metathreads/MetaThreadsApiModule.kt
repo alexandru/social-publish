@@ -34,7 +34,6 @@ import socialpublish.backend.modules.FilesModule
 private val logger = KotlinLogging.logger {}
 
 class MetaThreadsApiModule(
-    private val config: MetaThreadsConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
 ) {
@@ -49,19 +48,15 @@ class MetaThreadsApiModule(
             }
         }
 
-        fun resource(
-            config: MetaThreadsConfig,
-            filesModule: FilesModule,
-        ): Resource<MetaThreadsApiModule> = resource {
-            MetaThreadsApiModule(
-                config = config,
-                filesModule = filesModule,
-                httpClient = defaultHttpClient().bind(),
-            )
+        fun resource(filesModule: FilesModule): Resource<MetaThreadsApiModule> = resource {
+            MetaThreadsApiModule(filesModule = filesModule, httpClient = defaultHttpClient().bind())
         }
     }
 
-    private suspend fun createMediaContainer(imageUuid: String): ApiResult<String> = either {
+    private suspend fun createMediaContainer(
+        config: MetaThreadsConfig,
+        imageUuid: String,
+    ): ApiResult<String> = either {
         catch({
             val imageUrl = filesModule.getFileUrl(imageUuid)
 
@@ -99,7 +94,10 @@ class MetaThreadsApiModule(
         }
     }
 
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> = either {
+    suspend fun createPost(
+        config: MetaThreadsConfig,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> = either {
         catch({
             request.validate()?.let { error -> raise(error) }
 
@@ -113,7 +111,7 @@ class MetaThreadsApiModule(
             logger.info { "Posting to Meta Threads:\n${text.prependIndent("  |")}" }
 
             val imageIds =
-                request.images?.map { imageUuid -> createMediaContainer(imageUuid).bind() }
+                request.images?.map { imageUuid -> createMediaContainer(config, imageUuid).bind() }
                     ?: emptyList()
 
             val containerResponse =
@@ -174,7 +172,7 @@ class MetaThreadsApiModule(
         }
     }
 
-    suspend fun createPostRoute(call: ApplicationCall) {
+    suspend fun createPostRoute(call: ApplicationCall, config: MetaThreadsConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -189,7 +187,7 @@ class MetaThreadsApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -201,7 +199,9 @@ class MetaThreadsApiModule(
         }
     }
 
-    suspend fun refreshAccessToken(): ApiResult<MetaThreadsRefreshTokenResponse> = either {
+    suspend fun refreshAccessToken(
+        config: MetaThreadsConfig
+    ): ApiResult<MetaThreadsRefreshTokenResponse> = either {
         catch({
             val response =
                 httpClient.post("${config.apiBase}/v1.0/access_token") {
@@ -237,8 +237,8 @@ class MetaThreadsApiModule(
         }
     }
 
-    suspend fun refreshAccessTokenRoute(call: ApplicationCall) {
-        when (val result = refreshAccessToken()) {
+    suspend fun refreshAccessTokenRoute(call: ApplicationCall, config: MetaThreadsConfig) {
+        when (val result = refreshAccessToken(config)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

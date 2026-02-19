@@ -14,9 +14,9 @@ import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.modules.PublishModule
 
-class PublishRoutes(private val publishModule: PublishModule) {
+class PublishRoutes {
     /** Handle broadcast POST HTTP route */
-    suspend fun broadcastPostRoute(call: ApplicationCall) {
+    suspend fun broadcastPostRoute(call: ApplicationCall, publishModule: PublishModule) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -41,6 +41,7 @@ class PublishRoutes(private val publishModule: PublishModule) {
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
                     if (params?.get("twitter") == "1") targets.add("twitter")
                     if (params?.get("linkedin") == "1") targets.add("linkedin")
+                    if (params?.get("metathreads") == "1") targets.add("metathreads")
                     if (params?.get("rss") == "1") targets.add("rss")
 
                     NewPostRequest(

@@ -55,19 +55,16 @@ class MetaThreadsApiTest {
                 }
             }
             val metaThreadsModule =
-                MetaThreadsApiModule(
-                    config =
-                        MetaThreadsConfig(
-                            apiBase = "http://localhost",
-                            userId = "test-user-id",
-                            accessToken = "test-token",
-                        ),
-                    filesModule = filesModule,
-                    httpClient = metaThreadsClient,
+                MetaThreadsApiModule(filesModule = filesModule, httpClient = metaThreadsClient)
+            val config =
+                MetaThreadsConfig(
+                    apiBase = "http://localhost",
+                    userId = "test-user-id",
+                    accessToken = "test-token",
                 )
 
             val req = NewPostRequest(content = "Hello Meta Threads")
-            val result = metaThreadsModule.createPost(req)
+            val result = metaThreadsModule.createPost(config, req)
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value
@@ -111,19 +108,16 @@ class MetaThreadsApiTest {
                 }
             }
             val metaThreadsModule =
-                MetaThreadsApiModule(
-                    config =
-                        MetaThreadsConfig(
-                            apiBase = "http://localhost",
-                            userId = "test-user-id",
-                            accessToken = "test-token",
-                        ),
-                    filesModule = filesModule,
-                    httpClient = metaThreadsClient,
+                MetaThreadsApiModule(filesModule = filesModule, httpClient = metaThreadsClient)
+            val config =
+                MetaThreadsConfig(
+                    apiBase = "http://localhost",
+                    userId = "test-user-id",
+                    accessToken = "test-token",
                 )
 
             val req = NewPostRequest(content = "Check out this link", link = "https://example.com")
-            val result = metaThreadsModule.createPost(req)
+            val result = metaThreadsModule.createPost(config, req)
 
             assertTrue(result.isRight())
 
@@ -171,19 +165,16 @@ class MetaThreadsApiTest {
                 }
             }
             val metaThreadsModule =
-                MetaThreadsApiModule(
-                    config =
-                        MetaThreadsConfig(
-                            apiBase = "http://localhost",
-                            userId = "test-user-id",
-                            accessToken = "test-token",
-                        ),
-                    filesModule = filesModule,
-                    httpClient = metaThreadsClient,
+                MetaThreadsApiModule(filesModule = filesModule, httpClient = metaThreadsClient)
+            val config =
+                MetaThreadsConfig(
+                    apiBase = "http://localhost",
+                    userId = "test-user-id",
+                    accessToken = "test-token",
                 )
 
             val req = NewPostRequest(content = "Post with image", images = listOf("image-uuid-123"))
-            val result = metaThreadsModule.createPost(req)
+            val result = metaThreadsModule.createPost(config, req)
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value
@@ -221,18 +212,15 @@ class MetaThreadsApiTest {
                 }
             }
             val metaThreadsModule =
-                MetaThreadsApiModule(
-                    config =
-                        MetaThreadsConfig(
-                            apiBase = "http://localhost",
-                            userId = "test-user-id",
-                            accessToken = "old-token",
-                        ),
-                    filesModule = filesModule,
-                    httpClient = metaThreadsClient,
+                MetaThreadsApiModule(filesModule = filesModule, httpClient = metaThreadsClient)
+            val config =
+                MetaThreadsConfig(
+                    apiBase = "http://localhost",
+                    userId = "test-user-id",
+                    accessToken = "old-token",
                 )
 
-            val result = metaThreadsModule.refreshAccessToken()
+            val result = metaThreadsModule.refreshAccessToken(config)
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value

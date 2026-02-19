@@ -20,12 +20,6 @@ import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
-import socialpublish.backend.clients.bluesky.BlueskyConfig
-import socialpublish.backend.clients.linkedin.LinkedInConfig
-import socialpublish.backend.clients.llm.LlmConfig
-import socialpublish.backend.clients.mastodon.MastodonConfig
-import socialpublish.backend.clients.metathreads.MetaThreadsConfig
-import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
@@ -44,7 +38,7 @@ class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
         subcommands(
             StartServerCommand(),
             GenBcryptHashCommand(),
-            CheckPasswordCommand(),
+            ChangePasswordCommand(),
             CreateUserCommand(),
         )
     }
@@ -86,24 +80,6 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .file(mustExist = false, canBeDir = true, canBeFile = false)
             .multiple()
 
-    // Server authentication configuration
-    private val serverAuthUsername: String by
-        option(
-                "--server-auth-username",
-                help = "Username for server authentication (env: SERVER_AUTH_USERNAME)",
-                envvar = "SERVER_AUTH_USERNAME",
-            )
-            .required()
-
-    private val serverAuthPassword: String by
-        option(
-                "--server-auth-password",
-                help =
-                    "Password for server authentication, BCrypt hash (env: SERVER_AUTH_PASSWORD)",
-                envvar = "SERVER_AUTH_PASSWORD",
-            )
-            .required()
-
     private val serverAuthJwtSecret: String by
         option(
                 "--server-auth-jwt-secret",
@@ -122,119 +98,8 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .file(mustExist = false, canBeDir = true, canBeFile = false)
             .required()
 
-    // Bluesky integration (optional)
-    private val blueskyService: String by
-        option(
-                "--bluesky-service",
-                help = "URL of the Bluesky service (env: BSKY_SERVICE)",
-                envvar = "BSKY_SERVICE",
-            )
-            .default("https://bsky.social")
-
-    private val blueskyUsername: String? by
-        option(
-            "--bluesky-username",
-            help = "Username for Bluesky authentication (env: BSKY_USERNAME)",
-            envvar = "BSKY_USERNAME",
-        )
-
-    private val blueskyPassword: String? by
-        option(
-            "--bluesky-password",
-            help = "Password for Bluesky authentication (env: BSKY_PASSWORD)",
-            envvar = "BSKY_PASSWORD",
-        )
-
-    // Mastodon integration (optional)
-    private val mastodonHost: String? by
-        option(
-            "--mastodon-host",
-            help = "Mastodon instance host URL (env: MASTODON_HOST)",
-            envvar = "MASTODON_HOST",
-        )
-
-    private val mastodonAccessToken: String? by
-        option(
-            "--mastodon-access-token",
-            help = "Mastodon API access token (env: MASTODON_ACCESS_TOKEN)",
-            envvar = "MASTODON_ACCESS_TOKEN",
-        )
-
-    // Twitter integration (optional)
-    private val twitterOauth1ConsumerKey: String? by
-        option(
-            "--twitter-oauth1-consumer-key",
-            help = "Twitter OAuth1 consumer key (env: TWITTER_OAUTH1_CONSUMER_KEY)",
-            envvar = "TWITTER_OAUTH1_CONSUMER_KEY",
-        )
-
-    private val twitterOauth1ConsumerSecret: String? by
-        option(
-            "--twitter-oauth1-consumer-secret",
-            help = "Twitter OAuth1 consumer secret (env: TWITTER_OAUTH1_CONSUMER_SECRET)",
-            envvar = "TWITTER_OAUTH1_CONSUMER_SECRET",
-        )
-
-    // LinkedIn integration (optional)
-    private val linkedinClientId: String? by
-        option(
-            "--linkedin-client-id",
-            help = "LinkedIn OAuth2 client ID (env: LINKEDIN_CLIENT_ID)",
-            envvar = "LINKEDIN_CLIENT_ID",
-        )
-
-    private val linkedinClientSecret: String? by
-        option(
-            "--linkedin-client-secret",
-            help = "LinkedIn OAuth2 client secret (env: LINKEDIN_CLIENT_SECRET)",
-            envvar = "LINKEDIN_CLIENT_SECRET",
-        )
-
-    // Threads integration (optional)
-    private val metaThreadsAccessToken: String? by
-        option(
-            "--metathreads-access-token",
-            help = "Meta Threads API access token (env: METATHREADS_ACCESS_TOKEN)",
-            envvar = "METATHREADS_ACCESS_TOKEN",
-        )
-
-    private val metaThreadsUserId: String? by
-        option(
-            "--metathreads-user-id",
-            help = "Meta Threads user ID (env: METATHREADS_USER_ID)",
-            envvar = "METATHREADS_USER_ID",
-        )
-
-    // LLM integration for alt-text generation (optional)
-    private val llmApiUrl: String? by
-        option(
-            "--llm-api-url",
-            help =
-                "LLM API endpoint URL (e.g., 'https://api.openai.com/v1/chat/completions') (env: LLM_API_URL)",
-            envvar = "LLM_API_URL",
-        )
-
-    private val llmApiKey: String? by
-        option(
-            "--llm-api-key",
-            help = "API key for LLM provider (env: LLM_API_KEY)",
-            envvar = "LLM_API_KEY",
-        )
-
-    private val llmModel: String? by
-        option(
-            "--llm-model",
-            help = "LLM model to use (e.g., 'gpt-4o-mini', 'pixtral-12b-2409') (env: LLM_MODEL)",
-            envvar = "LLM_MODEL",
-        )
-
     override fun run() {
-        val serverAuthConfig =
-            ServerAuthConfig(
-                username = serverAuthUsername,
-                passwordHash = serverAuthPassword,
-                jwtSecret = serverAuthJwtSecret,
-            )
+        val serverAuthConfig = ServerAuthConfig(jwtSecret = serverAuthJwtSecret)
 
         val serverConfig =
             ServerConfig(
@@ -247,70 +112,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
 
         val filesConfig = FilesConfig(uploadedFilesPath = uploadedFilesPath, baseUrl = baseUrl)
 
-        // Build optional integration configs only if credentials are provided
-        val blueskyConfig =
-            if (blueskyUsername != null && blueskyPassword != null) {
-                BlueskyConfig(
-                    service = blueskyService,
-                    username = blueskyUsername!!,
-                    password = blueskyPassword!!,
-                )
-            } else {
-                null
-            }
-
-        val mastodonConfig =
-            if (mastodonHost != null && mastodonAccessToken != null) {
-                MastodonConfig(host = mastodonHost!!, accessToken = mastodonAccessToken!!)
-            } else {
-                null
-            }
-
-        val twitterConfig =
-            if (twitterOauth1ConsumerKey != null && twitterOauth1ConsumerSecret != null) {
-                TwitterConfig(
-                    oauth1ConsumerKey = twitterOauth1ConsumerKey!!,
-                    oauth1ConsumerSecret = twitterOauth1ConsumerSecret!!,
-                )
-            } else {
-                null
-            }
-
-        val linkedinConfig =
-            if (linkedinClientId != null && linkedinClientSecret != null) {
-                LinkedInConfig(clientId = linkedinClientId!!, clientSecret = linkedinClientSecret!!)
-            } else {
-                null
-            }
-
-        val metaThreadsConfig =
-            if (metaThreadsAccessToken != null && metaThreadsUserId != null) {
-                MetaThreadsConfig(
-                    accessToken = metaThreadsAccessToken!!,
-                    userId = metaThreadsUserId!!,
-                )
-            } else {
-                null
-            }
-
-        val llmConfig =
-            if (llmApiUrl != null && llmApiKey != null && llmModel != null) {
-                LlmConfig(apiUrl = llmApiUrl!!, apiKey = llmApiKey!!, model = llmModel!!)
-            } else {
-                null
-            }
-
-        val config =
-            AppConfig(
-                server = serverConfig,
-                files = filesConfig,
-                bluesky = blueskyConfig,
-                mastodon = mastodonConfig,
-                twitter = twitterConfig,
-                linkedin = linkedinConfig,
-                metaThreads = metaThreadsConfig,
-                llm = llmConfig,
-            )
+        val config = AppConfig(server = serverConfig, files = filesConfig)
 
         // SuspendApp currently has issues with System.exit, hence logic above cannot
         // be inside SuspendApp
@@ -332,6 +134,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                                 resources.documentsDb,
                                 resources.postsDb,
                                 resources.filesDb,
+                                resources.usersDb,
                                 engine = CIO,
                             )
                             .bind()
@@ -369,47 +172,54 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
             echo("BCrypt hash:")
             echo(hash)
             echo()
-            echo(
-                "You can use this hash as the value for SERVER_AUTH_PASSWORD environment variable or --server-auth-password option."
-            )
         }
     }
 }
 
-/** Subcommand to check a password against the stored BCrypt hash. */
-class CheckPasswordCommand : CliktCommand(name = "check-password") {
+/** Subcommand to change a user's password in the database. */
+class ChangePasswordCommand : CliktCommand(name = "change-password") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
-        "Check if a password matches the stored BCrypt hash"
+        "Change a user's password in the database"
 
-    private val serverAuthPassword: String by
+    private val dbPath: String by
         option(
-                "--server-auth-password",
-                help = "BCrypt hash to check against (env: SERVER_AUTH_PASSWORD)",
-                envvar = "SERVER_AUTH_PASSWORD",
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
             )
             .required()
 
-    private val password by
-        option("--password", "-p", help = "Password to check (will prompt if not provided)")
-            .prompt("Enter password to check", hideInput = true, requireConfirmation = false)
+    private val username by
+        option("--username", "-u", help = "Username of the account to update")
+            .prompt("Enter username")
+
+    private val newPassword by
+        option("--new-password", "-p", help = "New password (will prompt if not provided)")
+            .prompt("Enter new password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
-        val authModule = AuthModule("dummy")
+        runBlocking {
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
 
-        // Use reflection to access the private verifyPassword method
-        val verifyMethod =
-            AuthModule::class
-                .java
-                .getDeclaredMethod("verifyPassword", String::class.java, String::class.java)
-        verifyMethod.isAccessible = true
-        val matches =
-            verifyMethod.invoke(authModule, password, serverAuthPassword.trim()) as Boolean
-
-        if (matches) {
-            echo("✓ Password matches the hash")
-        } else {
-            echo("✗ Password does NOT match the hash")
-            throw ProgramResult(1)
+                when (val result = usersDb.updatePassword(username, newPassword)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error changing password: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        if (result.value) {
+                            echo()
+                            echo("✓ Password changed successfully for user '$username'")
+                            echo()
+                        } else {
+                            echo("Error: User '$username' not found", err = true)
+                            throw ProgramResult(1)
+                        }
+                    }
+                }
+            }
         }
     }
 }

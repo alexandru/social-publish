@@ -1,5 +1,8 @@
 package socialpublish.backend.clients.llm
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class LlmConfig(
     val apiUrl: String, // API endpoint URL (e.g., "https://api.openai.com/v1/chat/completions")
     val apiKey: String,

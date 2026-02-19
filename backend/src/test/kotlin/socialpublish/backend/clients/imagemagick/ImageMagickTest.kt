@@ -191,7 +191,7 @@ class ImageMagickTest {
                                 maxWidth = 1600,
                                 maxHeight = 1600,
                                 maxSizeBytes = 100, // Impossibly small: 100 bytes
-                                jpegQuality = 95,
+                                jpegQuality = 55,
                             )
                     )
                     .getOrElse { error("ImageMagick not available: ${it.message}") }

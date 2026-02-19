@@ -1,5 +1,6 @@
 package socialpublish.backend.server.routes
 
+import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -16,29 +17,49 @@ import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
+import socialpublish.backend.modules.VerifiedToken
 import socialpublish.backend.server.ServerAuthConfig
 
 private val logger = KotlinLogging.logger {}
 
 @Serializable data class LoginRequest(val username: String, val password: String)
 
-@Serializable data class AuthStatus(val twitter: Boolean = false, val linkedin: Boolean = false)
+/**
+ * Services configured and ready to use for the authenticated user.
+ *
+ * For Mastodon and Bluesky: true when credentials are stored. For Twitter and LinkedIn: true when
+ * credentials are stored AND the OAuth flow has been completed (i.e. the OAuth token is in the
+ * database). LLM is a utility integration (alt-text generation), not a posting target.
+ */
+@Serializable
+data class ConfiguredServices(
+    val mastodon: Boolean = false,
+    val bluesky: Boolean = false,
+    val twitter: Boolean = false,
+    val linkedin: Boolean = false,
+    val metaThreads: Boolean = false,
+    val llm: Boolean = false,
+)
 
-@Serializable data class LoginResponse(val token: String, val hasAuth: AuthStatus)
+@Serializable
+data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
 
 @Serializable data class UserResponse(val username: String)
 
 class AuthRoutes(
     private val config: ServerAuthConfig,
-    private val twitterAuthProvider: (suspend () -> Boolean)? = null,
-    private val linkedInAuthProvider: (suspend () -> Boolean)? = null,
+    private val usersDb: UsersDatabase,
+    private val documentsDb: DocumentsDatabase?,
 ) {
-    private val authModule = AuthModule(config.jwtSecret)
+    val authModule = AuthModule(config.jwtSecret)
 
-    suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
+    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
         when (call.request.contentType()) {
             ContentType.Application.Json -> {
                 runCatching { call.receive<LoginRequest>() }.getOrNull()
@@ -62,31 +83,65 @@ class AuthRoutes(
     suspend fun loginRoute(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid credentials"))
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
             return
         }
 
-        // Check username and verify password with BCrypt
+        val user =
+            usersDb.findByUsername(request.username).getOrElse {
+                logger.error(it) { "DB error during login for ${request.username}" }
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse(error = "Server error"),
+                )
+                return
+            }
+
+        if (user == null) {
+            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Invalid credentials"))
+            return
+        }
+
         val isPasswordValid =
-            try {
-                authModule.verifyPassword(request.password, config.passwordHash)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to verify password for user: ${request.username}" }
+            if (user.passwordHash != null) {
+                try {
+                    authModule.verifyPassword(request.password, user.passwordHash)
+                } catch (e: Exception) {
+                    logger.warn(e) { "Failed to verify password for user: ${request.username}" }
+                    false
+                }
+            } else {
                 false
             }
-        if (request.username == config.username && isPasswordValid) {
-            val token = authModule.generateToken(request.username)
-            val hasTwitterAuth = twitterAuthProvider?.invoke() ?: false
-            val hasLinkedInAuth = linkedInAuthProvider?.invoke() ?: false
-            call.respond(
-                LoginResponse(
-                    token = token,
-                    hasAuth = AuthStatus(twitter = hasTwitterAuth, linkedin = hasLinkedInAuth),
-                )
-            )
-        } else {
+
+        if (!isPasswordValid) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            return
         }
+
+        val token = authModule.generateToken(user.username, user.uuid)
+        val settings = user.settings
+
+        // twitter/linkedin are ready only when credentials AND OAuth token both exist
+        val twitterTokenKey = "twitter-oauth-token:${user.uuid}"
+        val linkedInTokenKey = "linkedin-oauth-token:${user.uuid}"
+        val twitterOk =
+            settings?.twitter != null &&
+                documentsDb?.searchByKey(twitterTokenKey, user.uuid)?.getOrElse { null } != null
+        val linkedInOk =
+            settings?.linkedin != null &&
+                documentsDb?.searchByKey(linkedInTokenKey, user.uuid)?.getOrElse { null } != null
+
+        val configuredServices =
+            ConfiguredServices(
+                mastodon = settings?.mastodon != null,
+                bluesky = settings?.bluesky != null,
+                twitter = twitterOk,
+                linkedin = linkedInOk,
+                metaThreads = settings?.metaThreads != null,
+                llm = settings?.llm != null,
+            )
+        call.respond(LoginResponse(token = token, configuredServices = configuredServices))
     }
 
     suspend fun protectedRoute(call: ApplicationCall) {
@@ -100,6 +155,7 @@ class AuthRoutes(
         }
     }
 
+    /** Extract a raw JWT string from the request (Authorization header, query param, or cookie). */
     fun extractJwtToken(call: ApplicationCall): String? {
         val authHeader = call.request.headers[HttpHeaders.Authorization]
         if (!authHeader.isNullOrBlank()) {
@@ -110,14 +166,22 @@ class AuthRoutes(
                 logger.warn { "Malformed Authorization header: $authHeader" }
             }
         }
-
-        call.request.queryParameters["access_token"]?.let {
-            return it
-        }
         call.request.cookies["access_token"]?.let {
             return it
         }
+        call.request.queryParameters["access_token"]?.let {
+            return it
+        }
         return null
+    }
+
+    /**
+     * Verify the JWT in the request and return the verified token payload, or null if missing /
+     * invalid.
+     */
+    fun verifyRequest(call: ApplicationCall): VerifiedToken? {
+        val token = extractJwtToken(call) ?: return null
+        return authModule.verifyTokenPayload(token)
     }
 
     fun configureAuth(app: Application) {
@@ -130,7 +194,10 @@ class AuthRoutes(
                 verifier(authModule.verifier)
                 validate { credential ->
                     val username = credential.payload.getClaim("username").asString()
-                    if (username != null) {
+                    val userUuid = credential.payload.getClaim("userUuid").asString()
+                    val isValidUuid =
+                        userUuid?.let { runCatching { UUID.fromString(it) }.isSuccess } == true
+                    if (username != null && isValidUuid) {
                         JWTPrincipal(credential.payload)
                     } else {
                         null
@@ -146,4 +213,12 @@ class AuthRoutes(
 
 fun Application.configureAuth(authRoutes: AuthRoutes) {
     authRoutes.configureAuth(this)
+}
+
+/** Resolve the authenticated user's UUID from the Ktor JWT principal in the call. */
+fun ApplicationCall.resolveUserUuid(): UUID? {
+    val principal = principal<JWTPrincipal>() ?: return null
+    return principal.getClaim("userUuid", String::class)?.let {
+        runCatching { UUID.fromString(it) }.getOrNull()
+    }
 }

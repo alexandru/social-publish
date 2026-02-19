@@ -26,6 +26,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
@@ -41,11 +42,7 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class MastodonApiModule(
-    private val config: MastodonConfig,
-    private val filesModule: FilesModule,
-    private val httpClient: HttpClient,
-) {
+class MastodonApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
@@ -65,96 +62,101 @@ class MastodonApiModule(
             )
         }
 
-        fun resource(
-            config: MastodonConfig,
-            filesModule: FilesModule,
-        ): Resource<MastodonApiModule> = resource {
-            MastodonApiModule(config, filesModule, defaultHttpClient().bind())
+        fun resource(filesModule: FilesModule): Resource<MastodonApiModule> = resource {
+            MastodonApiModule(filesModule, defaultHttpClient().bind())
         }
     }
 
-    private val mediaUrlV2 = "${config.host}/api/v2/media"
-    private val mediaUrlV1 = "${config.host}/api/v1/media"
-    private val statusesUrlV1 = "${config.host}/api/v1/statuses"
+    private fun mediaUrlV2(config: MastodonConfig) = "${config.host}/api/v2/media"
+
+    private fun mediaUrlV1(config: MastodonConfig) = "${config.host}/api/v1/media"
+
+    private fun statusesUrlV1(config: MastodonConfig) = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
-    private suspend fun uploadMedia(uuid: String): ApiResult<MastodonMediaResponse> =
-        resourceScope {
-            try {
-                val file =
-                    filesModule.readImageFile(uuid)
-                        ?: return@resourceScope ValidationError(
-                                status = 404,
-                                errorMessage = "Failed to read image file — uuid: $uuid",
-                                module = "mastodon",
-                            )
-                            .left()
+    private suspend fun uploadMedia(
+        config: MastodonConfig,
+        uuid: String,
+        userUuid: UUID,
+    ): ApiResult<MastodonMediaResponse> = resourceScope {
+        try {
+            val file =
+                filesModule.readImageFile(uuid, userUuid)
+                    ?: return@resourceScope ValidationError(
+                            status = 404,
+                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            module = "mastodon",
+                        )
+                        .left()
 
-                val response =
-                    httpClient.submitFormWithBinaryData(
-                        url = mediaUrlV2,
-                        formData =
-                            formData {
-                                append(
-                                    "file",
-                                    file.source.asKotlinSource().bind(),
-                                    Headers.build {
-                                        append(HttpHeaders.ContentType, file.mimetype)
-                                        append(
-                                            HttpHeaders.ContentDisposition,
-                                            "filename=\"${file.originalname}\"",
-                                        )
-                                    },
-                                )
-                                file.altText?.let { append("description", it) }
-                            },
-                    ) {
-                        header("Authorization", "Bearer ${config.accessToken}")
-                    }
-
-                when (response.status.value) {
-                    200 -> {
-                        val data = response.body<MastodonMediaResponse>()
-                        data.right()
-                    }
-                    202 -> {
-                        // Async upload - poll for completion
-                        val initialData = response.body<MastodonMediaResponse>()
-                        waitForMediaProcessing(initialData.id)
-                    }
-                    else -> {
-                        val errorBody = response.bodyAsText()
-                        logger.warn {
-                            "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
-                        }
-                        RequestError(
-                                status = response.status.value,
-                                module = "mastodon",
-                                errorMessage = "Failed to upload media",
-                                body = ResponseBody(asString = errorBody),
+            val response =
+                httpClient.submitFormWithBinaryData(
+                    url = mediaUrlV2(config),
+                    formData =
+                        formData {
+                            append(
+                                "file",
+                                file.source.asKotlinSource().bind(),
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, file.mimetype)
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"${file.originalname}\"",
+                                    )
+                                },
                             )
-                            .left()
-                    }
+                            file.altText?.let { append("description", it) }
+                        },
+                ) {
+                    header("Authorization", "Bearer ${config.accessToken}")
                 }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
-                CaughtException(
-                        status = 500,
-                        module = "mastodon",
-                        errorMessage = "Failed to upload media — uuid: $uuid",
-                    )
-                    .left()
+
+            when (response.status.value) {
+                200 -> {
+                    val data = response.body<MastodonMediaResponse>()
+                    data.right()
+                }
+                202 -> {
+                    // Async upload - poll for completion
+                    val initialData = response.body<MastodonMediaResponse>()
+                    waitForMediaProcessing(config, initialData.id)
+                }
+                else -> {
+                    val errorBody = response.bodyAsText()
+                    logger.warn {
+                        "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
+                    }
+                    RequestError(
+                            status = response.status.value,
+                            module = "mastodon",
+                            errorMessage = "Failed to upload media",
+                            body = ResponseBody(asString = errorBody),
+                        )
+                        .left()
+                }
             }
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
+            CaughtException(
+                    status = 500,
+                    module = "mastodon",
+                    errorMessage = "Failed to upload media — uuid: $uuid",
+                )
+                .left()
         }
+    }
 
     /** Poll for media processing completion */
-    private suspend fun waitForMediaProcessing(mediaId: String): ApiResult<MastodonMediaResponse> {
+    private suspend fun waitForMediaProcessing(
+        config: MastodonConfig,
+        mediaId: String,
+    ): ApiResult<MastodonMediaResponse> {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
             delay(200)
 
             val response =
-                httpClient.get("$mediaUrlV1/$mediaId") {
+                httpClient.get("${mediaUrlV1(config)}/$mediaId") {
                     header("Authorization", "Bearer ${config.accessToken}")
                 }
 
@@ -191,7 +193,11 @@ class MastodonApiModule(
     }
 
     /** Create a post on Mastodon */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        config: MastodonConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -202,7 +208,7 @@ class MastodonApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(imageUuid)) {
+                    when (val result = uploadMedia(config, imageUuid, userUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
                     }
@@ -222,7 +228,7 @@ class MastodonApiModule(
             // Create status
             val response =
                 httpClient.submitForm(
-                    url = statusesUrlV1,
+                    url = statusesUrlV1(config),
                     formParameters =
                         parameters {
                             append("status", content)
@@ -261,7 +267,7 @@ class MastodonApiModule(
     }
 
     /** Handle Mastodon post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
+    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUID) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -276,7 +282,7 @@ class MastodonApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(config, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

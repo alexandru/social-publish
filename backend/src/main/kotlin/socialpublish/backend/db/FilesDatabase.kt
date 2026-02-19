@@ -12,6 +12,7 @@ data class UploadPayload(
     val originalname: String,
     val mimetype: String,
     val size: Long,
+    val userUuid: UUID,
     val altText: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
@@ -26,6 +27,7 @@ data class Upload(
     val altText: String?,
     val imageWidth: Int?,
     val imageHeight: Int?,
+    val userUuid: UUID,
     val createdAt: Instant,
 )
 
@@ -59,9 +61,9 @@ class FilesDatabase(private val db: Database) {
 
     suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = either {
         db.transaction {
-            // Generate deterministic UUID
             val uuidInput =
                 listOf(
+                        "u:${payload.userUuid}",
                         "h:${payload.hash}",
                         "n:${payload.originalname}",
                         "a:${payload.altText ?: ""}",
@@ -73,7 +75,6 @@ class FilesDatabase(private val db: Database) {
 
             val uuid = generateUuidV5(uuidInput).toString()
 
-            // Check if already exists
             val existing =
                 query("SELECT * FROM uploads WHERE uuid = ?") {
                     setString(1, uuid)
@@ -87,6 +88,7 @@ class FilesDatabase(private val db: Database) {
                             altText = rs.getString("altText"),
                             imageWidth = rs.getObject("imageWidth") as? Int,
                             imageHeight = rs.getObject("imageHeight") as? Int,
+                            userUuid = UUID.fromString(rs.getString("user_uuid")),
                             createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                         )
                     }
@@ -107,14 +109,15 @@ class FilesDatabase(private val db: Database) {
                     altText = payload.altText,
                     imageWidth = payload.imageWidth,
                     imageHeight = payload.imageHeight,
+                    userUuid = payload.userUuid,
                     createdAt = now,
                 )
 
             query(
                 """
                 INSERT INTO uploads
-                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, createdAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                     .trimIndent()
             ) {
@@ -126,7 +129,8 @@ class FilesDatabase(private val db: Database) {
                 setString(6, upload.altText)
                 upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, java.sql.Types.INTEGER)
                 upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
-                setLong(9, upload.createdAt.toEpochMilli())
+                setString(9, upload.userUuid.toString())
+                setLong(10, upload.createdAt.toEpochMilli())
                 execute()
                 Unit
             }
@@ -148,9 +152,32 @@ class FilesDatabase(private val db: Database) {
                     altText = rs.getString("altText"),
                     imageWidth = rs.getObject("imageWidth") as? Int,
                     imageHeight = rs.getObject("imageHeight") as? Int,
+                    userUuid = UUID.fromString(rs.getString("user_uuid")),
                     createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                 )
             }
         }
     }
+
+    suspend fun getFileByUuidForUser(uuid: String, userUuid: UUID): Either<DBException, Upload?> =
+        either {
+            db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
+                setString(1, uuid)
+                setString(2, userUuid.toString())
+                executeQuery().safe().firstOrNull { rs ->
+                    Upload(
+                        uuid = rs.getString("uuid"),
+                        hash = rs.getString("hash"),
+                        originalname = rs.getString("originalname"),
+                        mimetype = rs.getString("mimetype"),
+                        size = rs.getLong("size"),
+                        altText = rs.getString("altText"),
+                        imageWidth = rs.getObject("imageWidth") as? Int,
+                        imageHeight = rs.getObject("imageHeight") as? Int,
+                        userUuid = UUID.fromString(rs.getString("user_uuid")),
+                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                    )
+                }
+            }
+        }
 }

@@ -56,8 +56,7 @@ class YouTubeOEmbedTest {
             """
                 .trimIndent()
 
-        val preview =
-            parseYouTubeOEmbedResponse(json, "https://www.youtube.com/watch?v=5l2wMgm7ZOk")
+        val preview = parseYouTubeOEmbedResponse(json)
 
         assertNotNull(preview)
         assertEquals(
@@ -65,7 +64,6 @@ class YouTubeOEmbedTest {
             preview.title,
         )
         assertEquals("Computer History Museum", preview.description)
-        assertEquals("https://www.youtube.com/watch?v=5l2wMgm7ZOk", preview.url)
         assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
     }
 
@@ -91,34 +89,32 @@ class YouTubeOEmbedTest {
             """
                 .trimIndent()
 
-        val preview =
-            parseYouTubeOEmbedResponse(json, "https://www.youtube.com/watch?v=Y3N9qlPZBc0")
+        val preview = parseYouTubeOEmbedResponse(json)
 
         assertNotNull(preview)
         assertEquals("OpenAI is Broke… and so is everyone else", preview.title)
         assertEquals("Vanessa Wingårdh", preview.description)
-        assertEquals("https://www.youtube.com/watch?v=Y3N9qlPZBc0", preview.url)
         assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
     }
 
     @Test
     fun `returns null for invalid JSON`() = runTest {
         val json = "not valid json"
-        val preview = parseYouTubeOEmbedResponse(json, "https://www.youtube.com/watch?v=123")
+        val preview = parseYouTubeOEmbedResponse(json)
         assertNull(preview)
     }
 
     @Test
     fun `returns null for incomplete oembed response`() = runTest {
         val json = """{"type": "video"}"""
-        val preview = parseYouTubeOEmbedResponse(json, "https://www.youtube.com/watch?v=123")
+        val preview = parseYouTubeOEmbedResponse(json)
         assertNull(preview)
     }
 
     @Test
     fun `returns null for empty response`() = runTest {
         val json = "{}"
-        val preview = parseYouTubeOEmbedResponse(json, "https://www.youtube.com/watch?v=123")
+        val preview = parseYouTubeOEmbedResponse(json)
         assertNull(preview)
     }
 }

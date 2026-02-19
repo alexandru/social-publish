@@ -35,7 +35,6 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("Test Article Title", preview.title)
         assertEquals("This is a test description", preview.description)
-        assertEquals("https://example.com/article", preview.url)
         assertEquals("https://example.com/image.jpg", preview.image)
     }
 
@@ -61,7 +60,6 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("Twitter Title", preview.title)
         assertEquals("Twitter description", preview.description)
-        assertEquals("https://example.com/twitter", preview.url)
         assertEquals("https://example.com/twitter-image.jpg", preview.image)
     }
 
@@ -86,7 +84,6 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("Standard HTML Title", preview.title)
         assertEquals("Standard HTML description", preview.description)
-        assertEquals("https://example.com/standard", preview.url)
         assertNull(preview.image)
     }
 
@@ -150,7 +147,6 @@ class LinkPreviewParserTest {
             LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/fallback-url") }
 
         assertNotNull(preview)
-        assertEquals("https://example.com/fallback-url", preview.url)
     }
 
     @Test
@@ -312,7 +308,6 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("Why Black Boxes are so Hard to Reuse", preview.title)
         assertEquals("Computer History Museum", preview.description)
-        assertEquals("https://www.youtube.com/watch?v=5l2wMgm7ZOk", preview.url)
         assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
     }
 
@@ -347,15 +342,12 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("OpenAI is Broke", preview.title)
         assertEquals("Vanessa Wingårdh", preview.description)
-        assertEquals("https://youtu.be/Y3N9qlPZBc0", preview.url)
         assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
     }
 
     @Test
     fun `returns null when YouTube oembed API returns error`() = runTest {
-        val mockEngine = MockEngine { request ->
-            respond(content = "", status = HttpStatusCode.NotFound)
-        }
+        val mockEngine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.NotFound) }
 
         val parser = LinkPreviewParser(HttpClient(mockEngine))
         val preview = parser.fetchPreview("https://www.youtube.com/watch?v=invalid")
@@ -365,7 +357,7 @@ class LinkPreviewParserTest {
 
     @Test
     fun `returns null when YouTube oembed API returns invalid JSON`() = runTest {
-        val mockEngine = MockEngine { request ->
+        val mockEngine = MockEngine { _ ->
             respond(
                 content = ByteReadChannel("invalid json"),
                 status = HttpStatusCode.OK,

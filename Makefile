@@ -10,19 +10,8 @@ RUN_ENV_VARS := \
 	-e "DB_PATH=/var/lib/social-publish/sqlite3.db" \
 	-e "HTTP_PORT=3000" \
 	-e "BASE_URL=${BASE_URL}" \
-	-e "SERVER_AUTH_USERNAME=${SERVER_AUTH_USERNAME}" \
-	-e "SERVER_AUTH_PASSWORD=${SERVER_AUTH_PASSWORD}" \
 	-e "JWT_SECRET=${JWT_SECRET}" \
-	-e "UPLOADED_FILES_PATH=/var/lib/social-publish/uploads" \
-	-e "BSKY_SERVICE=${BSKY_SERVICE}" \
-	-e "BSKY_USERNAME=${BSKY_USERNAME}" \
-	-e "BSKY_PASSWORD=${BSKY_PASSWORD}" \
-	-e "MASTODON_HOST=${MASTODON_HOST}" \
-	-e "MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}" \
-	-e "TWITTER_OAUTH1_CONSUMER_KEY=${TWITTER_OAUTH1_CONSUMER_KEY}" \
-	-e "TWITTER_OAUTH1_CONSUMER_SECRET=${TWITTER_OAUTH1_CONSUMER_SECRET}" \
-	-e "LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}" \
-	-e "LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}"
+	-e "UPLOADED_FILES_PATH=/var/lib/social-publish/uploads"
 
 # Development targets
 dev:
@@ -53,9 +42,14 @@ dependency-updates:
 		-Drevision=release \
 		-DoutputFormatter=html \
 		--refresh-dependencies && \
-		open backend/build/dependencyUpdates/report.html &&
+		open backend/build/dependencyUpdates/report.html && \
 		open frontend/build/dependencyUpdates/report.html
 
+skills-update:
+	npx skills add alexandru/skills -a claude-code github-copilot opencode -y --skill \
+		arrow-resource \
+		arrow-typed-errors \
+		compose-state-hoisting
 
 # Docker setup
 docker-init:

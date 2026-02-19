@@ -31,8 +31,20 @@ class PostsDatabaseTest {
                 )
 
             val created =
-                postsDb.create(payload, listOf("mastodon", "bluesky")).getOrElse { throw it }
-            val retrieved = postsDb.searchByUuid(created.uuid).getOrElse { throw it }
+                postsDb
+                    .create(
+                        payload,
+                        listOf("mastodon", "bluesky"),
+                        java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    )
+                    .getOrElse { throw it }
+            val retrieved =
+                postsDb
+                    .searchByUuidForUser(
+                        created.uuid,
+                        java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    )
+                    .getOrElse { throw it }
 
             // Verify
             assertNotNull(created.uuid)

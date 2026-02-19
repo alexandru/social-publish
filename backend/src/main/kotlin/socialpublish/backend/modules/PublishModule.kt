@@ -3,14 +3,20 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
+import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.metathreads.MetaThreadsApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsConfig
 import socialpublish.backend.clients.twitter.TwitterApiModule
+import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CompositeError
@@ -19,82 +25,116 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.ValidationError
 
-/** Module for broadcasting posts to multiple social media platforms */
+/**
+ * Module for broadcasting posts to multiple social media platforms.
+ *
+ * Each social module is shared at the server level; per-user config is passed per call.
+ */
 class PublishModule(
     private val mastodonModule: MastodonApiModule?,
+    private val mastodonConfig: MastodonConfig?,
     private val blueskyModule: BlueskyApiModule?,
+    private val blueskyConfig: BlueskyConfig?,
     private val twitterModule: TwitterApiModule?,
+    private val twitterConfig: TwitterConfig?,
     private val linkedInModule: LinkedInApiModule?,
+    private val linkedInConfig: LinkedInConfig?,
     private val metaThreadsModule: MetaThreadsApiModule?,
+    private val metaThreadsConfig: MetaThreadsConfig?,
     private val rssModule: RssModule,
+    private val userUuid: UUID,
 ) {
     /** Broadcast post to multiple platforms */
     suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
         val targets = request.targets?.map { it.lowercase() } ?: emptyList()
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
 
-        // Only publish to RSS if explicitly requested
         if (targets.contains("rss")) {
-            tasks.add { rssModule.createPost(request) }
+            tasks.add { rssModule.createPost(request, userUuid) }
         }
 
         if (targets.contains("mastodon")) {
             tasks.add {
-                mastodonModule?.createPost(request)
-                    ?: ValidationError(
+                val mod = mastodonModule
+                val cfg = mastodonConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request, userUuid)
+                } else {
+                    ValidationError(
                             status = 503,
                             errorMessage = "Mastodon integration not configured",
                             module = "publish",
                         )
                         .left()
+                }
             }
         }
 
         if (targets.contains("bluesky")) {
             tasks.add {
-                blueskyModule?.createPost(request)
-                    ?: ValidationError(
+                val mod = blueskyModule
+                val cfg = blueskyConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request, userUuid)
+                } else {
+                    ValidationError(
                             status = 503,
                             errorMessage = "Bluesky integration not configured",
                             module = "publish",
                         )
                         .left()
+                }
             }
         }
 
         if (targets.contains("twitter")) {
             tasks.add {
-                twitterModule?.createPost(request)
-                    ?: ValidationError(
+                val mod = twitterModule
+                val cfg = twitterConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request, userUuid)
+                } else {
+                    ValidationError(
                             status = 503,
                             errorMessage = "Twitter integration not configured",
                             module = "publish",
                         )
                         .left()
+                }
             }
         }
 
         if (targets.contains("linkedin")) {
             tasks.add {
-                linkedInModule?.createPost(request)
-                    ?: ValidationError(
+                val mod = linkedInModule
+                val cfg = linkedInConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request, userUuid)
+                } else {
+                    ValidationError(
                             status = 503,
                             errorMessage = "LinkedIn integration not configured",
                             module = "publish",
                         )
                         .left()
+                }
             }
         }
 
         if (targets.contains("metathreads")) {
             tasks.add {
-                metaThreadsModule?.createPost(request)
-                    ?: ValidationError(
+                val mod = metaThreadsModule
+                val cfg = metaThreadsConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request)
+                } else {
+                    ValidationError(
                             status = 503,
                             errorMessage = "Meta Threads integration not configured",
                             module = "publish",
                         )
                         .left()
+                }
             }
         }
 
@@ -115,26 +155,24 @@ class PublishModule(
                             CompositeErrorResponse(
                                 type = "error",
                                 module = result.value.module,
-                                status = result.value.status,
                                 error = result.value.errorMessage,
                             )
                     }
                 }
             return CompositeError(
-                    status = status,
                     module = "publish",
-                    errorMessage =
-                        "Failed to create post via ${errors.joinToString(", ") { it.value.module ?: "unknown" }}.",
+                    errorMessage = "Failed to publish to some platforms",
                     responses = responsePayloads,
+                    status = status,
                 )
                 .left()
+        } else {
+            val successResults =
+                results.filterIsInstance<Either.Right<NewPostResponse>>().map { it.value }
+            return buildMap {
+                    targets.zip(successResults).forEach { (target, result) -> put(target, result) }
+                }
+                .right()
         }
-
-        val responseMap = mutableMapOf<String, NewPostResponse>()
-        results.filterIsInstance<Either.Right<NewPostResponse>>().forEach { response ->
-            responseMap[response.value.module] = response.value
-        }
-
-        return responseMap.right()
     }
 }

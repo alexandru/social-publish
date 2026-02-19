@@ -3,6 +3,7 @@ package socialpublish.backend.clients.metathreads
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@Serializable
 data class MetaThreadsConfig(
     val accessToken: String,
     val userId: String,

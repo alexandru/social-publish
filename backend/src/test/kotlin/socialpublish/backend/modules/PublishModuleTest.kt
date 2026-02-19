@@ -2,6 +2,7 @@ package socialpublish.backend.modules
 
 import arrow.core.Either
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -24,6 +25,7 @@ class PublishModuleTest {
     private lateinit var postsDb: PostsDatabase
     private lateinit var filesDb: FilesDatabase
     private lateinit var rssModule: RssModule
+    private val userUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
 
     @BeforeEach
     fun setup(@TempDir tempDir: Path) = runTest {
@@ -34,15 +36,31 @@ class PublishModuleTest {
         rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
     }
 
+    private fun unconfiguredPublishModule() =
+        PublishModule(
+            mastodonModule = null,
+            mastodonConfig = null,
+            blueskyModule = null,
+            blueskyConfig = null,
+            twitterModule = null,
+            twitterConfig = null,
+            linkedInModule = null,
+            linkedInConfig = null,
+            metaThreadsModule = null,
+            metaThreadsConfig = null,
+            rssModule = rssModule,
+            userUuid = userUuid,
+        )
+
     @Test
     fun `PublishModule can be instantiated`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         assertNotNull(publishModule)
     }
 
     @Test
     fun `broadcastPost to RSS only returns success`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request = NewPostRequest(content = "Test post to RSS", targets = listOf("rss"))
 
         val result = publishModule.broadcastPost(request)
@@ -58,7 +76,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to unconfigured platform returns error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
         val result = publishModule.broadcastPost(request)
@@ -78,7 +96,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost to multiple targets with mixed results returns composite error`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request =
             NewPostRequest(content = "Test post", targets = listOf("rss", "mastodon", "twitter"))
 
@@ -90,14 +108,12 @@ class PublishModuleTest {
         assertEquals(503, compositeError.status)
         assertEquals(3, compositeError.responses.size)
 
-        // RSS should succeed
         val rssResponse = compositeError.responses.find { it.result?.module == "rss" }
         assertNotNull(rssResponse)
         assertEquals("success", rssResponse.type)
         val typedRssResult = assertIs<NewRssPostResponse>(rssResponse.result)
         assertNotNull(typedRssResult)
 
-        // Mastodon should fail
         val mastodonResponse =
             compositeError.responses.find {
                 it.module == "publish" && it.error?.contains("Mastodon") == true
@@ -105,7 +121,6 @@ class PublishModuleTest {
         assertNotNull(mastodonResponse)
         assertEquals("error", mastodonResponse.type)
 
-        // Twitter should fail
         val twitterResponse =
             compositeError.responses.find {
                 it.module == "publish" && it.error?.contains("Twitter") == true
@@ -116,7 +131,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with empty targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request = NewPostRequest(content = "Test post", targets = emptyList())
 
         val result = publishModule.broadcastPost(request)
@@ -128,7 +143,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with null targets returns empty map`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request = NewPostRequest(content = "Test post", targets = null)
 
         val result = publishModule.broadcastPost(request)
@@ -140,12 +155,11 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost normalizes target names to lowercase`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request = NewPostRequest(content = "Test post", targets = listOf("RSS", "Mastodon"))
 
         val result = publishModule.broadcastPost(request)
 
-        // Should process as lowercase (rss succeeds, mastodon fails)
         val errorResult = assertIs<Either.Left<ApiError>>(result)
         val error = errorResult.value
         val compositeError = assertIs<CompositeError>(error)
@@ -154,7 +168,7 @@ class PublishModuleTest {
 
     @Test
     fun `broadcastPost with multiple unconfigured platforms`() = runTest {
-        val publishModule = PublishModule(null, null, null, null, null, rssModule)
+        val publishModule = unconfiguredPublishModule()
         val request =
             NewPostRequest(
                 content = "Test post to all platforms",
@@ -163,19 +177,16 @@ class PublishModuleTest {
 
         val result = publishModule.broadcastPost(request)
 
-        // Should return composite error since 4 platforms are not configured
         val errorResult = assertIs<Either.Left<ApiError>>(result)
         val error = errorResult.value
         val compositeError = assertIs<CompositeError>(error)
         assertEquals(503, compositeError.status)
         assertEquals(5, compositeError.responses.size)
 
-        // RSS should succeed
         val rssResponse = compositeError.responses.find { it.result?.module == "rss" }
         assertNotNull(rssResponse)
         assertEquals("success", rssResponse.type)
 
-        // Others should fail
         val failedCount = compositeError.responses.count { it.type == "error" }
         assertEquals(4, failedCount)
     }

@@ -10,6 +10,7 @@ import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
+import java.util.UUID
 import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
@@ -30,7 +31,7 @@ class RssModule(
     private val filesDb: FilesDatabase,
 ) {
     /** Create a new RSS post */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -61,9 +62,11 @@ class RssModule(
                 )
 
             val post =
-                postsDb.create(payload, request.targets ?: emptyList()).getOrElse { throw it }
+                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse {
+                    throw it
+                }
 
-            NewRssPostResponse(uri = "$baseUrl/rss/${post.uuid}").right()
+            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to save RSS item" }
             CaughtException(
@@ -77,11 +80,12 @@ class RssModule(
 
     /** Generate RSS feed */
     suspend fun generateRss(
+        userUuid: UUID,
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAll().getOrElse { throw it }
+        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
@@ -112,11 +116,13 @@ class RssModule(
                 continue
             }
 
-            val guid = "$baseUrl/rss/${post.uuid}"
+            val guid = "$baseUrl/rss/$userUuid/${post.uuid}"
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
-                val upload = filesDb.getFileByUuid(imageUuid).getOrElse { throw it } ?: continue
+                val upload =
+                    filesDb.getFileByUuidForUser(imageUuid, userUuid).getOrElse { throw it }
+                        ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())
@@ -174,8 +180,8 @@ class RssModule(
     }
 
     /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(uuid: String): Post? {
-        return postsDb.searchByUuid(uuid).getOrElse { throw it }
+    suspend fun getRssItemByUuid(userUuid: UUID, uuid: String): Post? {
+        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
     }
 
     private fun cleanupHtml(html: String): String {

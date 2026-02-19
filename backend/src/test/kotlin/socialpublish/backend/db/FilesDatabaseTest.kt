@@ -26,6 +26,7 @@ class FilesDatabaseTest {
                     originalname = "test.jpg",
                     mimetype = "image/jpeg",
                     size = 1024L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Test image",
                     imageWidth = 800,
                     imageHeight = 600,
@@ -60,6 +61,7 @@ class FilesDatabaseTest {
                         originalname = "duplicate.png",
                         mimetype = "image/png",
                         size = 2048L,
+                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     )
 
                 // Create first time
@@ -90,6 +92,7 @@ class FilesDatabaseTest {
                     originalname = "minimal.jpg",
                     mimetype = "image/jpeg",
                     size = 512L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = null,
                     imageWidth = null,
                     imageHeight = null,
@@ -119,6 +122,7 @@ class FilesDatabaseTest {
                     originalname = "retrieve.png",
                     mimetype = "image/png",
                     size = 1500L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Retrieval test",
                 )
 
@@ -149,6 +153,41 @@ class FilesDatabaseTest {
             assertNull(notFound)
         }
     }
+
+    @Test
+    fun `getFileByUuidForUser should not return another users upload`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val filesDb = FilesDatabase(db)
+                val userA = UUID.fromString("00000000-0000-0000-0000-000000000001")
+                val userB = UUID.fromString("00000000-0000-0000-0000-000000000002")
+
+                val created =
+                    filesDb
+                        .createFile(
+                            UploadPayload(
+                                hash = "ownership-test",
+                                originalname = "owner.png",
+                                mimetype = "image/png",
+                                size = 1234L,
+                                userUuid = userA,
+                            )
+                        )
+                        .getOrElse { throw it }
+
+                val ownerView =
+                    filesDb.getFileByUuidForUser(created.uuid, userA).getOrElse { throw it }
+                val otherView =
+                    filesDb.getFileByUuidForUser(created.uuid, userB).getOrElse { throw it }
+
+                assertNotNull(ownerView)
+                assertEquals(userA, ownerView.userUuid)
+                assertNull(otherView)
+            }
+        }
 
     @Test
     fun `generateUuidV5 should be deterministic`() {
@@ -209,6 +248,8 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -220,6 +261,8 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
+                        userUuid =
+                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -248,6 +291,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val payload2 =
@@ -256,6 +300,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
@@ -263,6 +308,36 @@ class FilesDatabaseTest {
 
             // Should have different UUIDs because hash is different
             assert(upload1.uuid != upload2.uuid)
+        }
+    }
+
+    @Test
+    fun `createFile should not deduplicate uploads across users`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val filesDb = FilesDatabase(db)
+
+            val payloadForUserA =
+                UploadPayload(
+                    hash = "same-hash",
+                    originalname = "same.jpg",
+                    mimetype = "image/jpeg",
+                    size = 1000L,
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                )
+            val payloadForUserB =
+                payloadForUserA.copy(
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+                )
+
+            val uploadA = filesDb.createFile(payloadForUserA).getOrElse { throw it }
+            val uploadB = filesDb.createFile(payloadForUserB).getOrElse { throw it }
+
+            assert(uploadA.uuid != uploadB.uuid)
+            assertEquals(payloadForUserA.userUuid, uploadA.userUuid)
+            assertEquals(payloadForUserB.userUuid, uploadB.userUuid)
         }
     }
 }

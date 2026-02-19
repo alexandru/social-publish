@@ -29,6 +29,7 @@ import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.time.Instant
+import java.util.UUID
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -43,7 +44,6 @@ private const val BlueskyLinkDisplayLength = 24
 
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
-    private val config: BlueskyConfig,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
     private val linkPreviewParser: LinkPreviewParser,
@@ -59,19 +59,17 @@ class BlueskyApiModule(
             }
         }
 
-        fun resource(config: BlueskyConfig, filesModule: FilesModule): Resource<BlueskyApiModule> =
-            resource {
-                BlueskyApiModule(
-                    config = config,
-                    filesModule = filesModule,
-                    linkPreviewParser = LinkPreviewParser().bind(),
-                    httpClient = defaultHttpClient().bind(),
-                )
-            }
+        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> = resource {
+            BlueskyApiModule(
+                filesModule = filesModule,
+                linkPreviewParser = LinkPreviewParser().bind(),
+                httpClient = defaultHttpClient().bind(),
+            )
+        }
     }
 
     /** Login to Bluesky and get session token */
-    private suspend fun createSession(): ApiResult<BlueskySessionResponse> {
+    private suspend fun createSession(config: BlueskyConfig): ApiResult<BlueskySessionResponse> {
         return try {
             val response =
                 httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
@@ -114,12 +112,14 @@ class BlueskyApiModule(
 
     /** Upload image blob to Bluesky */
     private suspend fun uploadBlob(
+        config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
+        userUuid: UUID,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid)
+                filesModule.readImageFile(uuid, userUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -188,6 +188,7 @@ class BlueskyApiModule(
 
     /** Upload image from URL as blob to Bluesky for link previews */
     private suspend fun uploadBlobFromUrl(
+        config: BlueskyConfig,
         imageUrl: String,
         session: BlueskySessionResponse,
     ): BlueskyBlobRef? = resourceScope {
@@ -252,7 +253,7 @@ class BlueskyApiModule(
     // ... (existing code)
 
     /** Resolve a handle to a DID using the Bluesky API */
-    private suspend fun resolveHandle(handle: String): String? {
+    private suspend fun resolveHandle(config: BlueskyConfig, handle: String): String? {
         return try {
             val response =
                 httpClient.get("${config.service}/xrpc/com.atproto.identity.resolveHandle") {
@@ -280,15 +281,13 @@ class BlueskyApiModule(
         url: String,
         maxLength: Int = BlueskyLinkDisplayLength,
     ): String {
-        if (url.length <= maxLength) {
-            return url
+        assert(maxLength > 3) { "maxLength must be greater than 3" }
+        val cleanUrl = url.replace("^https?://".toRegex(), "")
+        return if (cleanUrl.length <= maxLength) {
+            cleanUrl
+        } else {
+            cleanUrl.take(maxLength - 3) + "..."
         }
-
-        if (maxLength <= 3) {
-            return url.take(maxLength)
-        }
-
-        return url.take(maxLength - 3) + "..."
     }
 
     private fun buildLinkFacet(byteStart: Int, byteEnd: Int, uri: String): JsonObject {
@@ -313,7 +312,10 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun detectMentionsAndTags(text: String): List<JsonObject> {
+    private suspend fun detectMentionsAndTags(
+        config: BlueskyConfig,
+        text: String,
+    ): List<JsonObject> {
         val facets = mutableListOf<JsonObject>()
 
         // 1. Detect Mentions (@handle.bsky.social)
@@ -322,7 +324,7 @@ class BlueskyApiModule(
             val handle = match.value.substring(1) // Remove '@'
             // Only resolve if it looks like a valid handle (has at least one dot)
             if (handle.contains(".")) {
-                val did = resolveHandle(handle)
+                val did = resolveHandle(config, handle)
                 if (did != null) {
                     val byteStart = utf8Length(text.substring(0, match.range.first))
                     val byteEnd = byteStart + utf8Length(match.value)
@@ -378,7 +380,7 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun buildRichText(text: String): RichTextPayload {
+    private suspend fun buildRichText(config: BlueskyConfig, text: String): RichTextPayload {
         val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
         val facets = mutableListOf<JsonObject>()
         val builder = StringBuilder()
@@ -406,12 +408,16 @@ class BlueskyApiModule(
         }
 
         val finalText = builder.toString()
-        val mentionAndTagFacets = detectMentionsAndTags(finalText)
+        val mentionAndTagFacets = detectMentionsAndTags(config, finalText)
         return RichTextPayload(finalText, facets + mentionAndTagFacets)
     }
 
     /** Create a post on Bluesky */
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        config: BlueskyConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
@@ -419,7 +425,7 @@ class BlueskyApiModule(
             }
 
             val session =
-                when (val authResult = createSession()) {
+                when (val authResult = createSession(config)) {
                     is Either.Left -> return authResult.value.left()
                     is Either.Right -> authResult.value
                 }
@@ -427,7 +433,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(imageUuid, session)) {
+                        when (val uploadResult = uploadBlob(config, imageUuid, session, userUuid)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -448,7 +454,7 @@ class BlueskyApiModule(
             // Upload link preview image if present
             val linkPreviewBlobRef =
                 if (linkPreview?.image != null) {
-                    uploadBlobFromUrl(linkPreview.image, session)
+                    uploadBlobFromUrl(config, linkPreview.image, session)
                 } else {
                     null
                 }
@@ -456,16 +462,16 @@ class BlueskyApiModule(
             // Prepare text
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
-            val finalLink = linkPreview?.url ?: request.link
+            val url = request.link
             val text =
                 if (request.cleanupHtml == true) {
                     cleanupHtml(request.content)
                 } else {
                     request.content.trim()
-                } + if (finalLink != null) "\n\n$finalLink" else ""
+                } + if (url != null) "\n\n$url" else ""
 
             // Detect facets (mentions, links, hashtags) and shorten link display text
-            val richText = buildRichText(text)
+            val richText = buildRichText(config, text)
 
             logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
 
@@ -513,7 +519,7 @@ class BlueskyApiModule(
                     putJsonObject("embed") {
                         put("\$type", "app.bsky.embed.external")
                         putJsonObject("external") {
-                            put("uri", linkPreview.url)
+                            put("uri", url)
                             put("title", linkPreview.title)
                             put("description", linkPreview.description ?: "")
                             // Add image blob if available
@@ -570,7 +576,7 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall) {
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUID) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -585,7 +591,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(request)) {
+        when (val result = createPost(config, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

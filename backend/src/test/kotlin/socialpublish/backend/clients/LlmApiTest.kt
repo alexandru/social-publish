@@ -11,6 +11,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -27,6 +28,8 @@ import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
 
 class LlmApiTest {
+    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
     @Test
     fun `generates alt text using OpenAI`(@TempDir tempDir: Path) = runTest {
         testApplication {
@@ -45,7 +48,7 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
                     // Mock OpenAI API
                     post("/v1/chat/completions") {
                         receivedRequest = call.receive<OpenAiChatRequest>()
@@ -83,19 +86,16 @@ class LlmApiTest {
             val upload = uploadTestImage(client, "flower1.jpeg", "")
 
             // Create LLM module with config pointing to mock server
-            val llmModule =
-                LlmApiModule(
-                    LlmConfig(
-                        apiUrl = "/v1/chat/completions",
-                        apiKey = "test-key",
-                        model = "gpt-4o-mini",
-                    ),
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
             // Generate alt-text
-            val result = llmModule.generateAltText(upload.uuid)
+            val llmConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "gpt-4o-mini",
+                )
+            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result but got: $result")
@@ -144,7 +144,7 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
                     // Mock Mistral API
                     post("/v1/chat/completions") {
                         call.respondText(
@@ -181,19 +181,16 @@ class LlmApiTest {
             val upload = uploadTestImage(client, "flower2.jpeg", "")
 
             // Create LLM module with Mistral config pointing to mock server
-            val llmModule =
-                LlmApiModule(
-                    LlmConfig(
-                        apiUrl = "/v1/chat/completions",
-                        apiKey = "test-key",
-                        model = "pixtral-12b-2409",
-                    ),
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
             // Generate alt-text
-            val result = llmModule.generateAltText(upload.uuid)
+            val llmConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "pixtral-12b-2409",
+                )
+            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result")
@@ -219,18 +216,15 @@ class LlmApiTest {
                 }
             }
 
-            val llmModule =
-                LlmApiModule(
-                    LlmConfig(
-                        apiUrl = "/v1/chat/completions",
-                        apiKey = "test-key",
-                        model = "gpt-4o-mini",
-                    ),
-                    filesModule,
-                    client,
-                )
+            val llmModule = LlmApiModule(filesModule, client)
 
-            val result = llmModule.generateAltText("non-existent-uuid")
+            val dummyConfig =
+                LlmConfig(
+                    apiUrl = "/v1/chat/completions",
+                    apiKey = "test-key",
+                    model = "gpt-4o-mini",
+                )
+            val result = llmModule.generateAltText(dummyConfig, testUserUuid, "non-existent-uuid")
 
             assertTrue(result is Either.Left, "Expected error result")
             val error = (result as Either.Left).value

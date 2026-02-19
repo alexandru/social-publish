@@ -11,6 +11,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
@@ -26,6 +27,8 @@ import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
+    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
     @Test
     fun `creates post without images`(@TempDir tempDir: Path) = runTest {
         testApplication {
@@ -64,15 +67,15 @@ class BlueskyApiTest {
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    config =
-                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
                 )
 
             val req = NewPostRequest(content = "Hello bluesky")
-            val result = blueskyModule.createPost(req)
+            val blueskyConfig =
+                BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
             val _ = (result as Either.Right).value
@@ -92,7 +95,7 @@ class BlueskyApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(call) }
+                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
                     post("/xrpc/com.atproto.server.createSession") {
                         call.respondText(
                             "{" +
@@ -136,8 +139,6 @@ class BlueskyApiTest {
 
             val blueskyModule =
                 BlueskyApiModule(
-                    config =
-                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
@@ -148,7 +149,9 @@ class BlueskyApiTest {
                     content = "Hello bluesky",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
-            val result = blueskyModule.createPost(req)
+            val blueskyConfig =
+                BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
@@ -260,8 +263,6 @@ class BlueskyApiTest {
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    config =
-                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
@@ -272,7 +273,9 @@ class BlueskyApiTest {
                     content = "Check out this article",
                     link = "http://localhost/test-page.html",
                 )
-            val result = blueskyModule.createPost(req)
+            val blueskyConfig =
+                BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 
@@ -365,8 +368,6 @@ class BlueskyApiTest {
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    config =
-                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
@@ -375,19 +376,18 @@ class BlueskyApiTest {
             val longLink =
                 "http://localhost/test-page.html?with=a-very-long-query-parameter-to-overflow"
             val req = NewPostRequest(content = "Check out this article", link = longLink)
-            val result = blueskyModule.createPost(req)
+            val blueskyConfig =
+                BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
-            val canonicalLink = "http://localhost/test-page.html"
-            val expectedDisplay =
-                if (canonicalLink.length <= 24) {
-                    canonicalLink
-                } else {
-                    canonicalLink.take(21) + "..."
-                }
+            val expectedDisplay = let {
+                val link = longLink.replace("^https?://".toRegex(), "")
+                if (link.length <= 24) link else link.take(21) + "..."
+            }
             assertEquals("Check out this article\n\n$expectedDisplay", text)
 
             val facets = requireNotNull(record["facets"]?.jsonArray)
@@ -403,7 +403,7 @@ class BlueskyApiTest {
 
             val features = linkFacet["features"] as JsonArray
             val uri = features.first().jsonObject["uri"]?.jsonPrimitive?.content
-            assertEquals(canonicalLink, uri)
+            assertEquals(longLink, uri)
 
             val embed = record["embed"]?.jsonObject
             assertNotNull(embed)
@@ -454,8 +454,6 @@ class BlueskyApiTest {
             val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
             val blueskyModule =
                 BlueskyApiModule(
-                    config =
-                        BlueskyConfig(service = "http://localhost", username = "u", password = "p"),
                     filesModule = filesModule,
                     httpClient = blueskyClient,
                     linkPreviewParser = linkPreview,
@@ -465,15 +463,17 @@ class BlueskyApiTest {
             val linkTwo = "http://localhost/beta?another-long-query-param"
             val content = "First $linkOne and then $linkTwo"
             val req = NewPostRequest(content = content)
-            val result = blueskyModule.createPost(req)
+            val blueskyConfig =
+                BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
 
             assertTrue(result.isRight())
 
             val record = requireNotNull(createRecordBody?.get("record")?.jsonObject)
             val text = requireNotNull(record["text"]?.jsonPrimitive?.content)
 
-            val displayOne = linkOne.take(21) + "..."
-            val displayTwo = linkTwo.take(21) + "..."
+            val displayOne = linkOne.replace("^https?://".toRegex(), "").take(21) + "..."
+            val displayTwo = linkTwo.replace("^https?://".toRegex(), "").take(21) + "..."
             val expectedText = "First $displayOne and then $displayTwo"
 
             assertEquals(expectedText, text)
