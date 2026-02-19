@@ -52,6 +52,9 @@ internal data class TwitterSettingsView(
 internal data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
 
 @Serializable
+internal data class MetaThreadsSettingsView(val userId: String, val accessToken: String)
+
+@Serializable
 internal data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
 
 @Serializable
@@ -60,6 +63,7 @@ internal data class AccountSettingsView(
     val mastodon: MastodonSettingsView? = null,
     val twitter: TwitterSettingsView? = null,
     val linkedin: LinkedInSettingsView? = null,
+    val metaThreads: MetaThreadsSettingsView? = null,
     val llm: LlmSettingsView? = null,
 )
 
@@ -90,6 +94,9 @@ internal data class SettingsFormState(
     val linkedinClientId: String = "",
     val linkedinClientSecretIsSet: Boolean = false,
     val linkedinClientSecret: String = "",
+    val metaThreadsUserId: String = "",
+    val metaThreadsAccessTokenIsSet: Boolean = false,
+    val metaThreadsAccessToken: String = "",
     val llmApiUrl: String = "",
     val llmApiKeyIsSet: Boolean = false,
     val llmApiKey: String = "",
@@ -111,6 +118,9 @@ internal fun AccountSettingsView.toFormState(): SettingsFormState =
         linkedinClientId = linkedin?.clientId ?: "",
         linkedinClientSecretIsSet = linkedin?.clientSecret?.isNotBlank() == true,
         linkedinClientSecret = "",
+        metaThreadsUserId = metaThreads?.userId ?: "",
+        metaThreadsAccessTokenIsSet = metaThreads?.accessToken?.isNotBlank() == true,
+        metaThreadsAccessToken = "",
         llmApiUrl = llm?.apiUrl ?: "",
         llmApiKeyIsSet = llm?.apiKey?.isNotBlank() == true,
         llmApiKey = "",
@@ -408,6 +418,7 @@ private fun AccountSettingsView.toConfiguredServices() =
         bluesky = bluesky != null,
         twitter = false,
         linkedin = false,
+        metaThreads = metaThreads != null,
         llm = llm != null,
     )
 
@@ -495,6 +506,21 @@ internal fun SettingsFormState.toPatchBody(): JsonObject = buildJsonObject {
                 put("model", llmModel)
             }
         llmApiKeyIsSet -> put("llm", JsonNull)
+    }
+
+    // Meta Threads — userId is the required identifier
+    when {
+        metaThreadsUserId.isNotBlank() ->
+            putJsonObject("metaThreads") {
+                put("userId", metaThreadsUserId)
+                if (
+                    metaThreadsAccessToken.isNotBlank() &&
+                        metaThreadsAccessToken != MASKED_SECRET_SENTINEL
+                ) {
+                    put("accessToken", metaThreadsAccessToken)
+                }
+            }
+        metaThreadsAccessTokenIsSet -> put("metaThreads", JsonNull)
     }
 }
 
@@ -634,6 +660,26 @@ private fun SettingsForm(
                 value = state.llmModel,
                 onValueChange = { onStateChange(state.copy(llmModel = it)) },
                 placeholder = "gpt-4o-mini",
+            )
+        }
+
+        // Meta Threads
+        Div(attrs = { classes("box", "mb-4") }) {
+            H2(attrs = { classes("subtitle") }) { Text("Meta Threads") }
+            TextInputField(
+                label = "User ID",
+                value = state.metaThreadsUserId,
+                onValueChange = { onStateChange(state.copy(metaThreadsUserId = it)) },
+                placeholder = "Threads user ID",
+            )
+            TextInputField(
+                label = "Access Token",
+                value = state.metaThreadsAccessToken,
+                onValueChange = { onStateChange(state.copy(metaThreadsAccessToken = it)) },
+                placeholder =
+                    if (state.metaThreadsAccessTokenIsSet) "leave blank to keep existing"
+                    else "Threads access token",
+                type = InputType.Password,
             )
         }
 

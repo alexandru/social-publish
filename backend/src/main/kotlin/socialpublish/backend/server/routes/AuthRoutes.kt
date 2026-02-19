@@ -43,6 +43,7 @@ data class ConfiguredServices(
     val bluesky: Boolean = false,
     val twitter: Boolean = false,
     val linkedin: Boolean = false,
+    val metaThreads: Boolean = false,
     val llm: Boolean = false,
 )
 
@@ -137,6 +138,7 @@ class AuthRoutes(
                 bluesky = settings?.bluesky != null,
                 twitter = twitterOk,
                 linkedin = linkedInOk,
+                metaThreads = settings?.metaThreads != null,
                 llm = settings?.llm != null,
             )
         call.respond(LoginResponse(token = token, configuredServices = configuredServices))

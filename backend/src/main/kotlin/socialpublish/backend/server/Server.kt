@@ -44,6 +44,8 @@ import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsRefreshTokenResponse
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
@@ -85,7 +87,6 @@ fun startServer(
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
-
     val authRoutes =
         AuthRoutes(config = config.server.auth, usersDb = usersDb, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
@@ -110,6 +111,7 @@ fun startServer(
                 filesModule = filesModule,
             )
             .bind()
+    val metaThreadsModule = MetaThreadsApiModule.resource(filesModule).bind()
     val llmModule = LlmApiModule.resource(filesModule).bind()
     val twitterRoutes = TwitterRoutes(twitterModule, documentsDb)
     val linkedInRoutes = LinkedInRoutes(linkedInModule, documentsDb)
@@ -523,6 +525,57 @@ fun startServer(
                         responses { documentNewPostResponses<NewLinkedInPostResponse>() }
                     }
 
+                post("/api/metathreads/post") {
+                        val userUuid = call.requireUserUuid() ?: return@post
+                        val metaThreadsConfig =
+                            call.requireUserSettings(usersDb, userUuid).metaThreads
+                                ?: run {
+                                    call.respondWithNotConfigured("Meta Threads")
+                                    return@post
+                                }
+                        metaThreadsModule.createPostRoute(call, metaThreadsConfig)
+                    }
+                    .describe {
+                        summary = "Create Meta Threads post"
+                        description = "Publish a post to Meta's Threads"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.FormUrlEncoded {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
+                        }
+                        responses { documentNewPostResponses<NewMetaThreadsPostResponse>() }
+                    }
+
+                post("/api/metathreads/refresh_access_token") {
+                        val userUuid = call.requireUserUuid() ?: return@post
+                        val metaThreadsConfig =
+                            call.requireUserSettings(usersDb, userUuid).metaThreads
+                                ?: run {
+                                    call.respondWithNotConfigured("Meta Threads")
+                                    return@post
+                                }
+                        metaThreadsModule.refreshAccessTokenRoute(call, metaThreadsConfig)
+                    }
+                    .describe {
+                        summary = "Refresh Meta Threads access token"
+                        description =
+                            "Refresh the Meta Threads long-lived access token to extend its validity"
+                        documentSecurityRequirements()
+                        responses {
+                            response(200) {
+                                description = "Successfully refreshed access token"
+                                schema = jsonSchema<MetaThreadsRefreshTokenResponse>()
+                            }
+                            response(503) {
+                                description = "Meta Threads integration not configured"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
                 post("/api/multiple/post") {
                         val userUuid = call.requireUserUuid() ?: return@post
                         val userSettings = call.requireUserSettings(usersDb, userUuid)
@@ -536,6 +589,8 @@ fun startServer(
                                 twitterConfig = userSettings.twitter,
                                 linkedInModule = linkedInModule,
                                 linkedInConfig = userSettings.linkedin,
+                                metaThreadsModule = metaThreadsModule,
+                                metaThreadsConfig = userSettings.metaThreads,
                                 rssModule = rssModule,
                                 userUuid = userUuid,
                             )

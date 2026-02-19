@@ -11,6 +11,7 @@ import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.clients.metathreads.MetaThreadsConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.Patched
@@ -40,6 +41,7 @@ data class AccountSettingsView(
     val mastodon: MastodonSettingsView? = null,
     val twitter: TwitterSettingsView? = null,
     val linkedin: LinkedInSettingsView? = null,
+    val metaThreads: MetaThreadsSettingsView? = null,
     val llm: LlmSettingsView? = null,
 )
 
@@ -52,6 +54,8 @@ data class BlueskySettingsView(val service: String, val username: String, val pa
 data class TwitterSettingsView(val oauth1ConsumerKey: String, val oauth1ConsumerSecret: String)
 
 @Serializable data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+
+@Serializable data class MetaThreadsSettingsView(val userId: String, val accessToken: String)
 
 @Serializable data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
 
@@ -68,6 +72,7 @@ data class UserSettingsPatch(
     val mastodon: Patched<MastodonSettingsPatch> = Patched.Undefined,
     val twitter: Patched<TwitterSettingsPatch> = Patched.Undefined,
     val linkedin: Patched<LinkedInSettingsPatch> = Patched.Undefined,
+    val metaThreads: Patched<MetaThreadsSettingsPatch> = Patched.Undefined,
     val llm: Patched<LlmSettingsPatch> = Patched.Undefined,
 )
 
@@ -94,6 +99,12 @@ data class TwitterSettingsPatch(
 data class LinkedInSettingsPatch(
     val clientId: Patched<String> = Patched.Undefined,
     val clientSecret: Patched<String> = Patched.Undefined,
+)
+
+@Serializable
+data class MetaThreadsSettingsPatch(
+    val userId: Patched<String> = Patched.Undefined,
+    val accessToken: Patched<String> = Patched.Undefined,
 )
 
 @Serializable
@@ -189,6 +200,7 @@ private fun containsMaskedSecretValue(patch: UserSettingsPatch): Boolean =
         containsMaskedField(patch.mastodon, MastodonSettingsPatch::accessToken) ||
         containsMaskedField(patch.twitter, TwitterSettingsPatch::oauth1ConsumerSecret) ||
         containsMaskedField(patch.linkedin, LinkedInSettingsPatch::clientSecret) ||
+        containsMaskedField(patch.metaThreads, MetaThreadsSettingsPatch::accessToken) ||
         containsMaskedField(patch.llm, LlmSettingsPatch::apiKey)
 
 private fun <T> containsMaskedField(
@@ -235,6 +247,10 @@ internal fun UserSettings?.toView(): AccountSettingsView =
         linkedin =
             this?.linkedin?.let {
                 LinkedInSettingsView(clientId = it.clientId, clientSecret = MASKED_VALUE)
+            },
+        metaThreads =
+            this?.metaThreads?.let {
+                MetaThreadsSettingsView(userId = it.userId, accessToken = MASKED_VALUE)
             },
         llm =
             this?.llm?.let {
@@ -293,6 +309,16 @@ private fun patchLinkedIn(
         ?: LinkedInConfig(clientId = clientId, clientSecret = clientSecret)
 }
 
+private fun patchMetaThreads(
+    existing: MetaThreadsConfig?,
+    patch: MetaThreadsSettingsPatch,
+): MetaThreadsConfig? {
+    val userId = resolveField(patch.userId, existing?.userId) ?: return null
+    val accessToken = resolveField(patch.accessToken, existing?.accessToken) ?: return null
+    return existing?.copy(userId = userId, accessToken = accessToken)
+        ?: MetaThreadsConfig(userId = userId, accessToken = accessToken)
+}
+
 private fun patchLlm(existing: LlmConfig?, patch: LlmSettingsPatch): LlmConfig? {
     val apiUrl = resolveField(patch.apiUrl, existing?.apiUrl) ?: return null
     val apiKey = resolveField(patch.apiKey, existing?.apiKey) ?: return null
@@ -329,6 +355,11 @@ internal fun mergeSettingsPatch(existing: UserSettings?, patch: UserSettingsPatc
             when (val p = patch.linkedin) {
                 Patched.Undefined -> existing?.linkedin
                 is Patched.Some -> p.value?.let { patchLinkedIn(existing?.linkedin, it) }
+            },
+        metaThreads =
+            when (val p = patch.metaThreads) {
+                Patched.Undefined -> existing?.metaThreads
+                is Patched.Some -> p.value?.let { patchMetaThreads(existing?.metaThreads, it) }
             },
         llm =
             when (val p = patch.llm) {

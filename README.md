@@ -16,6 +16,7 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
 - [Mastodon](https://joinmastodon.org/)
 - [Bluesky](https://bsky.app/)
 - [LinkedIn](https://linkedin.com)
+- [Meta's Threads](https://threads.net)
 
 <p align="center">
   <img src="./docs/form-screenshot.png" width="900" alt="Social Publish post form screenshot" />
@@ -30,6 +31,7 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
   - [Mastodon credentials](#mastodon-credentials)
   - [Twitter setup](#twitter-setup)
   - [LinkedIn setup](#linkedin-setup)
+  - [Meta Threads setup](#meta-threads-setup)
   - [LLM setup (Optional)](#llm-setup-optional)
 - [RSS feed](#rss-feed)
 - [Developing](#developing)
@@ -84,6 +86,10 @@ TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
 # LinkedIn OAuth2 credentials
 LINKEDIN_CLIENT_ID="your-client-id"
 LINKEDIN_CLIENT_SECRET="your-client-secret"
+
+# Meta Threads credentials
+METATHREADS_ACCESS_TOKEN="your-access-token"
+METATHREADS_USER_ID="your-user-id"
 
 # LLM for alt-text generation (optional)
 # Configure the API endpoint, key, and model for your LLM provider
@@ -147,6 +153,19 @@ For LinkedIn, we're working with OAuth2.
 - Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect LinkedIn_"
 
 **Note:** LinkedIn access tokens expire after 60 days. The system automatically refreshes tokens using the refresh token, which is valid for 1 year. You'll need to reconnect if the refresh token expires.
+
+### Meta Threads setup
+
+To post to Meta's Threads:
+
+- Create a [Meta for Developers](https://developers.facebook.com/) account
+- Create a new app and add the Threads product
+- In your app settings, navigate to the Threads section
+- Generate a long-lived access token following [Meta's Threads API documentation](https://developers.facebook.com/docs/threads/get-started)
+- Find your Threads User ID (available in the Threads API documentation or through the Graph API Explorer)
+- Set the `METATHREADS_ACCESS_TOKEN` and `METATHREADS_USER_ID` environment variables
+
+**Token Refresh:** Meta Threads long-lived access tokens are valid for 60 days. The application provides a `GET /api/metathreads/refresh_access_token` endpoint to refresh your token and extend its validity. You should call this endpoint periodically (e.g., every 30 days) to ensure continuous access. The response includes a new access token that you'll need to update in your environment variables.
 
 ### LLM setup (Optional)
 

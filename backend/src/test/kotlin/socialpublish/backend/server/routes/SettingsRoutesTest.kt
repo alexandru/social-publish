@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.clients.metathreads.MetaThreadsConfig
 import socialpublish.backend.common.Patched
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
@@ -81,6 +82,7 @@ class SettingsRoutesTest {
             assertNull(result.mastodon)
             assertNull(result.twitter)
             assertNull(result.linkedin)
+            assertNull(result.metaThreads)
             assertNull(result.llm)
         }
     }
@@ -359,6 +361,7 @@ class MergeSettingsPatchTest {
                         password = "real-password",
                     ),
                 mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real"),
+                metaThreads = MetaThreadsConfig(userId = "123", accessToken = "threads-secret"),
                 llm =
                     LlmConfig(
                         apiUrl = "https://llm.example.com",
@@ -371,6 +374,7 @@ class MergeSettingsPatchTest {
 
         assertEquals(MASKED_VALUE, view.bluesky?.password)
         assertEquals(MASKED_VALUE, view.mastodon?.accessToken)
+        assertEquals(MASKED_VALUE, view.metaThreads?.accessToken)
         assertEquals(MASKED_VALUE, view.llm?.apiKey)
     }
 
@@ -382,6 +386,7 @@ class MergeSettingsPatchTest {
         assertNull(view.mastodon)
         assertNull(view.twitter)
         assertNull(view.linkedin)
+        assertNull(view.metaThreads)
         assertNull(view.llm)
     }
 

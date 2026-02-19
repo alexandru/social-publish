@@ -13,6 +13,8 @@ import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
+import socialpublish.backend.clients.metathreads.MetaThreadsApiModule
+import socialpublish.backend.clients.metathreads.MetaThreadsConfig
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ApiError
@@ -37,6 +39,8 @@ class PublishModule(
     private val twitterConfig: TwitterConfig?,
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
+    private val metaThreadsModule: MetaThreadsApiModule?,
+    private val metaThreadsConfig: MetaThreadsConfig?,
     private val rssModule: RssModule,
     private val userUuid: UUID,
 ) {
@@ -117,7 +121,27 @@ class PublishModule(
             }
         }
 
-        val results = coroutineScope { tasks.map { task -> async { task() } }.awaitAll() }
+        if (targets.contains("metathreads")) {
+            tasks.add {
+                val mod = metaThreadsModule
+                val cfg = metaThreadsConfig
+                if (mod != null && cfg != null) {
+                    mod.createPost(cfg, request)
+                } else {
+                    ValidationError(
+                            status = 503,
+                            errorMessage = "Meta Threads integration not configured",
+                            module = "publish",
+                        )
+                        .left()
+                }
+            }
+        }
+
+        val results = coroutineScope {
+            // Run all tasks concurrently
+            tasks.map { task -> async { task() } }.awaitAll()
+        }
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {

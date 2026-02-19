@@ -51,3 +51,8 @@ data class NewTwitterPostResponse(val id: String) : NewPostResponse() {
 data class NewLinkedInPostResponse(val postId: String) : NewPostResponse() {
     override val module: String = "linkedin"
 }
+
+@Serializable
+data class NewMetaThreadsPostResponse(val id: String) : NewPostResponse() {
+    override val module: String = "metathreads"
+}

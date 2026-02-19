@@ -18,6 +18,7 @@ data class ConfiguredServices(
     val bluesky: Boolean = false,
     val twitter: Boolean = false,
     val linkedin: Boolean = false,
+    val metaThreads: Boolean = false,
     val llm: Boolean = false,
 )
 

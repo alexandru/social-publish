@@ -225,6 +225,15 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
 
                     ServiceCheckboxField(
+                        serviceName = "Meta Threads",
+                        checked = formState.targets.contains("metathreads"),
+                        onCheckedChange = { _ ->
+                            formState = formState.toggleTarget("metathreads")
+                        },
+                        disabled = !configuredServices.metaThreads,
+                    )
+
+                    ServiceCheckboxField(
                         serviceName = "RSS feed",
                         checked = formState.targets.contains("rss"),
                         onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },

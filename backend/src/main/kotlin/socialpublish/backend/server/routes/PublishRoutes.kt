@@ -41,6 +41,7 @@ class PublishRoutes {
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
                     if (params?.get("twitter") == "1") targets.add("twitter")
                     if (params?.get("linkedin") == "1") targets.add("linkedin")
+                    if (params?.get("metathreads") == "1") targets.add("metathreads")
                     if (params?.get("rss") == "1") targets.add("rss")
 
                     NewPostRequest(
