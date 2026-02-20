@@ -204,29 +204,23 @@ Every other documented endpoint in `Server.kt` has a `.describe {}` block. If Op
 
 **Fix:**
 
-Add a `.describe {}` block matching the one on `/api/feed/post`, with a note that this is a deprecated alias:
+We will not add a deprecated alias. The project decision is to replace `/api/rss` with `/api/feed` and *remove* the `/api/rss/post` alias entirely provided the frontend and client consumers have already been updated.
 
-```kotlin
-post("/api/rss/post") {
-        val userUuid = call.requireUserUuid() ?: return@post
-        rssRoutes.createPostRoute(userUuid, call)
-    }
-    .describe {
-        summary = "Create feed post (deprecated alias)"
-        description = "Deprecated alias for /api/feed/post. Use /api/feed/post instead."
-        documentSecurityRequirements()
-        requestBody {
-            required = true
-            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
-            ContentType.Application.FormUrlEncoded { schema = jsonSchema<NewPostRequest>() }
-        }
-        responses { documentNewPostResponses<NewFeedPostResponse>() }
-    }
-```
+Concretely:
+
+- Remove the `post("/api/rss/post") { ... }` block from `Server.kt`.
+- Update any server-side references or helpers that use `rss` naming to use `feed` consistently (routes, responses, docs).
+- Update `test.http`, integration tests, and any other artifacts to use `/api/feed/*`.
 
 **Tests to add/update:**
 
-No test change required. This is a documentation consistency fix.
+- Ensure all backend tests reference `/api/feed` (the current test suite already uses `/api/feed/post`).
+- Add a checklist item to run a repository-wide search for `/api/rss` and fail the CI step if any occurrences remain (pre-merge safety check).
+
+**Coordination / rollout note:**
+
+- This change assumes the frontend has already been updated to use `/api/feed` — confirm this before merging. If there are external integrators, communicate the breaking change and provide a migration window.
+
 
 ---
 
