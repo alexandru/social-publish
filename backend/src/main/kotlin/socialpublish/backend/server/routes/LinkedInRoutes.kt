@@ -15,6 +15,7 @@ import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.server.respondWithInternalServerError
 
@@ -145,16 +146,20 @@ class LinkedInRoutes(
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
-                        content = params["content"] ?: "",
                         targets = params.getAll("targets"),
-                        link = params["link"],
                         language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params["content"] ?: "",
+                                    link = params["link"],
+                                    images = params.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
-        when (val result = linkedInModule.createPost(linkedInConfig, request, userUuid)) {
+        when (val result = linkedInModule.createThread(linkedInConfig, request, userUuid)) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

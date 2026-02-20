@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
@@ -30,7 +31,7 @@ class RssModuleTest {
     }
 
     @Test
-    fun `createPost creates valid RSS post with tags`() = runTest {
+    fun `createPost creates valid feed post with tags`() = runTest {
         val request =
             NewPostRequest(
                 content = "Test post #kotlin #testing",
@@ -44,7 +45,7 @@ class RssModuleTest {
         val response = (result as Either.Right).value
         assertTrue(response is NewRssPostResponse)
         val rssResponse = response as NewRssPostResponse
-        assertTrue(rssResponse.uri.startsWith("http://localhost:3000/rss/"))
+        assertTrue(rssResponse.uri.startsWith("http://localhost:3000/feed/"))
     }
 
     @Test
@@ -95,12 +96,11 @@ class RssModuleTest {
     }
 
     @Test
-    fun `createPost with cleanupHtml removes HTML tags`() = runTest {
+    fun `createPost keeps HTML content as-is`() = runTest {
         val request =
             NewPostRequest(
                 content = "<p>Test <strong>content</strong> with &nbsp; HTML</p>",
                 targets = listOf("rss"),
-                cleanupHtml = true,
             )
 
         val result = rssModule.createPost(request, testUserUuid)
@@ -111,24 +111,7 @@ class RssModuleTest {
         assertTrue(posts is Either.Right)
         val postsList = (posts as Either.Right).value
         assertEquals(1, postsList.size)
-        assertEquals("Test content with   HTML", postsList[0].content)
-    }
-
-    @Test
-    fun `createPost without cleanupHtml preserves HTML`() = runTest {
-        val htmlContent = "<p>Test <strong>content</strong></p>"
-        val request =
-            NewPostRequest(content = htmlContent, targets = listOf("rss"), cleanupHtml = false)
-
-        val result = rssModule.createPost(request, testUserUuid)
-
-        assertTrue(result is Either.Right)
-
-        val posts = postsDb.getAllForUser(testUserUuid)
-        assertTrue(posts is Either.Right)
-        val postsList = (posts as Either.Right).value
-        assertEquals(1, postsList.size)
-        assertEquals(htmlContent, postsList[0].content)
+        assertEquals("<p>Test <strong>content</strong> with &nbsp; HTML</p>", postsList[0].content)
     }
 
     @Test
@@ -154,7 +137,7 @@ class RssModuleTest {
     }
 
     @Test
-    fun `generateRss produces valid RSS feed`() = runTest {
+    fun `generateRss produces valid Atom feed`() = runTest {
         // Create a test post first
         val request = NewPostRequest(content = "Test RSS post", targets = listOf("rss"))
         val createResult = rssModule.createPost(request, testUserUuid)
@@ -163,7 +146,7 @@ class RssModuleTest {
         val rssContent = rssModule.generateRss(testUserUuid)
 
         assertTrue(rssContent.contains("<?xml"))
-        assertTrue(rssContent.contains("<rss"))
+        assertTrue(rssContent.contains("<feed"))
         assertTrue(rssContent.contains("Test RSS post"))
         assertTrue(rssContent.contains("localhost:3000"))
     }
@@ -179,7 +162,25 @@ class RssModuleTest {
         val postUuid = (posts as Either.Right).value.first().uuid
 
         val rssContent = rssModule.generateRss(testUserUuid)
-        assertTrue(rssContent.contains("http://localhost:3000/rss/$testUserUuid/$postUuid"))
+        assertTrue(rssContent.contains("http://localhost:3000/feed/$testUserUuid/$postUuid"))
+    }
+
+    @Test
+    fun `generateRss includes thr in-reply-to for threaded messages`() = runTest {
+        val request =
+            NewPostRequest(
+                targets = listOf("feed"),
+                messages =
+                    listOf(
+                        NewPostRequestMessage(content = "Root post"),
+                        NewPostRequestMessage(content = "Reply post"),
+                    ),
+            )
+        val result = rssModule.createPost(request, testUserUuid)
+        assertTrue(result is Either.Right)
+
+        val feedContent = rssModule.generateRss(testUserUuid)
+        assertTrue(feedContent.contains("thr:in-reply-to"))
     }
 
     @Test

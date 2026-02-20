@@ -104,45 +104,50 @@ class SerializationTest {
     fun testPublishRequestSerializationRoundTrip() {
         val original =
             PublishRequest(
-                content = "Test post content",
-                link = "https://example.com",
                 targets = listOf("twitter", "mastodon"),
-                images = listOf("img1.jpg", "img2.jpg"),
                 language = "en",
+                messages =
+                    listOf(
+                        PublishRequestMessage(
+                            content = "Test post content",
+                            link = "https://example.com",
+                            images = listOf("img1.jpg", "img2.jpg"),
+                        )
+                    ),
             )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<PublishRequest>(encoded)
 
         assertEquals(original, decoded)
-        assertEquals("Test post content", decoded.content)
-        assertEquals("https://example.com", decoded.link)
         assertEquals(listOf("twitter", "mastodon"), decoded.targets)
-        assertEquals(listOf("img1.jpg", "img2.jpg"), decoded.images)
+        assertEquals("Test post content", decoded.messages.first().content)
+        assertEquals("https://example.com", decoded.messages.first().link)
+        assertEquals(listOf("img1.jpg", "img2.jpg"), decoded.messages.first().images)
         assertEquals("en", decoded.language)
     }
 
     @Test
     fun testPublishRequestDeserializationWithDefaults() {
-        val jsonString = """{"content":"Hello","targets":["twitter"]}"""
+        val jsonString = """{"targets":["twitter"],"messages":[{"content":"Hello"}]}"""
         val decoded = json.decodeFromString<PublishRequest>(jsonString)
 
-        assertEquals("Hello", decoded.content)
-        assertEquals(null, decoded.link)
         assertEquals(listOf("twitter"), decoded.targets)
-        assertEquals(emptyList(), decoded.images)
+        assertEquals("Hello", decoded.messages.first().content)
+        assertEquals(null, decoded.messages.first().link)
+        assertEquals(null, decoded.messages.first().images)
         assertEquals(null, decoded.language)
     }
 
     @Test
     fun testPublishRequestDeserializationComplete() {
         val jsonString =
-            """{"content":"Post","link":"https://test.com","targets":["mastodon"],"images":["a.png"],"language":"ro"}"""
+            """{"targets":["mastodon"],"messages":[{"content":"Post","link":"https://test.com","images":["a.png"]}],"language":"ro"}"""
         val decoded = json.decodeFromString<PublishRequest>(jsonString)
 
-        assertEquals("Post", decoded.content)
-        assertEquals("https://test.com", decoded.link)
+        assertEquals("Post", decoded.messages.first().content)
+        assertEquals("https://test.com", decoded.messages.first().link)
         assertEquals(listOf("mastodon"), decoded.targets)
-        assertEquals(listOf("a.png"), decoded.images)
+        assertEquals(listOf("a.png"), decoded.messages.first().images)
         assertEquals("ro", decoded.language)
     }
 
@@ -190,10 +195,10 @@ class SerializationTest {
 
     @Test
     fun testModulePostResponseWithPartialData() {
-        val jsonString = """{"module":"rss","uri":"https://blog.com/post"}"""
+        val jsonString = """{"module":"feed","uri":"https://blog.com/post"}"""
         val decoded = json.decodeFromString<ModulePostResponse>(jsonString)
 
-        assertEquals("rss", decoded.module)
+        assertEquals("feed", decoded.module)
         assertEquals("https://blog.com/post", decoded.uri)
         assertEquals(null, decoded.id)
         assertEquals(null, decoded.cid)
@@ -202,7 +207,11 @@ class SerializationTest {
     @Test
     fun testSerializationPreservesStructure() {
         // Test that serialization output has expected structure
-        val request = PublishRequest(content = "Test", targets = listOf("twitter"))
+        val request =
+            PublishRequest(
+                targets = listOf("twitter"),
+                messages = listOf(PublishRequestMessage(content = "Test")),
+            )
         val encoded = json.encodeToString(request)
 
         assertTrue(encoded.contains("\"content\":\"Test\""))

@@ -64,7 +64,7 @@ class PublishRoutesTest {
             }
         }
 
-        val request = NewPostRequest(content = "Test broadcast via JSON", targets = listOf("rss"))
+        val request = NewPostRequest(content = "Test broadcast via JSON", targets = listOf("feed"))
 
         val response =
             client.post("/api/multiple/post") {
@@ -74,8 +74,8 @@ class PublishRoutesTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
-        assertTrue(body.contains("http://localhost:3000/rss/"))
-        assertTrue(body.contains("\"rss\""))
+        assertTrue(body.contains("http://localhost:3000/feed/"))
+        assertTrue(body.contains("\"feed\""))
 
         client.close()
     }
@@ -188,7 +188,7 @@ class PublishRoutesTest {
             val request =
                 NewPostRequest(
                     content = "Test composite error",
-                    targets = listOf("rss", "mastodon"),
+                    targets = listOf("feed", "mastodon"),
                 )
 
             val response =

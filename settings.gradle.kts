@@ -82,6 +82,7 @@ dependencyResolutionManagement {
 
             // RSS generation
             library("rome", "com.rometools", "rome").versionRef("rome")
+            library("rome-modules", "com.rometools", "rome-modules").versionRef("rome")
 
             // OAuth
             library("scribejava-core", "com.github.scribejava", "scribejava-core").versionRef("scribejava")

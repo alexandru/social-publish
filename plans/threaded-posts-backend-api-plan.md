@@ -82,77 +82,77 @@ Progress tracking rule: update this checklist in real time during implementation
 
 ### 1) API Contract + Serialization
 
-- [ ] Replace `NewPostRequest` model with `messages: List<NewPostRequestMessage>`.
-- [ ] Add `NewPostRequestMessage` serialized model.
-- [ ] Remove old single-message request fields/usages from backend request parsing.
-- [ ] Update endpoint tests to fail with old payload and pass with new payload.
+- [x] Replace `NewPostRequest` model with `messages: List<NewPostRequestMessage>`.
+- [x] Add `NewPostRequestMessage` serialized model.
+- [x] Remove old single-message request fields/usages from backend request parsing.
+- [x] Update endpoint tests to fail with old payload and pass with new payload.
 
 ### 2) Validation Layer (Pre-flight)
 
-- [ ] Introduce request-level thread validation before spawning parallel target publishes.
-- [ ] Add generic validations (`messages` non-empty, message content basic constraints).
-- [ ] Add LinkedIn thread restrictions validation (`messages.size <= 2` when LinkedIn selected).
-- [ ] Add LinkedIn follow-up comment validations (length, single image, comment-media constraints).
-- [ ] Return clear 400 error payloads with actionable validation messages.
-- [ ] Add/expand validation unit tests, including mixed-target scenarios.
+- [x] Introduce request-level thread validation before spawning parallel target publishes.
+- [x] Add generic validations (`messages` non-empty, message content basic constraints).
+- [x] Add LinkedIn thread restrictions validation (`messages.size <= 2` when LinkedIn selected).
+- [x] Add LinkedIn follow-up comment validations (length, single image, comment-media constraints).
+- [x] Return clear 400 error payloads with actionable validation messages.
+- [x] Add/expand validation unit tests, including mixed-target scenarios.
 
 ### 3) Publishing Domain Model + Thread Execution
 
-- [ ] Refactor internal publish command/model from single message to ordered message list.
-- [ ] Add platform-agnostic thread publication abstraction using prior post IDs.
-- [ ] Ensure per-platform publish implementations can consume `replyTo` or equivalent parent reference.
-- [ ] Confirm thread order guarantees per platform implementation (sequential per target, still parallel across targets).
-- [ ] Add tests that verify no publish starts when pre-flight validation fails.
+- [x] Refactor internal publish command/model from single message to ordered message list.
+- [x] Add platform-agnostic thread publication abstraction using prior post IDs.
+- [x] Ensure per-platform publish implementations can consume `replyTo` or equivalent parent reference.
+- [x] Confirm thread order guarantees per platform implementation (sequential per target, still parallel across targets).
+- [x] Add tests that verify no publish starts when pre-flight validation fails.
 
 ### 4) Platform Implementations
 
-- [ ] Mastodon: implement chained reply posting for follow-up messages.
-- [ ] Bluesky: implement chained reply posting for follow-up messages.
-- [ ] X/Twitter: implement chained reply posting for follow-up messages.
-- [ ] LinkedIn: implement optional single follow-up as comment on root post.
-- [ ] LinkedIn: enforce/confirm comment media and alt-text handling policy.
-- [ ] Feed: migrate syndication generation from RSS to Atom.
-- [ ] Feed: emit `thr:in-reply-to` for non-root thread entries.
-- [ ] Feed: use Rome support for Atom threading extension where available.
-- [ ] Feed: map thread messages to ordered Atom entries (one entry per message).
-- [ ] Add platform-focused tests/mocks for thread ID propagation and ordering.
+- [x] Mastodon: implement chained reply posting for follow-up messages.
+- [x] Bluesky: implement chained reply posting for follow-up messages.
+- [x] X/Twitter: implement chained reply posting for follow-up messages.
+- [x] LinkedIn: implement optional single follow-up as comment on root post.
+- [x] LinkedIn: enforce/confirm comment media and alt-text handling policy.
+- [x] Feed: migrate syndication generation from RSS to Atom.
+- [x] Feed: emit `thr:in-reply-to` for non-root thread entries.
+- [x] Feed: use Rome support for Atom threading extension where available.
+- [x] Feed: map thread messages to ordered Atom entries (one entry per message).
+- [x] Add platform-focused tests/mocks for thread ID propagation and ordering.
 
 ### 5) Response + ID Tracking
 
-- [ ] Extend backend response/domain DTOs to include per-message IDs per target.
-- [ ] Ensure linkage metadata is preserved (reply/comment parent references).
-- [ ] Update API tests/assertions for new response details.
-- [ ] Update response/link descriptors and labels to use `feed` naming (not `rss`).
+- [x] Extend backend response/domain DTOs to include per-message IDs per target.
+- [x] Ensure linkage metadata is preserved (reply/comment parent references).
+- [x] Update API tests/assertions for new response details.
+- [x] Update response/link descriptors and labels to use `feed` naming (not `rss`).
 
 ### 6) Remove `cleanupHtml`
 
-- [ ] Locate all `cleanupHtml` references in backend/frontend shared flow.
-- [ ] Remove implementation and related invocations.
-- [ ] Remove or update tests tied to `cleanupHtml` behavior.
-- [ ] Verify formatting/sanitization behavior still matches current product expectations.
+- [x] Locate all `cleanupHtml` references in backend/frontend shared flow.
+- [x] Remove implementation and related invocations.
+- [x] Remove or update tests tied to `cleanupHtml` behavior.
+- [x] Verify formatting/sanitization behavior still matches current product expectations.
 
 ### 7) Frontend Compatibility (No UI Expansion)
 
-- [ ] Update frontend request builder/types to send `messages` array.
-- [ ] Adapt frontend API client serialization/deserialization to new contract.
-- [ ] Keep existing UI behavior by mapping current single-message input into one-item `messages`.
-- [ ] Add a working per-user feed link in navbar.
-- [ ] Fix existing frontend feed links/routes/descriptions still using `rss` naming.
-- [ ] Update frontend tests for API contract compatibility.
+- [x] Update frontend request builder/types to send `messages` array.
+- [x] Adapt frontend API client serialization/deserialization to new contract.
+- [x] Keep existing UI behavior by mapping current single-message input into one-item `messages`.
+- [x] Add a working per-user feed link in navbar.
+- [x] Fix existing frontend feed links/routes/descriptions still using `rss` naming.
+- [x] Update frontend tests for API contract compatibility.
 
 ### 8) Regression Safety + Docs
 
-- [ ] Add integration tests for:
+- [x] Add integration tests for:
   - multi-message thread (Mastodon/Bluesky/X),
   - LinkedIn root + one comment,
   - multi-message thread with `feed` selected produces ordered Atom entries,
   - Atom output includes `thr:in-reply-to` for follow-up entries,
   - LinkedIn with >2 messages rejected pre-flight,
   - mixed targets invalid because of LinkedIn constraints rejected pre-flight.
-- [ ] Run `./gradlew :backend:test :frontend:test` and fix regressions.
-- [ ] Run formatting (`make format`) and ensure clean lint/test status.
-- [ ] Document final API examples in `test.http` and/or backend docs.
-- [ ] Update docs/endpoints/descriptions to consistently say `feed` instead of `rss`.
+- [x] Run `./gradlew :backend:test :frontend:jsTest` and fix regressions.
+- [x] Run formatting (`make format`) and ensure clean lint/test status.
+- [x] Document final API examples in `test.http` and/or backend docs.
+- [x] Update docs/endpoints/descriptions to consistently say `feed` instead of `rss`.
 
 ## Open Decisions to Confirm During Implementation
 

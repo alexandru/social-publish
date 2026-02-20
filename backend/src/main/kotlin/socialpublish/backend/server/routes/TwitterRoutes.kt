@@ -14,6 +14,7 @@ import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.server.respondWithInternalServerError
 
@@ -95,16 +96,20 @@ class TwitterRoutes(
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
-                        content = params["content"] ?: "",
                         targets = params.getAll("targets"),
-                        link = params["link"],
                         language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params["content"] ?: "",
+                                    link = params["link"],
+                                    images = params.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
-        when (val result = twitterModule.createPost(twitterConfig, request, userUuid)) {
+        when (val result = twitterModule.createThread(twitterConfig, request, userUuid)) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

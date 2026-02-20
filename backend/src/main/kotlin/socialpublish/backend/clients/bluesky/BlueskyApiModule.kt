@@ -42,6 +42,13 @@ private val logger = KotlinLogging.logger {}
 
 private const val BlueskyLinkDisplayLength = 24
 
+data class BlueskyReplyContext(
+    val rootUri: String,
+    val rootCid: String,
+    val parentUri: String,
+    val parentCid: String,
+)
+
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
     private val filesModule: FilesModule,
@@ -417,12 +424,15 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         request: NewPostRequest,
         userUuid: UUID,
+        replyContext: BlueskyReplyContext? = null,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
                 return error.left()
             }
+
+            val message = request.messages.first()
 
             val session =
                 when (val authResult = createSession(config)) {
@@ -431,8 +441,8 @@ class BlueskyApiModule(
                 }
 
             val imageEmbeds =
-                if (!request.images.isNullOrEmpty()) {
-                    request.images.map { imageUuid ->
+                if (!message.images.isNullOrEmpty()) {
+                    message.images.map { imageUuid ->
                         when (val uploadResult = uploadBlob(config, imageUuid, session, userUuid)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
@@ -445,8 +455,8 @@ class BlueskyApiModule(
             // Fetch link preview if link is present and no images
             // Note: Bluesky only supports one embed type at a time, and images take priority
             val linkPreview =
-                if (request.link != null && imageEmbeds.isEmpty()) {
-                    linkPreviewParser.fetchPreview(request.link)
+                if (message.link != null && imageEmbeds.isEmpty()) {
+                    linkPreviewParser.fetchPreview(message.link)
                 } else {
                     null
                 }
@@ -462,13 +472,8 @@ class BlueskyApiModule(
             // Prepare text
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
-            val url = request.link
-            val text =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content.trim()
-                } + if (url != null) "\n\n$url" else ""
+            val url = message.link
+            val text = message.content.trim() + if (url != null) "\n\n$url" else ""
 
             // Detect facets (mentions, links, hashtags) and shorten link display text
             val richText = buildRichText(config, text)
@@ -487,6 +492,19 @@ class BlueskyApiModule(
 
                 if (request.language != null) {
                     putJsonArray("langs") { add(JsonPrimitive(request.language)) }
+                }
+
+                replyContext?.let { reply ->
+                    putJsonObject("reply") {
+                        putJsonObject("root") {
+                            put("uri", reply.rootUri)
+                            put("cid", reply.rootCid)
+                        }
+                        putJsonObject("parent") {
+                            put("uri", reply.parentUri)
+                            put("cid", reply.parentCid)
+                        }
+                    }
                 }
 
                 if (imageEmbeds.isNotEmpty()) {
@@ -552,7 +570,19 @@ class BlueskyApiModule(
 
             if (response.status.value == 200) {
                 val data = response.body<BlueskyPostResponse>()
-                NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
+                NewBlueSkyPostResponse(
+                        uri = data.uri,
+                        cid = data.cid,
+                        messages =
+                            listOf(
+                                PublishedMessageResponse(
+                                    id = data.uri,
+                                    uri = data.uri,
+                                    replyToId = replyContext?.parentUri,
+                                )
+                            ),
+                    )
+                    .right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn { "Failed to post to Bluesky: ${response.status}, body: $errorBody" }
@@ -575,6 +605,82 @@ class BlueskyApiModule(
         }
     }
 
+    suspend fun createThread(
+        config: BlueskyConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
+        request.validate()?.let {
+            return it.left()
+        }
+
+        var rootUri: String? = null
+        var rootCid: String? = null
+        var parentUri: String? = null
+        var parentCid: String? = null
+        val messages = mutableListOf<PublishedMessageResponse>()
+
+        for (message in request.messages) {
+            val replyContext =
+                if (rootUri != null && rootCid != null && parentUri != null && parentCid != null) {
+                    BlueskyReplyContext(rootUri, rootCid, parentUri, parentCid)
+                } else {
+                    null
+                }
+
+            val singleRequest =
+                NewPostRequest(
+                    targets = request.targets,
+                    language = request.language,
+                    messages = listOf(message),
+                )
+
+            when (
+                val result =
+                    createPost(
+                        config = config,
+                        request = singleRequest,
+                        userUuid = userUuid,
+                        replyContext = replyContext,
+                    )
+            ) {
+                is Either.Left -> return result.value.left()
+                is Either.Right -> {
+                    val response = result.value as NewBlueSkyPostResponse
+                    if (rootUri == null || rootCid == null) {
+                        rootUri = response.uri
+                        rootCid =
+                            response.cid
+                                ?: return ValidationError(
+                                        status = 500,
+                                        module = "bluesky",
+                                        errorMessage = "Missing cid for root post",
+                                    )
+                                    .left()
+                    }
+                    parentUri = response.uri
+                    parentCid =
+                        response.cid
+                            ?: return ValidationError(
+                                    status = 500,
+                                    module = "bluesky",
+                                    errorMessage = "Missing cid for reply post",
+                                )
+                                .left()
+                    messages += response.messages.first()
+                }
+            }
+        }
+
+        val firstMessage = messages.firstOrNull()
+        return NewBlueSkyPostResponse(
+                uri = firstMessage?.uri ?: "",
+                cid = rootCid,
+                messages = messages,
+            )
+            .right()
+    }
+
     /** Handle Bluesky post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUID) {
         val request =
@@ -582,16 +688,20 @@ class BlueskyApiModule(
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
-                        content = params["content"] ?: "",
                         targets = params.getAll("targets"),
-                        link = params["link"],
                         language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params["content"] ?: "",
+                                    link = params["link"],
+                                    images = params.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
-        when (val result = createPost(config, request, userUuid)) {
+        when (val result = createThread(config, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -601,15 +711,5 @@ class BlueskyApiModule(
                 )
             }
         }
-    }
-
-    private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
     }
 }

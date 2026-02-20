@@ -40,8 +40,9 @@ dependencies {
     // Logging
     implementation(libs.bundles.logging)
 
-    // RSS generation
+    // Feed generation
     implementation(libs.rome)
+    implementation(libs.rome.modules)
 
     // OAuth for Twitter
     implementation(libs.scribejava.core)

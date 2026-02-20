@@ -13,7 +13,7 @@ class PublishFormStateTest {
         val state = PublishFormState()
         assertEquals("", state.content)
         assertEquals("", state.link)
-        assertEquals(setOf("rss"), state.targets)
+        assertEquals(setOf("feed"), state.targets)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
         assertFalse(state.isProcessing)
@@ -41,16 +41,16 @@ class PublishFormStateTest {
         // Add mastodon
         val withMastodon = state.toggleTarget("mastodon")
         assertTrue(withMastodon.targets.contains("mastodon"))
-        assertTrue(withMastodon.targets.contains("rss"))
+        assertTrue(withMastodon.targets.contains("feed"))
 
-        // Remove rss
-        val withoutRss = withMastodon.toggleTarget("rss")
-        assertFalse(withoutRss.targets.contains("rss"))
+        // Remove feed
+        val withoutRss = withMastodon.toggleTarget("feed")
+        assertFalse(withoutRss.targets.contains("feed"))
         assertTrue(withoutRss.targets.contains("mastodon"))
 
-        // Re-add rss
-        val withRssAgain = withoutRss.toggleTarget("rss")
-        assertTrue(withRssAgain.targets.contains("rss"))
+        // Re-add feed
+        val withRssAgain = withoutRss.toggleTarget("feed")
+        assertTrue(withRssAgain.targets.contains("feed"))
     }
 
     @Test
@@ -120,7 +120,7 @@ class PublishFormStateTest {
         val reset = state.reset()
         assertEquals("", reset.content)
         assertEquals("", reset.link)
-        assertEquals(setOf("rss"), reset.targets)
+        assertEquals(setOf("feed"), reset.targets)
         assertFalse(reset.isSubmitting)
         assertFalse(reset.isProcessing)
         assertFalse(reset.isFormDisabled)

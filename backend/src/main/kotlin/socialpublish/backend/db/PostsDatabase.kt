@@ -32,6 +32,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
             tags = payload.tags,
             language = payload.language,
             images = payload.images,
+            replyToPostUuid = payload.replyToPostUuid,
         )
     }
 
@@ -49,6 +50,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
                 tags = payload.tags,
                 language = payload.language,
                 images = payload.images,
+                replyToPostUuid = payload.replyToPostUuid,
             )
         }
     }
@@ -67,6 +69,7 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
                 tags = payload.tags,
                 language = payload.language,
                 images = payload.images,
+                replyToPostUuid = payload.replyToPostUuid,
             )
         }
 }

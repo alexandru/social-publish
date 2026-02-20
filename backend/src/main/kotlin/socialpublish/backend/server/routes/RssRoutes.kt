@@ -12,6 +12,7 @@ import io.ktor.server.response.respondText
 import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.modules.RssModule
 
 class RssRoutes(private val rssModule: RssModule) {
@@ -33,12 +34,16 @@ class RssRoutes(private val rssModule: RssModule) {
                             null
                         }
                     NewPostRequest(
-                        content = params?.get("content") ?: "",
                         targets = params?.getAll("targets"),
-                        link = params?.get("link"),
                         language = params?.get("language"),
-                        cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
-                        images = params?.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params?.get("content") ?: "",
+                                    link = params?.get("link"),
+                                    images = params?.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
@@ -69,8 +74,8 @@ class RssRoutes(private val rssModule: RssModule) {
         val filterByLinks = call.request.queryParameters["filterByLinks"]
         val filterByImages = call.request.queryParameters["filterByImages"]
 
-        val rssContent = rssModule.generateRss(userUuid, filterByLinks, filterByImages, target)
-        call.respondText(rssContent, ContentType.Application.Rss)
+        val rssContent = rssModule.generateFeed(userUuid, filterByLinks, filterByImages, target)
+        call.respondText(rssContent, ContentType.parse("application/atom+xml"))
     }
 
     /** Get RSS item by UUID */
@@ -91,7 +96,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     return
                 }
 
-        val post = rssModule.getRssItemByUuid(userUuid, uuid)
+        val post = rssModule.getFeedItemByUuid(userUuid, uuid)
         if (post == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
             return

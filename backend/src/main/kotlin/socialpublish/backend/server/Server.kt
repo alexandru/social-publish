@@ -407,14 +407,14 @@ fun startServer(
                         }
                     }
 
-                // RSS post creation
-                post("/api/rss/post") {
+                // Feed post creation
+                post("/api/feed/post") {
                         val userUuid = call.requireUserUuid() ?: return@post
                         rssRoutes.createPostRoute(userUuid, call)
                     }
                     .describe {
-                        summary = "Create RSS post"
-                        description = "Create a new RSS feed post"
+                        summary = "Create feed post"
+                        description = "Create a new feed post"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -423,8 +423,13 @@ fun startServer(
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewRssPostResponse>() }
+                        responses { documentNewPostResponses<NewFeedPostResponse>() }
                     }
+
+                post("/api/rss/post") {
+                    val userUuid = call.requireUserUuid() ?: return@post
+                    rssRoutes.createPostRoute(userUuid, call)
+                }
 
                 // Social media posts
                 post("/api/bluesky/post") {
@@ -666,16 +671,16 @@ fun startServer(
             }
 
             // -----------------------------------------------------------
-            // Public RSS feed
+            // Public feed
 
-            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}") { rssRoutes.generateRssRoute(call) }
                 .describe {
-                    summary = "Get user RSS feed"
-                    description = "Generate and retrieve the RSS feed for a specific user"
+                    summary = "Get user feed"
+                    description = "Generate and retrieve the Atom feed for a specific user"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description = "UUID of the user whose feed should be returned"
                         }
                         query("filterByLinks") {
                             required = false
@@ -688,26 +693,28 @@ fun startServer(
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format"
-                            ContentType.Application.Rss()
+                            description = "Atom feed in XML format"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
+            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
+
+            get("/feed/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
                 .describe {
-                    summary = "Get user RSS feed for specific target"
+                    summary = "Get user feed for specific target"
                     description =
-                        "Generate and retrieve a user's RSS feed filtered by target platform " +
+                        "Generate and retrieve a user's feed filtered by target platform " +
                             "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description = "UUID of the user whose feed should be returned"
                         }
                         path("target") {
                             required = true
@@ -725,20 +732,22 @@ fun startServer(
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format filtered by target"
-                            ContentType.Application.Rss()
+                            description = "Atom feed in XML format filtered by target"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
+
+            get("/feed/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
                 .describe {
-                    summary = "Get user RSS item by UUID"
-                    description = "Retrieve a specific RSS post/item by user UUID and post UUID"
+                    summary = "Get user feed item by UUID"
+                    description = "Retrieve a specific feed item by user UUID and post UUID"
                     parameters {
                         path("userUuid") {
                             required = true
@@ -768,6 +777,8 @@ fun startServer(
                         }
                     }
                 }
+
+            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
 
             get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
                 .describe {

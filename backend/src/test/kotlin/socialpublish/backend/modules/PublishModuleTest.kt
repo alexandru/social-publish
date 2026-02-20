@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
@@ -53,7 +54,7 @@ class PublishModuleTest {
     }
 
     @Test
-    fun `broadcastPost to RSS only returns success`() = runTest {
+    fun `broadcastPost to feed only returns success`() = runTest {
         val publishModule =
             PublishModule(
                 null,
@@ -74,10 +75,10 @@ class PublishModuleTest {
         val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
         assertEquals(1, responses.size)
-        assertTrue(responses.containsKey("rss"))
-        val rssResponse = responses["rss"]
+        assertTrue(responses.containsKey("feed"))
+        val rssResponse = responses["feed"]
         val typedResponse = assertIs<NewRssPostResponse>(rssResponse)
-        assertTrue(typedResponse.uri.contains("http://localhost:3000/rss/"))
+        assertTrue(typedResponse.uri.contains("http://localhost:3000/feed/"))
     }
 
     @Test
@@ -138,8 +139,8 @@ class PublishModuleTest {
         assertEquals(503, compositeError.status)
         assertEquals(3, compositeError.responses.size)
 
-        // RSS should succeed
-        val rssResponse = compositeError.responses.find { it.result?.module == "rss" }
+        // Feed should succeed
+        val rssResponse = compositeError.responses.find { it.result?.module == "feed" }
         assertNotNull(rssResponse)
         assertEquals("success", rssResponse.type)
         val typedRssResult = assertIs<NewRssPostResponse>(rssResponse.result)
@@ -266,13 +267,83 @@ class PublishModuleTest {
         assertEquals(503, compositeError.status)
         assertEquals(5, compositeError.responses.size)
 
-        // RSS should succeed
-        val rssResponse = compositeError.responses.find { it.result?.module == "rss" }
+        // Feed should succeed
+        val rssResponse = compositeError.responses.find { it.result?.module == "feed" }
         assertNotNull(rssResponse)
         assertEquals("success", rssResponse.type)
 
         // Others should fail
         val failedCount = compositeError.responses.count { it.type == "error" }
         assertEquals(4, failedCount)
+    }
+
+    @Test
+    fun `broadcastPost rejects linkedin with more than two messages`() = runTest {
+        val publishModule =
+            PublishModule(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                rssModule,
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            )
+
+        val request =
+            NewPostRequest(
+                targets = listOf("linkedin", "feed"),
+                messages =
+                    listOf(
+                        NewPostRequestMessage(content = "Root"),
+                        NewPostRequestMessage(content = "Reply #1"),
+                        NewPostRequestMessage(content = "Reply #2"),
+                    ),
+            )
+
+        val result = publishModule.broadcastPost(request)
+
+        val error = assertIs<Either.Left<ApiError>>(result).value
+        assertEquals(400, error.status)
+        assertTrue(error.errorMessage.contains("LinkedIn"))
+    }
+
+    @Test
+    fun `broadcastPost validation failure prevents feed persistence`() = runTest {
+        val publishModule =
+            PublishModule(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                rssModule,
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+            )
+
+        val request =
+            NewPostRequest(
+                targets = listOf("linkedin", "feed"),
+                messages =
+                    listOf(
+                        NewPostRequestMessage(content = "Root"),
+                        NewPostRequestMessage(content = "Reply #1"),
+                        NewPostRequestMessage(content = "Reply #2"),
+                    ),
+            )
+
+        val _ = publishModule.broadcastPost(request)
+
+        val posts =
+            postsDb.getAllForUser(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))
+        assertTrue(posts.isRight())
+        val list = (posts as Either.Right).value
+        assertTrue(list.isEmpty())
     }
 }

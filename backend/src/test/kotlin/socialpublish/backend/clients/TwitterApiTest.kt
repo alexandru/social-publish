@@ -244,15 +244,13 @@ class TwitterApiTest {
 
             val req =
                 NewPostRequest(
-                    content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
-                    cleanupHtml = true,
+                    content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>"
                 )
             val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
             val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
             assertTrue(result.isRight())
 
-            // Jsoup properly decodes HTML entities and removes tags
-            assertEquals("Hello world! Testing & fun", tweetText)
+            assertEquals("<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>", tweetText)
 
             twitterClient.close()
         }
