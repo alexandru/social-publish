@@ -107,4 +107,66 @@ class MastodonApiTest {
             mastodonClient.close()
         }
     }
+
+    @Test
+    fun `createThread links follow-up status to previous status`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var counter = 0
+            val replyChain = mutableListOf<String?>()
+
+            application {
+                routing {
+                    post("/api/v1/statuses") {
+                        val params = call.receiveParameters()
+                        replyChain += params["in_reply_to_id"]
+                        counter += 1
+                        call.respondText(
+                            "{" +
+                                "\"id\":\"status-$counter\",\"uri\":\"http://mastodon.local/status/$counter\",\"url\":\"http://mastodon.local/s/$counter\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                .use { mastodonClient ->
+                    val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
+                    val request =
+                        NewPostRequest(
+                            targets = listOf("mastodon"),
+                            messages =
+                                listOf(
+                                    socialpublish.backend.common.NewPostRequestMessage(
+                                        content = "Root"
+                                    ),
+                                    socialpublish.backend.common.NewPostRequestMessage(
+                                        content = "Reply"
+                                    ),
+                                ),
+                        )
+                    val config = MastodonConfig(host = "http://localhost", accessToken = "token")
+
+                    val result = mastodonModule.createThread(config, request, testUserUuid)
+
+                    assertTrue(result is Either.Right)
+                    val response = (result as Either.Right).value as NewMastodonPostResponse
+                    assertEquals("status-1", response.id)
+                    assertEquals(2, response.messages.size)
+                    assertEquals("status-1", response.messages[1].replyToId)
+                    assertEquals(listOf(null, "status-1"), replyChain)
+                }
+        }
+    }
 }

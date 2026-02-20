@@ -23,6 +23,7 @@ import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
@@ -518,6 +519,95 @@ class BlueskyApiTest {
             assertEquals(linkTwo, secondUri)
 
             blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `createThread sets reply context for follow-up post`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val replyPayloads = mutableListOf<JsonObject?>()
+            var postCounter = 0
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        val payload = Json.parseToJsonElement(body).jsonObject
+                        val record = payload["record"]?.jsonObject
+                        replyPayloads += record?.get("reply")?.jsonObject
+                        postCounter += 1
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/$postCounter\",\"cid\":\"cid$postCounter\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                .use { blueskyClient ->
+                    val linkPreview = LinkPreviewParser(httpClient = blueskyClient)
+                    val module =
+                        BlueskyApiModule(
+                            filesModule = filesModule,
+                            httpClient = blueskyClient,
+                            linkPreviewParser = linkPreview,
+                        )
+
+                    val request =
+                        NewPostRequest(
+                            targets = listOf("bluesky"),
+                            messages =
+                                listOf(
+                                    NewPostRequestMessage(content = "Root"),
+                                    NewPostRequestMessage(content = "Reply"),
+                                ),
+                        )
+                    val config =
+                        BlueskyConfig(service = "http://localhost", username = "u", password = "p")
+
+                    val result = module.createThread(config, request, testUserUuid)
+
+                    assertTrue(result.isRight())
+                    assertEquals(2, replyPayloads.size)
+                    assertEquals(null, replyPayloads[0])
+                    val secondReply = requireNotNull(replyPayloads[1])
+                    assertEquals(
+                        "at://did:plc:123/app.bsky.feed.post/1",
+                        secondReply["root"]?.jsonObject?.get("uri")?.jsonPrimitive?.content,
+                    )
+                    assertEquals(
+                        "cid1",
+                        secondReply["root"]?.jsonObject?.get("cid")?.jsonPrimitive?.content,
+                    )
+                    assertEquals(
+                        "at://did:plc:123/app.bsky.feed.post/1",
+                        secondReply["parent"]?.jsonObject?.get("uri")?.jsonPrimitive?.content,
+                    )
+                    assertEquals(
+                        "cid1",
+                        secondReply["parent"]?.jsonObject?.get("cid")?.jsonPrimitive?.content,
+                    )
+                }
         }
     }
 }

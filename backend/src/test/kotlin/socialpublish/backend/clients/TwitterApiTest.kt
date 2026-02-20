@@ -415,4 +415,118 @@ class TwitterApiTest {
                 twitterClient.close()
             }
         }
+
+    @Test
+    fun `createThread links follow-up tweet to previous tweet`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val replyChain = mutableListOf<String?>()
+            var tweetCounter = 0
+
+            application {
+                routing {
+                    post("/2/tweets") {
+                        val body = call.receiveStream().readBytes().decodeToString()
+                        val payload = Json.parseToJsonElement(body).jsonObject
+                        val replyTo =
+                            payload["reply"]
+                                ?.jsonObject
+                                ?.get("in_reply_to_tweet_id")
+                                ?.jsonPrimitive
+                                ?.content
+                        replyChain += replyTo
+                        tweetCounter += 1
+                        call.respondText(
+                            "{" + "\"data\":{\"id\":\"tweet$tweetCounter\",\"text\":\"ok\"}}",
+                            io.ktor.http.ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/oauth/request_token") {
+                        call.respondText(
+                            "oauth_token=req123&oauth_token_secret=secret123&oauth_callback_confirmed=true"
+                        )
+                    }
+                    post("/oauth/access_token") {
+                        call.respondText("oauth_token=tok&oauth_token_secret=sec")
+                    }
+                }
+            }
+
+            createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                .use { twitterClient ->
+                    val twitterConfig =
+                        TwitterConfig(
+                            oauth1ConsumerKey = "k",
+                            oauth1ConsumerSecret = "s",
+                            apiBase = "http://localhost",
+                            uploadBase = "http://localhost",
+                            oauthRequestTokenUrl = "http://localhost/oauth/request_token",
+                            oauthAccessTokenUrl = "http://localhost/oauth/access_token",
+                            oauthAuthorizeUrl = "http://localhost/oauth/authorize",
+                        )
+
+                    val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
+                    val twitterModule =
+                        TwitterApiModule(
+                            "http://localhost",
+                            documentsDb,
+                            filesModule,
+                            twitterClient,
+                        )
+
+                    val _ =
+                        documentsDb.createOrUpdate(
+                            kind = "twitter-oauth-token",
+                            payload =
+                                Json.encodeToString(
+                                    socialpublish.backend.clients.twitter.TwitterOAuthToken
+                                        .serializer(),
+                                    socialpublish.backend.clients.twitter.TwitterOAuthToken(
+                                        key = "tok",
+                                        secret = "sec",
+                                    ),
+                                ),
+                            userUuid = testUserUuid,
+                            searchKey = "twitter-oauth-token:$testUserUuid",
+                            tags = emptyList(),
+                        )
+
+                    val request =
+                        NewPostRequest(
+                            targets = listOf("twitter"),
+                            messages =
+                                listOf(
+                                    socialpublish.backend.common.NewPostRequestMessage(
+                                        content = "Root"
+                                    ),
+                                    socialpublish.backend.common.NewPostRequestMessage(
+                                        content = "Reply"
+                                    ),
+                                ),
+                        )
+
+                    val result = twitterModule.createThread(twitterConfig, request, testUserUuid)
+
+                    assertTrue(result.isRight())
+                    val response =
+                        (result as arrow.core.Either.Right).value
+                            as socialpublish.backend.common.NewTwitterPostResponse
+                    assertEquals("tweet1", response.id)
+                    assertEquals(2, response.messages.size)
+                    assertEquals("tweet1", response.messages[1].replyToId)
+                    assertEquals(listOf(null, "tweet1"), replyChain)
+                }
+        }
+    }
 }
