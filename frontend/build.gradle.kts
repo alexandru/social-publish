@@ -28,7 +28,7 @@ kotlin {
                                         target = "http://localhost:3000",
                                     ),
                                     KotlinWebpackConfig.DevServer.Proxy(
-                                        context = mutableListOf("/feed", "/rss"),
+                                        context = mutableListOf("/feed"),
                                         target = "http://localhost:3000",
                                     ),
                                     KotlinWebpackConfig.DevServer.Proxy(

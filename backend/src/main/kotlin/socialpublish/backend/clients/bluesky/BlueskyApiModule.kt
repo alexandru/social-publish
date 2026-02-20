@@ -42,7 +42,7 @@ private val logger = KotlinLogging.logger {}
 
 private const val BlueskyLinkDisplayLength = 24
 
-data class BlueskyReplyContext(
+private data class BlueskyReplyContext(
     val rootUri: String,
     val rootCid: String,
     val parentUri: String,
@@ -424,7 +424,15 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         request: NewPostRequest,
         userUuid: UUID,
-        replyContext: BlueskyReplyContext? = null,
+    ): ApiResult<NewPostResponse> {
+        return createPost(config, request, userUuid, replyContext = null)
+    }
+
+    private suspend fun createPost(
+        config: BlueskyConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+        replyContext: BlueskyReplyContext?,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request

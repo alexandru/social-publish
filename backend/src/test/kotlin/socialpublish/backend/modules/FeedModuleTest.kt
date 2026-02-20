@@ -184,7 +184,7 @@ class FeedModuleTest {
     }
 
     @Test
-    fun `generateFeed keeps thread root before reply`() = runTest {
+    fun `generateFeed keeps latest thread message before root`() = runTest {
         val request =
             NewPostRequest(
                 targets = listOf("feed"),
@@ -203,7 +203,7 @@ class FeedModuleTest {
 
         assertTrue(rootIndex >= 0)
         assertTrue(replyIndex >= 0)
-        assertTrue(rootIndex < replyIndex)
+        assertTrue(replyIndex < rootIndex)
     }
 
     @Test
@@ -287,6 +287,24 @@ class FeedModuleTest {
 
         assertTrue(feedContent.contains("Twitter post"))
         assertFalse(feedContent.contains("Mastodon post"))
+    }
+
+    @Test
+    fun `generateFeed keeps newest posts first`() = runTest {
+        val firstResult =
+            feedModule.createPost(NewPostRequest(content = "Older post"), testUserUuid)
+        assertTrue(firstResult is Either.Right)
+        val secondResult =
+            feedModule.createPost(NewPostRequest(content = "Newer post"), testUserUuid)
+        assertTrue(secondResult is Either.Right)
+
+        val feedContent = feedModule.generateFeed(testUserUuid)
+        val olderIndex = feedContent.indexOf("Older post")
+        val newerIndex = feedContent.indexOf("Newer post")
+
+        assertTrue(olderIndex >= 0)
+        assertTrue(newerIndex >= 0)
+        assertTrue(newerIndex < olderIndex)
     }
 
     @Test

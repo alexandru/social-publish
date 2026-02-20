@@ -679,11 +679,13 @@ fun startServer(
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {
@@ -716,11 +718,13 @@ fun startServer(
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {

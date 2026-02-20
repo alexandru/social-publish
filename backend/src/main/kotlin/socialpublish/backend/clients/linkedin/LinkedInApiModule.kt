@@ -164,7 +164,7 @@ class LinkedInApiModule(
         }
     }
 
-    suspend fun validateThreadRequest(request: NewPostRequest, userUuid: UUID): ValidationError? {
+    suspend fun validateThreadRequest(request: NewPostRequest): ValidationError? {
         if (request.messages.size <= 1) {
             return null
         }
@@ -191,24 +191,6 @@ class LinkedInApiModule(
                 module = "linkedin",
                 errorMessage = "LinkedIn follow-up comment supports at most one image",
             )
-        }
-        for (imageUuid in followUp.images.orEmpty()) {
-            val file = filesModule.readImageFile(imageUuid, userUuid)
-            if (file == null) {
-                return ValidationError(
-                    status = 404,
-                    module = "linkedin",
-                    errorMessage = "Failed to read image file - uuid: $imageUuid",
-                )
-            }
-            if (!file.altText.isNullOrBlank()) {
-                return ValidationError(
-                    status = 400,
-                    module = "linkedin",
-                    errorMessage =
-                        "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
-                )
-            }
         }
         return null
     }
@@ -1027,11 +1009,22 @@ class LinkedInApiModule(
             }
 
         val encodedRootPostId = URLEncoder.encode(rootPostId, "UTF-8")
+        if (!uploadedAsset?.description.isNullOrBlank()) {
+            return ValidationError(
+                    status = 400,
+                    module = "linkedin",
+                    errorMessage =
+                        "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
+                )
+                .left()
+        }
+
+        val commentText = message.content + if (message.link != null) "\n\n${message.link}" else ""
         val requestBody =
             LinkedInCommentRequest(
                 actor = personUrn,
                 `object` = rootPostId,
-                message = LinkedInCommentMessage(text = message.content),
+                message = LinkedInCommentMessage(text = commentText),
                 content = uploadedAsset?.let { listOf(LinkedInCommentContent(entity = it.asset)) },
             )
 
@@ -1067,7 +1060,7 @@ class LinkedInApiModule(
         request.validate()?.let {
             return it.left()
         }
-        validateThreadRequest(request, userUuid)?.let {
+        validateThreadRequest(request)?.let {
             return it.left()
         }
 

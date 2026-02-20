@@ -65,7 +65,7 @@ class PublishModule(
             val mod = linkedInModule
             val cfg = linkedInConfig
             if (mod != null && cfg != null) {
-                mod.validateThreadRequest(request, userUuid)?.let {
+                mod.validateThreadRequest(request)?.let {
                     return it.left()
                 }
             }

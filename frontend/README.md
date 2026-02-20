@@ -155,7 +155,6 @@ The development server is configured in `webpack.config.d/dev-server.js`:
 - **Proxies**:
   - `/api` → `http://localhost:3000`
   - `/feed` → `http://localhost:3000`
-  - `/rss` → `http://localhost:3000` (legacy alias)
   - `/files` → `http://localhost:3000`
 
 ### Gradle Build

@@ -127,7 +127,7 @@ class FeedModule(
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }.asReversed()
+        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
         val threadingNamespace =
             Namespace.getNamespace("thr", "http://purl.org/syndication/thread/1.0")
