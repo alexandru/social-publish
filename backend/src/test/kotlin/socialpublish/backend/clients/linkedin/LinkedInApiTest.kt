@@ -22,6 +22,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -31,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewLinkedInPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
@@ -442,6 +445,108 @@ class LinkedInApiTest {
             assertTrue(uploadRegistered, "Upload should have been registered")
             assertTrue(binaryUploaded, "Binary should have been uploaded")
             assertTrue(postCreated, "Post should have been created")
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `createThread sends valid JSON for comment with escaped characters`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var commentBody: String? = null
+
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/ugcPosts") {
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/v2/socialActions/{postId}/comments") {
+                        commentBody = call.receiveStream().readBytes().decodeToString()
+                        call.response.header("X-RestLi-Id", "urn:li:comment:999")
+                        call.respondText("{}", ContentType.Application.Json, HttpStatusCode.Created)
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val followUpContent = "quote=\" slash=\\ newline=\n tab=\t carriage=\r"
+            val request =
+                NewPostRequest(
+                    targets = listOf("linkedin"),
+                    messages =
+                        listOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(content = followUpContent),
+                        ),
+                )
+
+            val result = module.createThread(config, request, testUserUuid)
+
+            assertTrue(result is Either.Right)
+            assertNotNull(commentBody)
+
+            val parsed = Json.parseToJsonElement(commentBody!!).jsonObject
+            val parsedText = parsed["message"]!!.jsonObject["text"]!!.jsonPrimitive.content
+            assertEquals(followUpContent, parsedText)
 
             linkedInClient.close()
         }

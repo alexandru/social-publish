@@ -19,8 +19,8 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
-import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
 
 class PublishRoutesTest {
@@ -30,7 +30,7 @@ class PublishRoutesTest {
         val postsDb =
             socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
         val publishModule =
             PublishModule(
                 null,
@@ -41,7 +41,7 @@ class PublishRoutesTest {
                 null,
                 null,
                 null,
-                rssModule,
+                feedModule,
                 java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val publishRoutes = PublishRoutes()
@@ -89,7 +89,7 @@ class PublishRoutesTest {
                     socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
             val publishModule =
                 PublishModule(
                     null,
@@ -100,7 +100,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     null,
-                    rssModule,
+                    feedModule,
                     java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
             val publishRoutes = PublishRoutes()
@@ -149,7 +149,7 @@ class PublishRoutesTest {
                     socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
             val publishModule =
                 PublishModule(
                     null,
@@ -160,7 +160,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     null,
-                    rssModule,
+                    feedModule,
                     java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 )
             val publishRoutes = PublishRoutes()

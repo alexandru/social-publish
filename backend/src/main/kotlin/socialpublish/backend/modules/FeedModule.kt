@@ -27,7 +27,7 @@ import socialpublish.backend.db.PostsDatabase
 
 private val logger = KotlinLogging.logger {}
 
-class RssModule(
+class FeedModule(
     private val baseUrl: String,
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
@@ -61,7 +61,7 @@ class RssModule(
         messages: List<NewPostRequestMessage>,
         userUuid: UUID,
     ): ApiResult<NewPostResponse> {
-        val normalizedTargets = targets.map { if (it.lowercase() == "rss") "feed" else it }
+        val normalizedTargets = targets.map { it.lowercase() }
         var previousPostUuid: String? = null
         val messageResponses = mutableListOf<PublishedMessageResponse>()
 
@@ -82,7 +82,31 @@ class RssModule(
                     replyToPostUuid = previousPostUuid,
                 )
 
-            val post = postsDb.create(payload, normalizedTargets, userUuid).getOrElse { throw it }
+            val postResult =
+                try {
+                    postsDb.create(payload, normalizedTargets, userUuid)
+                } catch (e: Exception) {
+                    logger.error(e) { "Failed to save feed item" }
+                    return CaughtException(
+                            status = 500,
+                            module = "feed",
+                            errorMessage = "Failed to save feed item: ${e.message}",
+                        )
+                        .left()
+                }
+            val post =
+                when (postResult) {
+                    is arrow.core.Either.Right -> postResult.value
+                    is arrow.core.Either.Left -> {
+                        logger.error(postResult.value) { "Failed to save feed item" }
+                        return CaughtException(
+                                status = 500,
+                                module = "feed",
+                                errorMessage = "Failed to save feed item",
+                            )
+                            .left()
+                    }
+                }
             val postUri = "$baseUrl/feed/$userUuid/${post.uuid}"
             messageResponses +=
                 PublishedMessageResponse(
@@ -103,7 +127,7 @@ class RssModule(
         filterByImages: String? = null,
         target: String? = null,
     ): String {
-        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
+        val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }.asReversed()
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
         val threadingNamespace =
             Namespace.getNamespace("thr", "http://purl.org/syndication/thread/1.0")
@@ -216,17 +240,7 @@ class RssModule(
         return output.outputString(feed)
     }
 
-    suspend fun generateRss(
-        userUuid: UUID,
-        filterByLinks: String? = null,
-        filterByImages: String? = null,
-        target: String? = null,
-    ): String = generateFeed(userUuid, filterByLinks, filterByImages, target)
-
     suspend fun getFeedItemByUuid(userUuid: UUID, uuid: String): Post? {
         return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
     }
-
-    suspend fun getRssItemByUuid(userUuid: UUID, uuid: String): Post? =
-        getFeedItemByUuid(userUuid, uuid)
 }

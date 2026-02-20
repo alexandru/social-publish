@@ -23,7 +23,7 @@ class PostsSerializationTest {
         classDiscriminatorMode = ClassDiscriminatorMode.NONE
         serializersModule = SerializersModule {
             polymorphic(NewPostResponse::class) {
-                subclass(NewRssPostResponse::class)
+                subclass(NewFeedPostResponse::class)
                 subclass(NewMastodonPostResponse::class)
                 subclass(NewBlueSkyPostResponse::class)
                 subclass(NewTwitterPostResponse::class)
@@ -32,13 +32,13 @@ class PostsSerializationTest {
     }
 
     @Test
-    fun `NewRssPostResponse should serialize without type discriminator`() {
+    fun `NewFeedPostResponse should serialize without type discriminator`() {
         val response =
-            NewRssPostResponse(
+            NewFeedPostResponse(
                 uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
             )
 
-        val jsonString = json.encodeToString<NewRssPostResponse>(response)
+        val jsonString = json.encodeToString<NewFeedPostResponse>(response)
 
         println("Serialized JSON: $jsonString")
 
@@ -51,7 +51,7 @@ class PostsSerializationTest {
         )
         // Ensure no type discriminator
         assert(!jsonString.contains("\"type\""))
-        assert(!jsonString.contains("NewRssPostResponse"))
+        assert(!jsonString.contains("NewFeedPostResponse"))
     }
 
     @Test
@@ -93,11 +93,11 @@ class PostsSerializationTest {
     }
 
     @Test
-    fun `Map with single RSS response should serialize correctly`() {
+    fun `Map with single feed response should serialize correctly`() {
         val response =
             mapOf(
                 "feed" to
-                    NewRssPostResponse(
+                    NewFeedPostResponse(
                         uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
                     )
             )
@@ -119,7 +119,7 @@ class PostsSerializationTest {
         val response =
             mapOf(
                 "feed" to
-                    NewRssPostResponse(
+                    NewFeedPostResponse(
                         uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
                     ),
                 "mastodon" to
@@ -145,7 +145,7 @@ class PostsSerializationTest {
 
         // Ensure no type discriminator is added
         assert(!jsonString.contains("\"type\""))
-        assert(!jsonString.contains("NewRssPostResponse"))
+        assert(!jsonString.contains("NewFeedPostResponse"))
         assert(!jsonString.contains("NewMastodonPostResponse"))
         assert(!jsonString.contains("NewBlueSkyPostResponse"))
     }
@@ -154,7 +154,7 @@ class PostsSerializationTest {
     fun `Polymorphic serialization should work with NewPostResponse base class`() {
         val responses: List<NewPostResponse> =
             listOf(
-                NewRssPostResponse(uri = "http://localhost:3000/feed/123"),
+                NewFeedPostResponse(uri = "http://localhost:3000/feed/123"),
                 NewMastodonPostResponse(uri = "https://mastodon.social/@user/456"),
                 NewBlueSkyPostResponse(uri = "at://did:plc:abc/post/789", cid = "bafyabc"),
             )

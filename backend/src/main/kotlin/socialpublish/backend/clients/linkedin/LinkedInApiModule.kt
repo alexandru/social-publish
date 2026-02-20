@@ -1027,21 +1027,13 @@ class LinkedInApiModule(
             }
 
         val encodedRootPostId = URLEncoder.encode(rootPostId, "UTF-8")
-        val requestBody = buildString {
-            append("{\"actor\":\"")
-            append(personUrn)
-            append("\",\"object\":\"")
-            append(rootPostId)
-            append("\",\"message\":{\"text\":\"")
-            append(message.content.replace("\"", "\\\""))
-            append("\"}")
-            uploadedAsset?.let { asset ->
-                append(",\"content\":[{\"entity\":\"")
-                append(asset.asset)
-                append("\"}]")
-            }
-            append("}")
-        }
+        val requestBody =
+            LinkedInCommentRequest(
+                actor = personUrn,
+                `object` = rootPostId,
+                message = LinkedInCommentMessage(text = message.content),
+                content = uploadedAsset?.let { listOf(LinkedInCommentContent(entity = it.asset)) },
+            )
 
         val response =
             httpClient.post("${config.apiBase}/socialActions/$encodedRootPostId/comments") {

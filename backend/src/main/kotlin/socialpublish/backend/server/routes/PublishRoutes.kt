@@ -42,7 +42,7 @@ class PublishRoutes {
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
                     if (params?.get("twitter") == "1") targets.add("twitter")
                     if (params?.get("linkedin") == "1") targets.add("linkedin")
-                    if (params?.get("feed") == "1" || params?.get("rss") == "1") targets.add("feed")
+                    if (params?.get("feed") == "1") targets.add("feed")
 
                     NewPostRequest(
                         targets = targets.ifEmpty { null },

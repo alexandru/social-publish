@@ -37,7 +37,7 @@ class PublishModule(
     private val twitterConfig: TwitterConfig?,
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
-    private val rssModule: RssModule,
+    private val feedModule: FeedModule,
     private val userUuid: UUID,
 ) {
     /** Broadcast post to multiple platforms */
@@ -49,7 +49,7 @@ class PublishModule(
         val targets =
             (request.targets ?: emptyList()).map {
                 val normalized = it.lowercase()
-                if (normalized == "rss") "feed" else normalized
+                normalized
             }
         if (targets.contains("linkedin") && request.messages.size > 2) {
             return ValidationError(
@@ -76,7 +76,7 @@ class PublishModule(
 
         if (targets.contains("feed")) {
             tasks.add {
-                rssModule.createPosts(
+                feedModule.createPosts(
                     targets = request.targets ?: listOf("feed"),
                     language = request.language,
                     messages = request.messages,

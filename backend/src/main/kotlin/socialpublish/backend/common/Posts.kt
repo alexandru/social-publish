@@ -82,8 +82,6 @@ data class NewFeedPostResponse(
     override val module: String = "feed"
 }
 
-typealias NewRssPostResponse = NewFeedPostResponse
-
 @Serializable
 data class NewTwitterPostResponse(
     val id: String,

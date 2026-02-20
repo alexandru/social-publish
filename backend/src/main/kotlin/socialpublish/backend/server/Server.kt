@@ -55,13 +55,13 @@ import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.FeedRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LinkedInRoutes
 import socialpublish.backend.server.routes.LlmRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.PublishRoutes
-import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
@@ -83,14 +83,14 @@ fun startServer(
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
-    val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
+    val feedModule = FeedModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
     val authRoutes =
         AuthRoutes(config = config.server.auth, usersDb = usersDb, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
-    val rssRoutes = RssRoutes(rssModule)
+    val feedRoutes = FeedRoutes(feedModule)
     val settingsRoutes = SettingsRoutes(usersDb = usersDb)
 
     // Social network modules – instantiated once at startup; per-user config is passed per call.
@@ -410,7 +410,7 @@ fun startServer(
                 // Feed post creation
                 post("/api/feed/post") {
                         val userUuid = call.requireUserUuid() ?: return@post
-                        rssRoutes.createPostRoute(userUuid, call)
+                        feedRoutes.createPostRoute(userUuid, call)
                     }
                     .describe {
                         summary = "Create feed post"
@@ -425,11 +425,6 @@ fun startServer(
                         }
                         responses { documentNewPostResponses<NewFeedPostResponse>() }
                     }
-
-                post("/api/rss/post") {
-                    val userUuid = call.requireUserUuid() ?: return@post
-                    rssRoutes.createPostRoute(userUuid, call)
-                }
 
                 // Social media posts
                 post("/api/bluesky/post") {
@@ -541,7 +536,7 @@ fun startServer(
                                 twitterConfig = userSettings.twitter,
                                 linkedInModule = linkedInModule,
                                 linkedInConfig = userSettings.linkedin,
-                                rssModule = rssModule,
+                                feedModule = feedModule,
                                 userUuid = userUuid,
                             )
                         publishRoutes.broadcastPostRoute(call, publishModule)
@@ -673,7 +668,7 @@ fun startServer(
             // -----------------------------------------------------------
             // Public feed
 
-            get("/feed/{userUuid}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
                     summary = "Get user feed"
                     description = "Generate and retrieve the Atom feed for a specific user"
@@ -703,9 +698,7 @@ fun startServer(
                     }
                 }
 
-            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
-
-            get("/feed/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}/target/{target}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
                     summary = "Get user feed for specific target"
                     description =
@@ -742,9 +735,7 @@ fun startServer(
                     }
                 }
 
-            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
-
-            get("/feed/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+            get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
                 .describe {
                     summary = "Get user feed item by UUID"
                     description = "Retrieve a specific feed item by user UUID and post UUID"
@@ -777,8 +768,6 @@ fun startServer(
                         }
                     }
                 }
-
-            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
 
             get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
                 .describe {

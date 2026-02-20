@@ -7,16 +7,16 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.common.NewFeedPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
-import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.testutils.createTestDatabase
 
-class RssModuleTest {
-    private lateinit var rssModule: RssModule
+class FeedModuleTest {
+    private lateinit var feedModule: FeedModule
     private lateinit var postsDb: PostsDatabase
     private lateinit var filesDb: FilesDatabase
     private val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
@@ -27,7 +27,7 @@ class RssModuleTest {
         val documentsDb = DocumentsDatabase(db)
         postsDb = PostsDatabase(documentsDb)
         filesDb = FilesDatabase(db)
-        rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
     }
 
     @Test
@@ -35,17 +35,17 @@ class RssModuleTest {
         val request =
             NewPostRequest(
                 content = "Test post #kotlin #testing",
-                targets = listOf("rss"),
+                targets = listOf("feed"),
                 link = "https://example.com",
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
         val response = (result as Either.Right).value
-        assertTrue(response is NewRssPostResponse)
-        val rssResponse = response as NewRssPostResponse
-        assertTrue(rssResponse.uri.startsWith("http://localhost:3000/feed/"))
+        assertTrue(response is NewFeedPostResponse)
+        val feedResponse = response as NewFeedPostResponse
+        assertTrue(feedResponse.uri.startsWith("http://localhost:3000/feed/"))
     }
 
     @Test
@@ -53,10 +53,10 @@ class RssModuleTest {
         val request =
             NewPostRequest(
                 content = "Post with #kotlin #programming #test",
-                targets = listOf("rss"),
+                targets = listOf("feed"),
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
@@ -73,9 +73,9 @@ class RssModuleTest {
 
     @Test
     fun `createPost with empty content returns validation error`() = runTest {
-        val request = NewPostRequest(content = "", targets = listOf("rss"))
+        val request = NewPostRequest(content = "", targets = listOf("feed"))
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -86,9 +86,9 @@ class RssModuleTest {
     @Test
     fun `createPost with content too long returns validation error`() = runTest {
         val longContent = "a".repeat(1001)
-        val request = NewPostRequest(content = longContent, targets = listOf("rss"))
+        val request = NewPostRequest(content = longContent, targets = listOf("feed"))
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -100,10 +100,10 @@ class RssModuleTest {
         val request =
             NewPostRequest(
                 content = "<p>Test <strong>content</strong> with &nbsp; HTML</p>",
-                targets = listOf("rss"),
+                targets = listOf("feed"),
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
@@ -119,11 +119,11 @@ class RssModuleTest {
         val request =
             NewPostRequest(
                 content = "Post with image",
-                targets = listOf("rss"),
+                targets = listOf("feed"),
                 images = listOf("image-uuid-1", "image-uuid-2"),
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
 
         assertTrue(result is Either.Right)
 
@@ -137,36 +137,36 @@ class RssModuleTest {
     }
 
     @Test
-    fun `generateRss produces valid Atom feed`() = runTest {
+    fun `generateFeed produces valid Atom feed`() = runTest {
         // Create a test post first
-        val request = NewPostRequest(content = "Test RSS post", targets = listOf("rss"))
-        val createResult = rssModule.createPost(request, testUserUuid)
+        val request = NewPostRequest(content = "Test feed post", targets = listOf("feed"))
+        val createResult = feedModule.createPost(request, testUserUuid)
         assertTrue(createResult is Either.Right)
 
-        val rssContent = rssModule.generateRss(testUserUuid)
+        val feedContent = feedModule.generateFeed(testUserUuid)
 
-        assertTrue(rssContent.contains("<?xml"))
-        assertTrue(rssContent.contains("<feed"))
-        assertTrue(rssContent.contains("Test RSS post"))
-        assertTrue(rssContent.contains("localhost:3000"))
+        assertTrue(feedContent.contains("<?xml"))
+        assertTrue(feedContent.contains("<feed"))
+        assertTrue(feedContent.contains("Test feed post"))
+        assertTrue(feedContent.contains("localhost:3000"))
     }
 
     @Test
-    fun `generateRss item link for local posts includes user UUID`() = runTest {
+    fun `generateFeed item link for local posts includes user UUID`() = runTest {
         val result =
-            rssModule.createPost(NewPostRequest(content = "No external link"), testUserUuid)
+            feedModule.createPost(NewPostRequest(content = "No external link"), testUserUuid)
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
         val postUuid = (posts as Either.Right).value.first().uuid
 
-        val rssContent = rssModule.generateRss(testUserUuid)
-        assertTrue(rssContent.contains("http://localhost:3000/feed/$testUserUuid/$postUuid"))
+        val feedContent = feedModule.generateFeed(testUserUuid)
+        assertTrue(feedContent.contains("http://localhost:3000/feed/$testUserUuid/$postUuid"))
     }
 
     @Test
-    fun `generateRss includes thr in-reply-to for threaded messages`() = runTest {
+    fun `generateFeed includes thr in-reply-to for threaded messages`() = runTest {
         val request =
             NewPostRequest(
                 targets = listOf("feed"),
@@ -176,92 +176,137 @@ class RssModuleTest {
                         NewPostRequestMessage(content = "Reply post"),
                     ),
             )
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
         assertTrue(result is Either.Right)
 
-        val feedContent = rssModule.generateRss(testUserUuid)
+        val feedContent = feedModule.generateFeed(testUserUuid)
         assertTrue(feedContent.contains("thr:in-reply-to"))
     }
 
     @Test
-    fun `generateRss filters by links when filterByLinks is include`() = runTest {
+    fun `generateFeed keeps thread root before reply`() = runTest {
+        val request =
+            NewPostRequest(
+                targets = listOf("feed"),
+                messages =
+                    listOf(
+                        NewPostRequestMessage(content = "Root post in order"),
+                        NewPostRequestMessage(content = "Reply post in order"),
+                    ),
+            )
+        val result = feedModule.createPost(request, testUserUuid)
+        assertTrue(result is Either.Right)
+
+        val feedContent = feedModule.generateFeed(testUserUuid)
+        val rootIndex = feedContent.indexOf("Root post in order")
+        val replyIndex = feedContent.indexOf("Reply post in order")
+
+        assertTrue(rootIndex >= 0)
+        assertTrue(replyIndex >= 0)
+        assertTrue(rootIndex < replyIndex)
+    }
+
+    @Test
+    fun `createPosts returns typed error when database is unavailable`(@TempDir tempDir: Path) =
+        runTest {
+            val db = createTestDatabase(tempDir)
+            val module =
+                FeedModule("http://localhost:3000", PostsDatabase(DocumentsDatabase(db)), filesDb)
+            (db.dataSource as? AutoCloseable)?.close()
+
+            val result =
+                module.createPosts(
+                    targets = listOf("feed"),
+                    language = null,
+                    messages = listOf(NewPostRequestMessage(content = "will fail")),
+                    userUuid = testUserUuid,
+                )
+
+            assertTrue(result is Either.Left)
+            val error = (result as Either.Left).value
+            assertEquals(500, error.status)
+            assertEquals("feed", error.module)
+        }
+
+    @Test
+    fun `generateFeed filters by links when filterByLinks is include`() = runTest {
         // Post with link
         val result1 =
-            rssModule.createPost(
+            feedModule.createPost(
                 NewPostRequest(content = "Post with link", link = "https://example.com"),
                 testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
-            rssModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
+            feedModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "include")
+        val feedContent = feedModule.generateFeed(testUserUuid, filterByLinks = "include")
 
-        assertTrue(rssContent.contains("Post with link"))
-        assertFalse(rssContent.contains("Post without link"))
+        assertTrue(feedContent.contains("Post with link"))
+        assertFalse(feedContent.contains("Post without link"))
     }
 
     @Test
-    fun `generateRss filters by links when filterByLinks is exclude`() = runTest {
+    fun `generateFeed filters by links when filterByLinks is exclude`() = runTest {
         // Post with link
         val result1 =
-            rssModule.createPost(
+            feedModule.createPost(
                 NewPostRequest(content = "Post with link", link = "https://example.com"),
                 testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
-            rssModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
+            feedModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "exclude")
+        val feedContent = feedModule.generateFeed(testUserUuid, filterByLinks = "exclude")
 
-        assertFalse(rssContent.contains("Post with link"))
-        assertTrue(rssContent.contains("Post without link"))
+        assertFalse(feedContent.contains("Post with link"))
+        assertTrue(feedContent.contains("Post without link"))
     }
 
     @Test
-    fun `generateRss filters by target`() = runTest {
+    fun `generateFeed filters by target`() = runTest {
         val result1 =
-            rssModule.createPost(
+            feedModule.createPost(
                 NewPostRequest(content = "Twitter post", targets = listOf("twitter")),
                 testUserUuid,
             )
         assertTrue(result1 is Either.Right)
         val result2 =
-            rssModule.createPost(
+            feedModule.createPost(
                 NewPostRequest(content = "Mastodon post", targets = listOf("mastodon")),
                 testUserUuid,
             )
         assertTrue(result2 is Either.Right)
 
-        val rssContent = rssModule.generateRss(testUserUuid, target = "twitter")
+        val feedContent = feedModule.generateFeed(testUserUuid, target = "twitter")
 
-        assertTrue(rssContent.contains("Twitter post"))
-        assertFalse(rssContent.contains("Mastodon post"))
+        assertTrue(feedContent.contains("Twitter post"))
+        assertFalse(feedContent.contains("Mastodon post"))
     }
 
     @Test
-    fun `getRssItemByUuid returns post when found`() = runTest {
+    fun `getFeedItemByUuid returns post when found`() = runTest {
         val request = NewPostRequest(content = "Test post")
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = feedModule.createPost(request, testUserUuid)
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
         val uuid = (posts as Either.Right).value[0].uuid
 
-        val post = rssModule.getRssItemByUuid(testUserUuid, uuid)
+        val post = feedModule.getFeedItemByUuid(testUserUuid, uuid)
 
         assertNotNull(post)
         assertEquals("Test post", post?.content)
     }
 
     @Test
-    fun `getRssItemByUuid returns null when not found`() = runTest {
-        val post = rssModule.getRssItemByUuid(testUserUuid, "nonexistent-uuid")
+    fun `getFeedItemByUuid returns null when not found`() = runTest {
+        val post = feedModule.getFeedItemByUuid(testUserUuid, "nonexistent-uuid")
 
         assertNull(post)
     }

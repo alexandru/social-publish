@@ -44,13 +44,13 @@ class PublishFormStateTest {
         assertTrue(withMastodon.targets.contains("feed"))
 
         // Remove feed
-        val withoutRss = withMastodon.toggleTarget("feed")
-        assertFalse(withoutRss.targets.contains("feed"))
-        assertTrue(withoutRss.targets.contains("mastodon"))
+        val withoutFeed = withMastodon.toggleTarget("feed")
+        assertFalse(withoutFeed.targets.contains("feed"))
+        assertTrue(withoutFeed.targets.contains("mastodon"))
 
         // Re-add feed
-        val withRssAgain = withoutRss.toggleTarget("feed")
-        assertTrue(withRssAgain.targets.contains("feed"))
+        val withFeedAgain = withoutFeed.toggleTarget("feed")
+        assertTrue(withFeedAgain.targets.contains("feed"))
     }
 
     @Test
