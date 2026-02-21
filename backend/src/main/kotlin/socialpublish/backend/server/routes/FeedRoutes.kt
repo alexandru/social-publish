@@ -12,10 +12,11 @@ import io.ktor.server.response.respondText
 import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.modules.RssModule
+import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.modules.FeedModule
 
-class RssRoutes(private val rssModule: RssModule) {
-    /** Handle RSS post creation HTTP route */
+class FeedRoutes(private val feedModule: FeedModule) {
+    /** Handle feed post creation HTTP route */
     suspend fun createPostRoute(userUuid: UUID, call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
@@ -33,16 +34,20 @@ class RssRoutes(private val rssModule: RssModule) {
                             null
                         }
                     NewPostRequest(
-                        content = params?.get("content") ?: "",
                         targets = params?.getAll("targets"),
-                        link = params?.get("link"),
                         language = params?.get("language"),
-                        cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
-                        images = params?.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params?.get("content") ?: "",
+                                    link = params?.get("link"),
+                                    images = params?.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
-        when (val result = rssModule.createPost(request, userUuid)) {
+        when (val result = feedModule.createPost(request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -54,8 +59,8 @@ class RssRoutes(private val rssModule: RssModule) {
         }
     }
 
-    /** Handle RSS feed generation HTTP route */
-    suspend fun generateRssRoute(call: ApplicationCall) {
+    /** Handle feed generation HTTP route */
+    suspend fun generateFeedRoute(call: ApplicationCall) {
         val userUuid =
             call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 ?: run {
@@ -69,12 +74,12 @@ class RssRoutes(private val rssModule: RssModule) {
         val filterByLinks = call.request.queryParameters["filterByLinks"]
         val filterByImages = call.request.queryParameters["filterByImages"]
 
-        val rssContent = rssModule.generateRss(userUuid, filterByLinks, filterByImages, target)
-        call.respondText(rssContent, ContentType.Application.Rss)
+        val feedContent = feedModule.generateFeed(userUuid, filterByLinks, filterByImages, target)
+        call.respondText(feedContent, ContentType.parse("application/atom+xml"))
     }
 
-    /** Get RSS item by UUID */
-    suspend fun getRssItem(call: ApplicationCall) {
+    /** Get feed item by UUID */
+    suspend fun getFeedItem(call: ApplicationCall) {
         val userUuid =
             call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 ?: run {
@@ -91,7 +96,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     return
                 }
 
-        val post = rssModule.getRssItemByUuid(userUuid, uuid)
+        val post = feedModule.getFeedItemByUuid(userUuid, uuid)
         if (post == null) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse(error = "Post not found"))
             return

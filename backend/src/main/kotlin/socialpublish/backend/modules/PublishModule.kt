@@ -37,16 +37,49 @@ class PublishModule(
     private val twitterConfig: TwitterConfig?,
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
-    private val rssModule: RssModule,
+    private val feedModule: FeedModule,
     private val userUuid: UUID,
 ) {
     /** Broadcast post to multiple platforms */
     suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
-        val targets = request.targets?.map { it.lowercase() } ?: emptyList()
-        val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
+        request.validate()?.let {
+            return it.left()
+        }
 
-        if (targets.contains("rss")) {
-            tasks.add { rssModule.createPost(request, userUuid) }
+        val targets = request.targets.orEmpty().map { it.lowercase() }
+        if (targets.contains("linkedin") && request.messages.size > 2) {
+            return ValidationError(
+                    status = 400,
+                    module = "publish",
+                    errorMessage =
+                        "LinkedIn allows at most two messages (one post and one follow-up comment)",
+                )
+                .left()
+        }
+
+        if (targets.contains("linkedin")) {
+            val mod = linkedInModule
+            val cfg = linkedInConfig
+            if (mod != null && cfg != null) {
+                mod.validateThreadRequest(request)?.let {
+                    return it.left()
+                }
+            }
+        }
+
+        val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
+        val taskTargets = mutableListOf<String>()
+
+        if (targets.contains("feed")) {
+            tasks.add {
+                feedModule.createPosts(
+                    targets = request.targets ?: listOf("feed"),
+                    language = request.language,
+                    messages = request.messages,
+                    userUuid = userUuid,
+                )
+            }
+            taskTargets.add("feed")
         }
 
         if (targets.contains("mastodon")) {
@@ -54,7 +87,7 @@ class PublishModule(
                 val mod = mastodonModule
                 val cfg = mastodonConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request, userUuid)
+                    mod.createThread(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,
@@ -64,6 +97,7 @@ class PublishModule(
                         .left()
                 }
             }
+            taskTargets.add("mastodon")
         }
 
         if (targets.contains("bluesky")) {
@@ -71,7 +105,7 @@ class PublishModule(
                 val mod = blueskyModule
                 val cfg = blueskyConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request, userUuid)
+                    mod.createThread(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,
@@ -81,6 +115,7 @@ class PublishModule(
                         .left()
                 }
             }
+            taskTargets.add("bluesky")
         }
 
         if (targets.contains("twitter")) {
@@ -88,7 +123,7 @@ class PublishModule(
                 val mod = twitterModule
                 val cfg = twitterConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request, userUuid)
+                    mod.createThread(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,
@@ -98,6 +133,7 @@ class PublishModule(
                         .left()
                 }
             }
+            taskTargets.add("twitter")
         }
 
         if (targets.contains("linkedin")) {
@@ -105,7 +141,7 @@ class PublishModule(
                 val mod = linkedInModule
                 val cfg = linkedInConfig
                 if (mod != null && cfg != null) {
-                    mod.createPost(cfg, request, userUuid)
+                    mod.createThread(cfg, request, userUuid)
                 } else {
                     ValidationError(
                             status = 503,
@@ -115,6 +151,7 @@ class PublishModule(
                         .left()
                 }
             }
+            taskTargets.add("linkedin")
         }
 
         val results = coroutineScope { tasks.map { task -> async { task() } }.awaitAll() }
@@ -146,7 +183,9 @@ class PublishModule(
             val successResults =
                 results.filterIsInstance<Either.Right<NewPostResponse>>().map { it.value }
             return buildMap {
-                    targets.zip(successResults).forEach { (target, result) -> put(target, result) }
+                    taskTargets.zip(successResults).forEach { (target, result) ->
+                        put(target, result)
+                    }
                 }
                 .right()
         }

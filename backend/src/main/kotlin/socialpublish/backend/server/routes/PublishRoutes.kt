@@ -12,6 +12,7 @@ import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.CompositeErrorWithDetails
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.modules.PublishModule
 
 class PublishRoutes {
@@ -41,15 +42,19 @@ class PublishRoutes {
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
                     if (params?.get("twitter") == "1") targets.add("twitter")
                     if (params?.get("linkedin") == "1") targets.add("linkedin")
-                    if (params?.get("rss") == "1") targets.add("rss")
+                    if (params?.get("feed") == "1") targets.add("feed")
 
                     NewPostRequest(
-                        content = params?.get("content") ?: "",
                         targets = targets.ifEmpty { null },
-                        link = params?.get("link"),
                         language = params?.get("language"),
-                        cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
-                        images = params?.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params?.get("content") ?: "",
+                                    link = params?.get("link"),
+                                    images = params?.getAll("images"),
+                                )
+                            ),
                     )
                 }
 

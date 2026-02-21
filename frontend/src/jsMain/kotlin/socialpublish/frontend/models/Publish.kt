@@ -6,11 +6,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PublishRequest(
+    val targets: List<String>,
+    val language: String? = null,
+    val messages: List<PublishRequestMessage>,
+)
+
+@Serializable
+data class PublishRequestMessage(
     val content: String,
     val link: String? = null,
-    val targets: List<String>,
-    val images: List<String> = emptyList(),
-    val language: String? = null,
+    val images: List<String>? = null,
 )
 
 @Serializable
@@ -19,6 +24,16 @@ data class ModulePostResponse(
     val uri: String? = null,
     val id: String? = null,
     val cid: String? = null,
+    val postId: String? = null,
+    val messages: List<ModulePostMessage>? = null,
+)
+
+@Serializable
+data class ModulePostMessage(
+    val id: String,
+    val uri: String? = null,
+    val replyToId: String? = null,
+    val commentOnId: String? = null,
 )
 
 @Serializable

@@ -14,60 +14,55 @@ username={{encodeURIComponent(username)}}&password={{encodeURIComponent(password
 }}
 
 ###
-# @name: Test Authentication
-GET {{baseUrl}}/api/protected
+# @name Feed post
+POST {{baseUrl}}/api/feed/post
 Authorization: Bearer {{$global.jwt}}
+Content-Type: application/json
+
+{
+  "targets": ["feed"],
+  "language": "en",
+  "messages": [
+    {
+      "content": "Hello from the feed API",
+      "link": "https://example.com"
+    }
+  ]
+}
 
 ###
-# @name: rss post
-POST {{baseUrl}}/api/rss/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.bsky.app/")}}
-
-###
-# @name: Bluesky Post
-POST {{baseUrl}}/api/bluesky/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.bsky.app/")}}
-
-###
-# @name: Mastodon Post
-POST {{baseUrl}}/api/mastodon/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a link: https://docs.joinmastodon.org/api/")}}
-
-###
-# @name: Post to Multiple baseUrls
+# @name Broadcast thread (Bluesky + Mastodon + Twitter + Feed)
 POST {{baseUrl}}/api/multiple/post
 Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/json
 
-mastodon=1&bluesky=1&rss=1&content={{encodeURIComponent("Hello from the API!")}}
+{
+  "targets": ["bluesky", "mastodon", "twitter", "feed"],
+  "language": "en",
+  "messages": [
+    { "content": "Thread root post" },
+    { "content": "Thread reply #1" },
+    { "content": "Thread reply #2", "link": "https://example.com/thread" }
+  ]
+}
 
 ###
-# @name: Post HTML to Bluesky (1)
-POST {{baseUrl}}/api/bluesky/post
+# @name Broadcast LinkedIn with one follow-up comment
+POST {{baseUrl}}/api/multiple/post
 Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/json
 
-cleanupHtml=1&content={{encodeURIComponent(`<p>This small post, first published on <a href="https://mastodon.social/tags/Mastodon" class="mention hashtag" rel="tag">#<span>Mastodon</span></a>, should be replicated on <a href="https://mastodon.social/tags/Bluesky" class="mention hashtag" rel="tag">#<span>Bluesky</span></a>, <a href="https://mastodon.social/tags/XTwitter" class="mention hashtag" rel="tag">#<span>XTwitter</span></a>, and <a href="https://mastodon.social/tags/LinkedIn" class="mention hashtag" rel="tag">#<span>LinkedIn</span></a>. </p><p>Testing, testing. Please ignore. <a href="https://mastodon.social/tags/op" class="mention hashtag" rel="tag">#<span>op</span></a></p>`)}}
+{
+  "targets": ["linkedin", "feed"],
+  "language": "en",
+  "messages": [
+    { "content": "LinkedIn root post" },
+    { "content": "Link in comments: https://example.com" }
+  ]
+}
 
 ###
-# @name: Post HTML to Bluesky (2)
-POST {{baseUrl}}/api/bluesky/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-cleanupHtml=1&content={{encodeURIComponent(`<p>I like <a href="https://social.alexn.org/tags/Bluesky" class="mention hashtag" rel="tag">#<span>Bluesky</span></a> and I want some of my posts to be replicated there as well. So, this afternoon, I&#39;ve built a web service, to integrate Bluesky with IFTTT short-term and to replace IFTTT long-term. And, holy cow, <a href="https://social.alexn.org/tags/typescript" class="mention hashtag" rel="tag">#<span>typescript</span></a> is productive.</p><p><a href="https://github.com/alexandru/social-publish" target="_blank" rel="nofollow noopener noreferrer" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/alexandru/social-pu</span><span class="invisible">blish</span></a></p><p><a href="https://social.alexn.org/tags/POSE" class="mention hashtag" rel="tag">#<span>POSE</span></a> <a href="https://social.alexn.org/tags/op" class="mention hashtag" rel="tag">#<span>op</span></a></p>`)}}
-
-###
-# @name: Upload Images
+# @name Upload image
 POST {{baseUrl}}/api/files/upload
 Authorization: Bearer {{$global.jwt}}
 Content-Type: multipart/form-data; boundary=WebKitFormBoundary
@@ -75,7 +70,7 @@ Content-Type: multipart/form-data; boundary=WebKitFormBoundary
 --WebKitFormBoundary
 Content-Disposition: form-data; name="altText"
 
-She's Zuzi, my cat 🐱
+My cat
 --WebKitFormBoundary
 Content-Disposition: form-data; name="file"; filename="cat.jpeg"
 Content-Type: image/jpeg
@@ -88,33 +83,17 @@ Content-Type: image/jpeg
 }}
 
 ###
-# @name: Post to Bluesky with Image
-POST {{baseUrl}}/api/bluesky/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
-
-###
-# @name: Post to Mastodon with Image
-POST {{baseUrl}}/api/mastodon/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
-
-###
-# @name: Post to RSS with Image
-POST {{baseUrl}}/api/rss/post
-Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
-
-content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
-
-###
-# @name: Post Image to ALL
+# @name Post with image in messages[0]
 POST {{baseUrl}}/api/multiple/post
 Authorization: Bearer {{$global.jwt}}
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/json
 
-targets=bluesky&targets=linkedin&content={{encodeURIComponent("Hello from the API!\n\nHere\'s a picture:")}}&images={{$global.imageUuid}}
+{
+  "targets": ["bluesky", "mastodon", "twitter", "feed"],
+  "messages": [
+    {
+      "content": "Picture post",
+      "images": ["{{$global.imageUuid}}"]
+    }
+  ]
+}

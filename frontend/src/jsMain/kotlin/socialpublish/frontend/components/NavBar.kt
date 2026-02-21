@@ -8,6 +8,7 @@ import socialpublish.frontend.utils.navigateTo
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasJwtToken()
+    val feedHref = Storage.getJwtUserUuid()?.let { "/feed/$it" }
     var navbarActive by remember { mutableStateOf(false) }
 
     // Normalize currentPath to ignore trailing slashes and query strings so active checks are
@@ -98,6 +99,15 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                                 onClick = { navbarActive = false },
                             )
                         }
+                    }
+
+                    feedHref?.let { href ->
+                        NavItemLink(
+                            href = href,
+                            label = "Feed",
+                            iconClasses = arrayOf("fas", "fa-rss"),
+                            openInNewTab = true,
+                        )
                     }
                 }
 

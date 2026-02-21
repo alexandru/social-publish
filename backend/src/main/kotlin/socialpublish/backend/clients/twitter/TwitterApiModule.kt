@@ -34,7 +34,6 @@ import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import org.jsoup.Jsoup
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
@@ -289,12 +288,15 @@ class TwitterApiModule(
         config: TwitterConfig,
         request: NewPostRequest,
         userUuid: java.util.UUID,
+        replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
             request.validate()?.let { error ->
                 return error.left()
             }
+
+            val message = request.messages.first()
 
             // Get OAuth token
             val token =
@@ -308,8 +310,8 @@ class TwitterApiModule(
 
             // Upload images if present
             val mediaIds = mutableListOf<String>()
-            if (!request.images.isNullOrEmpty()) {
-                for (imageUuid in request.images) {
+            if (!message.images.isNullOrEmpty()) {
+                for (imageUuid in message.images) {
                     when (val result = uploadMedia(config, token, imageUuid, userUuid)) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
@@ -319,11 +321,7 @@ class TwitterApiModule(
 
             // Prepare text
             val text =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content.trim()
-                } + if (request.link != null) "\n\n${request.link}" else ""
+                message.content.trim() + if (message.link != null) "\n\n${message.link}" else ""
 
             logger.info { "Posting to Twitter:\n${text.trim().prependIndent("  |")}" }
 
@@ -332,11 +330,11 @@ class TwitterApiModule(
             val authHeader = signRequest(config, createPostURL, token)
 
             val tweetData =
-                if (mediaIds.isNotEmpty()) {
-                    TwitterCreateRequest(text = text, media = TwitterMedia(media_ids = mediaIds))
-                } else {
-                    TwitterCreateRequest(text = text)
-                }
+                TwitterCreateRequest(
+                    text = text,
+                    media = if (mediaIds.isNotEmpty()) TwitterMedia(media_ids = mediaIds) else null,
+                    reply = replyToId?.let { TwitterReply(in_reply_to_tweet_id = it) },
+                )
 
             val response =
                 httpClient.post(createPostURL) {
@@ -348,7 +346,14 @@ class TwitterApiModule(
 
             if (response.status.value == 201) {
                 val data = response.body<TwitterPostResponse>()
-                NewTwitterPostResponse(id = data.data.id).right()
+                NewTwitterPostResponse(
+                        id = data.data.id,
+                        messages =
+                            listOf(
+                                PublishedMessageResponse(id = data.data.id, replyToId = replyToId)
+                            ),
+                    )
+                    .right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn { "Failed to post to Twitter: ${response.status}, body: $errorBody" }
@@ -371,8 +376,48 @@ class TwitterApiModule(
         }
     }
 
-    private fun cleanupHtml(html: String): String {
-        val text = Jsoup.parse(html).text()
-        return text.replace(Regex("\\s+"), " ").trim()
+    suspend fun createThread(
+        config: TwitterConfig,
+        request: NewPostRequest,
+        userUuid: java.util.UUID,
+    ): ApiResult<NewPostResponse> {
+        request.validate()?.let {
+            return it.left()
+        }
+
+        var previousId: String? = null
+        val messages = mutableListOf<PublishedMessageResponse>()
+        var rootId = ""
+
+        for (message in request.messages) {
+            val singleRequest =
+                NewPostRequest(
+                    targets = request.targets,
+                    language = request.language,
+                    messages = listOf(message),
+                )
+            when (
+                val result =
+                    createPost(
+                        config = config,
+                        request = singleRequest,
+                        userUuid = userUuid,
+                        replyToId = previousId,
+                    )
+            ) {
+                is Either.Left -> return result.value.left()
+                is Either.Right -> {
+                    val response = result.value as NewTwitterPostResponse
+                    if (messages.isEmpty()) {
+                        rootId = response.id
+                    }
+                    val published = response.messages.first()
+                    messages += published
+                    previousId = published.id
+                }
+            }
+        }
+
+        return NewTwitterPostResponse(id = rootId, messages = messages).right()
     }
 }

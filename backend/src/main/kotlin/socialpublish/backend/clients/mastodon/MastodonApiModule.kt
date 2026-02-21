@@ -34,7 +34,9 @@ import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
@@ -197,6 +199,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         config: MastodonConfig,
         request: NewPostRequest,
         userUuid: UUID,
+        replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -204,10 +207,12 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 return error.left()
             }
 
+            val message = request.messages.first()
+
             // Upload images if present
             val mediaIds = mutableListOf<String>()
-            if (!request.images.isNullOrEmpty()) {
-                for (imageUuid in request.images) {
+            if (!message.images.isNullOrEmpty()) {
+                for (imageUuid in message.images) {
                     when (val result = uploadMedia(config, imageUuid, userUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
@@ -216,12 +221,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
             }
 
             // Prepare status content
-            val content =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content
-                } + if (request.link != null) "\n\n${request.link}" else ""
+            val content = message.content + if (message.link != null) "\n\n${message.link}" else ""
 
             logger.info { "Posting to Mastodon:\n${content.trim().prependIndent("  |")}" }
 
@@ -232,6 +232,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                     formParameters =
                         parameters {
                             append("status", content)
+                            replyToId?.let { append("in_reply_to_id", it) }
                             if (mediaIds.isNotEmpty()) {
                                 mediaIds.forEach { append("media_ids[]", it) }
                             }
@@ -243,7 +244,19 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
 
             if (response.status.value == 200) {
                 val data = response.body<MastodonStatusResponse>()
-                NewMastodonPostResponse(uri = data.url).right()
+                NewMastodonPostResponse(
+                        uri = data.url,
+                        id = data.id,
+                        messages =
+                            listOf(
+                                PublishedMessageResponse(
+                                    id = data.id,
+                                    uri = data.url,
+                                    replyToId = replyToId,
+                                )
+                            ),
+                    )
+                    .right()
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn { "Failed to post to Mastodon: ${response.status}, body: $errorBody" }
@@ -266,6 +279,53 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         }
     }
 
+    suspend fun createThread(
+        config: MastodonConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
+        request.validate()?.let {
+            return it.left()
+        }
+
+        var previousId: String? = null
+        val messages = mutableListOf<PublishedMessageResponse>()
+        var rootUri = ""
+        var rootId = ""
+
+        for (message in request.messages) {
+            val singleRequest =
+                NewPostRequest(
+                    targets = request.targets,
+                    language = request.language,
+                    messages = listOf(message),
+                )
+            when (
+                val result =
+                    createPost(
+                        config = config,
+                        request = singleRequest,
+                        userUuid = userUuid,
+                        replyToId = previousId,
+                    )
+            ) {
+                is Either.Left -> return result.value.left()
+                is Either.Right -> {
+                    val response = result.value as NewMastodonPostResponse
+                    if (messages.isEmpty()) {
+                        rootUri = response.uri
+                        rootId = response.id
+                    }
+                    val published = response.messages.first()
+                    messages += published
+                    previousId = published.id
+                }
+            }
+        }
+
+        return NewMastodonPostResponse(uri = rootUri, id = rootId, messages = messages).right()
+    }
+
     /** Handle Mastodon post creation HTTP route */
     suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUID) {
         val request =
@@ -273,16 +333,20 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 ?: run {
                     val params = call.receiveParameters()
                     NewPostRequest(
-                        content = params["content"] ?: "",
                         targets = params.getAll("targets"),
-                        link = params["link"],
                         language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
+                        messages =
+                            listOf(
+                                NewPostRequestMessage(
+                                    content = params["content"] ?: "",
+                                    link = params["link"],
+                                    images = params.getAll("images"),
+                                )
+                            ),
                     )
                 }
 
-        when (val result = createPost(config, request, userUuid)) {
+        when (val result = createThread(config, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -292,15 +356,5 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 )
             }
         }
-    }
-
-    private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
     }
 }

@@ -15,9 +15,11 @@ import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.NewFeedPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.NewRssPostResponse
+import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
@@ -25,61 +27,101 @@ import socialpublish.backend.db.PostsDatabase
 
 private val logger = KotlinLogging.logger {}
 
-class RssModule(
+class FeedModule(
     private val baseUrl: String,
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
-    /** Create a new RSS post */
     suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
         return try {
-            // Validate request
             request.validate()?.let { error ->
                 return error.left()
             }
 
-            val content =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content
-                }
-
-            // Extract hashtags
-            val tags =
-                Regex("""(?:^|\s)(#\w+)""")
-                    .findAll(content)
-                    .map { it.value.trim().substring(1) }
-                    .toList()
-
-            val payload =
-                PostPayload(
-                    content = content,
-                    link = request.link,
-                    language = request.language,
-                    tags = tags,
-                    images = request.images,
-                )
-
-            val post =
-                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse {
-                    throw it
-                }
-
-            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
+            createPosts(
+                targets = request.targets ?: listOf("feed"),
+                language = request.language,
+                messages = request.messages,
+                userUuid = userUuid,
+            )
         } catch (e: Exception) {
-            logger.error(e) { "Failed to save RSS item" }
+            logger.error(e) { "Failed to save feed item" }
             CaughtException(
                     status = 500,
-                    module = "rss",
-                    errorMessage = "Failed to save RSS item: ${e.message}",
+                    module = "feed",
+                    errorMessage = "Failed to save feed item: ${e.message}",
                 )
                 .left()
         }
     }
 
-    /** Generate RSS feed */
-    suspend fun generateRss(
+    suspend fun createPosts(
+        targets: List<String>,
+        language: String?,
+        messages: List<NewPostRequestMessage>,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
+        val normalizedTargets = targets.map { it.lowercase() }
+        var previousPostUuid: String? = null
+        val messageResponses = mutableListOf<PublishedMessageResponse>()
+
+        for (message in messages) {
+            val tags =
+                Regex("""(?:^|\s)(#\w+)""")
+                    .findAll(message.content)
+                    .map { it.value.trim().substring(1) }
+                    .toList()
+
+            val payload =
+                PostPayload(
+                    content = message.content,
+                    link = message.link,
+                    language = language,
+                    tags = tags,
+                    images = message.images,
+                    replyToPostUuid = previousPostUuid,
+                )
+
+            val postResult =
+                try {
+                    postsDb.create(payload, normalizedTargets, userUuid)
+                } catch (e: Exception) {
+                    logger.error(e) { "Failed to save feed item" }
+                    return CaughtException(
+                            status = 500,
+                            module = "feed",
+                            errorMessage = "Failed to save feed item: ${e.message}",
+                        )
+                        .left()
+                }
+            val post =
+                when (postResult) {
+                    is arrow.core.Either.Right -> postResult.value
+                    is arrow.core.Either.Left -> {
+                        logger.error(postResult.value) { "Failed to save feed item" }
+                        return CaughtException(
+                                status = 500,
+                                module = "feed",
+                                errorMessage = "Failed to save feed item",
+                            )
+                            .left()
+                    }
+                }
+            val postUri = "$baseUrl/feed/$userUuid/${post.uuid}"
+            messageResponses +=
+                PublishedMessageResponse(
+                    id = post.uuid,
+                    uri = postUri,
+                    replyToId = previousPostUuid,
+                )
+            previousPostUuid = post.uuid
+        }
+
+        val firstUri = messageResponses.firstOrNull()?.uri ?: "$baseUrl/feed/$userUuid"
+        return NewFeedPostResponse(uri = firstUri, messages = messageResponses).right()
+    }
+
+    suspend fun generateFeed(
         userUuid: UUID,
         filterByLinks: String? = null,
         filterByImages: String? = null,
@@ -87,14 +129,16 @@ class RssModule(
     ): String {
         val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
         val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
+        val threadingNamespace =
+            Namespace.getNamespace("thr", "http://purl.org/syndication/thread/1.0")
 
         val feed =
             SyndFeedImpl().apply {
-                feedType = "rss_2.0"
+                feedType = "atom_1.0"
                 title = "Feed of ${baseUrl.replace(Regex("^https?://"), "")}"
                 link = baseUrl
-                uri = "$baseUrl/rss"
-                description = "Social publish RSS feed"
+                uri = "$baseUrl/feed"
+                description = "Social publish feed"
                 publishedDate = Date()
             }
 
@@ -116,7 +160,7 @@ class RssModule(
                 continue
             }
 
-            val guid = "$baseUrl/rss/$userUuid/${post.uuid}"
+            val guid = "$baseUrl/feed/$userUuid/${post.uuid}"
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
@@ -148,7 +192,7 @@ class RssModule(
                 categoryNames.addAll(post.targets)
             }
 
-            entries +=
+            val entry =
                 SyndEntryImpl().apply {
                     title = post.content
                     link = post.link ?: guid
@@ -167,10 +211,27 @@ class RssModule(
                             }
                     }
 
+                    val foreignMarkupElements = mutableListOf<Element>()
                     if (mediaElements.isNotEmpty()) {
-                        foreignMarkup = mediaElements
+                        foreignMarkupElements.addAll(mediaElements)
+                    }
+
+                    post.replyToPostUuid?.let { parentUuid ->
+                        val parentUri = "$baseUrl/feed/$userUuid/$parentUuid"
+                        foreignMarkupElements +=
+                            Element("in-reply-to", threadingNamespace).apply {
+                                setAttribute("ref", parentUri)
+                                setAttribute("href", parentUri)
+                                setAttribute("type", "text/html")
+                            }
+                    }
+
+                    if (foreignMarkupElements.isNotEmpty()) {
+                        foreignMarkup = foreignMarkupElements
                     }
                 }
+
+            entries += entry
         }
 
         feed.entries = entries
@@ -179,19 +240,7 @@ class RssModule(
         return output.outputString(feed)
     }
 
-    /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(userUuid: UUID, uuid: String): Post? {
+    suspend fun getFeedItemByUuid(userUuid: UUID, uuid: String): Post? {
         return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
-    }
-
-    private fun cleanupHtml(html: String): String {
-        // Basic HTML cleanup - remove tags but keep content
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
     }
 }

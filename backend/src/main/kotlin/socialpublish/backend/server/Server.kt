@@ -55,13 +55,13 @@ import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.FeedRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LinkedInRoutes
 import socialpublish.backend.server.routes.LlmRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
 import socialpublish.backend.server.routes.PublishRoutes
-import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
@@ -83,14 +83,14 @@ fun startServer(
     logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
 
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
-    val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
+    val feedModule = FeedModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
     val authRoutes =
         AuthRoutes(config = config.server.auth, usersDb = usersDb, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
-    val rssRoutes = RssRoutes(rssModule)
+    val feedRoutes = FeedRoutes(feedModule)
     val settingsRoutes = SettingsRoutes(usersDb = usersDb)
 
     // Social network modules – instantiated once at startup; per-user config is passed per call.
@@ -407,14 +407,14 @@ fun startServer(
                         }
                     }
 
-                // RSS post creation
-                post("/api/rss/post") {
+                // Feed post creation
+                post("/api/feed/post") {
                         val userUuid = call.requireUserUuid() ?: return@post
-                        rssRoutes.createPostRoute(userUuid, call)
+                        feedRoutes.createPostRoute(userUuid, call)
                     }
                     .describe {
-                        summary = "Create RSS post"
-                        description = "Create a new RSS feed post"
+                        summary = "Create feed post"
+                        description = "Create a new feed post"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -423,7 +423,7 @@ fun startServer(
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewRssPostResponse>() }
+                        responses { documentNewPostResponses<NewFeedPostResponse>() }
                     }
 
                 // Social media posts
@@ -536,7 +536,7 @@ fun startServer(
                                 twitterConfig = userSettings.twitter,
                                 linkedInModule = linkedInModule,
                                 linkedInConfig = userSettings.linkedin,
-                                rssModule = rssModule,
+                                feedModule = feedModule,
                                 userUuid = userUuid,
                             )
                         publishRoutes.broadcastPostRoute(call, publishModule)
@@ -666,48 +666,50 @@ fun startServer(
             }
 
             // -----------------------------------------------------------
-            // Public RSS feed
+            // Public feed
 
-            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
-                    summary = "Get user RSS feed"
-                    description = "Generate and retrieve the RSS feed for a specific user"
+                    summary = "Get user feed"
+                    description = "Generate and retrieve the Atom feed for a specific user"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description = "UUID of the user whose feed should be returned"
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format"
-                            ContentType.Application.Rss()
+                            description = "Atom feed in XML format"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}/target/{target}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
-                    summary = "Get user RSS feed for specific target"
+                    summary = "Get user feed for specific target"
                     description =
-                        "Generate and retrieve a user's RSS feed filtered by target platform " +
+                        "Generate and retrieve a user's feed filtered by target platform " +
                             "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description = "UUID of the user whose feed should be returned"
                         }
                         path("target") {
                             required = true
@@ -716,29 +718,31 @@ fun startServer(
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format filtered by target"
-                            ContentType.Application.Rss()
+                            description = "Atom feed in XML format filtered by target"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+            get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
                 .describe {
-                    summary = "Get user RSS item by UUID"
-                    description = "Retrieve a specific RSS post/item by user UUID and post UUID"
+                    summary = "Get user feed item by UUID"
+                    description = "Retrieve a specific feed item by user UUID and post UUID"
                     parameters {
                         path("userUuid") {
                             required = true

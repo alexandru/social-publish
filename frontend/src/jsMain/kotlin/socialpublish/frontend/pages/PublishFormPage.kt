@@ -26,6 +26,7 @@ import socialpublish.frontend.models.FileUploadResponse
 import socialpublish.frontend.models.LANGUAGE_OPTIONS
 import socialpublish.frontend.models.ModulePostResponse
 import socialpublish.frontend.models.PublishRequest
+import socialpublish.frontend.models.PublishRequestMessage
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
@@ -80,7 +81,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val configuredServices = Storage.getConfiguredServices()
-    val rssFeedHref = Storage.getJwtUserUuid()?.let { "/rss/$it" } ?: "#"
+    val feedHref = Storage.getJwtUserUuid()?.let { "/feed/$it" } ?: "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -129,11 +130,16 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
 
                 val publishRequest =
                     PublishRequest(
-                        content = formState.content,
-                        link = formState.link.ifEmpty { null },
                         targets = formState.targets.toList(),
-                        images = imageUUIDs,
                         language = formState.language,
+                        messages =
+                            listOf(
+                                PublishRequestMessage(
+                                    content = formState.content,
+                                    link = formState.link.ifEmpty { null },
+                                    images = imageUUIDs,
+                                )
+                            ),
                     )
 
                 when (
@@ -150,8 +156,8 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                                 P { Text("New post created successfully!") }
                                 P {
                                     Text("View the ")
-                                    A(href = rssFeedHref, attrs = { attr("target", "_blank") }) {
-                                        Text("RSS feed?")
+                                    A(href = feedHref, attrs = { attr("target", "_blank") }) {
+                                        Text("feed?")
                                     }
                                 }
                             }
@@ -225,9 +231,9 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                     )
 
                     ServiceCheckboxField(
-                        serviceName = "RSS feed",
-                        checked = formState.targets.contains("rss"),
-                        onCheckedChange = { _ -> formState = formState.toggleTarget("rss") },
+                        serviceName = "Feed",
+                        checked = formState.targets.contains("feed"),
+                        onCheckedChange = { _ -> formState = formState.toggleTarget("feed") },
                     )
                 }
             }

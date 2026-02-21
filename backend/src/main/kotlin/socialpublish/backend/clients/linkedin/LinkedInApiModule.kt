@@ -61,6 +61,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLPathPart
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
@@ -131,7 +132,9 @@ class LinkedInApiModule(
         HttpClient(httpClientEngine) { install(ContentNegotiation) { json(jsonConfig) } }
     }
 
-    companion object {
+    companion object Factory {
+        const val LINKEDIN_COMMENT_MAX_LENGTH = 1250
+
         // Shared JSON instance for serialization/deserialization
         private val jsonConfig = Json {
             ignoreUnknownKeys = true
@@ -160,6 +163,37 @@ class LinkedInApiModule(
             val linkPreviewParser = LinkPreviewParser().bind()
             LinkedInApiModule(baseUrl, documentsDb, filesModule, engine, linkPreviewParser)
         }
+    }
+
+    suspend fun validateThreadRequest(request: NewPostRequest): ValidationError? {
+        if (request.messages.size <= 1) {
+            return null
+        }
+        if (request.messages.size > 2) {
+            return ValidationError(
+                status = 400,
+                module = "linkedin",
+                errorMessage = "LinkedIn supports at most one follow-up message",
+            )
+        }
+        val followUp = request.messages[1]
+        if (followUp.content.length > LINKEDIN_COMMENT_MAX_LENGTH) {
+            return ValidationError(
+                status = 400,
+                module = "linkedin",
+                errorMessage =
+                    "LinkedIn follow-up comment exceeds $LINKEDIN_COMMENT_MAX_LENGTH characters",
+            )
+        }
+        val imageCount = followUp.images?.size ?: 0
+        if (imageCount > 1) {
+            return ValidationError(
+                status = 400,
+                module = "linkedin",
+                errorMessage = "LinkedIn follow-up comment supports at most one image",
+            )
+        }
+        return null
     }
 
     /** Get OAuth callback URL */
@@ -762,13 +796,10 @@ class LinkedInApiModule(
                     is Either.Left -> return result.value.left()
                 }
 
+            val message = request.messages.first()
+
             // Prepare text content
-            val content =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content
-                }
+            val content = message.content
 
             logger.info {
                 "Posting to LinkedIn via UGC API:\n${content.trim().prependIndent("  |")}"
@@ -776,8 +807,8 @@ class LinkedInApiModule(
 
             // Upload images if present
             val uploadedAssets = mutableListOf<UploadedAsset>()
-            if (!request.images.isNullOrEmpty()) {
-                for (imageUuid in request.images) {
+            if (!message.images.isNullOrEmpty()) {
+                for (imageUuid in message.images) {
                     when (
                         val result =
                             uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
@@ -819,8 +850,8 @@ class LinkedInApiModule(
                         )
                     }
                     // If we have a link (and no images), create ARTICLE share
-                    request.link != null -> {
-                        val linkPreview = fetchLinkPreview(request.link)
+                    message.link != null -> {
+                        val linkPreview = fetchLinkPreview(message.link)
                         UgcPostRequest(
                             author = personUrn,
                             lifecycleState = UgcLifecycleState.PUBLISHED,
@@ -834,7 +865,7 @@ class LinkedInApiModule(
                                                 listOf(
                                                     UgcMedia(
                                                         status = "READY",
-                                                        originalUrl = request.link,
+                                                        originalUrl = message.link,
                                                         title =
                                                             linkPreview?.title?.let { UgcText(it) },
                                                         description = UgcText(content.take(256)),
@@ -920,7 +951,11 @@ class LinkedInApiModule(
                                 "unknown"
                             }
                         }
-                NewLinkedInPostResponse(postId = postId).right()
+                NewLinkedInPostResponse(
+                        postId = postId,
+                        messages = listOf(PublishedMessageResponse(id = postId, uri = postId)),
+                    )
+                    .right()
             } else {
                 logger.warn { "Failed to post to LinkedIn via UGC API: ${response.status}" }
                 RequestError(
@@ -942,13 +977,120 @@ class LinkedInApiModule(
         }
     }
 
-    private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
+    private suspend fun createComment(
+        config: LinkedInConfig,
+        rootPostId: String,
+        message: NewPostRequestMessage,
+        userUuid: UUID,
+    ): ApiResult<PublishedMessageResponse> {
+        if (message.content.length > LINKEDIN_COMMENT_MAX_LENGTH) {
+            return ValidationError(
+                    status = 400,
+                    module = "linkedin",
+                    errorMessage =
+                        "LinkedIn follow-up comment exceeds $LINKEDIN_COMMENT_MAX_LENGTH characters",
+                )
+                .left()
+        }
+
+        val (accessToken, personUrn) =
+            when (val result = getValidToken(config, userUuid)) {
+                is Either.Right -> result.value
+                is Either.Left -> return result.value.left()
+            }
+
+        val uploadedAsset =
+            message.images?.firstOrNull()?.let { imageUuid ->
+                when (
+                    val result = uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
+                ) {
+                    is Either.Left -> return result.value.left()
+                    is Either.Right -> result.value
+                }
+            }
+
+        val encodedRootPostId = rootPostId.encodeURLPathPart()
+        if (!uploadedAsset?.description.isNullOrBlank()) {
+            return ValidationError(
+                    status = 400,
+                    module = "linkedin",
+                    errorMessage =
+                        "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
+                )
+                .left()
+        }
+
+        val commentText = message.content + if (message.link != null) "\n\n${message.link}" else ""
+        val requestBody =
+            LinkedInCommentRequest(
+                actor = personUrn,
+                `object` = rootPostId,
+                message = LinkedInCommentMessage(text = commentText),
+                content = uploadedAsset?.let { listOf(LinkedInCommentContent(entity = it.asset)) },
+            )
+
+        val response =
+            httpClient.post("${config.apiBase}/socialActions/$encodedRootPostId/comments") {
+                header("Authorization", "Bearer $accessToken")
+                header("X-Restli-Protocol-Version", "2.0.0")
+                contentType(ContentType.Application.Json)
+                setBody(requestBody)
+            }
+
+        val responseBody = response.bodyAsText()
+        if (response.status !in listOf(HttpStatusCode.Created, HttpStatusCode.OK)) {
+            return RequestError(
+                    status = response.status.value,
+                    module = "linkedin",
+                    errorMessage = "Failed to create comment",
+                    body = ResponseBody(asString = responseBody),
+                )
+                .left()
+        }
+
+        val commentId = response.headers["X-RestLi-Id"] ?: "linkedin-comment"
+        return PublishedMessageResponse(id = commentId, uri = commentId, commentOnId = rootPostId)
+            .right()
+    }
+
+    suspend fun createThread(
+        config: LinkedInConfig,
+        request: NewPostRequest,
+        userUuid: UUID,
+    ): ApiResult<NewPostResponse> {
+        request.validate()?.let {
+            return it.left()
+        }
+        validateThreadRequest(request)?.let {
+            return it.left()
+        }
+
+        val rootRequest =
+            NewPostRequest(
+                targets = request.targets,
+                language = request.language,
+                messages = listOf(request.messages.first()),
+            )
+        val root =
+            when (val result = createPost(config, rootRequest, userUuid)) {
+                is Either.Left -> return result.value.left()
+                is Either.Right -> result.value as NewLinkedInPostResponse
+            }
+
+        if (request.messages.size == 1) {
+            return root.right()
+        }
+
+        val followUp = request.messages[1]
+        val followUpResult = createComment(config, root.postId, followUp, userUuid)
+        return when (followUpResult) {
+            is Either.Left -> followUpResult.value.left()
+            is Either.Right ->
+                NewLinkedInPostResponse(
+                        postId = root.postId,
+                        messages = root.messages + followUpResult.value,
+                    )
+                    .right()
+        }
     }
 }
