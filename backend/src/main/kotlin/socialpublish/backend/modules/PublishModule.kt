@@ -46,11 +46,7 @@ class PublishModule(
             return it.left()
         }
 
-        val targets =
-            (request.targets ?: emptyList()).map {
-                val normalized = it.lowercase()
-                normalized
-            }
+        val targets = request.targets.orEmpty().map { it.lowercase() }
         if (targets.contains("linkedin") && request.messages.size > 2) {
             return ValidationError(
                     status = 400,

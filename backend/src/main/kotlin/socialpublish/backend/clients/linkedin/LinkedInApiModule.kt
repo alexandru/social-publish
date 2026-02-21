@@ -61,6 +61,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLPathPart
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
@@ -1008,7 +1009,7 @@ class LinkedInApiModule(
                 }
             }
 
-        val encodedRootPostId = URLEncoder.encode(rootPostId, "UTF-8")
+        val encodedRootPostId = rootPostId.encodeURLPathPart()
         if (!uploadedAsset?.description.isNullOrBlank()) {
             return ValidationError(
                     status = 400,

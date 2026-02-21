@@ -706,6 +706,103 @@ class LinkedInApiTest {
     }
 
     @Test
+    fun `createThread encodes LinkedIn social action path as URL path segment`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var commentPathPostId: String? = null
+
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/ugcPosts") {
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:with space")
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:with space"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/v2/socialActions/{postId}/comments") {
+                        commentPathPostId = call.parameters["postId"]
+                        call.response.header("X-RestLi-Id", "urn:li:comment:999")
+                        call.respondText("{}", ContentType.Application.Json, HttpStatusCode.Created)
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    targets = listOf("linkedin"),
+                    messages =
+                        listOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(content = "Follow up"),
+                        ),
+                )
+
+            val result = module.createThread(config, request, testUserUuid)
+
+            assertTrue(result is Either.Right)
+            assertEquals("urn:li:ugcPost:with space", commentPathPostId)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
     fun `validates empty content`(@TempDir tempDir: Path) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
