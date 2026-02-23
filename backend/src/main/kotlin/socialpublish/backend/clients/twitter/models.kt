@@ -1,10 +1,12 @@
 package socialpublish.backend.clients.twitter
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable data class TwitterOAuthToken(val key: String, val secret: String)
 
-@Serializable data class TwitterMediaResponse(val media_id_string: String)
+@Serializable
+data class TwitterMediaResponse(@SerialName("media_id_string") val mediaIdString: String)
 
 @Serializable data class TwitterPostResponse(val data: TwitterPostData)
 
@@ -17,6 +19,7 @@ data class TwitterCreateRequest(
     val reply: TwitterReply? = null,
 )
 
-@Serializable data class TwitterMedia(val media_ids: List<String>)
+@Serializable data class TwitterMedia(@SerialName("media_ids") val mediaIds: List<String>)
 
-@Serializable data class TwitterReply(val in_reply_to_tweet_id: String)
+@Serializable
+data class TwitterReply(@SerialName("in_reply_to_tweet_id") val inReplyToTweetId: String)

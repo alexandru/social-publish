@@ -1,5 +1,6 @@
 package socialpublish.backend.clients
 
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -506,7 +507,7 @@ class TwitterApiTest {
                         NewPostRequest(
                             targets = listOf("twitter"),
                             messages =
-                                listOf(
+                                nonEmptyListOf(
                                     socialpublish.backend.common.NewPostRequestMessage(
                                         content = "Root"
                                     ),

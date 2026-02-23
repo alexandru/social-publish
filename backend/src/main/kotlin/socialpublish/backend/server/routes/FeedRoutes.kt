@@ -1,6 +1,7 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -37,7 +38,7 @@ class FeedRoutes(private val feedModule: FeedModule) {
                         targets = params?.getAll("targets"),
                         language = params?.get("language"),
                         messages =
-                            listOf(
+                            nonEmptyListOf(
                                 NewPostRequestMessage(
                                     content = params?.get("content") ?: "",
                                     link = params?.get("link"),

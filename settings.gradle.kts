@@ -33,6 +33,7 @@ dependencyResolutionManagement {
 
             // Arrow libraries
             library("arrow-core", "io.arrow-kt", "arrow-core").versionRef("arrow")
+            library("arrow-core-serialization", "io.arrow-kt", "arrow-core-serialization").versionRef("arrow")
             library("arrow-fx-coroutines", "io.arrow-kt", "arrow-fx-coroutines").versionRef("arrow")
             library("arrow-suspendapp", "io.arrow-kt", "suspendapp-jvm").versionRef("arrow")
             library("arrow-suspendapp-ktor", "io.arrow-kt", "suspendapp-ktor-jvm").versionRef("arrow")
@@ -120,6 +121,7 @@ dependencyResolutionManagement {
                 "arrow",
                 listOf(
                     "arrow-core",
+                    "arrow-core-serialization",
                     "arrow-fx-coroutines",
                     "arrow-suspendapp",
                     "arrow-suspendapp-ktor",

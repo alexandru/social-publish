@@ -55,12 +55,14 @@ import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.BlueskyRoutes
 import socialpublish.backend.server.routes.FeedRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LinkedInRoutes
 import socialpublish.backend.server.routes.LlmRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.MastodonRoutes
 import socialpublish.backend.server.routes.PublishRoutes
 import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
@@ -113,6 +115,8 @@ fun startServer(
     val llmModule = LlmApiModule.resource(filesModule).bind()
     val twitterRoutes = TwitterRoutes(twitterModule, documentsDb)
     val linkedInRoutes = LinkedInRoutes(linkedInModule, documentsDb)
+    val blueskyRoutes = BlueskyRoutes(blueskyModule)
+    val mastodonRoutes = MastodonRoutes(mastodonModule)
     val llmRoutes = LlmRoutes(llmModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
@@ -435,7 +439,7 @@ fun startServer(
                                     call.respondWithNotConfigured("Bluesky")
                                     return@post
                                 }
-                        blueskyModule.createPostRoute(call, blueskyConfig, userUuid)
+                        blueskyRoutes.createPostRoute(userUuid, blueskyConfig, call)
                     }
                     .describe {
                         summary = "Post to Bluesky"
@@ -459,7 +463,7 @@ fun startServer(
                                     call.respondWithNotConfigured("Mastodon")
                                     return@post
                                 }
-                        mastodonModule.createPostRoute(call, mastodonConfig, userUuid)
+                        mastodonRoutes.createPostRoute(userUuid, mastodonConfig, call)
                     }
                     .describe {
                         summary = "Post to Mastodon"

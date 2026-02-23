@@ -1,6 +1,7 @@
 package socialpublish.backend.clients.linkedin
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -533,7 +534,7 @@ class LinkedInApiTest {
                 NewPostRequest(
                     targets = listOf("linkedin"),
                     messages =
-                        listOf(
+                        nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
                             NewPostRequestMessage(content = followUpContent),
                         ),
@@ -639,7 +640,7 @@ class LinkedInApiTest {
                     NewPostRequest(
                         targets = listOf("linkedin"),
                         messages =
-                            listOf(
+                            nonEmptyListOf(
                                 NewPostRequestMessage(content = "Root"),
                                 NewPostRequestMessage(content = "Follow up", link = followUpLink),
                             ),
@@ -692,13 +693,13 @@ class LinkedInApiTest {
                 NewPostRequest(
                     targets = listOf("linkedin"),
                     messages =
-                        listOf(
+                        nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
                             NewPostRequestMessage(content = "Reply", images = listOf("missing")),
                         ),
                 )
 
-            val validation = module.validateThreadRequest(request)
+            val validation = module.validateRequest(request)
             assertNull(validation)
 
             linkedInClient.close()
@@ -787,7 +788,7 @@ class LinkedInApiTest {
                 NewPostRequest(
                     targets = listOf("linkedin"),
                     messages =
-                        listOf(
+                        nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
                             NewPostRequestMessage(content = "Follow up"),
                         ),

@@ -1,12 +1,18 @@
+@file:UseSerializers(NonEmptyListSerializer::class)
+
 package socialpublish.backend.common
 
+import arrow.core.NonEmptyList
+import arrow.core.nonEmptyListOf
+import arrow.core.serialization.NonEmptyListSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 
 @Serializable
 data class NewPostRequest(
     val targets: List<String>? = null,
     val language: String? = null,
-    val messages: List<NewPostRequestMessage>,
+    val messages: NonEmptyList<NewPostRequestMessage>,
 ) {
     constructor(
         content: String,
@@ -17,23 +23,9 @@ data class NewPostRequest(
     ) : this(
         targets = targets,
         language = language,
-        messages = listOf(NewPostRequestMessage(content = content, link = link, images = images)),
+        messages =
+            nonEmptyListOf(NewPostRequestMessage(content = content, link = link, images = images)),
     )
-
-    fun validate(): ValidationError? {
-        if (messages.isEmpty()) {
-            return ValidationError(status = 400, errorMessage = "At least one message is required")
-        }
-        val invalidMessage =
-            messages.firstOrNull { it.content.isEmpty() || it.content.length > 1000 }
-        if (invalidMessage != null) {
-            return ValidationError(
-                status = 400,
-                errorMessage = "Content must be between 1 and 1000 characters",
-            )
-        }
-        return null
-    }
 }
 
 @Serializable

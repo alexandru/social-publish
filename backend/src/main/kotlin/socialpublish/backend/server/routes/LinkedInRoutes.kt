@@ -1,6 +1,7 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.getOrElse
+import arrow.core.nonEmptyListOf
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
@@ -149,7 +150,7 @@ class LinkedInRoutes(
                         targets = params.getAll("targets"),
                         language = params["language"],
                         messages =
-                            listOf(
+                            nonEmptyListOf(
                                 NewPostRequestMessage(
                                     content = params["content"] ?: "",
                                     link = params["link"],

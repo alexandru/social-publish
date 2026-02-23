@@ -1,6 +1,7 @@
 package socialpublish.backend.clients
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.request.receiveParameters
@@ -147,7 +148,7 @@ class MastodonApiTest {
                         NewPostRequest(
                             targets = listOf("mastodon"),
                             messages =
-                                listOf(
+                                nonEmptyListOf(
                                     socialpublish.backend.common.NewPostRequestMessage(
                                         content = "Root"
                                     ),

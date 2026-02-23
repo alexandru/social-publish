@@ -42,10 +42,6 @@ class PublishModule(
 ) {
     /** Broadcast post to multiple platforms */
     suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
-        request.validate()?.let {
-            return it.left()
-        }
-
         val targets = request.targets.orEmpty().map { it.lowercase() }
         if (targets.contains("linkedin") && request.messages.size > 2) {
             return ValidationError(
@@ -56,14 +52,27 @@ class PublishModule(
                 )
                 .left()
         }
-
         if (targets.contains("linkedin")) {
             val mod = linkedInModule
-            val cfg = linkedInConfig
-            if (mod != null && cfg != null) {
-                mod.validateThreadRequest(request)?.let {
+            if (mod != null) {
+                mod.validateRequest(request)?.let {
                     return it.left()
                 }
+            }
+        }
+        if (targets.contains("bluesky")) {
+            blueskyModule?.validateRequest(request)?.let {
+                return it.left()
+            }
+        }
+        if (targets.contains("mastodon")) {
+            mastodonModule?.validateRequest(request)?.let {
+                return it.left()
+            }
+        }
+        if (targets.contains("twitter")) {
+            twitterModule?.validateRequest(request)?.let {
+                return it.left()
             }
         }
 

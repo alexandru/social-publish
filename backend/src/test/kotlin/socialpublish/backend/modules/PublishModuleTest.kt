@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -297,7 +298,7 @@ class PublishModuleTest {
             NewPostRequest(
                 targets = listOf("linkedin", "feed"),
                 messages =
-                    listOf(
+                    nonEmptyListOf(
                         NewPostRequestMessage(content = "Root"),
                         NewPostRequestMessage(content = "Reply #1"),
                         NewPostRequestMessage(content = "Reply #2"),
@@ -331,7 +332,7 @@ class PublishModuleTest {
             NewPostRequest(
                 targets = listOf("linkedin", "feed"),
                 messages =
-                    listOf(
+                    nonEmptyListOf(
                         NewPostRequestMessage(content = "Root"),
                         NewPostRequestMessage(content = "Reply #1"),
                         NewPostRequestMessage(content = "Reply #2"),

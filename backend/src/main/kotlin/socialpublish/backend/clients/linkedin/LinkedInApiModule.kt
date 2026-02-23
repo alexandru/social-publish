@@ -44,6 +44,7 @@ package socialpublish.backend.clients.linkedin
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.nonEmptyListOf
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -71,6 +72,7 @@ import java.util.UUID
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
@@ -127,13 +129,15 @@ class LinkedInApiModule(
     private val filesModule: FilesModule,
     private val httpClientEngine: HttpClientEngine,
     private val linkPreviewParser: LinkPreviewParser,
-) {
+) : SocialMediaApi<LinkedInConfig> {
     private val httpClient: HttpClient by lazy {
         HttpClient(httpClientEngine) { install(ContentNegotiation) { json(jsonConfig) } }
     }
 
     companion object Factory {
         const val LINKEDIN_COMMENT_MAX_LENGTH = 1250
+        private const val LINKEDIN_POST_MAX_LENGTH = 2000
+        private const val LinkLength = 25
 
         // Shared JSON instance for serialization/deserialization
         private val jsonConfig = Json {
@@ -165,10 +169,32 @@ class LinkedInApiModule(
         }
     }
 
-    suspend fun validateThreadRequest(request: NewPostRequest): ValidationError? {
-        if (request.messages.size <= 1) {
-            return null
+    override fun validateRequest(request: NewPostRequest): ValidationError? {
+        val urlRegex = Regex("(https?://\\S+)")
+        request.messages.forEachIndexed { index, message ->
+            if (message.content.isEmpty()) {
+                return ValidationError(
+                    status = 400,
+                    module = "linkedin",
+                    errorMessage = "Content must not be empty",
+                )
+            }
+            val text = message.content + if (message.link != null) "\n\n${message.link}" else ""
+            val links = urlRegex.findAll(text).count()
+            val withoutLinks = urlRegex.replace(text, "")
+            val effectiveLength =
+                withoutLinks.codePointCount(0, withoutLinks.length) + (links * LinkLength)
+            val limit = if (index == 0) LINKEDIN_POST_MAX_LENGTH else LINKEDIN_COMMENT_MAX_LENGTH
+            if (effectiveLength > limit) {
+                val kind = if (index == 0) "post" else "follow-up comment"
+                return ValidationError(
+                    status = 400,
+                    module = "linkedin",
+                    errorMessage = "LinkedIn $kind exceeds $limit characters",
+                )
+            }
         }
+
         if (request.messages.size > 2) {
             return ValidationError(
                 status = 400,
@@ -176,15 +202,11 @@ class LinkedInApiModule(
                 errorMessage = "LinkedIn supports at most one follow-up message",
             )
         }
-        val followUp = request.messages[1]
-        if (followUp.content.length > LINKEDIN_COMMENT_MAX_LENGTH) {
-            return ValidationError(
-                status = 400,
-                module = "linkedin",
-                errorMessage =
-                    "LinkedIn follow-up comment exceeds $LINKEDIN_COMMENT_MAX_LENGTH characters",
-            )
+        if (request.messages.size == 1) {
+            return null
         }
+
+        val followUp = request.messages[1]
         val imageCount = followUp.images?.size ?: 0
         if (imageCount > 1) {
             return ValidationError(
@@ -784,8 +806,7 @@ class LinkedInApiModule(
         userUuid: UUID,
     ): ApiResult<NewPostResponse> {
         return try {
-            // Validate request
-            request.validate()?.let { error ->
+            validateRequest(request)?.let { error ->
                 return error.left()
             }
 
@@ -983,16 +1004,6 @@ class LinkedInApiModule(
         message: NewPostRequestMessage,
         userUuid: UUID,
     ): ApiResult<PublishedMessageResponse> {
-        if (message.content.length > LINKEDIN_COMMENT_MAX_LENGTH) {
-            return ValidationError(
-                    status = 400,
-                    module = "linkedin",
-                    errorMessage =
-                        "LinkedIn follow-up comment exceeds $LINKEDIN_COMMENT_MAX_LENGTH characters",
-                )
-                .left()
-        }
-
         val (accessToken, personUrn) =
             when (val result = getValidToken(config, userUuid)) {
                 is Either.Right -> result.value
@@ -1053,15 +1064,12 @@ class LinkedInApiModule(
             .right()
     }
 
-    suspend fun createThread(
+    override suspend fun createThread(
         config: LinkedInConfig,
         request: NewPostRequest,
         userUuid: UUID,
     ): ApiResult<NewPostResponse> {
-        request.validate()?.let {
-            return it.left()
-        }
-        validateThreadRequest(request)?.let {
+        validateRequest(request)?.let {
             return it.left()
         }
 
@@ -1069,7 +1077,7 @@ class LinkedInApiModule(
             NewPostRequest(
                 targets = request.targets,
                 language = request.language,
-                messages = listOf(request.messages.first()),
+                messages = nonEmptyListOf(request.messages.first()),
             )
         val root =
             when (val result = createPost(config, rootRequest, userUuid)) {

@@ -2,6 +2,7 @@ package socialpublish.backend.clients.mastodon
 
 import arrow.core.Either
 import arrow.core.left
+import arrow.core.nonEmptyListOf
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -19,22 +20,16 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respond
 import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
+import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.common.RequestError
@@ -44,8 +39,12 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class MastodonApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
+class MastodonApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) :
+    SocialMediaApi<MastodonConfig> {
     companion object {
+        private const val MastodonCharacterLimit = 500
+        private const val LinkLength = 25
+
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
                 {
@@ -67,6 +66,31 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         fun resource(filesModule: FilesModule): Resource<MastodonApiModule> = resource {
             MastodonApiModule(filesModule, defaultHttpClient().bind())
         }
+    }
+
+    override fun validateRequest(request: NewPostRequest): ValidationError? {
+        val urlRegex = Regex("(https?://\\S+)")
+        request.messages.forEach { message ->
+            if (message.content.isEmpty()) {
+                return ValidationError(
+                    status = 400,
+                    module = "mastodon",
+                    errorMessage = "Content must not be empty",
+                )
+            }
+            val text = message.content + if (message.link != null) "\n\n${message.link}" else ""
+            val links = urlRegex.findAll(text).count()
+            val withoutLinks = urlRegex.replace(text, "")
+            val length = withoutLinks.codePointCount(0, withoutLinks.length) + (links * LinkLength)
+            if (length > MastodonCharacterLimit) {
+                return ValidationError(
+                    status = 400,
+                    module = "mastodon",
+                    errorMessage = "Mastodon post exceeds $MastodonCharacterLimit characters",
+                )
+            }
+        }
+        return null
     }
 
     private fun mediaUrlV2(config: MastodonConfig) = "${config.host}/api/v2/media"
@@ -202,8 +226,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
-            // Validate request
-            request.validate()?.let { error ->
+            validateRequest(request)?.let { error ->
                 return error.left()
             }
 
@@ -279,12 +302,12 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         }
     }
 
-    suspend fun createThread(
+    override suspend fun createThread(
         config: MastodonConfig,
         request: NewPostRequest,
         userUuid: UUID,
     ): ApiResult<NewPostResponse> {
-        request.validate()?.let {
+        validateRequest(request)?.let {
             return it.left()
         }
 
@@ -298,7 +321,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 NewPostRequest(
                     targets = request.targets,
                     language = request.language,
-                    messages = listOf(message),
+                    messages = nonEmptyListOf(message),
                 )
             when (
                 val result =
@@ -324,37 +347,5 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
         }
 
         return NewMastodonPostResponse(uri = rootUri, id = rootId, messages = messages).right()
-    }
-
-    /** Handle Mastodon post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUID) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        targets = params.getAll("targets"),
-                        language = params["language"],
-                        messages =
-                            listOf(
-                                NewPostRequestMessage(
-                                    content = params["content"] ?: "",
-                                    link = params["link"],
-                                    images = params.getAll("images"),
-                                )
-                            ),
-                    )
-                }
-
-        when (val result = createThread(config, request, userUuid)) {
-            is Either.Right -> call.respond(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
-        }
     }
 }

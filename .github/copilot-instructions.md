@@ -112,12 +112,18 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 - Avoid public inner classes unless they are part of a sealed class hierarchy (for union types). Prefer top-level classes and functions.
 - Use packages for namespacing; avoid unnecessary nesting of classes.
 - Prefer data classes and other FP techniques for modeling data over ad-hoc OOP wrappers.
+- Prefer type-level invariants over runtime checks ("parse, don't validate"). Model invalid states out of existence with types (e.g., `NonEmptyList`, sealed hierarchies, dedicated value types).
+- Prefer type-safe JSON models (`@Serializable` data classes) for request/response payloads instead of ad-hoc/dynamic JSON construction and parsing.
 - Avoid side-effectful APIs in production code unless wrapped in a `suspend` function or managed by Arrow's `Resource`.
 - Prefer encapsulated, self-contained components (e.g., each social integration in its own package).
 - Avoid project-wide MVC-style grouping; instead, group by feature/component. Prefer colocating types with the feature that uses them.
   - Don't introduce silly `models/` or `views/` packages
 - Components should be modular enough to be extracted into their own sub-projects or libraries.
 - Use good imports (no fully qualified names).
+- Keep clear layer boundaries:
+  - `modules` must not depend on Ktor or `ApplicationCall`/routing/request/response types.
+  - Ktor HTTP concerns (request parsing, content type branching, status mapping, response writing) belong in `backend/server/routes/*Routes.kt`.
+  - `Server.kt` should stay clean and focused on wiring/composition (plugins, module construction, route registration), not route handler logic.
 - Write comments, but keep them meaningful:
   - No comments on what the Agent did.
   - No comments on what function signatures already say.

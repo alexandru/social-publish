@@ -32,12 +32,24 @@ class FeedModule(
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
+    private fun validateMessages(messages: List<NewPostRequestMessage>): CaughtException? {
+        val invalid = messages.any { it.content.isEmpty() || it.content.length > 1000 }
+        return if (invalid) {
+            CaughtException(
+                status = 400,
+                module = "feed",
+                errorMessage = "Content must be between 1 and 1000 characters",
+            )
+        } else {
+            null
+        }
+    }
+
     suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
         return try {
-            request.validate()?.let { error ->
-                return error.left()
+            validateMessages(request.messages)?.let {
+                return it.left()
             }
-
             createPosts(
                 targets = request.targets ?: listOf("feed"),
                 language = request.language,
@@ -61,6 +73,9 @@ class FeedModule(
         messages: List<NewPostRequestMessage>,
         userUuid: UUID,
     ): ApiResult<NewPostResponse> {
+        validateMessages(messages)?.let {
+            return it.left()
+        }
         val normalizedTargets = targets.map { it.lowercase() }
         var previousPostUuid: String? = null
         val messageResponses = mutableListOf<PublishedMessageResponse>()

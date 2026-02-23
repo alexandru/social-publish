@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import java.nio.file.Path
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.*
@@ -171,7 +172,7 @@ class FeedModuleTest {
             NewPostRequest(
                 targets = listOf("feed"),
                 messages =
-                    listOf(
+                    nonEmptyListOf(
                         NewPostRequestMessage(content = "Root post"),
                         NewPostRequestMessage(content = "Reply post"),
                     ),
@@ -189,7 +190,7 @@ class FeedModuleTest {
             NewPostRequest(
                 targets = listOf("feed"),
                 messages =
-                    listOf(
+                    nonEmptyListOf(
                         NewPostRequestMessage(content = "Root post in order"),
                         NewPostRequestMessage(content = "Reply post in order"),
                     ),

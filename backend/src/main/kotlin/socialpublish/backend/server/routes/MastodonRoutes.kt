@@ -9,22 +9,22 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import socialpublish.backend.common.CompositeError
-import socialpublish.backend.common.CompositeErrorWithDetails
+import java.util.UUID
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
-import socialpublish.backend.modules.PublishModule
 
-class PublishRoutes {
-    /** Handle broadcast POST HTTP route */
-    suspend fun broadcastPostRoute(call: ApplicationCall, publishModule: PublishModule) {
+class MastodonRoutes(private val mastodonModule: MastodonApiModule) {
+    suspend fun createPostRoute(
+        userUuid: UUID,
+        mastodonConfig: MastodonConfig,
+        call: ApplicationCall,
+    ) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
-                    // If JSON receive failed, try form parameters. To avoid
-                    // RequestAlreadyConsumedException,
-                    // only attempt to read form parameters if content type is form data.
                     val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
                     val contentType = contentTypeHeader?.let { ContentType.parse(it) }
                     val params =
@@ -36,17 +36,8 @@ class PublishRoutes {
                         } else {
                             null
                         }
-                    val targets = mutableListOf<String>()
-                    params?.getAll("targets")?.let { targets.addAll(it) }
-
-                    if (params?.get("mastodon") == "1") targets.add("mastodon")
-                    if (params?.get("bluesky") == "1") targets.add("bluesky")
-                    if (params?.get("twitter") == "1") targets.add("twitter")
-                    if (params?.get("linkedin") == "1") targets.add("linkedin")
-                    if (params?.get("feed") == "1") targets.add("feed")
-
                     NewPostRequest(
-                        targets = targets.ifEmpty { null },
+                        targets = params?.getAll("targets"),
                         language = params?.get("language"),
                         messages =
                             nonEmptyListOf(
@@ -59,20 +50,14 @@ class PublishRoutes {
                     )
                 }
 
-        when (val result = publishModule.broadcastPost(request)) {
+        when (val result = mastodonModule.createThread(mastodonConfig, request, userUuid)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
-                val payload =
-                    if (error is CompositeError) {
-                        CompositeErrorWithDetails(
-                            error = error.errorMessage,
-                            responses = error.responses,
-                        )
-                    } else {
-                        ErrorResponse(error = error.errorMessage)
-                    }
-                call.respond(HttpStatusCode.fromValue(error.status), payload)
+                call.respond(
+                    HttpStatusCode.fromValue(error.status),
+                    ErrorResponse(error = error.errorMessage),
+                )
             }
         }
     }

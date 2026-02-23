@@ -1,10 +1,9 @@
-@file:Suppress("PropertyName")
-
 package socialpublish.backend.clients.twitter
 
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.nonEmptyListOf
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -34,6 +33,7 @@ import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.modules.FilesModule
@@ -46,8 +46,11 @@ class TwitterApiModule(
     private val documentsDb: DocumentsDatabase,
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
-) {
+) : SocialMediaApi<TwitterConfig> {
     companion object {
+        private const val TwitterCharacterLimit = 280
+        private const val LinkLength = 25
+
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
                 {
@@ -73,6 +76,32 @@ class TwitterApiModule(
         ): Resource<TwitterApiModule> = resource {
             TwitterApiModule(baseUrl, documentsDb, filesModule, defaultHttpClient().bind())
         }
+    }
+
+    override fun validateRequest(request: NewPostRequest): ValidationError? {
+        val urlRegex = Regex("(https?://\\S+)")
+        request.messages.forEach { message ->
+            if (message.content.isEmpty()) {
+                return ValidationError(
+                    status = 400,
+                    module = "twitter",
+                    errorMessage = "Content must not be empty",
+                )
+            }
+            val text =
+                message.content.trim() + if (message.link != null) "\n\n${message.link}" else ""
+            val links = urlRegex.findAll(text).count()
+            val withoutLinks = urlRegex.replace(text, "")
+            val length = withoutLinks.codePointCount(0, withoutLinks.length) + (links * LinkLength)
+            if (length > TwitterCharacterLimit) {
+                return ValidationError(
+                    status = 400,
+                    module = "twitter",
+                    errorMessage = "Twitter post exceeds $TwitterCharacterLimit characters",
+                )
+            }
+        }
+        return null
     }
 
     private class TwitterApi(private val config: TwitterConfig) : DefaultApi10a() {
@@ -244,7 +273,7 @@ class TwitterApiModule(
 
             if (response.status.value == 200) {
                 val data = response.body<TwitterMediaResponse>()
-                val mediaId = data.media_id_string
+                val mediaId = data.mediaIdString
 
                 // Add alt text if present
                 if (!file.altText.isNullOrEmpty()) {
@@ -291,8 +320,7 @@ class TwitterApiModule(
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
-            // Validate request
-            request.validate()?.let { error ->
+            validateRequest(request)?.let { error ->
                 return error.left()
             }
 
@@ -332,8 +360,8 @@ class TwitterApiModule(
             val tweetData =
                 TwitterCreateRequest(
                     text = text,
-                    media = if (mediaIds.isNotEmpty()) TwitterMedia(media_ids = mediaIds) else null,
-                    reply = replyToId?.let { TwitterReply(in_reply_to_tweet_id = it) },
+                    media = if (mediaIds.isNotEmpty()) TwitterMedia(mediaIds = mediaIds) else null,
+                    reply = replyToId?.let { TwitterReply(inReplyToTweetId = it) },
                 )
 
             val response =
@@ -376,12 +404,12 @@ class TwitterApiModule(
         }
     }
 
-    suspend fun createThread(
+    override suspend fun createThread(
         config: TwitterConfig,
         request: NewPostRequest,
         userUuid: java.util.UUID,
     ): ApiResult<NewPostResponse> {
-        request.validate()?.let {
+        validateRequest(request)?.let {
             return it.left()
         }
 
@@ -394,7 +422,7 @@ class TwitterApiModule(
                 NewPostRequest(
                     targets = request.targets,
                     language = request.language,
-                    messages = listOf(message),
+                    messages = nonEmptyListOf(message),
                 )
             when (
                 val result =

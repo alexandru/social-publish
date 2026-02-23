@@ -1,6 +1,7 @@
 package socialpublish.backend.clients
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.request.receiveStream
@@ -577,7 +578,7 @@ class BlueskyApiTest {
                         NewPostRequest(
                             targets = listOf("bluesky"),
                             messages =
-                                listOf(
+                                nonEmptyListOf(
                                     NewPostRequestMessage(content = "Root"),
                                     NewPostRequestMessage(content = "Reply"),
                                 ),
