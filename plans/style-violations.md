@@ -80,15 +80,15 @@ After all types are moved, the three source files in `models/` are deleted, and 
 ## Checklist
 
 - [x] Save this plan to `./plans/style-violations.md`
-- [ ] A1 – Fix FQ names in `backend/common/urls.kt`
-- [ ] A2 – Fix FQ names in `backend/clients/twitter/TwitterApiModule.kt`
-- [ ] A3 – Fix FQ names in `backend/db/FilesDatabase.kt`
-- [ ] A4 – Fix FQ names in `backend/db/migrations.kt`
-- [ ] A5 – Fix FQ names in `backend/db/UsersDatabase.kt`
-- [ ] A6 – Fix FQ name in `frontend/pages/AccountPage.kt`
-- [ ] B1 – Move `Auth.kt` types out of `models/`
-- [ ] B2 – Move `Publish.kt` types out of `models/`
-- [ ] B3 – Move `data.kt` content out of `models/`
-- [ ] Delete `frontend/models/` directory
-- [ ] Update all import references to removed `models/` types
-- [ ] Run `make format` and `make test` to verify correctness
+- [x] A1 – Fix FQ names in `backend/common/urls.kt`
+- [x] A2 – Fix FQ names in `backend/clients/twitter/TwitterApiModule.kt`
+- [x] A3 – Fix FQ names in `backend/db/FilesDatabase.kt`
+- [x] A4 – Fix FQ names in `backend/db/migrations.kt`
+- [x] A5 – Fix FQ names in `backend/db/UsersDatabase.kt`
+- [x] A6 – Fix FQ name in `frontend/pages/AccountPage.kt`
+- [x] B1 – Move `Auth.kt` types out of `models/`
+- [x] B2 – Move `Publish.kt` types out of `models/`
+- [x] B3 – Move `data.kt` content out of `models/`
+- [x] Delete `frontend/models/` directory
+- [x] Update all import references to removed `models/` types
+- [x] Run `make format` and `make test` to verify correctness

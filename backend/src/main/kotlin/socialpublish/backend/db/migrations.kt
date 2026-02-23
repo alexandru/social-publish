@@ -1,6 +1,7 @@
 package socialpublish.backend.db
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -218,7 +219,7 @@ val migrations: List<Migration> =
                 ) {
                     setString(1, uuid.toString())
                     setString(2, "admin")
-                    setNull(3, java.sql.Types.VARCHAR)
+                    setNull(3, Types.VARCHAR)
                     setLong(4, now)
                     setLong(5, now)
                     execute()

@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.AddImageButton
 import socialpublish.frontend.components.Authorize
@@ -22,16 +23,78 @@ import socialpublish.frontend.components.SelectedImage
 import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
 import socialpublish.frontend.components.TextInputField
-import socialpublish.frontend.models.FileUploadResponse
-import socialpublish.frontend.models.LANGUAGE_OPTIONS
-import socialpublish.frontend.models.ModulePostResponse
-import socialpublish.frontend.models.PublishRequest
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.navigateTo
+
+@Serializable internal data class FileUploadResponse(val uuid: String)
+
+@Serializable
+internal data class PublishRequest(
+    val content: String,
+    val link: String? = null,
+    val targets: List<String>,
+    val images: List<String> = emptyList(),
+    val language: String? = null,
+)
+
+@Serializable
+internal data class ModulePostResponse(
+    val module: String,
+    val uri: String? = null,
+    val id: String? = null,
+    val cid: String? = null,
+)
+
+internal val LANGUAGE_OPTIONS =
+    listOf(
+        SelectOption("English", "en"),
+        SelectOption("Arabic", "ar"),
+        SelectOption("Basque", "eu"),
+        SelectOption("Bengali", "bn"),
+        SelectOption("Bulgarian", "bg"),
+        SelectOption("Catalan", "ca"),
+        SelectOption("Chinese", "zh"),
+        SelectOption("Croatian", "hr"),
+        SelectOption("Czech", "cs"),
+        SelectOption("Danish", "da"),
+        SelectOption("Dutch", "nl"),
+        SelectOption("Estonian", "et"),
+        SelectOption("Finnish", "fi"),
+        SelectOption("French", "fr"),
+        SelectOption("Galician", "gl"),
+        SelectOption("German", "de"),
+        SelectOption("Greek", "el"),
+        SelectOption("Hindi", "hi"),
+        SelectOption("Hungarian", "hu"),
+        SelectOption("Icelandic", "is"),
+        SelectOption("Indonesian", "id"),
+        SelectOption("Irish", "ga"),
+        SelectOption("Italian", "it"),
+        SelectOption("Japanese", "ja"),
+        SelectOption("Korean", "ko"),
+        SelectOption("Latvian", "lv"),
+        SelectOption("Lithuanian", "lt"),
+        SelectOption("Maltese", "mt"),
+        SelectOption("Norwegian", "no"),
+        SelectOption("Polish", "pl"),
+        SelectOption("Portuguese", "pt"),
+        SelectOption("Punjabi", "pa"),
+        SelectOption("Romanian", "ro"),
+        SelectOption("Russian", "ru"),
+        SelectOption("Serbian", "sr"),
+        SelectOption("Slovak", "sk"),
+        SelectOption("Slovenian", "sl"),
+        SelectOption("Spanish", "es"),
+        SelectOption("Swedish", "sv"),
+        SelectOption("Thai", "th"),
+        SelectOption("Turkish", "tr"),
+        SelectOption("Ukrainian", "uk"),
+        SelectOption("Vietnamese", "vi"),
+    )
 
 @Composable
 fun PublishFormPage() {
