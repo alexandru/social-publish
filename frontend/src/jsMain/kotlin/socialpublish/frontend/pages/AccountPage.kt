@@ -15,9 +15,9 @@ import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
-import socialpublish.frontend.models.ConfiguredServices
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
@@ -403,7 +403,7 @@ fun AccountPage() {
 // ---------------------------------------------------------------------------
 
 private fun AccountSettingsView.toConfiguredServices() =
-    socialpublish.frontend.models.ConfiguredServices(
+    ConfiguredServices(
         mastodon = mastodon != null,
         bluesky = bluesky != null,
         twitter = false,

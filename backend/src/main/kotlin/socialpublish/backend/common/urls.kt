@@ -1,6 +1,7 @@
 package socialpublish.backend.common
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.net.URI
 
 private val logger = KotlinLogging.logger {}
 
@@ -14,9 +15,9 @@ data class ParsedUrl(val scheme: String, val host: String, val port: Int?) {
 
 fun parseUrl(url: String): ParsedUrl? =
     try {
-        var uri = java.net.URI(url)
+        var uri = URI(url)
         if (uri.scheme == null) {
-            uri = java.net.URI("https://$url")
+            uri = URI("https://$url")
         }
         val scheme = uri.scheme
         val host = uri.host
