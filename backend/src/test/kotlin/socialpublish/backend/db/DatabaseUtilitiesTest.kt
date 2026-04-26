@@ -133,15 +133,12 @@ class DatabaseUtilitiesTest {
                 }
 
                 // Try to insert duplicate email
-                val result =
-                    db.transactionForUpdates {
-                        query(
-                            "INSERT INTO test_unique (id, email) VALUES (2, 'test@example.com')"
-                        ) {
-                            execute()
-                            Unit
-                        }
+                val result = db.transactionForUpdates {
+                    query("INSERT INTO test_unique (id, email) VALUES (2, 'test@example.com')") {
+                        execute()
+                        Unit
                     }
+                }
 
                 // Should return Left with UniqueViolation
                 assertTrue(result.isLeft())
@@ -166,14 +163,13 @@ class DatabaseUtilitiesTest {
                 }
             }
 
-            val result =
-                db.transactionForUpdates {
-                    query("INSERT INTO test_success (id, value) VALUES (1, 'success')") {
-                        execute()
-                        Unit
-                    }
-                    "completed"
+            val result = db.transactionForUpdates {
+                query("INSERT INTO test_success (id, value) VALUES (1, 'success')") {
+                    execute()
+                    Unit
                 }
+                "completed"
+            }
 
             assertTrue(result.isRight())
             assertEquals("completed", result.getOrElse { "failed" })
@@ -376,12 +372,11 @@ class DatabaseUtilitiesTest {
             }
 
             // Third transaction to verify
-            val count =
-                db.transaction {
-                    query("SELECT COUNT(*) as cnt FROM test_multi") {
-                        executeQuery().safe().firstOrNull { it.getInt("cnt") }
-                    }
+            val count = db.transaction {
+                query("SELECT COUNT(*) as cnt FROM test_multi") {
+                    executeQuery().safe().firstOrNull { it.getInt("cnt") }
                 }
+            }
 
             assertEquals(2, count)
         }

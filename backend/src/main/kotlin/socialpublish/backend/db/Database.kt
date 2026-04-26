@@ -300,14 +300,13 @@ suspend fun <A> Database.query(
  * val names = resultSet.safe().toList { rs -> rs.getString("name") }
  * ```
  */
-fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> =
-    resultSet.use {
-        val result = mutableListOf<A>()
-        while (it.next()) {
-            result.add(f(it))
-        }
-        result
+fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> = resultSet.use {
+    val result = mutableListOf<A>()
+    while (it.next()) {
+        result.add(f(it))
     }
+    result
+}
 
 /**
  * Extracts the first row from a ResultSet, or null if empty.
@@ -319,8 +318,9 @@ fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> =
  * }
  * ```
  */
-fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? =
-    resultSet.use { if (resultSet.next()) f(resultSet) else null }
+fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? = resultSet.use {
+    if (resultSet.next()) f(resultSet) else null
+}
 
 /**
  * Runs all pending database migrations.

@@ -46,33 +46,32 @@ class DocumentsDatabase(private val db: Database) {
         tags: List<Tag> = emptyList(),
     ): Either<DBException, Document> = either {
         db.transaction {
-            val existing =
-                searchKey?.let { key ->
-                    val docData =
-                        query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
-                            setString(1, key)
-                            setString(2, userUuid.toString())
-                            executeQuery().safe().firstOrNull { rs ->
-                                Triple(
-                                    rs.getString("uuid"),
-                                    rs.getString("payload"),
-                                    Instant.ofEpochMilli(rs.getLong("created_at")),
-                                )
-                            }
+            val existing = searchKey?.let { key ->
+                val docData =
+                    query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
+                        setString(1, key)
+                        setString(2, userUuid.toString())
+                        executeQuery().safe().firstOrNull { rs ->
+                            Triple(
+                                rs.getString("uuid"),
+                                rs.getString("payload"),
+                                Instant.ofEpochMilli(rs.getLong("created_at")),
+                            )
                         }
-                    docData?.let { (uuid, existingPayload, createdAt) ->
-                        val tagsForRow = getDocumentTags(uuid)
-                        Document(
-                            uuid = uuid,
-                            kind = kind,
-                            payload = existingPayload,
-                            searchKey = key,
-                            tags = tagsForRow,
-                            userUuid = userUuid,
-                            createdAt = createdAt,
-                        )
                     }
+                docData?.let { (uuid, existingPayload, createdAt) ->
+                    val tagsForRow = getDocumentTags(uuid)
+                    Document(
+                        uuid = uuid,
+                        kind = kind,
+                        payload = existingPayload,
+                        searchKey = key,
+                        tags = tagsForRow,
+                        userUuid = userUuid,
+                        createdAt = createdAt,
+                    )
                 }
+            }
 
             if (existing != null) {
                 val updated =

@@ -122,19 +122,18 @@ class PublishModule(
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {
             val status = errors.maxOf { it.value.status }
-            val responsePayloads =
-                results.map { result ->
-                    when (result) {
-                        is Either.Right ->
-                            CompositeErrorResponse(type = "success", result = result.value)
-                        is Either.Left ->
-                            CompositeErrorResponse(
-                                type = "error",
-                                module = result.value.module,
-                                error = result.value.errorMessage,
-                            )
-                    }
+            val responsePayloads = results.map { result ->
+                when (result) {
+                    is Either.Right ->
+                        CompositeErrorResponse(type = "success", result = result.value)
+                    is Either.Left ->
+                        CompositeErrorResponse(
+                            type = "error",
+                            module = result.value.module,
+                            error = result.value.errorMessage,
+                        )
                 }
+            }
             return CompositeError(
                     module = "publish",
                     errorMessage = "Failed to publish to some platforms",
