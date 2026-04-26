@@ -2,6 +2,7 @@ package socialpublish.frontend.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import kotlinx.browser.window
 import org.jetbrains.compose.web.dom.*
 import org.w3c.dom.events.KeyboardEvent
 
@@ -41,8 +42,8 @@ fun ModalMessage(
                     onDisable()
                 }
             }
-            kotlinx.browser.window.addEventListener("keydown", handleKeyDown)
-            onDispose { kotlinx.browser.window.removeEventListener("keydown", handleKeyDown) }
+            window.addEventListener("keydown", handleKeyDown)
+            onDispose { window.removeEventListener("keydown", handleKeyDown) }
         } else {
             onDispose {}
         }

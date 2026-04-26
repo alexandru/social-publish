@@ -1,6 +1,7 @@
 package socialpublish.frontend.pages
 
 import androidx.compose.runtime.*
+import kotlin.js.Date
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -188,7 +189,7 @@ fun AccountPage() {
                                     if (data.hasAuthorization) {
                                         "Connected" +
                                             (data.createdAt?.let {
-                                                " at ${kotlin.js.Date(it).toLocaleString()}"
+                                                " at ${Date(it).toLocaleString()}"
                                             } ?: "")
                                     } else "Not connected"
                             )
@@ -223,7 +224,7 @@ fun AccountPage() {
                                     if (data.hasAuthorization) {
                                         "Connected" +
                                             (data.createdAt?.let {
-                                                " at ${kotlin.js.Date(it).toLocaleString()}"
+                                                " at ${Date(it).toLocaleString()}"
                                             } ?: "")
                                     } else "Not connected"
                             )
