@@ -269,7 +269,7 @@ class UsersDatabase(private val db: Database) {
                 when (val error = result.value) {
                     is SqlUpdateException.UniqueViolation ->
                         UpdateUsernameResult.UsernameAlreadyExists
-                    else -> throw DBException(error.message ?: "Failed to update username", error)
+                    else -> raise(DBException(error.message ?: "Failed to update username", error))
                 }
             is Either.Right -> result.value
         }
