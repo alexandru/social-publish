@@ -542,6 +542,34 @@ class UsersDatabaseTest {
     }
 
     @Test
+    fun `updateUsername should succeed when current and new usernames are the same`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val usersDb = UsersDatabase(db)
+
+            val createResult =
+                usersDb.createUser(username = "sameuser", password = "password").getOrElse {
+                    throw it
+                }
+            assertTrue(createResult is CreateResult.Created)
+            val originalUser = createResult.value
+
+            val updateResult = usersDb.updateUsername("sameuser", "sameuser").getOrElse { throw it }
+
+            assertTrue(updateResult is UpdateUsernameResult.Success)
+
+            val found = usersDb.findByUsername("sameuser").getOrElse { throw it }
+            assertNotNull(found)
+            assertEquals(originalUser.uuid, found.uuid)
+            assertEquals("sameuser", found.username)
+        }
+    }
+
+    @Test
     fun `CreateResult toNullable should work correctly`() {
         val user =
             User(

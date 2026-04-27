@@ -226,40 +226,52 @@ class UsersDatabase(private val db: Database) {
         currentUsername: String,
         newUsername: String,
     ): Either<DBException, UpdateUsernameResult> = either {
-        db.transaction {
-            val existingUser =
-                query("SELECT uuid FROM users WHERE username = ?") {
-                    setString(1, currentUsername)
-                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
-                }
-
-            if (existingUser == null) {
-                UpdateUsernameResult.UserNotFound
-            } else {
-                val conflictingUser =
+        when (
+            val result = db.transactionForUpdates {
+                val existingUser =
                     query("SELECT uuid FROM users WHERE username = ?") {
-                        setString(1, newUsername)
+                        setString(1, currentUsername)
                         executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
                     }
 
-                if (conflictingUser != null) {
-                    UpdateUsernameResult.UsernameAlreadyExists
+                if (existingUser == null) {
+                    UpdateUsernameResult.UserNotFound
                 } else {
-                    val now = db.clock.instant()
-                    val updated =
-                        query("UPDATE users SET username = ?, updated_at = ? WHERE username = ?") {
+                    val conflictingUser =
+                        query("SELECT uuid FROM users WHERE username = ?") {
                             setString(1, newUsername)
-                            setLong(2, now.toEpochMilli())
-                            setString(3, currentUsername)
-                            executeUpdate()
+                            executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
                         }
-                    if (updated > 0) {
-                        UpdateUsernameResult.Success
+
+                    if (conflictingUser != null && conflictingUser != existingUser) {
+                        UpdateUsernameResult.UsernameAlreadyExists
                     } else {
-                        UpdateUsernameResult.UserNotFound
+                        val now = db.clock.instant()
+                        val updated =
+                            query(
+                                "UPDATE users SET username = ?, updated_at = ? WHERE username = ?"
+                            ) {
+                                setString(1, newUsername)
+                                setLong(2, now.toEpochMilli())
+                                setString(3, currentUsername)
+                                executeUpdate()
+                            }
+                        if (updated > 0) {
+                            UpdateUsernameResult.Success
+                        } else {
+                            UpdateUsernameResult.UserNotFound
+                        }
                     }
                 }
             }
+        ) {
+            is Either.Left ->
+                when (val error = result.value) {
+                    is SqlUpdateException.UniqueViolation ->
+                        UpdateUsernameResult.UsernameAlreadyExists
+                    else -> throw DBException(error.message ?: "Failed to update username", error)
+                }
+            is Either.Right -> result.value
         }
     }
 
