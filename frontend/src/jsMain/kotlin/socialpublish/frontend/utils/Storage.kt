@@ -1,5 +1,6 @@
 package socialpublish.frontend.utils
 
+import kotlin.js.Date
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
@@ -55,7 +56,7 @@ object Storage {
     ) {
         val expires =
             if (expirationMillis != null) {
-                val expiryDate = kotlin.js.Date()
+                val expiryDate = Date()
                 expiryDate.asDynamic().setTime(expiryDate.getTime() + expirationMillis)
                 ";expires=${expiryDate.toUTCString()}"
             } else {
@@ -67,7 +68,7 @@ object Storage {
     }
 
     fun clearCookie(name: String) {
-        val expiryDate = kotlin.js.Date(0)
+        val expiryDate = Date(0)
         document.cookie = "$name=;expires=${expiryDate.toUTCString()};path=/"
     }
 
@@ -81,7 +82,7 @@ object Storage {
         // security
         // Secure flag is optional to allow development over HTTP (will work over HTTPS in
         // production)
-        val isHttps = kotlinx.browser.window.location.protocol == "https:"
+        val isHttps = window.location.protocol == "https:"
         val expirationMillis = 1L * 365 * 24 * 60 * 60 * 1000 // 1 year
         setCookie(
             ACCESS_TOKEN_COOKIE,
