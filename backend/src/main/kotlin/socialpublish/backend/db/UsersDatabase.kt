@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -304,7 +305,7 @@ class UsersDatabase(private val db: Database) {
                     if (refreshTokenHash != null) {
                         setString(4, refreshTokenHash)
                     } else {
-                        setNull(4, java.sql.Types.VARCHAR)
+                        setNull(4, Types.VARCHAR)
                     }
                     setLong(5, expiresAt.toEpochMilli())
                     setLong(6, now.toEpochMilli())

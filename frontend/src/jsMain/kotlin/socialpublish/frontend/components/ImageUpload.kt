@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.browser.document
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.height
 import org.jetbrains.compose.web.css.px
@@ -15,11 +16,18 @@ import org.w3c.dom.HTMLInputElement
 import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
-import socialpublish.frontend.models.GenerateAltTextRequest
-import socialpublish.frontend.models.GenerateAltTextResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.navigateTo
+
+@Serializable
+internal data class GenerateAltTextRequest(
+    val imageUuid: String,
+    val userContext: String? = null,
+    val language: String? = null,
+)
+
+@Serializable internal data class GenerateAltTextResponse(val altText: String)
 
 data class SelectedImage(
     val id: Int,
