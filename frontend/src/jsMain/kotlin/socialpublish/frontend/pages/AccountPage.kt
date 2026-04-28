@@ -340,7 +340,7 @@ fun AccountPage() {
                     Text("Settings saved successfully!")
                 }
             }
-            if (state.settingsError != null) {
+            state.settingsError?.let { error ->
                 Div(attrs = { classes("notification", "is-danger", "is-light") }) {
                     Button(
                         attrs = {
@@ -348,7 +348,7 @@ fun AccountPage() {
                             onClick { state = state.copy(settingsError = null) }
                         }
                     )
-                    Text(state.settingsError ?: "")
+                    Text(error)
                 }
             }
 
