@@ -31,7 +31,7 @@ This is a Kotlin multiplatform project with:
   - Root `build.gradle.kts` configures plugins and common settings
   - Subprojects: `backend/` and `frontend/` each have their own `build.gradle.kts`
 
-## Building and Testing
+## HOW-TOs
 
 Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
 
@@ -100,6 +100,21 @@ Project uses Gradle with Kotlin DSL. Use the Makefile for common tasks:
   ```bash
   make docker-run-jvm
   ```
+
+### Upgrade project's dependencies
+
+```bash
+make dependency-updates-ci
+```
+
+This will generate these reports:
+- `./frontend/build/dependencyUpdates/report.html`
+- `./backend/build/dependencyUpdates/report.html`
+
+RULES:
+- Never upgrade major versions (semver), instead ask the user or warn them!!!
+- Never upgrade to SNAPSHOT, RC, or milestone versions.
+- Fix breakage, but apply good judgement.
 
 ## Coding Style
 
