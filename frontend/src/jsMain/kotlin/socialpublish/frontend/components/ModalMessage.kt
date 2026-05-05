@@ -6,10 +6,10 @@ import kotlinx.browser.window
 import org.jetbrains.compose.web.dom.*
 import org.w3c.dom.events.KeyboardEvent
 
-enum class MessageType {
-    INFO,
-    WARNING,
-    ERROR,
+enum class MessageType(val title: String, val cssClass: String) {
+    INFO("Info", "is-info"),
+    WARNING("Warning", "is-warning"),
+    ERROR("Error", "is-danger"),
 }
 
 @Composable
@@ -19,20 +19,6 @@ fun ModalMessage(
     onDisable: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val title =
-        when (type) {
-            MessageType.INFO -> "Info"
-            MessageType.WARNING -> "Warning"
-            MessageType.ERROR -> "Error"
-        }
-
-    val cssClass =
-        when (type) {
-            MessageType.INFO -> "is-info"
-            MessageType.WARNING -> "is-warning"
-            MessageType.ERROR -> "is-danger"
-        }
-
     // Handle Escape key
     DisposableEffect(isEnabled) {
         if (isEnabled) {
@@ -64,9 +50,9 @@ fun ModalMessage(
             )
 
             Div(attrs = { classes("modal-content") }) {
-                Article(attrs = { classes("message", "is-medium", cssClass) }) {
+                Article(attrs = { classes("message", "is-medium", type.cssClass) }) {
                     Div(attrs = { classes("message-header") }) {
-                        P { Text(title) }
+                        P { Text(type.title) }
                         Button(
                             attrs = {
                                 classes("delete")

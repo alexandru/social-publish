@@ -132,21 +132,17 @@ object Storage {
     }
 
     fun getConfiguredServices(): ConfiguredServices {
-        val stored = localStorage[CONFIGURED_SERVICES_KEY]
-        return if (stored != null) {
-            try {
-                Json.decodeFromString<ConfiguredServices>(stored)
-            } catch (e: Exception) {
-                console.error(
-                    "Error decoding ConfiguredServices from localStorage:",
-                    e,
-                    "stored:",
-                    stored,
-                )
-                localStorage.removeItem(CONFIGURED_SERVICES_KEY)
-                ConfiguredServices()
-            }
-        } else {
+        val stored = localStorage[CONFIGURED_SERVICES_KEY] ?: return ConfiguredServices()
+        return try {
+            Json.decodeFromString<ConfiguredServices>(stored)
+        } catch (e: Exception) {
+            console.error(
+                "Error decoding ConfiguredServices from localStorage:",
+                e,
+                "stored:",
+                stored,
+            )
+            localStorage.removeItem(CONFIGURED_SERVICES_KEY)
             ConfiguredServices()
         }
     }
