@@ -22,7 +22,7 @@ dependencyResolutionManagement {
             version("bcrypt", "0.10.2")
             version("jbcrypt", "0.4")
             version("mockk", "1.14.9")
-            version("kotlinx-coroutines", "1.10.2")
+            version("kotlinx-coroutines", "1.11.0")
             version("common-text", "1.15.0")
             version("apache-tika", "3.3.0")
             version("hikaricp", "7.0.2")
