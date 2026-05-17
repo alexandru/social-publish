@@ -33,7 +33,7 @@ fun main() {
 @Serializable
 private data class SessionUserResponse(
     val username: String,
-    val configuredServices: ConfiguredServices = ConfiguredServices(),
+    val configuredServices: ConfiguredServices,
 )
 
 @Composable
