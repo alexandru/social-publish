@@ -40,12 +40,9 @@ fun Route.installUserContextPlugin(usersDb: UsersDatabase) {
 }
 
 internal suspend fun ApplicationCall.requireUserUuid(): UUID? {
-    attributes.getOrNull(UserUuidKey)?.let {
-        return it
-    }
+    attributes.getOrNull(UserUuidKey)?.let { return it }
 
-    val resolved = resolveUserUuid()
-    if (resolved == null) {
+    val resolved = resolveUserUuid() ?: run {
         respondWithUnauthorized()
         return null
     }
@@ -58,9 +55,7 @@ internal suspend fun ApplicationCall.requireUserSettings(
     usersDb: UsersDatabase,
     userUuid: UUID,
 ): UserSettings {
-    attributes.getOrNull(UserSettingsKey)?.let {
-        return it
-    }
+    attributes.getOrNull(UserSettingsKey)?.let { return it }
 
     val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
     attributes.put(UserSettingsKey, settings)

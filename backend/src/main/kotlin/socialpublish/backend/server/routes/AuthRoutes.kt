@@ -126,21 +126,17 @@ class AuthRoutes(
 
     suspend fun protectedRoute(call: ApplicationCall) {
         val principal = call.principal<JWTPrincipal>()
-        val username = principal?.getClaim("username", String::class)
-
-        if (username == null) {
+        val username = principal?.getClaim("username", String::class) ?: run {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             return
         }
 
-        val userUuid = call.resolveUserUuid()
-        if (userUuid == null) {
+        val userUuid = call.resolveUserUuid() ?: run {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             return
         }
 
-        val user = usersDb.findByUuid(userUuid).getOrElse { null }
-        if (user == null) {
+        usersDb.findByUuid(userUuid).getOrElse { null } ?: run {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
             return
         }
@@ -150,24 +146,22 @@ class AuthRoutes(
     }
 
     private suspend fun computeConfiguredServices(userUuid: UUID): ConfiguredServices {
-        val user = usersDb.findByUuid(userUuid).getOrElse { null }
-        val settings = user?.settings
+        val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
 
         val twitterTokenKey = "twitter-oauth-token:$userUuid"
         val linkedInTokenKey = "linkedin-oauth-token:$userUuid"
-        val twitterOk =
-            settings?.twitter != null &&
-                documentsDb?.searchByKey(twitterTokenKey, userUuid)?.getOrElse { null } != null
-        val linkedInOk =
-            settings?.linkedin != null &&
-                documentsDb?.searchByKey(linkedInTokenKey, userUuid)?.getOrElse { null } != null
+
+        val twitterOk = settings.twitter != null &&
+            documentsDb?.searchByKey(twitterTokenKey, userUuid)?.getOrElse { null } != null
+        val linkedInOk = settings.linkedin != null &&
+            documentsDb?.searchByKey(linkedInTokenKey, userUuid)?.getOrElse { null } != null
 
         return ConfiguredServices(
-            mastodon = settings?.mastodon != null,
-            bluesky = settings?.bluesky != null,
+            mastodon = settings.mastodon != null,
+            bluesky = settings.bluesky != null,
             twitter = twitterOk,
             linkedin = linkedInOk,
-            llm = settings?.llm != null,
+            llm = settings.llm != null,
         )
     }
 
