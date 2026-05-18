@@ -78,8 +78,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/standard") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/standard")
+        }
 
         assertNotNull(preview)
         assertEquals("Standard HTML Title", preview.title)
@@ -143,8 +144,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/fallback-url") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/fallback-url")
+        }
 
         assertNotNull(preview)
     }
@@ -248,8 +250,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/blog/post") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/blog/post")
+        }
 
         assertNotNull(preview)
         assertEquals("https://example.com/blog/images/path-relative.jpg", preview.image)

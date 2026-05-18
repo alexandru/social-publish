@@ -6,7 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import socialpublish.frontend.models.ConfiguredServices
+import socialpublish.frontend.utils.ConfiguredServices
 
 class AccountPageStateTest {
     @Test

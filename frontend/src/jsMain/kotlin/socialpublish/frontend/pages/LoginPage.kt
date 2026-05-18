@@ -3,17 +3,25 @@ package socialpublish.frontend.pages
 import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
-import socialpublish.frontend.models.LoginRequest
-import socialpublish.frontend.models.LoginResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.navigateTo
+
+@Serializable internal data class LoginRequest(val username: String, val password: String)
+
+@Serializable
+internal data class LoginResponse(
+    val token: String,
+    val configuredServices: ConfiguredServices = ConfiguredServices(),
+)
 
 // External declaration for URLSearchParams
 external class URLSearchParams(init: String = definedExternally) {

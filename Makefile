@@ -36,7 +36,6 @@ clean:
 test:
 	./gradlew test
 
-# Dependency updates
 dependency-updates:
 	./gradlew dependencyUpdates \
 		-Drevision=release \
@@ -44,6 +43,9 @@ dependency-updates:
 		--refresh-dependencies && \
 		open backend/build/dependencyUpdates/report.html && \
 		open frontend/build/dependencyUpdates/report.html
+
+dependency-updates-ci:
+	./gradlew dependencyUpdates --no-parallel -Drevision=release -DoutputFormatter=html --refresh-dependencies
 
 skills-update:
 	npx skills add alexandru/skills -a claude-code github-copilot opencode -y --skill \

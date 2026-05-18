@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 
@@ -127,8 +128,8 @@ class FilesDatabase(private val db: Database) {
                 setString(4, upload.mimetype)
                 setLong(5, upload.size)
                 setString(6, upload.altText)
-                upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, java.sql.Types.INTEGER)
-                upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, java.sql.Types.INTEGER)
+                upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, Types.INTEGER)
+                upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, Types.INTEGER)
                 setString(9, upload.userUuid.toString())
                 setLong(10, upload.createdAt.toEpochMilli())
                 execute()

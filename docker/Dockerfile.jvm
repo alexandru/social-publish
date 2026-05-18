@@ -99,6 +99,10 @@ COPY --from=build-frontend --chown=appuser:root /app/frontend/build/dist/js/prod
 COPY --chown=appuser:root scripts/java-exec /opt/app/java-exec
 RUN chmod +x /opt/app/java-exec
 
+# Copy cli wrapper script
+COPY --chown=appuser:root scripts/cli /opt/app/cli
+RUN chmod +x /opt/app/cli
+
 # Expose port 3000
 EXPOSE 3000
 USER appuser

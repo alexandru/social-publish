@@ -11,7 +11,6 @@ import kotlin.test.assertTrue
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
-import socialpublish.frontend.models.ConfiguredServices
 
 class StorageTest {
 

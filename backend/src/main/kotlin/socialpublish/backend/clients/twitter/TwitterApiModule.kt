@@ -30,6 +30,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import java.net.URLEncoder
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -130,13 +131,13 @@ class TwitterApiModule(
     }
 
     /** Check if Twitter auth exists for the given user */
-    suspend fun hasTwitterAuth(userUuid: java.util.UUID): Boolean {
+    suspend fun hasTwitterAuth(userUuid: UUID): Boolean {
         val token = restoreOauthTokenFromDb(userUuid)
         return token != null
     }
 
     /** Restore OAuth token from database (scoped to the user) */
-    private suspend fun restoreOauthTokenFromDb(userUuid: java.util.UUID): TwitterOAuthToken? {
+    private suspend fun restoreOauthTokenFromDb(userUuid: UUID): TwitterOAuthToken? {
         val doc =
             documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse {
                 throw it
@@ -177,7 +178,7 @@ class TwitterApiModule(
         config: TwitterConfig,
         token: String,
         verifier: String,
-        userUuid: java.util.UUID,
+        userUuid: UUID,
     ): ApiResult<Unit> {
         return try {
             // Twitter's access token endpoint doesn't require the request token secret
@@ -232,7 +233,7 @@ class TwitterApiModule(
         config: TwitterConfig,
         token: TwitterOAuthToken,
         uuid: String,
-        userUuid: java.util.UUID,
+        userUuid: UUID,
     ): ApiResult<String> = resourceScope {
         try {
             val file =
@@ -316,7 +317,7 @@ class TwitterApiModule(
     suspend fun createPost(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: java.util.UUID,
+        userUuid: UUID,
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {

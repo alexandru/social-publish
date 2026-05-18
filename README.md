@@ -31,6 +31,7 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
   - [Twitter setup](#twitter-setup)
   - [LinkedIn setup](#linkedin-setup)
   - [LLM setup (Optional)](#llm-setup-optional)
+- [CLI Commands](#cli-commands)
 - [RSS feed](#rss-feed)
 - [Developing](#developing)
 - [License](#license)
@@ -165,6 +166,64 @@ The application can integrate with LLM providers to automatically generate alt-t
    - `LLM_API_URL`: The API endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
    - `LLM_API_KEY`: Your API key
    - `LLM_MODEL`: Model name (e.g., `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
+
+## CLI Commands
+
+Social Publish includes several CLI commands for managing users and configuration. These commands are particularly useful when running the application in a Docker container.
+
+### Using the CLI in Docker
+
+When running in Docker, you can use the `./cli` wrapper script for cleaner output with minimal logging:
+
+```sh
+# Using docker exec with the cli wrapper (minimal logging)
+docker exec -it social-publish /opt/app/cli create-user --username myuser --password mypassword
+
+# Or use java-exec directly with verbose flag for detailed logging
+docker exec -it social-publish /opt/app/java-exec -jar /opt/app/app.jar create-user --username myuser --password mypassword --verbose
+```
+
+### Available Commands
+
+**Create a new user:**
+
+```sh
+./cli create-user --username <username> --password <password>
+# Or with environment variables:
+./cli create-user --db-path $DB_PATH --username <username> --password <password>
+```
+
+**Change a user's password:**
+
+```sh
+./cli change-password --username <username> --new-password <new-password>
+# Prompts for password if not provided:
+./cli change-password --username <username>
+```
+
+**Change a user's username:**
+
+```sh
+./cli change-username --current-username <old-username> --new-username <new-username>
+# Prompts for usernames if not provided:
+./cli change-username
+```
+
+**Generate a BCrypt password hash:**
+
+```sh
+./cli gen-bcrypt-hash --password <password>
+# Or let it prompt you (hides input):
+./cli gen-bcrypt-hash
+```
+
+### Verbose Logging
+
+By default, CLI commands use minimal logging (warnings and errors only). To see detailed logs, add the `--verbose` or `-v` flag:
+
+```sh
+./cli create-user --username myuser --password mypass --verbose
+```
 
 ## RSS feed
 

@@ -220,10 +220,9 @@ class FeedModule(
                         }
 
                     if (categoryNames.isNotEmpty()) {
-                        categories =
-                            categoryNames.map { name ->
-                                SyndCategoryImpl().apply { this.name = name }
-                            }
+                        categories = categoryNames.map { name ->
+                            SyndCategoryImpl().apply { this.name = name }
+                        }
                     }
 
                     val foreignMarkupElements = mutableListOf<Element>()

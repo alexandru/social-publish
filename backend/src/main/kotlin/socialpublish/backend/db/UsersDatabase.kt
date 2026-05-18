@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -215,6 +216,66 @@ class UsersDatabase(private val db: Database) {
     }
 
     /**
+     * Update a user's username.
+     *
+     * @param currentUsername Current username of the user
+     * @param newUsername New username for the user
+     * @return Either a DBException or UpdateUsernameResult indicating the outcome
+     */
+    suspend fun updateUsername(
+        currentUsername: String,
+        newUsername: String,
+    ): Either<DBException, UpdateUsernameResult> = either {
+        when (
+            val result = db.transactionForUpdates {
+                val existingUser =
+                    query("SELECT uuid FROM users WHERE username = ?") {
+                        setString(1, currentUsername)
+                        executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                    }
+
+                if (existingUser == null) {
+                    UpdateUsernameResult.UserNotFound
+                } else {
+                    val conflictingUser =
+                        query("SELECT uuid FROM users WHERE username = ?") {
+                            setString(1, newUsername)
+                            executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                        }
+
+                    if (conflictingUser != null && conflictingUser != existingUser) {
+                        UpdateUsernameResult.UsernameAlreadyExists
+                    } else {
+                        val now = db.clock.instant()
+                        val updated =
+                            query(
+                                "UPDATE users SET username = ?, updated_at = ? WHERE username = ?"
+                            ) {
+                                setString(1, newUsername)
+                                setLong(2, now.toEpochMilli())
+                                setString(3, currentUsername)
+                                executeUpdate()
+                            }
+                        if (updated > 0) {
+                            UpdateUsernameResult.Success
+                        } else {
+                            UpdateUsernameResult.UserNotFound
+                        }
+                    }
+                }
+            }
+        ) {
+            is Either.Left ->
+                when (val error = result.value) {
+                    is SqlUpdateException.UniqueViolation ->
+                        UpdateUsernameResult.UsernameAlreadyExists
+                    else -> raise(DBException(error.message ?: "Failed to update username", error))
+                }
+            is Either.Right -> result.value
+        }
+    }
+
+    /**
      * Create a new user session.
      *
      * @param userUuid User UUID for the session
@@ -256,7 +317,7 @@ class UsersDatabase(private val db: Database) {
                     if (refreshTokenHash != null) {
                         setString(4, refreshTokenHash)
                     } else {
-                        setNull(4, java.sql.Types.VARCHAR)
+                        setNull(4, Types.VARCHAR)
                     }
                     setLong(5, expiresAt.toEpochMilli())
                     setLong(6, now.toEpochMilli())

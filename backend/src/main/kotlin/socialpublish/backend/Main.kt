@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
+import socialpublish.backend.db.UpdateUsernameResult
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
@@ -39,6 +40,7 @@ class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
             StartServerCommand(),
             GenBcryptHashCommand(),
             ChangePasswordCommand(),
+            ChangeUsernameCommand(),
             CreateUserCommand(),
         )
     }
@@ -155,6 +157,8 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Generate a BCrypt hash for a password"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val quiet by
         option("--quiet", "-q", help = "Only output the hash without any messages").flag()
 
@@ -163,6 +167,8 @@ class GenBcryptHashCommand : CliktCommand(name = "gen-bcrypt-hash") {
             .prompt("Enter password", hideInput = true, requireConfirmation = false)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         val hash = AuthModule.hashPassword(password)
 
         if (quiet) {
@@ -181,6 +187,8 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
     override fun help(context: com.github.ajalt.clikt.core.Context) =
         "Change a user's password in the database"
 
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
     private val dbPath: String by
         option(
                 "--db-path",
@@ -198,6 +206,8 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
             .prompt("Enter new password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         runBlocking {
             resourceScope {
                 val db = Database.connect(dbPath).bind()
@@ -224,9 +234,72 @@ class ChangePasswordCommand : CliktCommand(name = "change-password") {
     }
 }
 
+/** Subcommand to change a user's username in the database. */
+class ChangeUsernameCommand : CliktCommand(name = "change-username") {
+    override fun help(context: com.github.ajalt.clikt.core.Context) =
+        "Change a user's username in the database"
+
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
+
+    private val dbPath: String by
+        option(
+                "--db-path",
+                help = "Path to the SQLite database file (env: DB_PATH)",
+                envvar = "DB_PATH",
+            )
+            .required()
+
+    private val currentUsername by
+        option("--current-username", "-u", help = "Current username of the account")
+            .prompt("Enter current username")
+
+    private val newUsername by
+        option("--new-username", "-n", help = "New username for the account")
+            .prompt("Enter new username")
+
+    override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
+        runBlocking {
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
+
+                when (val result = usersDb.updateUsername(currentUsername, newUsername)) {
+                    is arrow.core.Either.Left -> {
+                        echo("Error changing username: ${result.value.message}", err = true)
+                        throw ProgramResult(1)
+                    }
+                    is arrow.core.Either.Right -> {
+                        when (result.value) {
+                            is UpdateUsernameResult.Success -> {
+                                echo()
+                                echo(
+                                    "✓ Username changed successfully from '$currentUsername' to '$newUsername'"
+                                )
+                                echo()
+                            }
+                            is UpdateUsernameResult.UserNotFound -> {
+                                echo("Error: User '$currentUsername' not found", err = true)
+                                throw ProgramResult(1)
+                            }
+                            is UpdateUsernameResult.UsernameAlreadyExists -> {
+                                echo("Error: Username '$newUsername' already exists", err = true)
+                                throw ProgramResult(1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Subcommand to create a new user. */
 class CreateUserCommand : CliktCommand(name = "create-user") {
     override fun help(context: com.github.ajalt.clikt.core.Context) = "Create a new user account"
+
+    private val verbose by option("--verbose", "-v", help = "Enable verbose logging").flag()
 
     private val dbPath: String by
         option(
@@ -244,6 +317,8 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
             .prompt("Enter password", hideInput = true, requireConfirmation = true)
 
     override fun run() {
+        socialpublish.backend.common.LoggingConfig.configureForCliCommand(verbose)
+
         runBlocking {
             resourceScope {
                 val db = Database.connect(dbPath).bind()

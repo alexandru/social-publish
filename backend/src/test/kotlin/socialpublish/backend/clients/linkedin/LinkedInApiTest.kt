@@ -1260,6 +1260,125 @@ class LinkedInApiTest {
             }
         }
 
+    @Test
+    fun `creates post with image and highlighted URL`(@TempDir tempDir: Path) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var postCreated = false
+            var postBody: String? = null
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                    }
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/assets") {
+                        call.respondText(
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:testImgAndLink","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-img-link"}}}}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    put("/upload-test-img-link") {
+                        call.respondText("", status = HttpStatusCode.Created)
+                    }
+                    post("/v2/ugcPosts") {
+                        postCreated = true
+                        postBody = call.receiveStream().readBytes().decodeToString()
+                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:67890")
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:67890"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    content = "Check out this link with image",
+                    targets = listOf("linkedin"),
+                    images = listOf(upload.uuid),
+                    link = "https://example.com/my-article",
+                )
+
+            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+            val result = module.createPost(config, request, testUserUuid)
+
+            assertTrue(result is Either.Right)
+            assertTrue(postCreated, "Post should have been created")
+            assertNotNull(postBody)
+
+            // The link should be present in the post body (appended to content text)
+            assertTrue(
+                postBody!!.contains("https://example.com/my-article"),
+                "Post body should contain the highlighted URL when combined with an image",
+            )
+            // The content text should also be present
+            assertTrue(
+                postBody.contains("Check out this link with image"),
+                "Post body should contain the content text",
+            )
+
+            linkedInClient.close()
+        }
+    }
+
     // TODO: Add automated test for LinkedIn OAuth callback error handling
     // The implementation correctly handles LinkedIn OAuth errors by redirecting to
     // /account?error=...

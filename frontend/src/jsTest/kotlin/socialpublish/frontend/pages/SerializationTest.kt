@@ -1,4 +1,4 @@
-package socialpublish.frontend.models
+package socialpublish.frontend.pages
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -6,7 +6,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import socialpublish.frontend.pages.TwitterStatusResponse
+import socialpublish.frontend.components.GenerateAltTextRequest
+import socialpublish.frontend.utils.ConfiguredServices
 
 class SerializationTest {
     private val json = Json { ignoreUnknownKeys = true }

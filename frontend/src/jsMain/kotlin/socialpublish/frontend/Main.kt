@@ -9,6 +9,8 @@ import org.jetbrains.compose.web.renderComposable
 import socialpublish.frontend.components.NavBar
 import socialpublish.frontend.pages.*
 import socialpublish.frontend.utils.ApiClient
+import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
@@ -28,7 +30,11 @@ fun main() {
     renderComposable(rootElementId = "root") { App() }
 }
 
-@Serializable private data class SessionUserResponse(val username: String)
+@Serializable
+private data class SessionUserResponse(
+    val username: String,
+    val configuredServices: ConfiguredServices,
+)
 
 @Composable
 fun App() {
@@ -56,6 +62,9 @@ fun App() {
             Storage.setConfiguredServices(null)
             navigateTo(buildLoginRedirectPath(currentPath))
             return@LaunchedEffect
+        }
+        if (response is ApiResponse.Success) {
+            Storage.setConfiguredServices(response.data.configuredServices)
         }
         sessionChecked = true
     }

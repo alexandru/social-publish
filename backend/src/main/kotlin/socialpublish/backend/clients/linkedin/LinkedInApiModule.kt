@@ -841,6 +841,14 @@ class LinkedInApiModule(
             }
 
             // Build UGC post request based on content type
+            // When both images and a link are present, append the link to the content text
+            val effectiveContent =
+                if (uploadedAssets.isNotEmpty() && message.link != null) {
+                    listOf(content, message.link).joinToString("\n\n")
+                } else {
+                    content
+                }
+
             val ugcPostRequest =
                 when {
                     // If we have images, create IMAGE share
@@ -852,7 +860,7 @@ class LinkedInApiModule(
                                 UgcSpecificContent(
                                     shareContent =
                                         UgcShareContent(
-                                            shareCommentary = UgcText(content),
+                                            shareCommentary = UgcText(effectiveContent),
                                             shareMediaCategory = UgcMediaCategory.IMAGE,
                                             media =
                                                 uploadedAssets.map { uploaded ->
