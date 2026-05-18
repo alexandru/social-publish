@@ -1,7 +1,11 @@
 package socialpublish.backend.clients.bluesky
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -28,13 +32,46 @@ data class BlueskyBlobUploadBlob(
     val size: Long? = null,
 )
 
+@Serializable(with = BlueskyBlobRefSerializer::class)
+data class BlueskyBlobRef(val ref: JsonObject, val mimeType: String, val size: Long)
+
+/**
+ * Private surrogate used for serialization of [BlueskyBlobRef]. Always encodes `$type` as "blob"
+ * regardless of Json configuration.
+ */
 @Serializable
-data class BlueskyBlobRef(
-    val `$type`: String = "blob",
+private data class BlueskyBlobRefSurrogate(
+    @SerialName("\$type") val type: String,
     val ref: JsonObject,
     val mimeType: String,
     val size: Long,
 )
+
+object BlueskyBlobRefSerializer : KSerializer<BlueskyBlobRef> {
+    override val descriptor: SerialDescriptor = BlueskyBlobRefSurrogate.serializer().descriptor
+
+    override fun serialize(encoder: Encoder, value: BlueskyBlobRef) {
+        BlueskyBlobRefSurrogate.serializer()
+            .serialize(
+                encoder,
+                BlueskyBlobRefSurrogate(
+                    type = "blob",
+                    ref = value.ref,
+                    mimeType = value.mimeType,
+                    size = value.size,
+                ),
+            )
+    }
+
+    override fun deserialize(decoder: Decoder): BlueskyBlobRef {
+        val surrogate = BlueskyBlobRefSurrogate.serializer().deserialize(decoder)
+        return BlueskyBlobRef(
+            ref = surrogate.ref,
+            mimeType = surrogate.mimeType,
+            size = surrogate.size,
+        )
+    }
+}
 
 @Serializable
 data class BlueskyImageEmbed(

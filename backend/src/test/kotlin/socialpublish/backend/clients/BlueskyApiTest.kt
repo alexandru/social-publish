@@ -16,11 +16,14 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.bluesky.BlueskyBlobRef
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
@@ -30,6 +33,42 @@ import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
     private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+
+    @Test
+    fun `BlueskyBlobRef serialization includes dollar type blob with default Json`() {
+        val ref =
+            BlueskyBlobRef(
+                ref = JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+                mimeType = "image/jpeg",
+                size = 12345L,
+            )
+        val json = Json.encodeToString(BlueskyBlobRef.serializer(), ref)
+        val parsed = Json.parseToJsonElement(json).jsonObject
+
+        assertEquals("blob", parsed["\$type"]?.jsonPrimitive?.content)
+        assertEquals("image/jpeg", parsed["mimeType"]?.jsonPrimitive?.content)
+        assertEquals(12345L, parsed["size"]?.jsonPrimitive?.long)
+        assertEquals(
+            JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+            parsed["ref"]?.jsonObject,
+        )
+    }
+
+    @Test
+    fun `BlueskyBlobRef round-trips with default Json`() {
+        val original =
+            BlueskyBlobRef(
+                ref = JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+                mimeType = "image/png",
+                size = 999L,
+            )
+        val json = Json.encodeToString(BlueskyBlobRef.serializer(), original)
+        val deserialized = Json.decodeFromString(BlueskyBlobRef.serializer(), json)
+
+        assertEquals(original.ref, deserialized.ref)
+        assertEquals(original.mimeType, deserialized.mimeType)
+        assertEquals(original.size, deserialized.size)
+    }
 
     @Test
     fun `creates post without images`(@TempDir tempDir: Path) = runTest {
@@ -191,6 +230,17 @@ class BlueskyApiTest {
                 ratios[1]?.get("height")?.jsonPrimitive?.content?.toInt(),
             )
 
+            // Each image blob must contain "$type":"blob"
+            val imageBlobs = images.map { it.jsonObject["image"]?.jsonObject }
+            imageBlobs.forEachIndexed { i, blob ->
+                assertNotNull(blob, "image[$i].image should be a JSON object")
+                assertEquals(
+                    "blob",
+                    blob.get("\$type")?.jsonPrimitive?.content,
+                    "image[$i].image.\$type should be 'blob'",
+                )
+            }
+
             blueskyClient.close()
         }
     }
@@ -296,6 +346,11 @@ class BlueskyApiTest {
             // Check that the thumbnail blob was included
             val thumb = external["thumb"]?.jsonObject
             assertNotNull(thumb)
+            assertEquals(
+                "blob",
+                thumb.get("\$type")?.jsonPrimitive?.content,
+                "thumb.\$type should be 'blob'",
+            )
 
             blueskyClient.close()
         }
