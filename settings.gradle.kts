@@ -26,7 +26,7 @@ dependencyResolutionManagement {
             version("common-text", "1.15.0")
             version("apache-tika", "3.3.0")
             version("hikaricp", "7.0.2")
-            version("compose", "1.10.3")
+            version("compose", "1.11.0")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
