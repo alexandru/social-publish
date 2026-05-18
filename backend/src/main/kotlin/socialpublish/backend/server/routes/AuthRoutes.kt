@@ -49,7 +49,8 @@ data class ConfiguredServices(
 @Serializable
 data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
 
-@Serializable data class UserResponse(val username: String)
+@Serializable
+data class UserResponse(val username: String, val configuredServices: ConfiguredServices)
 
 class AuthRoutes(
     private val config: ServerAuthConfig,
@@ -119,26 +120,7 @@ class AuthRoutes(
         }
 
         val token = authModule.generateToken(user.username, user.uuid)
-        val settings = user.settings
-
-        // twitter/linkedin are ready only when credentials AND OAuth token both exist
-        val twitterTokenKey = "twitter-oauth-token:${user.uuid}"
-        val linkedInTokenKey = "linkedin-oauth-token:${user.uuid}"
-        val twitterOk =
-            settings?.twitter != null &&
-                documentsDb?.searchByKey(twitterTokenKey, user.uuid)?.getOrElse { null } != null
-        val linkedInOk =
-            settings?.linkedin != null &&
-                documentsDb?.searchByKey(linkedInTokenKey, user.uuid)?.getOrElse { null } != null
-
-        val configuredServices =
-            ConfiguredServices(
-                mastodon = settings?.mastodon != null,
-                bluesky = settings?.bluesky != null,
-                twitter = twitterOk,
-                linkedin = linkedInOk,
-                llm = settings?.llm != null,
-            )
+        val configuredServices = computeConfiguredServices(user.uuid)
         call.respond(LoginResponse(token = token, configuredServices = configuredServices))
     }
 
@@ -147,10 +129,39 @@ class AuthRoutes(
         val username = principal?.getClaim("username", String::class)
 
         if (username != null) {
-            call.respond(UserResponse(username = username))
+            val userUuid = call.resolveUserUuid()
+            val configuredServices =
+                if (userUuid != null) {
+                    computeConfiguredServices(userUuid)
+                } else {
+                    ConfiguredServices()
+                }
+            call.respond(UserResponse(username = username, configuredServices = configuredServices))
         } else {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
         }
+    }
+
+    private suspend fun computeConfiguredServices(userUuid: UUID): ConfiguredServices {
+        val user = usersDb.findByUuid(userUuid).getOrElse { null }
+        val settings = user?.settings
+
+        val twitterTokenKey = "twitter-oauth-token:$userUuid"
+        val linkedInTokenKey = "linkedin-oauth-token:$userUuid"
+        val twitterOk =
+            settings?.twitter != null &&
+                documentsDb?.searchByKey(twitterTokenKey, userUuid)?.getOrElse { null } != null
+        val linkedInOk =
+            settings?.linkedin != null &&
+                documentsDb?.searchByKey(linkedInTokenKey, userUuid)?.getOrElse { null } != null
+
+        return ConfiguredServices(
+            mastodon = settings?.mastodon != null,
+            bluesky = settings?.bluesky != null,
+            twitter = twitterOk,
+            linkedin = linkedInOk,
+            llm = settings?.llm != null,
+        )
     }
 
     /** Extract a raw JWT string from the request (Authorization header, query param, or cookie). */
