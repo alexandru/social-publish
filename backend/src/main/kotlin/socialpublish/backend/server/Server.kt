@@ -3,14 +3,12 @@
 package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
-import arrow.core.getOrElse
 import arrow.fx.coroutines.resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.JWTPrincipal
@@ -31,7 +29,6 @@ import io.ktor.server.routing.head
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
-import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
@@ -50,7 +47,6 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AccountSettingsView
@@ -70,7 +66,6 @@ import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.UserSettingsPatch
 import socialpublish.backend.server.routes.configureAuth
-import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -223,21 +218,7 @@ fun startServer(
 
             // Protected routes
             authenticate("auth-jwt") {
-                // Load the authenticated user's UUID and settings into call attributes once
-                // per request, making them available to all route handlers without repeated DB
-                // queries.
-                install(
-                    createRouteScopedPlugin("UserContextPlugin") {
-                        onCall { call ->
-                            val userUuid = call.resolveUserUuid() ?: return@onCall
-                            val settings =
-                                usersDb.findByUuid(userUuid).getOrElse { null }?.settings
-                                    ?: UserSettings()
-                            call.attributes.put(UserUuidKey, userUuid)
-                            call.attributes.put(UserSettingsKey, settings)
-                        }
-                    }
-                )
+                installUserContextPlugin(usersDb)
 
                 get("/api/protected") { authRoutes.protectedRoute(call) }
                     .describe {

@@ -1,5 +1,6 @@
 package socialpublish.backend.server.routes
 
+import arrow.core.getOrElse
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.client.request.get
@@ -19,7 +20,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.Serializable
@@ -232,10 +232,12 @@ class AuthRoutesTest {
     fun `should accept access token query param`() {
         testApplication {
             val authModule = AuthModule(config.jwtSecret)
+            val usersDb = testUsersDb()
+            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+                val authRoutes = AuthRoutes(config, usersDb, null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -244,7 +246,7 @@ class AuthRoutesTest {
                 }
             }
 
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
+            val token = authModule.generateToken("testuser", user.uuid)
             val response = client.get("/api/protected?access_token=$token")
 
             assertEquals(HttpStatusCode.OK, response.status)
@@ -378,10 +380,12 @@ class AuthRoutesTest {
     fun `protectedRoute should accept Bearer token`() {
         testApplication {
             val authModule = AuthModule(config.jwtSecret)
+            val usersDb = testUsersDb()
+            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+                val authRoutes = AuthRoutes(config, usersDb, null)
                 configureAuth(authRoutes)
                 routing {
                     authenticate("auth-jwt") {
@@ -390,7 +394,7 @@ class AuthRoutesTest {
                 }
             }
 
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
+            val token = authModule.generateToken("testuser", user.uuid)
             val response =
                 client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
 
@@ -646,6 +650,47 @@ class AuthRoutesTest {
             val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
             assertEquals(false, body.configuredServices.twitter)
             assertEquals(false, body.configuredServices.linkedin)
+        }
+    }
+
+    @Test
+    fun `protectedRoute should reject token for deleted user`() {
+        testApplication {
+            val authModule = AuthModule(config.jwtSecret)
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val _ = usersDb.createUser("testuser", "testpass")
+            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
+
+            application {
+                install(ContentNegotiation) { json() }
+                val authRoutes = AuthRoutes(config, usersDb, null)
+                configureAuth(authRoutes)
+                routing {
+                    authenticate("auth-jwt") {
+                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    }
+                }
+            }
+
+            val token = authModule.generateToken("testuser", user.uuid)
+
+            // Verify the token works before deletion
+            val beforeResponse =
+                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+            assertEquals(HttpStatusCode.OK, beforeResponse.status)
+
+            // Delete the user from the database
+            val _ =
+                db.query("DELETE FROM users WHERE username = ?") {
+                    setString(1, "testuser")
+                    executeUpdate()
+                }
+
+            // After deletion, the token should be rejected
+            val afterResponse =
+                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+            assertEquals(HttpStatusCode.Unauthorized, afterResponse.status)
         }
     }
 }
