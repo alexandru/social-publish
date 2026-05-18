@@ -128,18 +128,25 @@ class AuthRoutes(
         val principal = call.principal<JWTPrincipal>()
         val username = principal?.getClaim("username", String::class)
 
-        if (username != null) {
-            val userUuid = call.resolveUserUuid()
-            val configuredServices =
-                if (userUuid != null) {
-                    computeConfiguredServices(userUuid)
-                } else {
-                    ConfiguredServices()
-                }
-            call.respond(UserResponse(username = username, configuredServices = configuredServices))
-        } else {
+        if (username == null) {
             call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+            return
         }
+
+        val userUuid = call.resolveUserUuid()
+        if (userUuid == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+            return
+        }
+
+        val user = usersDb.findByUuid(userUuid).getOrElse { null }
+        if (user == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
+            return
+        }
+
+        val configuredServices = computeConfiguredServices(userUuid)
+        call.respond(UserResponse(username = username, configuredServices = configuredServices))
     }
 
     private suspend fun computeConfiguredServices(userUuid: UUID): ConfiguredServices {

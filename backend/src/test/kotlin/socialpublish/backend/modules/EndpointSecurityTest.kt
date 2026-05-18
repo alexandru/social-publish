@@ -1,5 +1,6 @@
 package socialpublish.backend.modules
 
+import arrow.core.getOrElse
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -188,30 +189,31 @@ class EndpointSecurityTest {
     }
 
     @Test
-    fun `JWT token should contain username claim`() {
-        testApplication {
-            val authModule = AuthModule(config.jwtSecret)
+    fun `JWT token should contain username claim`() = testApplication {
+        val authModule = AuthModule(config.jwtSecret)
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val _ = usersDb.createUser("testuser", "testpass")
+        val user = usersDb.findByUsername("testuser").getOrElse { null }!!
 
-            application {
-                install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
-                    }
+        application {
+            install(ContentNegotiation) { json() }
+            val authRoutes = AuthRoutes(config, usersDb, DocumentsDatabase(db))
+            configureAuth(authRoutes)
+            routing {
+                authenticate("auth-jwt") {
+                    get("/api/protected") { authRoutes.protectedRoute(call) }
                 }
             }
-
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
-            val response =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            val body = response.bodyAsText()
-            assertTrue(body.contains("testuser"))
         }
+
+        val token = authModule.generateToken("testuser", user.uuid)
+        val response =
+            client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("testuser"))
     }
 
     @Test
