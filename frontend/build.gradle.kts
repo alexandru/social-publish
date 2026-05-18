@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("org.jetbrains.compose") version "1.10.3"
+    id("org.jetbrains.compose") version "1.11.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
 }
 
