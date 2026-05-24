@@ -309,7 +309,6 @@ val migrations: List<Migration> =
 
                 // Step 5: recreate uploads with user_uuid NOT NULL
                 conn.ddl(
-                    // Creating new table (with new name, to be renamed later)
                     """
                     CREATE TABLE uploads_new (
                         uuid VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -324,7 +323,6 @@ val migrations: List<Migration> =
                         createdAt INTEGER NOT NULL
                     )
                     """,
-                    // Copy old data from old table to new table
                     """
                     INSERT INTO uploads_new
                         (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
@@ -332,11 +330,8 @@ val migrations: List<Migration> =
                         uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt
                     FROM uploads
                     """,
-                    // Rename old table (not dropping it yet)
                     "ALTER TABLE uploads RENAME TO uploads_old",
-                    // Rename new table to its proper name
                     "ALTER TABLE uploads_new RENAME TO uploads",
-                    // Drop the old table
                     "DROP TABLE uploads_old",
                     // Create index on the renamed table, after old indexes are gone
                     """
@@ -354,7 +349,6 @@ val migrations: List<Migration> =
             },
             execute = { conn ->
                 conn.ddl(
-                    // Creating a new table with a new name (to be renamed later)
                     """
                     CREATE TABLE user_sessions_new (
                         uuid VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -366,7 +360,6 @@ val migrations: List<Migration> =
                         FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
                     )
                     """,
-                    // Copying data from the old table to the new one
                     """
                     INSERT INTO user_sessions_new
                         (uuid, user_uuid, token_hash, expires_at, created_at, revoked_at)
@@ -374,13 +367,10 @@ val migrations: List<Migration> =
                         uuid, user_uuid, token_hash, expires_at, created_at, NULL
                     FROM user_sessions
                     """,
-                    // Renaming old table (not dropping it yet)
                     "ALTER TABLE user_sessions RENAME TO user_sessions_old",
-                    // Renaming new table to its proper name
                     "ALTER TABLE user_sessions_new RENAME TO user_sessions",
                     // Dropping the old table removes its old indexes before recreating current ones
                     "DROP TABLE user_sessions_old",
-                    // Creating indexes for the renamed table
                     """
                     CREATE INDEX IF NOT EXISTS user_sessions_expires_at
                         ON user_sessions(expires_at)
