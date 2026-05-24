@@ -2,18 +2,15 @@ package socialpublish.backend.db
 
 import arrow.core.Either
 import arrow.core.raise.either
-import java.util.UUID
-import kotlinx.serialization.json.Json
-
-private val json = Json { ignoreUnknownKeys = true }
+import socialpublish.backend.common.jsonCommon
 
 class PostsDatabase(private val docs: DocumentsDatabase) {
     suspend fun create(
         payload: PostPayload,
         targets: List<String>,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): Either<DBException, Post> = either {
-        val payloadJson = json.encodeToString(PostPayload.serializer(), payload)
+        val payloadJson = jsonCommon.encodeToString(PostPayload.serializer(), payload)
         val row =
             docs
                 .createOrUpdate(
@@ -35,11 +32,11 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
         )
     }
 
-    suspend fun getAllForUser(userUuid: UUID): Either<DBException, List<Post>> = either {
+    suspend fun getAllForUser(userUuid: UUIDv7): Either<DBException, List<Post>> = either {
         val rows =
             docs.getAllForUser("post", userUuid, DocumentsDatabase.OrderBy.CREATED_AT_DESC).bind()
         rows.map { row ->
-            val payload = json.decodeFromString<PostPayload>(row.payload)
+            val payload = jsonCommon.decodeFromString<PostPayload>(row.payload)
             Post(
                 uuid = row.uuid,
                 createdAt = row.createdAt,
@@ -53,11 +50,11 @@ class PostsDatabase(private val docs: DocumentsDatabase) {
         }
     }
 
-    suspend fun searchByUuidForUser(uuid: String, userUuid: UUID): Either<DBException, Post?> =
+    suspend fun searchByUuidForUser(uuid: String, userUuid: UUIDv7): Either<DBException, Post?> =
         either {
             val row = docs.searchByUuid(uuid).bind() ?: return@either null
             if (row.userUuid != userUuid) return@either null
-            val payload = json.decodeFromString<PostPayload>(row.payload)
+            val payload = jsonCommon.decodeFromString<PostPayload>(row.payload)
             Post(
                 uuid = row.uuid,
                 createdAt = row.createdAt,

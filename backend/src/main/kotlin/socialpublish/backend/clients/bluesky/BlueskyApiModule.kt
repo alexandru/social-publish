@@ -29,12 +29,13 @@ import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.time.Instant
-import java.util.UUID
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
 
@@ -50,11 +51,9 @@ class BlueskyApiModule(
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
-            install({
-                HttpClient(CIO) {
-                    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                }
-            }) { client, _ ->
+            install({ HttpClient(CIO) { install(ContentNegotiation) { json(jsonCommon) } } }) {
+                client,
+                _ ->
                 client.close()
             }
         }
@@ -115,7 +114,7 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
@@ -416,7 +415,7 @@ class BlueskyApiModule(
     suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -576,7 +575,7 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUID) {
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUIDv7) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {

@@ -9,7 +9,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -21,6 +20,7 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
@@ -30,7 +30,7 @@ import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
 class MastodonApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `uploads images with alt text and creates status`(@TempDir tempDir: Path) = runTest {

@@ -3,14 +3,9 @@ package socialpublish.backend.db
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.Types
 import java.time.Instant
-import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid as KotlinUuid
 
 private val logger = KotlinLogging.logger {}
-
-@OptIn(ExperimentalUuidApi::class)
-private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
 
 /**
  * A database migration with an idempotency check and an execution function.
@@ -203,7 +198,7 @@ val migrations: List<Migration> =
                 }
             },
             execute = { conn ->
-                val uuid = generateUuidV7()
+                @OptIn(ExperimentalUuidApi::class) val uuid = UUIDv7.generate()
                 val now = Instant.now().toEpochMilli()
                 conn.query(
                     """

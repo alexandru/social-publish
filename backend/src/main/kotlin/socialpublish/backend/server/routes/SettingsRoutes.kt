@@ -5,7 +5,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
@@ -14,6 +13,7 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.Patched
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.respondWithInternalServerError
@@ -114,7 +114,7 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
      * Non-sensitive fields contain real values. Sensitive fields (passwords, tokens, keys) contain
      * [MASKED_VALUE] when a value is stored.
      */
-    suspend fun getSettingsRoute(userUuid: UUID, call: ApplicationCall) {
+    suspend fun getSettingsRoute(userUuid: UUIDv7, call: ApplicationCall) {
         val user =
             usersDb.findByUuid(userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
@@ -138,7 +138,7 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
      * Within a section, absent field → keep existing, present field → update, `null` field → clear
      * (which drops the section when it affects a required field).
      */
-    suspend fun patchSettingsRoute(userUuid: UUID, call: ApplicationCall) {
+    suspend fun patchSettingsRoute(userUuid: UUIDv7, call: ApplicationCall) {
         val patch =
             runCatching { call.receive<UserSettingsPatch>() }.getOrNull()
                 ?: run {

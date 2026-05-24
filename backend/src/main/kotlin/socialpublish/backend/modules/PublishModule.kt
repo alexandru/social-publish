@@ -3,7 +3,6 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -22,6 +21,7 @@ import socialpublish.backend.common.CompositeErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.db.UUIDv7
 
 /**
  * Module for broadcasting posts to multiple social media platforms.
@@ -38,7 +38,7 @@ class PublishModule(
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
     private val rssModule: RssModule,
-    private val userUuid: UUID,
+    private val userUuid: UUIDv7,
 ) {
     /** Broadcast post to multiple platforms */
     suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {

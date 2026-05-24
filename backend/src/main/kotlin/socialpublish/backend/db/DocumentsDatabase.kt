@@ -4,7 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.ExperimentalUuidApi
 
 private val logger = KotlinLogging.logger {}
 
@@ -21,7 +21,6 @@ class DocumentsDatabase(private val db: Database) {
                 setString(2, tag.name)
                 setString(3, tag.kind)
                 execute()
-                Unit
             }
         }
         if (tags.isNotEmpty()) {
@@ -38,10 +37,11 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun createOrUpdate(
         kind: String,
         payload: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
         searchKey: String? = null,
         tags: List<Tag> = emptyList(),
     ): Either<DBException, Document> = either {
@@ -91,7 +91,7 @@ class DocumentsDatabase(private val db: Database) {
                 logger.warn { "Failed to update document with search key $searchKey" }
             }
 
-            val uuid = UUID.randomUUID().toString()
+            val uuid = UUIDv7.generate().toString()
             val finalSearchKey = searchKey ?: "$kind:$uuid"
             val now = db.clock.instant()
 
@@ -113,7 +113,7 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
-    suspend fun searchByKey(searchKey: String, userUuid: UUID): Either<DBException, Document?> =
+    suspend fun searchByKey(searchKey: String, userUuid: UUIDv7): Either<DBException, Document?> =
         either {
             db.transaction {
                 val docData =
@@ -129,7 +129,7 @@ class DocumentsDatabase(private val db: Database) {
                                     payload = rs.getString("payload"),
                                     searchKey = rs.getString("search_key"),
                                     tags = emptyList(),
-                                    userUuid = UUID.fromString(rs.getString("user_uuid")),
+                                    userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                                     createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                                 ),
                             )
@@ -154,7 +154,7 @@ class DocumentsDatabase(private val db: Database) {
                             payload = rs.getString("payload"),
                             searchKey = rs.getString("search_key"),
                             tags = emptyList(),
-                            userUuid = UUID.fromString(rs.getString("user_uuid")),
+                            userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                             createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         )
                     }
@@ -172,7 +172,7 @@ class DocumentsDatabase(private val db: Database) {
 
     suspend fun getAllForUser(
         kind: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
         orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
     ): Either<DBException, List<Document>> = either {
         db.transaction {
@@ -189,7 +189,7 @@ class DocumentsDatabase(private val db: Database) {
                             payload = rs.getString("payload"),
                             searchKey = rs.getString("search_key"),
                             tags = emptyList(),
-                            userUuid = UUID.fromString(rs.getString("user_uuid")),
+                            userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                             createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
                         )
                     }

@@ -1,10 +1,12 @@
 package socialpublish.backend.server.routes
 
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -13,19 +15,19 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.uploadTestImage
 
 class FilesRoutesTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `upload route processes file uploads`(@TempDir tempDir: Path) = testApplication {
@@ -83,16 +85,13 @@ class FilesRoutesTest {
             client.submitFormWithBinaryData(
                 url = "/api/files/upload",
                 formData =
-                    io.ktor.client.request.forms.formData {
+                    formData {
                         append(
                             "wrongName",
                             loadTestResourceBytes("flower1.jpeg"),
-                            io.ktor.http.Headers.build {
-                                append(io.ktor.http.HttpHeaders.ContentType, "image/jpeg")
-                                append(
-                                    io.ktor.http.HttpHeaders.ContentDisposition,
-                                    "filename=\"flower1.jpeg\"",
-                                )
+                            Headers.build {
+                                append(HttpHeaders.ContentType, "image/jpeg")
+                                append(HttpHeaders.ContentDisposition, "filename=\"flower1.jpeg\"")
                             },
                         )
                     },

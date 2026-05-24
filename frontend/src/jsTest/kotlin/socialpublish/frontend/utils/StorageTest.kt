@@ -175,8 +175,6 @@ class StorageTest {
         // Token should be set regardless of protocol
         assertTrue(Storage.hasJwtToken())
 
-        // Secure flag should be true only if protocol is https
-        val isHttps = window.location.protocol == "https:"
         // We can verify the token exists but can't directly verify the secure flag from JS
         assertNotNull(Storage.getJwtToken())
     }

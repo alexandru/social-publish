@@ -1,11 +1,11 @@
 package socialpublish.backend.modules
 
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import socialpublish.backend.db.UUIDv7
 
 class AuthModuleTest {
     private val jwtSecret = "test-secret"
@@ -13,7 +13,7 @@ class AuthModuleTest {
     @Test
     fun `should generate valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser", UUID.randomUUID())
+        val token = authModule.generateToken("testuser", UUIDv7.generate())
 
         assertNotNull(token)
         assertTrue(token.isNotEmpty())
@@ -22,7 +22,7 @@ class AuthModuleTest {
     @Test
     fun `should verify valid JWT token`() {
         val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser", UUID.randomUUID())
+        val token = authModule.generateToken("testuser", UUIDv7.generate())
         val result = authModule.verifyTokenPayload(token)
 
         assertEquals("testuser", result?.username)
@@ -41,7 +41,7 @@ class AuthModuleTest {
         val authModule1 = AuthModule("secret1")
         val authModule2 = AuthModule("secret2")
 
-        val token = authModule1.generateToken("testuser", UUID.randomUUID())
+        val token = authModule1.generateToken("testuser", UUIDv7.generate())
         val result = authModule2.verifyTokenPayload(token)
 
         assertNull(result)
@@ -120,7 +120,7 @@ class AuthModuleTest {
     @Test
     fun `getUserUuidFromToken should return the uuid embedded in the token`() {
         val authModule = AuthModule(jwtSecret)
-        val uuid = UUID.randomUUID()
+        val uuid = UUIDv7.generate()
         val token = authModule.generateToken("testuser", uuid)
 
         val extracted = authModule.verifyTokenPayload(token)
@@ -139,7 +139,7 @@ class AuthModuleTest {
         val authModule1 = AuthModule("secret1")
         val authModule2 = AuthModule("secret2")
 
-        val token = authModule1.generateToken("testuser", UUID.randomUUID())
+        val token = authModule1.generateToken("testuser", UUIDv7.generate())
         val result = authModule2.verifyTokenPayload(token)
         assertEquals(null, result)
     }

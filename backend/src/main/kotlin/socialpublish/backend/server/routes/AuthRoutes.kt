@@ -17,10 +17,10 @@ import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.VerifiedToken
@@ -53,7 +53,7 @@ data class LoginResponse(val token: String, val configuredServices: ConfiguredSe
 data class UserResponse(val username: String, val configuredServices: ConfiguredServices)
 
 class AuthRoutes(
-    private val config: ServerAuthConfig,
+    config: ServerAuthConfig,
     private val usersDb: UsersDatabase,
     private val documentsDb: DocumentsDatabase?,
 ) {
@@ -149,7 +149,7 @@ class AuthRoutes(
         call.respond(UserResponse(username = username, configuredServices = configuredServices))
     }
 
-    private suspend fun computeConfiguredServices(userUuid: UUID): ConfiguredServices {
+    private suspend fun computeConfiguredServices(userUuid: UUIDv7): ConfiguredServices {
         val user = usersDb.findByUuid(userUuid).getOrElse { null }
         val settings = user?.settings
 
@@ -212,7 +212,7 @@ class AuthRoutes(
                     val username = credential.payload.getClaim("username").asString()
                     val userUuid = credential.payload.getClaim("userUuid").asString()
                     val isValidUuid =
-                        userUuid?.let { runCatching { UUID.fromString(it) }.isSuccess } == true
+                        userUuid?.let { runCatching { UUIDv7.fromString(it) }.isSuccess } == true
                     if (username != null && isValidUuid) {
                         JWTPrincipal(credential.payload)
                     } else {
@@ -232,9 +232,9 @@ fun Application.configureAuth(authRoutes: AuthRoutes) {
 }
 
 /** Resolve the authenticated user's UUID from the Ktor JWT principal in the call. */
-fun ApplicationCall.resolveUserUuid(): UUID? {
+fun ApplicationCall.resolveUserUuid(): UUIDv7? {
     val principal = principal<JWTPrincipal>() ?: return null
     return principal.getClaim("userUuid", String::class)?.let {
-        runCatching { UUID.fromString(it) }.getOrNull()
+        runCatching { UUIDv7.fromString(it) }.getOrNull()
     }
 }

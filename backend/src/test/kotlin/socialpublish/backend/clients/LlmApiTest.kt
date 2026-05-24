@@ -11,7 +11,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -22,13 +21,14 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.llm.OpenAiChatRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.uploadTestImage
 
 class LlmApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `generates alt text using OpenAI`(@TempDir tempDir: Path) = runTest {

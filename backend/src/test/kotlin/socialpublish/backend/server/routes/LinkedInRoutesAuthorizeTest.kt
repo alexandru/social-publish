@@ -9,7 +9,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -19,11 +18,12 @@ import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 
 class LinkedInRoutesAuthorizeTest {
-    private val testUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
     private val callbackJwtToken = "trusted-callback-jwt"
 
     @Test

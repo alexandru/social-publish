@@ -6,12 +6,12 @@ import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
-import java.util.UUID
+import socialpublish.backend.db.UUIDv7
 
 private val logger = KotlinLogging.logger {}
 
 /** Verified JWT payload carrying the user's identity. */
-data class VerifiedToken(val username: String, val userUuid: UUID)
+data class VerifiedToken(val username: String, val userUuid: UUIDv7)
 
 class AuthModule(jwtSecret: String) {
     private val algorithm = Algorithm.HMAC256(jwtSecret)
@@ -19,7 +19,7 @@ class AuthModule(jwtSecret: String) {
     val verifier: JWTVerifier by lazy { JWT.require(algorithm).build() }
 
     /** Generate JWT token for authenticated user, carrying both username and userUuid. */
-    fun generateToken(username: String, userUuid: UUID): String {
+    fun generateToken(username: String, userUuid: UUIDv7): String {
         return JWT.create()
             .withSubject(username)
             .withClaim("username", username)
@@ -39,7 +39,7 @@ class AuthModule(jwtSecret: String) {
             val jwt = verifier.verify(token)
             val username = jwt.getClaim("username").asString() ?: return null
             val userUuid =
-                jwt.getClaim("userUuid").asString()?.let { UUID.fromString(it) } ?: return null
+                jwt.getClaim("userUuid").asString()?.let { UUIDv7.fromString(it) } ?: return null
             VerifiedToken(username, userUuid)
         } catch (e: Exception) {
             logger.warn(e) { "Failed to verify JWT token" }

@@ -26,9 +26,8 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
-import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.ErrorResponse
@@ -38,6 +37,8 @@ import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -46,18 +47,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
-                {
-                    HttpClient(CIO) {
-                        install(ContentNegotiation) {
-                            json(
-                                Json {
-                                    ignoreUnknownKeys = true
-                                    isLenient = true
-                                }
-                            )
-                        }
-                    }
-                },
+                { HttpClient(CIO) { install(ContentNegotiation) { json(jsonCommon) } } },
                 { client, _ -> client.close() },
             )
         }
@@ -77,7 +67,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     private suspend fun uploadMedia(
         config: MastodonConfig,
         uuid: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<MastodonMediaResponse> = resourceScope {
         try {
             val file =
@@ -153,7 +143,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     ): ApiResult<MastodonMediaResponse> {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
-            delay(200)
+            delay(200.milliseconds)
 
             val response =
                 httpClient.get("${mediaUrlV1(config)}/$mediaId") {
@@ -196,7 +186,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     suspend fun createPost(
         config: MastodonConfig,
         request: NewPostRequest,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -267,7 +257,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     }
 
     /** Handle Mastodon post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUID) {
+    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUIDv7) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {

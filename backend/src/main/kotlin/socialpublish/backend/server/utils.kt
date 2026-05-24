@@ -5,18 +5,17 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createRouteScopedPlugin
-import io.ktor.server.application.install
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.util.AttributeKey
-import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
-internal val UserUuidKey = AttributeKey<UUID>("userUuid")
+internal val UserUuidKey = AttributeKey<UUIDv7>("userUuid")
 internal val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
 
 /**
@@ -39,7 +38,7 @@ fun Route.installUserContextPlugin(usersDb: UsersDatabase) {
     )
 }
 
-internal suspend fun ApplicationCall.requireUserUuid(): UUID? {
+internal suspend fun ApplicationCall.requireUserUuid(): UUIDv7? {
     attributes.getOrNull(UserUuidKey)?.let {
         return it
     }
@@ -56,7 +55,7 @@ internal suspend fun ApplicationCall.requireUserUuid(): UUID? {
 
 internal suspend fun ApplicationCall.requireUserSettings(
     usersDb: UsersDatabase,
-    userUuid: UUID,
+    userUuid: UUIDv7,
 ): UserSettings {
     attributes.getOrNull(UserSettingsKey)?.let {
         return it

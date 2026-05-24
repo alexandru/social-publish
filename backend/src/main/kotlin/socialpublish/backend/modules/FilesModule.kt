@@ -9,7 +9,6 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
@@ -20,6 +19,7 @@ import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.common.*
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UploadPayload
 
 private val logger = KotlinLogging.logger {}
@@ -70,7 +70,7 @@ private constructor(
     private val processedPath = File(uploadedFilesPath, "processed")
 
     /** Upload and process file */
-    suspend fun uploadFile(upload: UploadedFile, userUuid: UUID): ApiResult<FileUploadResponse> =
+    suspend fun uploadFile(upload: UploadedFile, userUuid: UUIDv7): ApiResult<FileUploadResponse> =
         resourceScope {
             try {
                 val originalFileTmp = upload.source.asFileResource().bind()
@@ -226,7 +226,7 @@ private constructor(
     }
 
     /** Read image file for API posting */
-    suspend fun readImageFile(uuid: String, userUuid: UUID): ProcessedUpload? {
+    suspend fun readImageFile(uuid: String, userUuid: UUIDv7): ProcessedUpload? {
         val upload = db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it } ?: return null
         val filePath = File(processedPath, upload.hash)
 

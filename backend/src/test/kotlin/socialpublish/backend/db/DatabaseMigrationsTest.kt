@@ -104,8 +104,6 @@ class DatabaseMigrationsTest {
 
             resourceScope {
                 val db = Database.connect(dbPath).bind()
-                val usersDb = UsersDatabase(db)
-
                 // There should be exactly 2 users, not 3
                 val count =
                     db.query("SELECT COUNT(*) FROM users") {
@@ -234,6 +232,7 @@ class DatabaseMigrationsTest {
         resourceScope {
             val db = Database.connect(dbPath).bind()
             val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
 
             val columns =
                 db.query("PRAGMA table_info(user_sessions)") {
@@ -242,7 +241,8 @@ class DatabaseMigrationsTest {
             assertFalse(columns.contains("refresh_token_hash"))
             assertTrue(columns.contains("revoked_at"))
 
-            val session = usersDb.findSessionByTokenHash("legacy-token").getOrElse { throw it }
+            val session =
+                userSessionsDb.findSessionByTokenHash("legacy-token").getOrElse { throw it }
             assertNotNull(session)
             assertEquals("legacy", session.user.username)
             assertNull(session.revokedAt)

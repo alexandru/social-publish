@@ -17,7 +17,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -29,6 +28,7 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.Patched
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
@@ -38,7 +38,7 @@ class SettingsRoutesTest {
     private val config = ServerAuthConfig(jwtSecret = "test-secret-settings")
     private val json = Json { ignoreUnknownKeys = true }
 
-    private suspend fun setupDb(): Pair<UsersDatabase, UUID> {
+    private suspend fun setupDb(): Pair<UsersDatabase, UUIDv7> {
         val db = Database.connectUnmanaged(":memory:")
         val usersDb = UsersDatabase(db)
         val result = usersDb.createUser("settingsuser", "settingspass")
@@ -46,7 +46,7 @@ class SettingsRoutesTest {
         return Pair(usersDb, user.uuid)
     }
 
-    private fun authToken(userUuid: UUID): String {
+    private fun authToken(userUuid: UUIDv7): String {
         val authModule = AuthModule(config.jwtSecret)
         return authModule.generateToken("settingsuser", userUuid)
     }
@@ -222,7 +222,7 @@ class SettingsRoutesTest {
                 routing {
                     authenticate("auth-jwt") {
                         get("/api/account/settings") {
-                            settingsRoutes.getSettingsRoute(UUID.randomUUID(), call)
+                            settingsRoutes.getSettingsRoute(UUIDv7.generate(), call)
                         }
                     }
                 }

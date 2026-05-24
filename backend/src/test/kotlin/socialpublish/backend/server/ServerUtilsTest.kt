@@ -13,13 +13,13 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
@@ -34,7 +34,7 @@ class ServerUtilsTest {
         return UsersDatabase(db)
     }
 
-    private suspend fun createUser(usersDb: UsersDatabase, username: String): UUID {
+    private suspend fun createUser(usersDb: UsersDatabase, username: String): UUIDv7 {
         val createResult = usersDb.createUser(username, "pass-$username")
         val created = createResult.getOrNull() as? CreateResult.Created
         return created?.value?.uuid ?: error("Failed to create user: $username")
@@ -43,7 +43,7 @@ class ServerUtilsTest {
     @Test
     fun `requireUserUuid returns cached attribute value`() {
         testApplication {
-            val expected = UUID.randomUUID()
+            val expected = UUIDv7.generate()
 
             application {
                 routing {
@@ -66,7 +66,7 @@ class ServerUtilsTest {
         testApplication {
             val usersDb = testUsersDb()
             val authRoutes = AuthRoutes(authConfig, usersDb, documentsDb = null)
-            val userUuid = UUID.randomUUID()
+            val userUuid = UUIDv7.generate()
             val token = AuthModule(authConfig.jwtSecret).generateToken("user", userUuid)
 
             application {
@@ -115,7 +115,7 @@ class ServerUtilsTest {
     fun `requireUserSettings returns cached settings from attributes`() {
         testApplication {
             val usersDb = testUsersDb()
-            val userUuid = UUID.randomUUID()
+            val userUuid = UUIDv7.generate()
             val expected = UserSettings(mastodon = MastodonConfig("https://cached", "token"))
 
             application {
@@ -169,7 +169,7 @@ class ServerUtilsTest {
             application {
                 routing {
                     get("/settings-missing") {
-                        val settings = call.requireUserSettings(usersDb, UUID.randomUUID())
+                        val settings = call.requireUserSettings(usersDb, UUIDv7.generate())
                         call.respondText((settings == UserSettings()).toString())
                     }
                 }

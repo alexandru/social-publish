@@ -4,7 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URI
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import socialpublish.backend.common.jsonCommon
 
 private val logger = KotlinLogging.logger {}
 
@@ -58,8 +58,7 @@ fun isYouTubeUrl(url: String): Boolean {
  */
 fun parseYouTubeOEmbedResponse(jsonResponse: String): LinkPreview? {
     return try {
-        val json = Json { ignoreUnknownKeys = true }
-        val response = json.decodeFromString<YouTubeOEmbedResponse>(jsonResponse)
+        val response = jsonCommon.decodeFromString<YouTubeOEmbedResponse>(jsonResponse)
 
         // Validate that we have at least a title
         val title = response.title?.takeIf { it.isNotBlank() } ?: return null

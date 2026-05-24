@@ -13,7 +13,7 @@ data class UploadPayload(
     val originalname: String,
     val mimetype: String,
     val size: Long,
-    val userUuid: UUID,
+    val userUuid: UUIDv7,
     val altText: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
@@ -28,7 +28,7 @@ data class Upload(
     val altText: String?,
     val imageWidth: Int?,
     val imageHeight: Int?,
-    val userUuid: UUID,
+    val userUuid: UUIDv7,
     val createdAt: Instant,
 )
 
@@ -89,7 +89,7 @@ class FilesDatabase(private val db: Database) {
                             altText = rs.getString("altText"),
                             imageWidth = rs.getObject("imageWidth") as? Int,
                             imageHeight = rs.getObject("imageHeight") as? Int,
-                            userUuid = UUID.fromString(rs.getString("user_uuid")),
+                            userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                             createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                         )
                     }
@@ -153,14 +153,14 @@ class FilesDatabase(private val db: Database) {
                     altText = rs.getString("altText"),
                     imageWidth = rs.getObject("imageWidth") as? Int,
                     imageHeight = rs.getObject("imageHeight") as? Int,
-                    userUuid = UUID.fromString(rs.getString("user_uuid")),
+                    userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                     createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                 )
             }
         }
     }
 
-    suspend fun getFileByUuidForUser(uuid: String, userUuid: UUID): Either<DBException, Upload?> =
+    suspend fun getFileByUuidForUser(uuid: String, userUuid: UUIDv7): Either<DBException, Upload?> =
         either {
             db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
                 setString(1, uuid)
@@ -175,7 +175,7 @@ class FilesDatabase(private val db: Database) {
                         altText = rs.getString("altText"),
                         imageWidth = rs.getObject("imageWidth") as? Int,
                         imageHeight = rs.getObject("imageHeight") as? Int,
-                        userUuid = UUID.fromString(rs.getString("user_uuid")),
+                        userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
                         createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
                     )
                 }

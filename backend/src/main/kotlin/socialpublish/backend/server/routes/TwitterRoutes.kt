@@ -8,13 +8,13 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.respondWithInternalServerError
 
 @Serializable
@@ -25,7 +25,7 @@ class TwitterRoutes(
     private val documentsDb: DocumentsDatabase,
 ) {
     suspend fun authorizeRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         callbackJwtToken: String,
         call: ApplicationCall,
@@ -42,7 +42,11 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun callbackRoute(userUuid: UUID, twitterConfig: TwitterConfig, call: ApplicationCall) {
+    suspend fun callbackRoute(
+        userUuid: UUIDv7,
+        twitterConfig: TwitterConfig,
+        call: ApplicationCall,
+    ) {
         val token = call.request.queryParameters["oauth_token"]
         val verifier = call.request.queryParameters["oauth_verifier"]
 
@@ -71,7 +75,7 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
+    suspend fun statusRoute(userUuid: UUIDv7, call: ApplicationCall) {
         val row =
             documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error)
@@ -86,7 +90,7 @@ class TwitterRoutes(
     }
 
     suspend fun createPostRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {

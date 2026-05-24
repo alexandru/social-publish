@@ -19,14 +19,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
-import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -37,14 +37,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             install(
                 {
                     HttpClient(CIO) {
-                        install(ContentNegotiation) {
-                            json(
-                                Json {
-                                    ignoreUnknownKeys = true
-                                    isLenient = true
-                                }
-                            )
-                        }
+                        install(ContentNegotiation) { json(jsonCommon) }
                         install(HttpTimeout) {
                             requestTimeoutMillis = 20.seconds.inWholeMilliseconds
                             connectTimeoutMillis = 40.seconds.inWholeMilliseconds
@@ -62,7 +55,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
 
     suspend fun generateAltText(
         config: LlmConfig,
-        userUuid: UUID,
+        userUuid: UUIDv7,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,

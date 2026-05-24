@@ -9,13 +9,13 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import java.net.URLEncoder
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.respondWithInternalServerError
 
 @Serializable
@@ -26,7 +26,7 @@ class LinkedInRoutes(
     private val documentsDb: DocumentsDatabase,
 ) {
     suspend fun authorizeRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         linkedInConfig: LinkedInConfig,
         callbackJwtToken: String,
         call: ApplicationCall,
@@ -47,7 +47,7 @@ class LinkedInRoutes(
     }
 
     suspend fun callbackRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         linkedInConfig: LinkedInConfig,
         call: ApplicationCall,
     ) {
@@ -64,7 +64,7 @@ class LinkedInRoutes(
                     "user_cancelled_authorize" -> "You declined the LinkedIn authorization request"
                     else -> errorDescription ?: "LinkedIn authorization failed: $error"
                 }
-            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, "UTF-8")}")
+            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, Charsets.UTF_8)}")
             return
         }
 
@@ -74,7 +74,7 @@ class LinkedInRoutes(
                 val msg =
                     URLEncoder.encode(
                         "Authorization failed: Invalid state parameter. Please try again.",
-                        "UTF-8",
+                        Charsets.UTF_8,
                     )
                 call.respondRedirect("/account?error=$msg")
                 return
@@ -82,14 +82,15 @@ class LinkedInRoutes(
         }
 
         if (code == null) {
-            val msg = URLEncoder.encode("LinkedIn authorization failed: missing code", "UTF-8")
+            val msg =
+                URLEncoder.encode("LinkedIn authorization failed: missing code", Charsets.UTF_8)
             call.respondRedirect("/account?error=$msg")
             return
         }
 
         val redirectUri =
             if (accessToken != null) {
-                "${linkedInModule.baseUrl}/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, "UTF-8")}"
+                "${linkedInModule.baseUrl}/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, Charsets.UTF_8)}"
             } else {
                 "${linkedInModule.baseUrl}/api/linkedin/callback"
             }
@@ -109,19 +110,19 @@ class LinkedInRoutes(
                         call.respondRedirect("/account")
                     }
                     is arrow.core.Either.Left -> {
-                        val msg = URLEncoder.encode(saveResult.value.errorMessage, "UTF-8")
+                        val msg = URLEncoder.encode(saveResult.value.errorMessage, Charsets.UTF_8)
                         call.respondRedirect("/account?error=$msg")
                     }
                 }
             }
             is arrow.core.Either.Left -> {
-                val msg = URLEncoder.encode(tokenResult.value.errorMessage, "UTF-8")
+                val msg = URLEncoder.encode(tokenResult.value.errorMessage, Charsets.UTF_8)
                 call.respondRedirect("/account?error=$msg")
             }
         }
     }
 
-    suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
+    suspend fun statusRoute(userUuid: UUIDv7, call: ApplicationCall) {
         val row =
             documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse { error ->
                 call.respondWithInternalServerError(error)
@@ -136,7 +137,7 @@ class LinkedInRoutes(
     }
 
     suspend fun createPostRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         linkedInConfig: LinkedInConfig,
         call: ApplicationCall,
     ) {

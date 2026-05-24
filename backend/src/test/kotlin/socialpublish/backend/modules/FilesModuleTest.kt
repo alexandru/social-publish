@@ -13,14 +13,15 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.UploadSource
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.loadTestResourceBytes
 
 class FilesModuleTest {
-    private val userA = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-    private val userB = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+    private val userA = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val userB = UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
 
     @Test
     fun `uploads images and stores originals`(@TempDir tempDir: Path) = runTest {

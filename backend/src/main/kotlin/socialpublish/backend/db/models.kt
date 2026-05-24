@@ -1,7 +1,6 @@
 package socialpublish.backend.db
 
 import java.time.Instant
-import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
@@ -51,7 +50,7 @@ data class Document(
     val kind: String,
     val tags: List<Tag>,
     val payload: String,
-    val userUuid: UUID,
+    val userUuid: UUIDv7,
     val createdAt: Instant,
 )
 
@@ -78,7 +77,7 @@ data class Post(
 
 /** User account for authentication. */
 data class User(
-    val uuid: UUID,
+    val uuid: UUIDv7,
     val username: String,
     val passwordHash: String?,
     val settings: UserSettings?,
@@ -117,7 +116,7 @@ sealed interface UpdateUsernameResult {
 
 /** User session for server-side authentication. */
 data class UserSession(
-    val uuid: UUID,
+    val uuid: UUIDv7,
     val user: User,
     val tokenHash: String,
     val expiresAt: Instant,

@@ -12,13 +12,14 @@ import socialpublish.backend.common.NewRssPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
 
 class RssModuleTest {
     private lateinit var rssModule: RssModule
     private lateinit var postsDb: PostsDatabase
     private lateinit var filesDb: FilesDatabase
-    private val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @BeforeEach
     fun setup(@TempDir tempDir: Path) = runTest {
