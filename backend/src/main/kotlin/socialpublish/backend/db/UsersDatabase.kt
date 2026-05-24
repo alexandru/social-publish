@@ -4,7 +4,6 @@ import arrow.core.Either
 import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.sql.Types
 import java.time.Instant
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -27,8 +26,7 @@ private val settingsJson = Json { ignoreUnknownKeys = true }
 /**
  * Database access layer for users and user sessions.
  *
- * Handles user authentication data and JWT session management. Note: Future support for refresh
- * tokens is planned.
+ * Handles user authentication data and server-side session management.
  */
 class UsersDatabase(private val db: Database) {
 
@@ -279,17 +277,19 @@ class UsersDatabase(private val db: Database) {
      * Create a new user session.
      *
      * @param userUuid User UUID for the session
-     * @param tokenHash Hash of the JWT token (for revocation support)
+     * @param tokenHash Hash of the session token
      * @param expiresAt When the session expires
-     * @param refreshTokenHash Optional hash of refresh token (for future refresh token support)
      * @return Either a DBException or the CreateResult<UserSession>
      */
     suspend fun createSession(
         userUuid: UUID,
         tokenHash: String,
         expiresAt: Instant,
-        refreshTokenHash: String? = null,
     ): Either<DBException, CreateResult<UserSession>> = either {
+        val user =
+            findByUuid(userUuid).bind()
+                ?: raise(DBException("Cannot create session for missing user: $userUuid"))
+
         db.transaction {
             // Check if session with this token already exists
             val existing =
@@ -307,20 +307,15 @@ class UsersDatabase(private val db: Database) {
                 query(
                     """
                     INSERT INTO user_sessions 
-                    (uuid, user_uuid, token_hash, refresh_token_hash, expires_at, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (uuid, user_uuid, token_hash, expires_at, created_at, revoked_at) 
+                    VALUES (?, ?, ?, ?, ?, NULL)
                     """
                 ) {
                     setString(1, uuid.toString())
                     setString(2, userUuid.toString())
                     setString(3, tokenHash)
-                    if (refreshTokenHash != null) {
-                        setString(4, refreshTokenHash)
-                    } else {
-                        setNull(4, Types.VARCHAR)
-                    }
-                    setLong(5, expiresAt.toEpochMilli())
-                    setLong(6, now.toEpochMilli())
+                    setLong(4, expiresAt.toEpochMilli())
+                    setLong(5, now.toEpochMilli())
                     execute()
                     Unit
                 }
@@ -330,11 +325,11 @@ class UsersDatabase(private val db: Database) {
                 val session =
                     UserSession(
                         uuid = uuid,
-                        userUuid = userUuid,
+                        user = user,
                         tokenHash = tokenHash,
-                        refreshTokenHash = refreshTokenHash,
                         expiresAt = expiresAt,
                         createdAt = now,
+                        revokedAt = null,
                     )
                 CreateResult.Created(session)
             }
@@ -344,22 +339,52 @@ class UsersDatabase(private val db: Database) {
     /**
      * Find a user session by token hash.
      *
-     * @param tokenHash Hash of the JWT token
+     * @param tokenHash Hash of the session token
      * @return Either a DBException or the UserSession (null if not found)
      */
     suspend fun findSessionByTokenHash(tokenHash: String): Either<DBException, UserSession?> =
         either {
             db.transaction {
-                query("SELECT * FROM user_sessions WHERE token_hash = ?") {
+                query(
+                    """
+                    SELECT
+                        s.uuid AS session_uuid,
+                        s.token_hash,
+                        s.expires_at AS session_expires_at,
+                        s.created_at AS session_created_at,
+                        s.revoked_at,
+                        u.uuid AS user_uuid,
+                        u.username AS user_username,
+                        u.password_hash AS user_password_hash,
+                        u.settings AS user_settings,
+                        u.created_at AS user_created_at,
+                        u.updated_at AS user_updated_at
+                    FROM user_sessions s
+                    JOIN users u ON u.uuid = s.user_uuid
+                    WHERE s.token_hash = ?
+                    """
+                        .trimIndent()
+                ) {
                     setString(1, tokenHash)
                     executeQuery().safe().firstOrNull { rs ->
+                        val revokedAtMillis = rs.getLong("revoked_at")
+                        val revokedAt =
+                            if (rs.wasNull()) null else Instant.ofEpochMilli(revokedAtMillis)
                         UserSession(
-                            uuid = UUID.fromString(rs.getString("uuid")),
-                            userUuid = UUID.fromString(rs.getString("user_uuid")),
+                            uuid = UUID.fromString(rs.getString("session_uuid")),
+                            user =
+                                User(
+                                    uuid = UUID.fromString(rs.getString("user_uuid")),
+                                    username = rs.getString("user_username"),
+                                    passwordHash = rs.getString("user_password_hash"),
+                                    settings = parseSettings(rs.getString("user_settings")),
+                                    createdAt = Instant.ofEpochMilli(rs.getLong("user_created_at")),
+                                    updatedAt = Instant.ofEpochMilli(rs.getLong("user_updated_at")),
+                                ),
                             tokenHash = rs.getString("token_hash"),
-                            refreshTokenHash = rs.getString("refresh_token_hash"),
-                            expiresAt = Instant.ofEpochMilli(rs.getLong("expires_at")),
-                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                            expiresAt = Instant.ofEpochMilli(rs.getLong("session_expires_at")),
+                            createdAt = Instant.ofEpochMilli(rs.getLong("session_created_at")),
+                            revokedAt = revokedAt,
                         )
                     }
                 }
@@ -369,7 +394,7 @@ class UsersDatabase(private val db: Database) {
     /**
      * Delete a user session (logout).
      *
-     * @param tokenHash Hash of the JWT token
+     * @param tokenHash Hash of the session token
      * @return Either a DBException or true if session was deleted, false if not found
      */
     suspend fun deleteSession(tokenHash: String): Either<DBException, Boolean> = either {

@@ -115,12 +115,12 @@ sealed interface UpdateUsernameResult {
     data object UsernameAlreadyExists : UpdateUsernameResult
 }
 
-/** User session for JWT authentication with optional refresh token support. */
+/** User session for server-side authentication. */
 data class UserSession(
     val uuid: UUID,
-    val userUuid: UUID,
+    val user: User,
     val tokenHash: String,
-    val refreshTokenHash: String?,
     val expiresAt: Instant,
     val createdAt: Instant,
+    val revokedAt: Instant?,
 )

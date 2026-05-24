@@ -5,6 +5,7 @@ import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
 import java.sql.DriverManager
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -158,6 +159,120 @@ class DatabaseMigrationsTest {
                 )
             }
         }
+
+    @Test
+    fun `user sessions schema stores revocation time and no refresh token`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+
+                val columns =
+                    db.query("PRAGMA table_info(user_sessions)") {
+                        executeQuery().safe().toList { rs -> rs.getString("name") }
+                    }
+                assertFalse(
+                    columns.contains("refresh_token_hash"),
+                    "user_sessions should not have refresh_token_hash",
+                )
+                assertTrue(columns.contains("revoked_at"), "user_sessions should have revoked_at")
+
+                val indexes =
+                    db.query("PRAGMA index_list(user_sessions)") {
+                        executeQuery().safe().toList { rs -> rs.getString("name") }
+                    }
+                assertTrue(
+                    indexes.contains("user_sessions_expires_at"),
+                    "user_sessions should index expires_at",
+                )
+                assertTrue(
+                    indexes.contains("user_sessions_revoked_at"),
+                    "user_sessions should index revoked_at",
+                )
+            }
+        }
+
+    @Test
+    fun `migration 9 converts existing user sessions schema`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+        createSchemaUpToMigration4(dbPath)
+
+        DriverManager.getConnection("jdbc:sqlite:$dbPath").use { conn ->
+            conn.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    INSERT INTO users (uuid, username, password_hash, created_at, updated_at)
+                    VALUES (
+                        '018f0000-0000-7000-8000-000000000001',
+                        'legacy',
+                        'hash',
+                        1000,
+                        1000
+                    )
+                    """
+                        .trimIndent()
+                )
+                statement.execute(
+                    """
+                    INSERT INTO user_sessions
+                        (uuid, user_uuid, token_hash, refresh_token_hash, expires_at, created_at)
+                    VALUES (
+                        '018f0000-0000-7000-8000-000000000002',
+                        '018f0000-0000-7000-8000-000000000001',
+                        'legacy-token',
+                        'legacy-refresh',
+                        2000,
+                        1000
+                    )
+                    """
+                        .trimIndent()
+                )
+            }
+        }
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+            val usersDb = UsersDatabase(db)
+
+            val columns =
+                db.query("PRAGMA table_info(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            assertFalse(columns.contains("refresh_token_hash"))
+            assertTrue(columns.contains("revoked_at"))
+
+            val session = usersDb.findSessionByTokenHash("legacy-token").getOrElse { throw it }
+            assertNotNull(session)
+            assertEquals("legacy", session.user.username)
+            assertNull(session.revokedAt)
+
+            val oldTableExists =
+                db.query(
+                    """
+                    SELECT 1
+                    FROM sqlite_master
+                    WHERE type = 'table' AND name = 'user_sessions_old'
+                    """
+                ) {
+                    executeQuery().next()
+                }
+            assertFalse(oldTableExists, "migration 9 should drop user_sessions_old last")
+
+            val indexes =
+                db.query("PRAGMA index_list(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            assertTrue(
+                indexes.contains("user_sessions_expires_at"),
+                "user_sessions should keep expires_at indexed after migration 9",
+            )
+            assertTrue(
+                indexes.contains("user_sessions_revoked_at"),
+                "user_sessions should index revoked_at after migration 9",
+            )
+        }
+    }
 }
 
 private fun createSchemaUpToMigration4(dbPath: String) {
@@ -172,6 +287,13 @@ private fun createSchemaUpToMigration4(dbPath: String) {
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL
                 )
+                """
+                    .trimIndent()
+            )
+            statement.execute(
+                """
+                CREATE INDEX IF NOT EXISTS documents_created_at
+                    ON documents(kind, created_at)
                 """
                     .trimIndent()
             )
@@ -204,6 +326,13 @@ private fun createSchemaUpToMigration4(dbPath: String) {
             )
             statement.execute(
                 """
+                CREATE INDEX IF NOT EXISTS uploads_createdAt
+                    ON uploads(createdAt)
+                """
+                    .trimIndent()
+            )
+            statement.execute(
+                """
                 CREATE TABLE IF NOT EXISTS users (
                     uuid VARCHAR(36) NOT NULL PRIMARY KEY,
                     username VARCHAR(255) UNIQUE NOT NULL,
@@ -225,6 +354,13 @@ private fun createSchemaUpToMigration4(dbPath: String) {
                     created_at INTEGER NOT NULL,
                     FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
                 )
+                """
+                    .trimIndent()
+            )
+            statement.execute(
+                """
+                CREATE INDEX IF NOT EXISTS user_sessions_expires_at
+                    ON user_sessions(expires_at)
                 """
                     .trimIndent()
             )

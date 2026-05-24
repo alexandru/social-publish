@@ -207,46 +207,12 @@ class UsersDatabaseTest {
             assertTrue(sessionResult is CreateResult.Created)
             val session = sessionResult.value
             assertNotNull(session.uuid)
-            assertEquals(user.uuid, session.userUuid)
+            assertEquals(user.uuid, session.user.uuid)
+            assertEquals(user.username, session.user.username)
             assertEquals("token-hash-123", session.tokenHash)
-            assertNull(session.refreshTokenHash)
             assertEquals(expiresAt.toEpochMilli(), session.expiresAt.toEpochMilli())
             assertNotNull(session.createdAt)
-        }
-    }
-
-    @Test
-    fun `createSession should support refresh token hash`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
-
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-            val usersDb = UsersDatabase(db)
-
-            // Create user
-            val createResult =
-                usersDb.createUser(username = "refreshuser", password = "password").getOrElse {
-                    throw it
-                }
-            assertTrue(createResult is CreateResult.Created)
-            val user = createResult.value
-
-            // Create session with refresh token
-            val expiresAt = Instant.now().plusSeconds(3600)
-            val sessionResult =
-                usersDb
-                    .createSession(
-                        userUuid = user.uuid,
-                        tokenHash = "token-hash-456",
-                        expiresAt = expiresAt,
-                        refreshTokenHash = "refresh-hash-789",
-                    )
-                    .getOrElse { throw it }
-
-            assertTrue(sessionResult is CreateResult.Created)
-            val session = sessionResult.value
-            assertNotNull(session.refreshTokenHash)
-            assertEquals("refresh-hash-789", session.refreshTokenHash)
+            assertNull(session.revokedAt)
         }
     }
 
@@ -325,8 +291,9 @@ class UsersDatabaseTest {
 
             assertNotNull(found)
             assertEquals(created.uuid, found.uuid)
-            assertEquals(created.userUuid, found.userUuid)
+            assertEquals(created.user, found.user)
             assertEquals(created.tokenHash, found.tokenHash)
+            assertNull(found.revokedAt)
         }
     }
 
