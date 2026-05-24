@@ -3,7 +3,6 @@ package socialpublish.backend.db
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.Types
 import java.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
 
 private val logger = KotlinLogging.logger {}
 
@@ -198,7 +197,7 @@ val migrations: List<Migration> =
                 }
             },
             execute = { conn ->
-                @OptIn(ExperimentalUuidApi::class) val uuid = UUIDv7.generate()
+                val uuid = UUIDv7.generate()
                 val now = Instant.now().toEpochMilli()
                 conn.query(
                     """

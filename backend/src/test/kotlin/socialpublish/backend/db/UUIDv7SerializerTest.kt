@@ -1,7 +1,6 @@
 package socialpublish.backend.db
 
 import kotlin.test.assertEquals
-import kotlin.uuid.ExperimentalUuidApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
@@ -28,11 +27,9 @@ class UUIDv7SerializerTest {
         assertEquals(UUIDv7.fromString("018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"), decoded.uuid)
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     @Test
     fun `generate returns UUIDv7`() {
         val uuid = UUIDv7.generate()
-
         assertEquals(7, uuid.value.version())
     }
 }

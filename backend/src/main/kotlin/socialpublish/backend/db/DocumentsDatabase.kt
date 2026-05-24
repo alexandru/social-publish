@@ -4,7 +4,6 @@ import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
 
 private val logger = KotlinLogging.logger {}
 
@@ -37,7 +36,6 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
-    @OptIn(ExperimentalUuidApi::class)
     suspend fun createOrUpdate(
         kind: String,
         payload: String,

@@ -5,7 +5,6 @@ import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.modules.AuthModule
 
@@ -36,7 +35,6 @@ class UsersDatabase(private val db: Database) {
      * @param password Plain text password that will be hashed with BCrypt
      * @return Either a DBException or the CreateResult<User>
      */
-    @OptIn(ExperimentalUuidApi::class)
     suspend fun createUser(
         username: String,
         password: String,

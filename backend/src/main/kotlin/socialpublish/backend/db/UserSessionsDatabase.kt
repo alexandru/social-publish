@@ -4,13 +4,11 @@ import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
 
 private val logger = KotlinLogging.logger {}
 
 /** Database access layer for the user_sessions table. */
 class UserSessionsDatabase(private val db: Database, private val usersDb: UsersDatabase) {
-    @OptIn(ExperimentalUuidApi::class)
     suspend fun createSession(
         userUuid: UUIDv7,
         tokenHash: String,
