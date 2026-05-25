@@ -28,8 +28,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
 import socialpublish.backend.common.LoomIO
-import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.Database.Companion.connect
 
 /**
