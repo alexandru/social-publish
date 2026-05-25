@@ -17,19 +17,20 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 @Serializable data class RssPostResponse(val uri: String, val module: String)
 
-private val testUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 private val testUserUuidPath = testUserUuid.toString()
 
 class RssRoutesTest {
@@ -44,7 +45,11 @@ class RssRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) } }
+            routing {
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
+            }
         }
 
         val client = createClient {
@@ -85,7 +90,11 @@ class RssRoutesTest {
 
         application {
             install(ContentNegotiation) { json() }
-            routing { post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) } }
+            routing {
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
+            }
         }
 
         val client = createClient {
@@ -126,7 +135,9 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
                 get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
             }
         }
@@ -174,7 +185,9 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
                 get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
             }
         }
@@ -224,7 +237,9 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
                 get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
             }
         }
@@ -273,7 +288,9 @@ class RssRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/rss/post") { rssRoutes.createPostRoute(testUserUuid, call) }
+                post("/api/rss/post") {
+                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+                }
                 get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
             }
         }

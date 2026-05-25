@@ -26,8 +26,6 @@ data class ConfiguredServices(
     val llm: Boolean = false,
 )
 
-@Serializable private data class JwtPayload(val userUuid: String? = null)
-
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
     private const val CONFIGURED_SERVICES_KEY = "configuredServices"
@@ -72,12 +70,12 @@ object Storage {
         document.cookie = "$name=;expires=${expiryDate.toUTCString()};path=/"
     }
 
-    // JWT Token management (using cookies)
-    fun getJwtToken(): String? {
+    // Session token management (using cookies)
+    fun getSessionToken(): String? {
         return cookies()[ACCESS_TOKEN_COOKIE]
     }
 
-    fun setJwtToken(token: String) {
+    fun setSessionToken(token: String) {
         // Using SameSite=Lax for better compatibility with redirects while maintaining good
         // security
         // Secure flag is optional to allow development over HTTP (will work over HTTPS in
@@ -93,33 +91,12 @@ object Storage {
         )
     }
 
-    fun clearJwtToken() {
+    fun clearSessionToken() {
         clearCookie(ACCESS_TOKEN_COOKIE)
     }
 
-    fun hasJwtToken(): Boolean {
-        return getJwtToken() != null
-    }
-
-    fun getJwtUserUuid(): String? {
-        val token = getJwtToken() ?: return null
-        val parts = token.split(".")
-        if (parts.size < 2) return null
-
-        val payloadBase64 =
-            parts[1].replace('-', '+').replace('_', '/').let { segment ->
-                when (segment.length % 4) {
-                    2 -> "$segment=="
-                    3 -> "$segment="
-                    else -> segment
-                }
-            }
-
-        return runCatching {
-                val payloadJson = window.atob(payloadBase64)
-                Json.decodeFromString<JwtPayload>(payloadJson).userUuid
-            }
-            .getOrNull()
+    fun hasSessionToken(): Boolean {
+        return getSessionToken() != null
     }
 
     // Configured services management (using localStorage)
@@ -135,7 +112,8 @@ object Storage {
         val stored = localStorage[CONFIGURED_SERVICES_KEY] ?: return ConfiguredServices()
         return try {
             Json.decodeFromString<ConfiguredServices>(stored)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             console.error(
                 "Error decoding ConfiguredServices from localStorage:",
                 e,

@@ -19,9 +19,11 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishRoutesTest {
     @Test
@@ -42,7 +44,7 @@ class PublishRoutesTest {
                 null,
                 null,
                 rssModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val publishRoutes = PublishRoutes()
 
@@ -101,7 +103,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     rssModule,
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
                 )
             val publishRoutes = PublishRoutes()
 
@@ -161,7 +163,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     rssModule,
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
                 )
             val publishRoutes = PublishRoutes()
 

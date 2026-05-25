@@ -14,7 +14,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -28,18 +27,19 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.imageDimensions
-import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
 class TwitterApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `uploads media with alt text and creates tweet`(@TempDir tempDir: Path) = runTest {
@@ -54,7 +54,11 @@ class TwitterApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     post("/1.1/media/upload.json") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
@@ -138,7 +142,7 @@ class TwitterApiTest {
                                 secret = "sec",
                             ),
                         ),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
@@ -151,16 +155,17 @@ class TwitterApiTest {
                     content = "Hello twitter",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
+            val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
             assertTrue(result.isRight())
 
             assertEquals(2, uploadedImages.size)
             assertEquals(listOf("mid1", "mid2"), tweetMediaIds)
             assertEquals(listOf("mid1" to "rose", "mid2" to "tulip"), altTextRequests)
 
-            val original1 = imageDimensions(loadTestResourceBytes("flower1.jpeg"))
-            val original2 = imageDimensions(loadTestResourceBytes("flower2.jpeg"))
             // Images are optimized on upload to max 1600x1600
             assertTrue(uploadedImages[0].width <= 1600)
             assertTrue(uploadedImages[0].height <= 1600)
@@ -237,7 +242,7 @@ class TwitterApiTest {
                                 secret = "sec",
                             ),
                         ),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
@@ -247,8 +252,11 @@ class TwitterApiTest {
                     content = "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
                     cleanupHtml = true,
                 )
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
+            val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
             assertTrue(result.isRight())
 
             // Jsoup properly decodes HTML entities and removes tags
@@ -275,17 +283,6 @@ class TwitterApiTest {
                         )
                     }
                 }
-                val twitterConfig =
-                    TwitterConfig(
-                        oauth1ConsumerKey = "k",
-                        oauth1ConsumerSecret = "s",
-                        apiBase = "http://localhost",
-                        uploadBase = "http://localhost",
-                        oauthRequestTokenUrl = "http://localhost/oauth/request_token",
-                        oauthAccessTokenUrl = "http://localhost/oauth/access_token",
-                        oauthAuthorizeUrl = "http://localhost/oauth/authorize",
-                    )
-
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
                     TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
@@ -303,8 +300,7 @@ class TwitterApiTest {
                                     secret = "sec",
                                 ),
                             ),
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         searchKey = "twitter-oauth-token:00000000-0000-0000-0000-000000000001",
                         tags = emptyList(),
                     )
@@ -320,13 +316,9 @@ class TwitterApiTest {
                     }
                     routing {
                         get("/api/twitter/status") {
-                            TwitterRoutes(twitterModule, documentsDb)
-                                .statusRoute(
-                                    java.util.UUID.fromString(
-                                        "00000000-0000-0000-0000-000000000001"
-                                    ),
-                                    call,
-                                )
+                            context(createTestSession(testUserUuid)) {
+                                TwitterRoutes(twitterModule, documentsDb).statusRoute(call)
+                            }
                         }
                     }
                 }
@@ -364,17 +356,6 @@ class TwitterApiTest {
                         )
                     }
                 }
-                val twitterConfig =
-                    TwitterConfig(
-                        oauth1ConsumerKey = "k",
-                        oauth1ConsumerSecret = "s",
-                        apiBase = "http://localhost",
-                        uploadBase = "http://localhost",
-                        oauthRequestTokenUrl = "http://localhost/oauth/request_token",
-                        oauthAccessTokenUrl = "http://localhost/oauth/access_token",
-                        oauthAuthorizeUrl = "http://localhost/oauth/authorize",
-                    )
-
                 val documentsDb = socialpublish.backend.db.DocumentsDatabase(jdbi)
                 val twitterModule =
                     TwitterApiModule("http://localhost", documentsDb, filesModule, twitterClient)
@@ -390,13 +371,9 @@ class TwitterApiTest {
                     }
                     routing {
                         get("/api/twitter/status") {
-                            TwitterRoutes(twitterModule, documentsDb)
-                                .statusRoute(
-                                    java.util.UUID.fromString(
-                                        "00000000-0000-0000-0000-000000000001"
-                                    ),
-                                    call,
-                                )
+                            context(createTestSession(testUserUuid)) {
+                                TwitterRoutes(twitterModule, documentsDb).statusRoute(call)
+                            }
                         }
                     }
                 }

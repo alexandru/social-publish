@@ -19,7 +19,7 @@ object ApiClient {
         if (includeContentType) {
             headers["Content-Type"] = "application/json"
         }
-        Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+        Storage.getSessionToken()?.let { headers["Authorization"] = "Bearer $it" }
         return headers
     }
 
@@ -42,7 +42,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -72,7 +73,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -102,7 +104,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -127,7 +130,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -153,7 +157,7 @@ object ApiClient {
             // Don't include Content-Type header for multipart/form-data
             // Browser will set it automatically with boundary
             val headers = js("{}")
-            Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+            Storage.getSessionToken()?.let { headers["Authorization"] = "Bearer $it" }
 
             val requestInit = RequestInit(method = "POST", headers = headers, body = formData)
 

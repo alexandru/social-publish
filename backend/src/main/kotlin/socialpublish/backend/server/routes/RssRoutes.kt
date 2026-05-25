@@ -9,14 +9,16 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
-import java.util.UUID
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.RssModule
 
 class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS post creation HTTP route */
-    suspend fun createPostRoute(userUuid: UUID, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -42,7 +44,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     )
                 }
 
-        when (val result = rssModule.createPost(request, userUuid)) {
+        when (val result = rssModule.createPost(request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value
@@ -57,7 +59,7 @@ class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS feed generation HTTP route */
     suspend fun generateRssRoute(call: ApplicationCall) {
         val userUuid =
-            call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            call.parameters["userUuid"]?.let { runCatching { UUIDv7.fromString(it) }.getOrNull() }
                 ?: run {
                     call.respond(
                         HttpStatusCode.BadRequest,
@@ -76,7 +78,7 @@ class RssRoutes(private val rssModule: RssModule) {
     /** Get RSS item by UUID */
     suspend fun getRssItem(call: ApplicationCall) {
         val userUuid =
-            call.parameters["userUuid"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            call.parameters["userUuid"]?.let { runCatching { UUIDv7.fromString(it) }.getOrNull() }
                 ?: run {
                     call.respond(
                         HttpStatusCode.BadRequest,

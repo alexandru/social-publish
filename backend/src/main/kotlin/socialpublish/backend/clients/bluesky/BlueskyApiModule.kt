@@ -29,12 +29,14 @@ import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
 import java.time.Instant
-import java.util.UUID
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
 
@@ -50,11 +52,9 @@ class BlueskyApiModule(
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
-            install({
-                HttpClient(CIO) {
-                    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-                }
-            }) { client, _ ->
+            install({ HttpClient(CIO) { install(ContentNegotiation) { json(jsonCommon) } } }) {
+                client,
+                _ ->
                 client.close()
             }
         }
@@ -99,7 +99,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to authenticate to Bluesky" }
             CaughtException(
                     status = 500,
@@ -111,15 +112,15 @@ class BlueskyApiModule(
     }
 
     /** Upload image blob to Bluesky */
+    context(_: UserSession)
     private suspend fun uploadBlob(
         config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
-        userUuid: UUID,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -175,7 +176,8 @@ class BlueskyApiModule(
                     body = ResponseBody(asString = errorBody),
                 )
                 .left()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -242,7 +244,8 @@ class BlueskyApiModule(
 
             logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
             null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
             null
         }
@@ -267,7 +270,8 @@ class BlueskyApiModule(
                 logger.warn { "Failed to resolve handle $handle: ${response.status}" }
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Error resolving handle $handle" }
             null
         }
@@ -413,10 +417,10 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
+    context(_: UserSession)
     suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUID,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -433,7 +437,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(config, imageUuid, session, userUuid)) {
+                        when (val uploadResult = uploadBlob(config, imageUuid, session)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -564,7 +568,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to post to Bluesky" }
             CaughtException(
                     status = 500,
@@ -576,7 +581,8 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUID) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -591,7 +597,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(config, request, userUuid)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

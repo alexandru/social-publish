@@ -9,14 +9,15 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
 import java.net.URLEncoder
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithInternalServerError
+import socialpublish.backend.server.userUuid
 
 @Serializable
 data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -25,15 +26,15 @@ class LinkedInRoutes(
     private val linkedInModule: LinkedInApiModule,
     private val documentsDb: DocumentsDatabase,
 ) {
+    context(_: UserSession)
     suspend fun authorizeRoute(
-        userUuid: UUID,
         linkedInConfig: LinkedInConfig,
-        callbackJwtToken: String,
+        sessionToken: String,
         call: ApplicationCall,
     ) {
+        val userUuid = userUuid()
         when (
-            val result =
-                linkedInModule.buildAuthorizeURL(linkedInConfig, callbackJwtToken, userUuid)
+            val result = linkedInModule.buildAuthorizeURL(linkedInConfig, sessionToken, userUuid)
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
@@ -46,11 +47,9 @@ class LinkedInRoutes(
         }
     }
 
-    suspend fun callbackRoute(
-        userUuid: UUID,
-        linkedInConfig: LinkedInConfig,
-        call: ApplicationCall,
-    ) {
+    context(_: UserSession)
+    suspend fun callbackRoute(linkedInConfig: LinkedInConfig, call: ApplicationCall) {
+        val userUuid = userUuid()
         val code = call.request.queryParameters["code"]
         val state = call.request.queryParameters["state"]
         val accessToken = call.request.queryParameters["access_token"]
@@ -64,17 +63,17 @@ class LinkedInRoutes(
                     "user_cancelled_authorize" -> "You declined the LinkedIn authorization request"
                     else -> errorDescription ?: "LinkedIn authorization failed: $error"
                 }
-            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, "UTF-8")}")
+            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, Charsets.UTF_8)}")
             return
         }
 
         if (state != null) {
-            val storedJwtToken = linkedInModule.verifyOAuthState(state, userUuid)
-            if (storedJwtToken == null) {
+            val storedSessionToken = linkedInModule.verifyOAuthState(state, userUuid)
+            if (storedSessionToken == null) {
                 val msg =
                     URLEncoder.encode(
                         "Authorization failed: Invalid state parameter. Please try again.",
-                        "UTF-8",
+                        Charsets.UTF_8,
                     )
                 call.respondRedirect("/account?error=$msg")
                 return
@@ -82,14 +81,15 @@ class LinkedInRoutes(
         }
 
         if (code == null) {
-            val msg = URLEncoder.encode("LinkedIn authorization failed: missing code", "UTF-8")
+            val msg =
+                URLEncoder.encode("LinkedIn authorization failed: missing code", Charsets.UTF_8)
             call.respondRedirect("/account?error=$msg")
             return
         }
 
         val redirectUri =
             if (accessToken != null) {
-                "${linkedInModule.baseUrl}/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, "UTF-8")}"
+                "${linkedInModule.baseUrl}/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, Charsets.UTF_8)}"
             } else {
                 "${linkedInModule.baseUrl}/api/linkedin/callback"
             }
@@ -109,21 +109,23 @@ class LinkedInRoutes(
                         call.respondRedirect("/account")
                     }
                     is arrow.core.Either.Left -> {
-                        val msg = URLEncoder.encode(saveResult.value.errorMessage, "UTF-8")
+                        val msg = URLEncoder.encode(saveResult.value.errorMessage, Charsets.UTF_8)
                         call.respondRedirect("/account?error=$msg")
                     }
                 }
             }
             is arrow.core.Either.Left -> {
-                val msg = URLEncoder.encode(tokenResult.value.errorMessage, "UTF-8")
+                val msg = URLEncoder.encode(tokenResult.value.errorMessage, Charsets.UTF_8)
                 call.respondRedirect("/account?error=$msg")
             }
         }
     }
 
-    suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun statusRoute(call: ApplicationCall) {
+        val userUuid = userUuid()
         val row =
-            documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse { error ->
+            documentsDb.searchByKey("linkedin-oauth-token:$userUuid").getOrElse { error ->
                 call.respondWithInternalServerError(error)
                 return
             }
@@ -135,11 +137,8 @@ class LinkedInRoutes(
         )
     }
 
-    suspend fun createPostRoute(
-        userUuid: UUID,
-        linkedInConfig: LinkedInConfig,
-        call: ApplicationCall,
-    ) {
+    context(_: UserSession)
+    suspend fun createPostRoute(linkedInConfig: LinkedInConfig, call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -154,7 +153,7 @@ class LinkedInRoutes(
                     )
                 }
 
-        when (val result = linkedInModule.createPost(linkedInConfig, request, userUuid)) {
+        when (val result = linkedInModule.createPost(linkedInConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

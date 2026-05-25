@@ -1,16 +1,9 @@
 package socialpublish.backend.db
 
+import arrow.core.raise.context.Raise
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.Types
 import java.time.Instant
-import java.util.UUID
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid as KotlinUuid
-
-private val logger = KotlinLogging.logger {}
-
-@OptIn(ExperimentalUuidApi::class)
-private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
 
 /**
  * A database migration with an idempotency check and an execution function.
@@ -23,16 +16,23 @@ data class Migration(
      * Test function to check if this migration has already been applied. Returns true if the
      * migration has been applied, false otherwise.
      */
-    val testIfApplied: suspend (SafeConnection) -> Boolean,
+    val testIfApplied:
+        suspend context(Raise<DBException>)
+        (SafeConnection) -> Boolean,
     /** Executes the migration DDL/DML — only called when [testIfApplied] returned false. */
-    val execute: suspend (SafeConnection) -> Unit,
+    val execute:
+        suspend context(Raise<DBException>)
+        (SafeConnection) -> Unit,
 )
 
 /** Convenience to execute a single DDL statement inside a migration. */
-private suspend fun SafeConnection.ddl(sql: String) {
-    query(sql) {
-        execute()
-        Unit
+context(_: Raise<DBException>)
+private suspend fun SafeConnection.ddl(vararg statements: String) {
+    for (s in statements) {
+        query(s.trimIndent()) {
+            execute()
+            Unit
+        }
     }
 }
 
@@ -48,8 +48,8 @@ val migrations: List<Migration> =
         Migration(
             testIfApplied = { conn -> conn.tableExists("documents") },
             execute = { conn ->
-                conn.ddl("DROP TABLE IF EXISTS posts")
                 conn.ddl(
+                    "DROP TABLE IF EXISTS posts",
                     """
                     CREATE TABLE IF NOT EXISTS documents (
                         uuid VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -58,15 +58,11 @@ val migrations: List<Migration> =
                         payload TEXT NOT NULL,
                         created_at INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent()
-                )
-                conn.ddl(
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS documents_created_at
                     ON documents(kind, created_at)
-                    """
-                        .trimIndent()
+                    """,
                 )
             },
         ),
@@ -83,7 +79,6 @@ val migrations: List<Migration> =
                         PRIMARY KEY (document_uuid, name, kind)
                     )
                     """
-                        .trimIndent()
                 )
             },
         ),
@@ -104,15 +99,11 @@ val migrations: List<Migration> =
                         imageHeight INTEGER,
                         createdAt INTEGER NOT NULL
                     )
-                    """
-                        .trimIndent()
-                )
-                conn.ddl(
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS uploads_createdAt
                         ON uploads(createdAt)
-                    """
-                        .trimIndent()
+                    """,
                 )
             },
         ),
@@ -130,7 +121,6 @@ val migrations: List<Migration> =
                         updated_at INTEGER NOT NULL
                     )
                     """
-                        .trimIndent()
                 )
             },
         ),
@@ -149,15 +139,11 @@ val migrations: List<Migration> =
                         created_at INTEGER NOT NULL,
                         FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
                     )
-                    """
-                        .trimIndent()
-                )
-                conn.ddl(
+                    """,
                     """
                     CREATE INDEX IF NOT EXISTS user_sessions_expires_at
                         ON user_sessions(expires_at)
-                    """
-                        .trimIndent()
+                    """,
                 )
             },
         ),
@@ -192,15 +178,18 @@ val migrations: List<Migration> =
                         updated_at INTEGER NOT NULL,
                         settings TEXT
                     )
+                    """,
                     """
-                        .trimIndent()
+                    INSERT INTO users_new
+                        (uuid, username, password_hash, created_at, updated_at, settings)
+                    SELECT
+                        uuid, username, password_hash, created_at, updated_at, settings
+                    FROM users
+                    """,
+                    "ALTER TABLE users RENAME TO users_old",
+                    "ALTER TABLE users_new RENAME TO users",
+                    "DROP TABLE users_old",
                 )
-                conn.ddl(
-                    "INSERT INTO users_new (uuid, username, password_hash, created_at, updated_at, settings) " +
-                        "SELECT uuid, username, password_hash, created_at, updated_at, settings FROM users"
-                )
-                conn.ddl("DROP TABLE users")
-                conn.ddl("ALTER TABLE users_new RENAME TO users")
             },
         ),
         // Migration 7: Create default admin user (only if no users exist)
@@ -212,10 +201,15 @@ val migrations: List<Migration> =
                 }
             },
             execute = { conn ->
-                val uuid = generateUuidV7()
+                val uuid = UUIDv7.generate()
                 val now = Instant.now().toEpochMilli()
                 conn.query(
-                    "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
+                    """
+                    INSERT INTO users
+                        (uuid, username, password_hash, created_at, updated_at)
+                    VALUES
+                        (?, ?, ?, ?, ?)
+                    """
                 ) {
                     setString(1, uuid.toString())
                     setString(2, "admin")
@@ -280,11 +274,13 @@ val migrations: List<Migration> =
                 }
 
                 // Step 3: drop old indexes (they lack user_uuid and are now suboptimal)
-                conn.ddl("DROP INDEX IF EXISTS documents_created_at")
-                conn.ddl("DROP INDEX IF EXISTS uploads_createdAt")
-                // Also drop any previously created user_uuid indexes before recreation
-                conn.ddl("DROP INDEX IF EXISTS documents_user_uuid")
-                conn.ddl("DROP INDEX IF EXISTS uploads_user_uuid")
+                conn.ddl(
+                    "DROP INDEX IF EXISTS documents_created_at",
+                    "DROP INDEX IF EXISTS uploads_createdAt",
+                    // Also drop any previously created user_uuid indexes before recreation
+                    "DROP INDEX IF EXISTS documents_user_uuid",
+                    "DROP INDEX IF EXISTS uploads_user_uuid",
+                )
 
                 // Step 4: recreate documents with user_uuid NOT NULL
                 conn.ddl(
@@ -297,17 +293,21 @@ val migrations: List<Migration> =
                         user_uuid VARCHAR(36) NOT NULL,
                         created_at INTEGER NOT NULL
                     )
+                    """,
                     """
-                        .trimIndent()
-                )
-                conn.ddl(
-                    "INSERT INTO documents_new (uuid, search_key, kind, payload, user_uuid, created_at) " +
-                        "SELECT uuid, search_key, kind, payload, user_uuid, created_at FROM documents"
-                )
-                conn.ddl("DROP TABLE documents")
-                conn.ddl("ALTER TABLE documents_new RENAME TO documents")
-                conn.ddl(
-                    "CREATE INDEX documents_user_uuid ON documents(user_uuid, kind, created_at)"
+                    INSERT INTO documents_new
+                        (uuid, search_key, kind, payload, user_uuid, created_at)
+                    SELECT
+                        uuid, search_key, kind, payload, user_uuid, created_at
+                    FROM documents
+                    """,
+                    "ALTER TABLE documents RENAME TO documents_old",
+                    "ALTER TABLE documents_new RENAME TO documents",
+                    "DROP TABLE documents_old",
+                    """
+                    CREATE INDEX documents_user_uuid
+                        ON documents(user_uuid, kind, created_at)
+                    """,
                 )
 
                 // Step 5: recreate uploads with user_uuid NOT NULL
@@ -325,16 +325,64 @@ val migrations: List<Migration> =
                         user_uuid VARCHAR(36) NOT NULL,
                         createdAt INTEGER NOT NULL
                     )
+                    """,
                     """
-                        .trimIndent()
+                    INSERT INTO uploads_new
+                        (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
+                    SELECT
+                        uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt
+                    FROM uploads
+                    """,
+                    "ALTER TABLE uploads RENAME TO uploads_old",
+                    "ALTER TABLE uploads_new RENAME TO uploads",
+                    "DROP TABLE uploads_old",
+                    // Create index on the renamed table, after old indexes are gone
+                    """
+                    CREATE INDEX uploads_user_uuid
+                        ON uploads(user_uuid, createdAt)
+                    """,
                 )
+            },
+        ),
+        // Migration 9: Remove refresh-token storage from user_sessions and add revocation time.
+        Migration(
+            testIfApplied = { conn ->
+                conn.columnExists("user_sessions", "revoked_at") &&
+                    !conn.columnExists("user_sessions", "refresh_token_hash")
+            },
+            execute = { conn ->
                 conn.ddl(
-                    "INSERT INTO uploads_new (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt) " +
-                        "SELECT uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt FROM uploads"
+                    """
+                    CREATE TABLE user_sessions_new (
+                        uuid VARCHAR(36) NOT NULL PRIMARY KEY,
+                        user_uuid VARCHAR(36) NOT NULL,
+                        token_hash VARCHAR(255) UNIQUE NOT NULL,
+                        expires_at INTEGER NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        revoked_at INTEGER,
+                        FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
+                    )
+                    """,
+                    """
+                    INSERT INTO user_sessions_new
+                        (uuid, user_uuid, token_hash, expires_at, created_at, revoked_at)
+                    SELECT
+                        uuid, user_uuid, token_hash, expires_at, created_at, NULL
+                    FROM user_sessions
+                    """,
+                    "ALTER TABLE user_sessions RENAME TO user_sessions_old",
+                    "ALTER TABLE user_sessions_new RENAME TO user_sessions",
+                    // Dropping the old table removes its old indexes before recreating current ones
+                    "DROP TABLE user_sessions_old",
+                    """
+                    CREATE INDEX IF NOT EXISTS user_sessions_expires_at
+                        ON user_sessions(expires_at)
+                    """,
+                    """
+                    CREATE INDEX IF NOT EXISTS user_sessions_revoked_at
+                        ON user_sessions(revoked_at)
+                    """,
                 )
-                conn.ddl("DROP TABLE uploads")
-                conn.ddl("ALTER TABLE uploads_new RENAME TO uploads")
-                conn.ddl("CREATE INDEX uploads_user_uuid ON uploads(user_uuid, createdAt)")
             },
         ),
     )
@@ -345,6 +393,7 @@ val migrations: List<Migration> =
  * @param tableName The name of the table to check
  * @return true if the table exists, false otherwise
  */
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
     query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?") {
         setString(1, tableName)
@@ -359,8 +408,11 @@ private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
  * @param columnName The name of the column
  * @return true if the column exists, false otherwise
  */
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.columnExists(tableName: String, columnName: String): Boolean =
     query("PRAGMA table_info($tableName)") {
         val rs = executeQuery()
         rs.safe().toList { it.getString("name") }.contains(columnName)
     }
+
+private val logger = KotlinLogging.logger {}

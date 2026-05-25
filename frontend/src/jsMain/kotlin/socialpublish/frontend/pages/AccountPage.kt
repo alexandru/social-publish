@@ -169,7 +169,7 @@ fun AccountPage() {
                     }
                     is ApiResponse.Error -> {
                         if (isUnauthorized(response)) {
-                            Storage.clearJwtToken()
+                            Storage.clearSessionToken()
                             Storage.setConfiguredServices(null)
                             navigateTo(buildLoginRedirectPath("/account"))
                             return@launch
@@ -200,7 +200,7 @@ fun AccountPage() {
                     }
                     is ApiResponse.Error -> {
                         if (isUnauthorized(response)) {
-                            Storage.clearJwtToken()
+                            Storage.clearSessionToken()
                             Storage.setConfiguredServices(null)
                             navigateTo(buildLoginRedirectPath("/account"))
                             return@launch
@@ -235,7 +235,7 @@ fun AccountPage() {
                     }
                     is ApiResponse.Error -> {
                         if (isUnauthorized(response)) {
-                            Storage.clearJwtToken()
+                            Storage.clearSessionToken()
                             Storage.setConfiguredServices(null)
                             navigateTo(buildLoginRedirectPath("/account"))
                             return@launch
@@ -276,7 +276,7 @@ fun AccountPage() {
                         }
                         is ApiResponse.Error -> {
                             if (isUnauthorized(response)) {
-                                Storage.clearJwtToken()
+                                Storage.clearSessionToken()
                                 Storage.setConfiguredServices(null)
                                 navigateTo(buildLoginRedirectPath("/account"))
                                 return@launch
@@ -304,7 +304,7 @@ fun AccountPage() {
                     is ApiResponse.Success -> window.location.href = "/api/linkedin/authorize"
                     is ApiResponse.Error -> {
                         if (isUnauthorized(response)) {
-                            Storage.clearJwtToken()
+                            Storage.clearSessionToken()
                             Storage.setConfiguredServices(null)
                             navigateTo(buildLoginRedirectPath("/account"))
                             return@launch

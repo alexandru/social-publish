@@ -13,54 +13,64 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.UploadSource
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.loadTestResourceBytes
 
 class FilesModuleTest {
-    private val userA = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-    private val userB = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+    private val userA = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val userB = UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
 
     @Test
     fun `uploads images and stores originals`(@TempDir tempDir: Path) = runTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val upload1 =
-            filesModule
-                .uploadFile(
-                    UploadedFile(
-                        fileName = "flower1.jpeg",
-                        source =
-                            UploadSource.FromSource(
-                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
-                                    .asSource()
-                                    .buffered()
-                            ),
-                        altText = "rose",
-                    ),
-                    userA,
-                )
-                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            context(createTestSession(userA)) {
+                filesModule
+                    .uploadFile(
+                        UploadedFile(
+                            fileName = "flower1.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = "rose",
+                        )
+                    )
+                    .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            }
         val upload2 =
-            filesModule
-                .uploadFile(
-                    UploadedFile(
-                        fileName = "flower2.jpeg",
-                        source =
-                            UploadSource.FromSource(
-                                ByteReadChannel(loadTestResourceBytes("flower2.jpeg"))
-                                    .asSource()
-                                    .buffered()
-                            ),
-                        altText = "tulip",
-                    ),
-                    userA,
-                )
-                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            context(createTestSession(userA)) {
+                filesModule
+                    .uploadFile(
+                        UploadedFile(
+                            fileName = "flower2.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(loadTestResourceBytes("flower2.jpeg"))
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = "tulip",
+                        )
+                    )
+                    .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            }
 
-        val processed1 = requireNotNull(filesModule.readImageFile(upload1.uuid, userA))
-        val processed2 = requireNotNull(filesModule.readImageFile(upload2.uuid, userA))
+        val processed1 =
+            context(createTestSession(userA)) {
+                requireNotNull(filesModule.readImageFile(upload1.uuid))
+            }
+        val processed2 =
+            context(createTestSession(userA)) {
+                requireNotNull(filesModule.readImageFile(upload2.uuid))
+            }
 
         assertEquals("rose", processed1.altText)
         assertEquals("tulip", processed2.altText)
@@ -78,7 +88,10 @@ class FilesModuleTest {
         assertEquals(stored2.width, processed2.width)
         assertEquals(stored2.height, processed2.height)
 
-        val retrieved = requireNotNull(filesModule.readImageFile(upload1.uuid, userA))
+        val retrieved =
+            context(createTestSession(userA)) {
+                requireNotNull(filesModule.readImageFile(upload1.uuid))
+            }
         val retrievedDimensions = imageDimensions(retrieved.source.readBytes())
 
         assertEquals(stored1.width, retrievedDimensions.width)
@@ -92,21 +105,22 @@ class FilesModuleTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val upload =
-            filesModule
-                .uploadFile(
-                    UploadedFile(
-                        fileName = "flower1.jpeg",
-                        source =
-                            UploadSource.FromSource(
-                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
-                                    .asSource()
-                                    .buffered()
-                            ),
-                        altText = "rose",
-                    ),
-                    userA,
-                )
-                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            context(createTestSession(userA)) {
+                filesModule
+                    .uploadFile(
+                        UploadedFile(
+                            fileName = "flower1.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = "rose",
+                        )
+                    )
+                    .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            }
 
         val result = filesModule.getFile(upload.uuid)
 
@@ -136,17 +150,18 @@ class FilesModuleTest {
         val filesModule = createFilesModule(tempDir, jdbi)
 
         val result =
-            filesModule.uploadFile(
-                UploadedFile(
-                    fileName = "notes.txt",
-                    source =
-                        UploadSource.FromSource(
-                            ByteReadChannel("not-an-image".toByteArray()).asSource().buffered()
-                        ),
-                    altText = null,
-                ),
-                userA,
-            )
+            context(createTestSession(userA)) {
+                filesModule.uploadFile(
+                    UploadedFile(
+                        fileName = "notes.txt",
+                        source =
+                            UploadSource.FromSource(
+                                ByteReadChannel("not-an-image".toByteArray()).asSource().buffered()
+                            ),
+                        altText = null,
+                    )
+                )
+            }
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -160,24 +175,28 @@ class FilesModuleTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val upload =
-            filesModule
-                .uploadFile(
-                    UploadedFile(
-                        fileName = "flower1.jpeg",
-                        source =
-                            UploadSource.FromSource(
-                                ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
-                                    .asSource()
-                                    .buffered()
-                            ),
-                        altText = "rose",
-                    ),
-                    userA,
-                )
-                .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            context(createTestSession(userA)) {
+                filesModule
+                    .uploadFile(
+                        UploadedFile(
+                            fileName = "flower1.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(loadTestResourceBytes("flower1.jpeg"))
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = "rose",
+                        )
+                    )
+                    .getOrElse { error("Unexpected upload error: ${it.errorMessage}") }
+            }
 
-        val ownerRead = requireNotNull(filesModule.readImageFile(upload.uuid, userA))
-        val otherRead = filesModule.readImageFile(upload.uuid, userB)
+        val ownerRead =
+            context(createTestSession(userA)) {
+                requireNotNull(filesModule.readImageFile(upload.uuid))
+            }
+        val otherRead = context(createTestSession(userB)) { filesModule.readImageFile(upload.uuid) }
 
         assertEquals("rose", ownerRead.altText)
         assertEquals(null, otherRead)

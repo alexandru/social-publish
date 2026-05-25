@@ -10,7 +10,6 @@ import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
-import java.util.UUID
 import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
@@ -18,10 +17,14 @@ import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.NewRssPostResponse
+import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -31,8 +34,10 @@ class RssModule(
     private val filesDb: FilesDatabase,
 ) {
     /** Create a new RSS post */
-    suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
+    context(_: UserSession)
+    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             // Validate request
             request.validate()?.let { error ->
                 return error.left()
@@ -67,7 +72,8 @@ class RssModule(
                 }
 
             NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to save RSS item" }
             CaughtException(
                     status = 500,
@@ -80,7 +86,7 @@ class RssModule(
 
     /** Generate RSS feed */
     suspend fun generateRss(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
@@ -179,7 +185,7 @@ class RssModule(
     }
 
     /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(userUuid: UUID, uuid: String): Post? {
+    suspend fun getRssItemByUuid(userUuid: UUIDv7, uuid: String): Post? {
         return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
     }
 

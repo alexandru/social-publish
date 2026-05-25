@@ -9,7 +9,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -21,16 +20,18 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
 class MastodonApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `uploads images with alt text and creates status`(@TempDir tempDir: Path) = runTest {
@@ -45,7 +46,11 @@ class MastodonApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     post("/api/v2/media") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
@@ -88,7 +93,10 @@ class MastodonApiTest {
 
             val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
             val mastodonConfig = MastodonConfig(host = "http://localhost", accessToken = "token")
-            val result = mastodonModule.createPost(mastodonConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    mastodonModule.createPost(mastodonConfig, req)
+                }
 
             assertTrue(result.isRight())
             val response = (result as Either.Right).value as NewMastodonPostResponse

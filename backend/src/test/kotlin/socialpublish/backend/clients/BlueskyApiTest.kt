@@ -11,7 +11,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
@@ -23,11 +22,12 @@ import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
 
 class BlueskyApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `creates post without images`(@TempDir tempDir: Path) = runTest {
@@ -75,7 +75,10 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = "Hello bluesky")
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
             assertTrue(result.isRight())
             val _ = (result as Either.Right).value
@@ -95,7 +98,11 @@ class BlueskyApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     post("/xrpc/com.atproto.server.createSession") {
                         call.respondText(
                             "{" +
@@ -151,7 +158,10 @@ class BlueskyApiTest {
                 )
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
             assertTrue(result.isRight())
             assertEquals(2, uploadedImages.size)
@@ -275,7 +285,10 @@ class BlueskyApiTest {
                 )
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
             assertTrue(result.isRight())
 
@@ -378,7 +391,10 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = "Check out this article", link = longLink)
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
             assertTrue(result.isRight())
 
@@ -465,7 +481,10 @@ class BlueskyApiTest {
             val req = NewPostRequest(content = content)
             val blueskyConfig =
                 BlueskyConfig(service = "http://localhost", username = "u", password = "p")
-            val result = blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
             assertTrue(result.isRight())
 

@@ -5,16 +5,17 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import java.util.UUID
 import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithNotConfigured
 
 class LlmRoutes(private val llmModule: LlmApiModule) {
-    suspend fun generateAltTextRoute(userUuid: UUID, llmConfig: LlmConfig?, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun generateAltTextRoute(llmConfig: LlmConfig?, call: ApplicationCall) {
         if (llmConfig == null) {
             call.respondWithNotConfigured("LLM")
             return
@@ -32,7 +33,6 @@ class LlmRoutes(private val llmModule: LlmApiModule) {
             val result =
                 llmModule.generateAltText(
                     llmConfig,
-                    userUuid,
                     request.imageUuid,
                     request.userContext,
                     request.language,

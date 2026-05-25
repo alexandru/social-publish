@@ -1,6 +1,8 @@
 package socialpublish.backend.modules
 
+import arrow.core.Either
 import arrow.core.getOrElse
+import arrow.core.raise.either
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -11,47 +13,67 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
-import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UserSessionsDatabase
 import socialpublish.backend.db.UsersDatabase
-import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.db.query
+import socialpublish.backend.server.respondWithUnauthorized
 import socialpublish.backend.server.routes.AuthRoutes
-import socialpublish.backend.server.routes.configureAuth
 
 class EndpointSecurityTest {
-    private val config =
-        ServerAuthConfig(
-            // Test-only JWT secret (production secrets loaded from environment)
-            jwtSecret = "test-secret-key-for-security-tests"
-        )
+    private data class TestContext(
+        val db: Database,
+        val usersDb: UsersDatabase,
+        val userSessionsDb: UserSessionsDatabase,
+        val authService: AuthService,
+        val authRoutes: AuthRoutes,
+        val token: String,
+    )
 
-    private suspend fun testUsersDb(): UsersDatabase {
+    private suspend fun createTestContext(): TestContext {
         val db = Database.connectUnmanaged(":memory:")
-        return UsersDatabase(db)
+        val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
+        val authRoutes = AuthRoutes(authService, DocumentsDatabase(db))
+        val _ = usersDb.createUser("secuser", "secpass").getOrElse { throw it }
+        val loginResult = authService.login("secuser", "secpass").getOrNull()!!
+        return TestContext(
+            db,
+            usersDb,
+            userSessionsDb,
+            authService,
+            authRoutes,
+            loginResult.rawToken,
+        )
     }
 
     @Test
     fun `protected endpoint should reject requests without token`() {
         testApplication {
+            val ctx = createTestContext()
+
             application {
                 install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { call.respondText("Success") }
+                    get("/api/protected") {
+                        val result = ctx.authRoutes.extractAccessToken(call)
+                        if (result == null) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        call.respondText("Success")
                     }
                 }
             }
@@ -65,14 +87,23 @@ class EndpointSecurityTest {
     @Test
     fun `protected endpoint should reject requests with invalid token`() {
         testApplication {
+            val ctx = createTestContext()
+
             application {
                 install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { call.respondText("Success") }
+                    get("/api/protected") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        call.respondText("Success")
                     }
                 }
             }
@@ -87,25 +118,96 @@ class EndpointSecurityTest {
     }
 
     @Test
-    fun `protected endpoint should accept requests with valid token`() {
+    fun `protected endpoint should accept requests with valid session token`() {
         testApplication {
-            val authModule = AuthModule(config.jwtSecret)
+            val ctx = createTestContext()
 
             application {
                 install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { call.respondText("Success") }
+                    get("/api/protected") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        call.respondText("Success")
                     }
                 }
             }
 
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
             val response =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `protected endpoint should accept requests with valid token via cookie`() {
+        testApplication {
+            val ctx = createTestContext()
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    get("/api/protected") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        call.respondText("Success")
+                    }
+                }
+            }
+
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Cookie, "access_token=${ctx.token}")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `protected endpoint should accept requests with valid token via query parameter`() {
+        testApplication {
+            val ctx = createTestContext()
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    get("/api/protected") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        call.respondText("Success")
+                    }
+                }
+            }
+
+            val response = client.get("/api/protected?access_token=${ctx.token}")
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
@@ -114,14 +216,23 @@ class EndpointSecurityTest {
     @Test
     fun `protected POST endpoint should reject requests without authentication`() {
         testApplication {
+            val ctx = createTestContext()
+
             application {
                 install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        post("/api/files/upload") { call.respondText("Uploaded") }
+                    post("/api/files/upload") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@post
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@post
+                        }
+                        call.respondText("Uploaded")
                     }
                 }
             }
@@ -138,24 +249,30 @@ class EndpointSecurityTest {
     @Test
     fun `protected POST endpoint should accept requests with valid token`() {
         testApplication {
-            val authModule = AuthModule(config.jwtSecret)
+            val ctx = createTestContext()
 
             application {
                 install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        post("/api/submit") { call.respondText("Submitted") }
+                    post("/api/submit") {
+                        val token = ctx.authRoutes.extractAccessToken(call)
+                        if (token == null) {
+                            call.respondWithUnauthorized()
+                            return@post
+                        }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@post
+                        }
+                        call.respondText("Submitted")
                     }
                 }
             }
 
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
             val response =
                 client.post("/api/submit") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
+                    header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
                     header(HttpHeaders.ContentType, ContentType.Application.Json)
                     setBody("""{"data":"test"}""")
                 }
@@ -165,101 +282,118 @@ class EndpointSecurityTest {
     }
 
     @Test
-    fun `token should be accepted via query parameter`() {
-        testApplication {
-            val authModule = AuthModule(config.jwtSecret)
-
-            application {
-                install(ContentNegotiation) { json() }
-                val db = Database.connectUnmanaged(":memory:")
-                val authRoutes = AuthRoutes(config, UsersDatabase(db), DocumentsDatabase(db))
-                configureAuth(authRoutes)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { call.respondText("Success") }
-                    }
-                }
-            }
-
-            val token = authModule.generateToken("testuser", UUID.randomUUID())
-            val response = client.get("/api/protected?access_token=$token")
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
-    }
-
-    @Test
-    fun `JWT token should contain username claim`() = testApplication {
-        val authModule = AuthModule(config.jwtSecret)
-        val db = Database.connectUnmanaged(":memory:")
-        val usersDb = UsersDatabase(db)
-        val _ = usersDb.createUser("testuser", "testpass")
-        val user = usersDb.findByUsername("testuser").getOrElse { null }!!
+    fun `session token should contain user info via protected route`() = testApplication {
+        val ctx = createTestContext()
 
         application {
             install(ContentNegotiation) { json() }
-            val authRoutes = AuthRoutes(config, usersDb, DocumentsDatabase(db))
-            configureAuth(authRoutes)
             routing {
-                authenticate("auth-jwt") {
-                    get("/api/protected") { authRoutes.protectedRoute(call) }
+                get("/api/protected") {
+                    val token =
+                        ctx.authRoutes.extractAccessToken(call)
+                            ?: run {
+                                call.respondWithUnauthorized()
+                                return@get
+                            }
+                    val result = ctx.authService.authorize(token)
+                    if (result is Either.Left) {
+                        call.respondWithUnauthorized()
+                        return@get
+                    }
+                    val session = result.getOrNull()!!
+                    call.respondText(session.user.username)
                 }
             }
         }
 
-        val token = authModule.generateToken("testuser", user.uuid)
         val response =
-            client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+            client.get("/api/protected") {
+                header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
+            }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
-        assertTrue(body.contains("testuser"))
+        assertTrue(body.contains("secuser"))
     }
 
     @Test
-    fun `different users should have different tokens`() {
-        val authModule = AuthModule(config.jwtSecret)
+    fun `different sessions should have different tokens`() {
+        testApplication {
+            val ctx = createTestContext()
 
-        val token1 = authModule.generateToken("user1", UUID.randomUUID())
-        val token2 = authModule.generateToken("user2", UUID.randomUUID())
+            // Login a second time to get a different token
+            val login2 = ctx.authService.login("secuser", "secpass").getOrNull()!!
+            assertNotNull(login2)
+            val token2 = login2.rawToken
 
-        // Tokens should be different
-        assertTrue(token1 != token2)
+            // Tokens should be different
+            assertTrue(ctx.token != token2)
 
-        // But both should verify correctly with their respective usernames
-        val username1 = authModule.verifyTokenPayload(token1)
-        val username2 = authModule.verifyTokenPayload(token2)
-
-        assertEquals("user1", username1?.username)
-        assertEquals("user2", username2?.username)
+            // Both should be valid
+            val authorize1 = ctx.authService.authorize(ctx.token)
+            val authorize2 = ctx.authService.authorize(token2)
+            assertTrue(authorize1 is Either.Right)
+            assertTrue(authorize2 is Either.Right)
+        }
     }
 
     @Test
-    fun `expired token should be rejected`() {
-        // This test verifies that tokens with expiration are created properly
-        // In a real scenario, we'd need to mock time or wait, but we can at least verify
-        // that the token contains an expiration claim
-        val authModule = AuthModule(config.jwtSecret)
-        val token = authModule.generateToken("testuser", UUID.randomUUID())
+    fun `logout invalidates session token`() {
+        testApplication {
+            val ctx = createTestContext()
 
-        // Token should verify immediately
-        val username = authModule.verifyTokenPayload(token)
-        assertEquals("testuser", username?.username)
+            // Logout the session
+            val _ = ctx.authService.logout(ctx.token).getOrElse { error(it.errorMessage) }
 
-        // The token is valid for 6 months, so it should still be valid
-        val usernameAgain = authModule.verifyTokenPayload(token)
-        assertEquals("testuser", usernameAgain?.username)
+            // Token should now be invalid
+            val result = ctx.authService.authorize(ctx.token)
+            assertTrue(result is Either.Left)
+            assertEquals("Unauthorized", result.value.errorMessage)
+        }
     }
 
     @Test
     fun `tampered token should be rejected`() {
-        val authModule = AuthModule(config.jwtSecret)
-        val validToken = authModule.generateToken("testuser", UUID.randomUUID())
+        testApplication {
+            val ctx = createTestContext()
 
-        // Tamper with the token by changing one character
-        val tamperedToken = validToken.dropLast(1) + "X"
+            // Tamper with the token
+            val tamperedToken = ctx.token.dropLast(1) + "X"
 
-        val username = authModule.verifyTokenPayload(tamperedToken)
-        assertEquals(null, username)
+            val result = ctx.authService.authorize(tamperedToken)
+            assertTrue(result is Either.Left)
+            assertEquals("Unauthorized", result.value.errorMessage)
+        }
+    }
+
+    @Test
+    fun `expired session should be rejected`() {
+        testApplication {
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+
+            val _ = usersDb.createUser("expireuser", "testpass").getOrElse { throw it }
+
+            // Login with a session that already expired (back-date it)
+            val loginResult = authService.login("expireuser", "testpass").getOrNull()!!
+
+            // Manually expire the session in DB
+            val _ =
+                either {
+                        db.query("UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?") {
+                            setLong(1, java.time.Instant.now().minusSeconds(3600).toEpochMilli())
+                            setString(2, UserSessionsDatabase.hashToken(loginResult.rawToken))
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
+
+            // Should be rejected
+            val result = authService.authorize(loginResult.rawToken)
+            assertTrue(result is Either.Left)
+            assertEquals("Unauthorized", result.value.errorMessage)
+        }
     }
 }

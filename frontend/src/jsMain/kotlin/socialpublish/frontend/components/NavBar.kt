@@ -7,7 +7,7 @@ import socialpublish.frontend.utils.navigateTo
 
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {
-    val isLoggedIn = Storage.hasJwtToken()
+    val isLoggedIn = Storage.hasSessionToken()
     var navbarActive by remember { mutableStateOf(false) }
 
     // Normalize currentPath to ignore trailing slashes and query strings so active checks are

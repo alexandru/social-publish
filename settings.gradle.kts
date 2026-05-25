@@ -44,7 +44,6 @@ dependencyResolutionManagement {
             library("ktor-server-content-negotiation", "io.ktor", "ktor-server-content-negotiation").versionRef("ktor")
             library("ktor-serialization-kotlinx-json", "io.ktor", "ktor-serialization-kotlinx-json").versionRef("ktor")
             library("ktor-server-auth", "io.ktor", "ktor-server-auth").versionRef("ktor")
-            library("ktor-server-auth-jwt", "io.ktor", "ktor-server-auth-jwt").versionRef("ktor")
             library("ktor-server-status-pages", "io.ktor", "ktor-server-status-pages").versionRef("ktor")
             library("ktor-server-call-logging", "io.ktor", "ktor-server-call-logging").versionRef("ktor")
             library("ktor-server-cors", "io.ktor", "ktor-server-cors").versionRef("ktor")
@@ -136,7 +135,6 @@ dependencyResolutionManagement {
                     "ktor-server-content-negotiation",
                     "ktor-serialization-kotlinx-json",
                     "ktor-server-auth",
-                    "ktor-server-auth-jwt",
                     "ktor-server-status-pages",
                     "ktor-server-call-logging",
                     "ktor-server-cors",

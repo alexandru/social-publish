@@ -5,7 +5,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
@@ -14,10 +13,13 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.Patched
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.respondWithInternalServerError
 import socialpublish.backend.server.respondWithNotFound
+import socialpublish.backend.server.userSettings
+import socialpublish.backend.server.userUuid
 
 /**
  * Sentinel returned in GET responses for sensitive fields that have a stored value.
@@ -114,17 +116,9 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
      * Non-sensitive fields contain real values. Sensitive fields (passwords, tokens, keys) contain
      * [MASKED_VALUE] when a value is stored.
      */
-    suspend fun getSettingsRoute(userUuid: UUID, call: ApplicationCall) {
-        val user =
-            usersDb.findByUuid(userUuid).getOrElse { error ->
-                call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
-                return
-            }
-                ?: run {
-                    call.respondWithNotFound("User")
-                    return
-                }
-        call.respond(user.settings.toView())
+    context(_: UserSession)
+    suspend fun getSettingsRoute(call: ApplicationCall) {
+        call.respond(userSettings().toView())
     }
 
     /**
@@ -138,7 +132,9 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
      * Within a section, absent field → keep existing, present field → update, `null` field → clear
      * (which drops the section when it affects a required field).
      */
-    suspend fun patchSettingsRoute(userUuid: UUID, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun patchSettingsRoute(call: ApplicationCall) {
+        val userUuid = userUuid()
         val patch =
             runCatching { call.receive<UserSettingsPatch>() }.getOrNull()
                 ?: run {
@@ -157,17 +153,7 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
             return
         }
 
-        val user =
-            usersDb.findByUuid(userUuid).getOrElse { error ->
-                call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
-                return
-            }
-                ?: run {
-                    call.respondWithNotFound("User")
-                    return
-                }
-
-        val merged = mergeSettingsPatch(existing = user.settings, patch = patch)
+        val merged = mergeSettingsPatch(existing = userSettings(), patch = patch)
         val updated =
             usersDb.updateSettings(userUuid, merged).getOrElse { error ->
                 call.respondWithInternalServerError(

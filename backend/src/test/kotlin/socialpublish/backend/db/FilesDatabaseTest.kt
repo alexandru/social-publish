@@ -3,7 +3,6 @@ package socialpublish.backend.db
 import arrow.core.getOrElse
 import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -26,7 +25,7 @@ class FilesDatabaseTest {
                     originalname = "test.jpg",
                     mimetype = "image/jpeg",
                     size = 1024L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Test image",
                     imageWidth = 800,
                     imageHeight = 600,
@@ -61,7 +60,7 @@ class FilesDatabaseTest {
                         originalname = "duplicate.png",
                         mimetype = "image/png",
                         size = 2048L,
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     )
 
                 // Create first time
@@ -92,7 +91,7 @@ class FilesDatabaseTest {
                     originalname = "minimal.jpg",
                     mimetype = "image/jpeg",
                     size = 512L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = null,
                     imageWidth = null,
                     imageHeight = null,
@@ -122,7 +121,7 @@ class FilesDatabaseTest {
                     originalname = "retrieve.png",
                     mimetype = "image/png",
                     size = 1500L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     altText = "Retrieval test",
                 )
 
@@ -162,8 +161,8 @@ class FilesDatabaseTest {
             resourceScope {
                 val db = Database.connect(dbPath).bind()
                 val filesDb = FilesDatabase(db)
-                val userA = UUID.fromString("00000000-0000-0000-0000-000000000001")
-                val userB = UUID.fromString("00000000-0000-0000-0000-000000000002")
+                val userA = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                val userB = UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
 
                 val created =
                     filesDb
@@ -219,7 +218,7 @@ class FilesDatabaseTest {
 
     @Test
     fun `generateUuidV5 should support custom namespace`() {
-        val customNamespace = UUID.fromString("12345678-1234-1234-1234-123456789012")
+        val customNamespace = java.util.UUID.fromString("12345678-1234-1234-1234-123456789012")
         val input = "test"
 
         val uuid1 = FilesDatabase.generateUuidV5(input, customNamespace)
@@ -248,8 +247,7 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -261,8 +259,7 @@ class FilesDatabaseTest {
                         originalname = "same.jpg",
                         mimetype = "image/jpeg",
                         size = 1000L,
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         altText = "Same",
                         imageWidth = 100,
                         imageHeight = 100,
@@ -291,7 +288,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val payload2 =
@@ -300,7 +297,7 @@ class FilesDatabaseTest {
                     originalname = "file1.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val upload1 = filesDb.createFile(payload1).getOrElse { throw it }
@@ -325,11 +322,11 @@ class FilesDatabaseTest {
                     originalname = "same.jpg",
                     mimetype = "image/jpeg",
                     size = 1000L,
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
             val payloadForUserB =
                 payloadForUserA.copy(
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+                    userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
                 )
 
             val uploadA = filesDb.createFile(payloadForUserA).getOrElse { throw it }

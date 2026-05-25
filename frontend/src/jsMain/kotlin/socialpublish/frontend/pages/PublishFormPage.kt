@@ -29,6 +29,7 @@ import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable internal data class FileUploadResponse(val uuid: String)
 
@@ -132,7 +133,7 @@ private fun redirectToLoginIfUnauthorized(response: ApiResponse<*>, currentPath:
     if (!isUnauthorized(response)) {
         return false
     }
-    Storage.clearJwtToken()
+    Storage.clearSessionToken()
     Storage.setConfiguredServices(null)
     navigateTo(buildLoginRedirectPath(currentPath))
     return true
@@ -143,7 +144,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val configuredServices = Storage.getConfiguredServices()
-    val rssFeedHref = Storage.getJwtUserUuid()?.let { "/rss/$it" } ?: "#"
+    val rssFeedHref = "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -231,7 +232,8 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
                         onError("Unexpected exception while submitting form!")
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatal(e)
                 console.error("Exception while submitting form:", e)
                 onError("Unexpected exception while submitting form!")
             } finally {

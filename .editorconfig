@@ -8,6 +8,12 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
+# [*.kt]
+# max_line_length=100
+# indent_size = 4
+# indent_style = space
+# ij_continuation_indent_size = 4
+
 # Matches multiple files with brace expansion notation
 # Set default charset
 [*.{js,jsx,ts,tsx}]

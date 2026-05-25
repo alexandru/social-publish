@@ -20,27 +20,24 @@ fun Operation.Builder.documentSecurityRequirements() {
 }
 
 fun Application.configureOpenApiSecuritySchemes() {
-    // 1) Authorization: Bearer <JWT>
     registerBearerAuthSecurityScheme(
         name = "bearerAuth",
-        description = "JWT via Authorization: Bearer <token>",
-        bearerFormat = "JWT",
+        description = "Session token via Authorization: Bearer <token>",
+        bearerFormat = "session-token",
     )
 
-    // 2) access_token in query
     registerApiKeySecurityScheme(
         name = "accessTokenQuery",
         keyName = "access_token",
         keyLocation = SecuritySchemeIn.QUERY,
-        description = "JWT via ?access_token=... (discouraged, but supported)",
+        description = "Session token via ?access_token=... (discouraged, but supported)",
     )
 
-    // 3) access_token in cookie
     registerApiKeySecurityScheme(
         name = "accessTokenCookie",
         keyName = "access_token",
         keyLocation = SecuritySchemeIn.COOKIE,
-        description = "JWT via Cookie: access_token=...",
+        description = "Session token via Cookie: access_token=...",
     )
 }
 
@@ -100,7 +97,7 @@ fun Operation.Builder.documentOAuthAuthorizeSpec(oauthVersion: String, platform:
     responses {
         HttpStatusCode.Found { description = "Redirect to $platform authorization URL (302 Found)" }
         HttpStatusCode.Unauthorized {
-            description = "Not authenticated (missing or invalid JWT token)"
+            description = "Not authenticated (missing or invalid session token)"
             schema = jsonSchema<ErrorResponse>()
         }
         HttpStatusCode.ServiceUnavailable {

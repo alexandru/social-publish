@@ -19,14 +19,15 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
-import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -37,14 +38,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             install(
                 {
                     HttpClient(CIO) {
-                        install(ContentNegotiation) {
-                            json(
-                                Json {
-                                    ignoreUnknownKeys = true
-                                    isLenient = true
-                                }
-                            )
-                        }
+                        install(ContentNegotiation) { json(jsonCommon) }
                         install(HttpTimeout) {
                             requestTimeoutMillis = 20.seconds.inWholeMilliseconds
                             connectTimeoutMillis = 40.seconds.inWholeMilliseconds
@@ -60,9 +54,9 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
         }
     }
 
+    context(_: UserSession)
     suspend fun generateAltText(
         config: LlmConfig,
-        userUuid: UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -72,7 +66,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             // Images are optimized during upload to max 1600x1600, which is sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid, userUuid = userUuid)
+                filesModule.readImageFile(uuid = imageUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",
@@ -95,7 +89,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         "Request timed out. The LLM took too long to respond. Please try again.",
                 )
                 .left()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
             CaughtException(
                     status = 500,
@@ -212,7 +207,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         .left()
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to call LLM API" }
             CaughtException(
                     status = 500,

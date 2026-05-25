@@ -5,7 +5,6 @@ import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import socialpublish.backend.db.DBException
 
 /** Represents typed errors in the application using Arrow's Either type. */
@@ -15,7 +14,7 @@ sealed class ApiError {
     abstract val module: String?
     abstract val errorMessage: String
 
-    fun toJsonString(): String = prettyJson.encodeToString(ApiError.serializer(), this)
+    fun toJsonString(): String = jsonCommon.encodeToString(serializer(), this)
 }
 
 @Serializable
@@ -79,5 +78,3 @@ fun <T> Either<DBException, T>.toApiResult() =
         logger.error(e) { "Database exception occurred" }
         CaughtException(status = 500, module = "database", errorMessage = "Database error")
     }
-
-private val prettyJson: Json = Json { prettyPrint = true }

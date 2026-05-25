@@ -15,6 +15,7 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.utils.io.readRemaining
 import java.io.File
 import java.nio.file.Path
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.io.readByteArray
@@ -23,6 +24,10 @@ import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.LoomIO
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.User
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.db.UserSettings
 import socialpublish.backend.modules.FileUploadResponse
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
@@ -151,4 +156,25 @@ internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {
     }
 
     return MultipartRequest(files = files, fields = fields)
+}
+
+/** Create a test [UserSession] with the given [userUuid] for use in context(UserSession) calls. */
+internal fun createTestSession(userUuid: UUIDv7, settings: UserSettings? = null): UserSession {
+    val now = Instant.now()
+    return UserSession(
+        uuid = UUIDv7.generate(),
+        user =
+            User(
+                uuid = userUuid,
+                username = "testuser",
+                passwordHash = null,
+                settings = settings,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        tokenHash = "test-token-hash",
+        expiresAt = now.plusSeconds(3600),
+        createdAt = now,
+        revokedAt = null,
+    )
 }

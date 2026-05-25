@@ -6,13 +6,14 @@ import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 class DocumentsDatabaseTest {
-    private val userA = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-    private val userB = java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")
+    private val userA = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val userB = UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
 
     @Test
     fun `createOrUpdate should create new document`(@TempDir tempDir: Path) = runTest {
@@ -26,8 +27,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"message": "Hello"}""",
                         searchKey = "test-key-1",
                         tags = listOf(Tag("tag1", "kind1"), Tag("tag2", "kind2")),
@@ -58,8 +58,7 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"message": "Original"}""",
                             searchKey = "update-test",
                             tags = listOf(Tag("original", "tag")),
@@ -71,8 +70,7 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"message": "Updated"}""",
                             searchKey = "update-test",
                             tags = listOf(Tag("new", "tag")),
@@ -100,8 +98,7 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"message": "Auto key"}""",
                         )
                         .getOrElse { throw it }
@@ -121,13 +118,11 @@ class DocumentsDatabaseTest {
             val documentsDb = DocumentsDatabase(db)
 
             // Create document
-            @Suppress("UNUSED_VARIABLE")
-            val created =
+            val _ =
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"data": "searchable"}""",
                         searchKey = "find-me",
                         tags = listOf(Tag("searchable", "test")),
@@ -202,8 +197,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"uuid": "test"}""",
                         tags = listOf(Tag("uuid-tag", "test")),
                     )
@@ -245,33 +239,27 @@ class DocumentsDatabaseTest {
             val documentsDb = DocumentsDatabase(db)
 
             // Create multiple documents
-            @Suppress("UNUSED_VARIABLE")
-            val post1 =
+            val _ =
                 documentsDb
                     .createOrUpdate(
                         kind = "blog",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"title": "Post 1"}""",
                     )
                     .getOrElse { throw it }
-            @Suppress("UNUSED_VARIABLE")
-            val post2 =
+            val _ =
                 documentsDb
                     .createOrUpdate(
                         kind = "blog",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"title": "Post 2"}""",
                     )
                     .getOrElse { throw it }
-            @Suppress("UNUSED_VARIABLE")
-            val note1 =
+            val _ =
                 documentsDb
                     .createOrUpdate(
                         kind = "note",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"title": "Note 1"}""",
                     )
                     .getOrElse { throw it }
@@ -281,7 +269,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .getAllForUser(
                         kind = "blog",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     )
                     .getOrElse { throw it }
 
@@ -304,29 +292,26 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"order": 1}""",
                         )
                         .getOrElse { throw it }
                 // Small delay to ensure different timestamps (DB stores millis precision)
-                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
+                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10.milliseconds)
                 val second =
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"order": 2}""",
                         )
                         .getOrElse { throw it }
-                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10)
+                @Suppress("UnusedReturnValue") kotlinx.coroutines.delay(10.milliseconds)
                 val third =
                     documentsDb
                         .createOrUpdate(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             payload = """{"order": 3}""",
                         )
                         .getOrElse { throw it }
@@ -335,8 +320,7 @@ class DocumentsDatabaseTest {
                     documentsDb
                         .getAllForUser(
                             kind = "test",
-                            userUuid =
-                                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                            userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                             orderBy = DocumentsDatabase.OrderBy.CREATED_AT_DESC,
                         )
                         .getOrElse { throw it }
@@ -365,7 +349,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .getAllForUser(
                         kind = "non-existent",
-                        userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                     )
                     .getOrElse { throw it }
 
@@ -387,8 +371,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "tagged",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"tagged": true}""",
                         tags = tags,
                     )
@@ -415,13 +398,11 @@ class DocumentsDatabaseTest {
             val documentsDb = DocumentsDatabase(db)
 
             // Create with initial tags
-            @Suppress("UNUSED_VARIABLE")
-            val initial =
+            val _ =
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"v": 1}""",
                         searchKey = "tag-update",
                         tags = listOf(Tag("old1", "kind"), Tag("old2", "kind")),
@@ -433,8 +414,7 @@ class DocumentsDatabaseTest {
                 documentsDb
                     .createOrUpdate(
                         kind = "test",
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                        userUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                         payload = """{"v": 2}""",
                         searchKey = "tag-update",
                         tags = listOf(Tag("new1", "kind")),
