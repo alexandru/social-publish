@@ -287,6 +287,52 @@ class UsersDatabaseTest {
     }
 
     @Test
+    fun `updatePassword should invalidate sessions only for changed user`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+                val usersDb = UsersDatabase(db)
+                val userSessionsDb = UserSessionsDatabase(db, usersDb)
+
+                val changedUser =
+                    usersDb.createUser("changed", "old-password").getOrElse { throw it }
+                assertTrue(changedUser is CreateResult.Created)
+                val otherUser = usersDb.createUser("other", "password").getOrElse { throw it }
+                assertTrue(otherUser is CreateResult.Created)
+
+                val changedSession1 =
+                    userSessionsDb.login("changed", "old-password").getOrElse { throw it }
+                val changedSession2 =
+                    userSessionsDb.login("changed", "old-password").getOrElse { throw it }
+                val otherSession = userSessionsDb.login("other", "password").getOrElse { throw it }
+
+                assertNotNull(changedSession1)
+                assertNotNull(changedSession2)
+                assertNotNull(otherSession)
+
+                val updated =
+                    usersDb.updatePassword("changed", "new-password").getOrElse { throw it }
+
+                assertTrue(updated)
+                assertNull(
+                    userSessionsDb.authorize(changedSession1.rawToken).getOrElse { throw it }
+                )
+                assertNull(
+                    userSessionsDb.authorize(changedSession2.rawToken).getOrElse { throw it }
+                )
+                assertNotNull(
+                    userSessionsDb.authorize(otherSession.rawToken).getOrElse { throw it }
+                )
+                assertNull(usersDb.verifyPassword("changed", "old-password").getOrElse { throw it })
+                assertNotNull(
+                    usersDb.verifyPassword("changed", "new-password").getOrElse { throw it }
+                )
+            }
+        }
+
+    @Test
     fun `CreateResult toNullable should work correctly`() {
         val user =
             User(

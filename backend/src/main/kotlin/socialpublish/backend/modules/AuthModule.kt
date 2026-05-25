@@ -34,6 +34,7 @@ class AuthService(private val userSessionsDb: UserSessionsDatabase) {
             }
             is Either.Right -> result.value?.right() ?: unauthorized().left()
         }
+
     companion object {
         fun unauthorized(): RequestError =
             RequestError(status = 401, module = "auth", errorMessage = "Unauthorized")

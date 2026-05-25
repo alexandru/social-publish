@@ -180,6 +180,12 @@ class UsersDatabase(private val db: Database) {
         val now = db.clock.instant()
         val passwordHash = AuthModule.hashPassword(newPassword)
         db.transaction {
+            val userUuid =
+                query("SELECT uuid FROM users WHERE username = ?") {
+                    setString(1, username)
+                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                } ?: return@transaction false
+
             val updated =
                 query("UPDATE users SET password_hash = ?, updated_at = ? WHERE username = ?") {
                     setString(1, passwordHash)
@@ -187,6 +193,12 @@ class UsersDatabase(private val db: Database) {
                     setString(3, username)
                     executeUpdate()
                 }
+            if (updated > 0) {
+                val _ = query("DELETE FROM user_sessions WHERE user_uuid = ?") {
+                    setString(1, userUuid)
+                    executeUpdate()
+                }
+            }
             updated > 0
         }
     }

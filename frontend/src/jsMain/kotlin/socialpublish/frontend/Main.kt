@@ -2,6 +2,7 @@ package socialpublish.frontend
 
 import androidx.compose.runtime.*
 import kotlinx.browser.window
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Main
@@ -14,6 +15,7 @@ import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
+import socialpublish.frontend.utils.logoutAndClearLocalSession
 import socialpublish.frontend.utils.navigateTo
 
 @JsModule("bulma/css/bulma.min.css") @JsNonModule external val bulmaStyles: dynamic
@@ -40,6 +42,7 @@ private data class SessionUserResponse(
 fun App() {
     var currentPath by remember { mutableStateOf(window.location.pathname) }
     var sessionChecked by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Handle browser navigation
     DisposableEffect(Unit) {
@@ -71,9 +74,10 @@ fun App() {
 
     Div {
         NavBar(currentPath = currentPath) {
-            Storage.clearSessionToken()
-            Storage.setConfiguredServices(null)
-            navigateTo("/login")
+            coroutineScope.launch {
+                logoutAndClearLocalSession()
+                navigateTo("/login")
+            }
         }
 
         Main {
