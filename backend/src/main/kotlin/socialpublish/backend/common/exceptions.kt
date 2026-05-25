@@ -34,12 +34,12 @@ fun rethrowIfFatalOrCancelled(e: Throwable) {
 }
 
 /**
- * Runs [block] and rethrows any exceptions that are not fatal in a safe way.
+ * Runs [finalizer] and rethrows any exceptions that are not fatal in a safe way.
  */
-inline fun rethrowIfFatal(e: Throwable, block: () -> Unit) {
-    rethrowIfFatalOrCancelled(e)
+inline fun rethrowIfFatal(e: Throwable, finalizer: () -> Unit) {
+    rethrowIfFatal(e)
     try {
-        block()
+        finalizer()
         rethrowIfFatalOrCancelled(e)
     } catch (e2: Throwable) {
         rethrowIfFatalOrCancelled(e2)
