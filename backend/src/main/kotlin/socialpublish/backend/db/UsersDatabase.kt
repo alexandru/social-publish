@@ -194,10 +194,11 @@ class UsersDatabase(private val db: Database) {
                     executeUpdate()
                 }
             if (updated > 0) {
-                val _ = query("DELETE FROM user_sessions WHERE user_uuid = ?") {
-                    setString(1, userUuid)
-                    executeUpdate()
-                }
+                val _ =
+                    query("DELETE FROM user_sessions WHERE user_uuid = ?") {
+                        setString(1, userUuid)
+                        executeUpdate()
+                    }
             }
             updated > 0
         }

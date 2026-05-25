@@ -2,8 +2,7 @@ package socialpublish.frontend.utils
 
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class LogoutResponse(val success: Boolean)
+@Serializable data class LogoutResponse(val success: Boolean)
 
 suspend fun logoutAndClearLocalSession(
     logoutRequest: suspend () -> ApiResponse<LogoutResponse> = {
