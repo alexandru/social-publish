@@ -8,7 +8,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSessionsDatabase
 
@@ -51,7 +51,7 @@ object AuthModule {
                     .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
             result.verified
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Failed to verify BCrypt password" }
             false
         }

@@ -27,7 +27,7 @@ fun parseUrl(url: String): ParsedUrl? =
         }
         return ParsedUrl(scheme, host, port)
     } catch (e: Throwable) {
-        rethrowIfFatal(e)
+        rethrowIfFatalOrCancelled(e)
         logger.error(e) { "Failed to parse URL: $url" }
         null
     }

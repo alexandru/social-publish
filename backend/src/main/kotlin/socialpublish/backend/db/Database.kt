@@ -28,6 +28,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
 import socialpublish.backend.common.LoomIO
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.db.Database.Companion.connect
 
@@ -180,8 +181,7 @@ fun Database.connection(): Resource<SafeConnection> = resource {
 /**
  * Executes a block within a transaction.
  *
- * Automatically commits on success and rolls back on exception. Auto-commit is disabled during
- * execution and restored afterwards.
+ * Automatically commits on success and rolls back on exception.
  */
 suspend fun <A> Database.transaction(
     block:
@@ -196,8 +196,7 @@ suspend fun <A> Database.transaction(
             ref.connection.commit()
             result
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
-            ref.connection.rollback()
+            rethrowIfFatal(e) { ref.connection.rollback() }
             raise(DBException("Transaction failed", e))
         }
     }
@@ -245,7 +244,7 @@ suspend fun <A> Database.transactionForUpdates(
             }
         }
     } catch (e: Throwable) {
-        rethrowIfFatal(e)
+        rethrowIfFatalOrCancelled(e)
         raise(SqlUpdateException.Unknown("Unexpected exception", e))
     }
 }
@@ -308,7 +307,7 @@ suspend fun <A> SafeConnection.query(
         try {
             connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             raise(DBException("Database query failed", e))
         }
     }

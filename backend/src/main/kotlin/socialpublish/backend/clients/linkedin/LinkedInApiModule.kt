@@ -72,7 +72,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
@@ -199,7 +199,7 @@ class LinkedInApiModule(
                 val json = Json.parseToJsonElement(doc.payload)
                 json.jsonObject["sessionToken"]?.jsonPrimitive?.content
             } catch (e: Throwable) {
-                rethrowIfFatal(e)
+                rethrowIfFatalOrCancelled(e)
                 logger.warn(e) { "Failed to parse OAuth state from DB" }
                 null
             }
@@ -217,7 +217,7 @@ class LinkedInApiModule(
                 jsonElement,
             )
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Failed to pretty print JSON for logging" }
             json
         }
@@ -293,7 +293,7 @@ class LinkedInApiModule(
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
             } catch (e: Throwable) {
-                rethrowIfFatal(e)
+                rethrowIfFatalOrCancelled(e)
                 logger.warn(e) { "Failed to parse LinkedIn OAuth token from DB" }
                 null
             }
@@ -338,7 +338,7 @@ class LinkedInApiModule(
                     "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8")}"
             authUrl.right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to build LinkedIn authorization URL" }
             CaughtException(
                     status = 500,
@@ -392,7 +392,7 @@ class LinkedInApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to exchange code for token" }
             CaughtException(
                     status = 500,
@@ -444,7 +444,7 @@ class LinkedInApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to refresh access token" }
             CaughtException(
                     status = 500,
@@ -468,7 +468,7 @@ class LinkedInApiModule(
                 )
             Unit.right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save LinkedIn OAuth token" }
             CaughtException(
                     status = 500,
@@ -522,7 +522,7 @@ class LinkedInApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get user profile" }
             CaughtException(
                     status = 500,
@@ -619,7 +619,7 @@ class LinkedInApiModule(
                 altText = file.altText,
             )
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -706,7 +706,7 @@ class LinkedInApiModule(
             // Return asset URN along with optional alt text stored in file metadata
             UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload media to LinkedIn from bytes" }
             CaughtException(
                     status = 500,
@@ -722,7 +722,7 @@ class LinkedInApiModule(
         try {
             linkPreviewParser.fetchPreview(url)
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Failed to fetch link preview for $url" }
             null
         }
@@ -931,7 +931,7 @@ class LinkedInApiModule(
                                     jsonConfig.decodeFromString<UgcPostResponse>(responseBody)
                                 data.id ?: "unknown"
                             } catch (e: Throwable) {
-                                rethrowIfFatal(e)
+                                rethrowIfFatalOrCancelled(e)
                                 logger.error(e) { "Could not parse postId: $responseBody" }
                                 "unknown"
                             }
@@ -948,7 +948,7 @@ class LinkedInApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to LinkedIn via UGC API" }
             CaughtException(
                     status = 500,

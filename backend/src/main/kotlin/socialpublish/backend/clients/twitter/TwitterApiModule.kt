@@ -37,7 +37,7 @@ import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
@@ -110,7 +110,7 @@ class TwitterApiModule(
             try {
                 Json.decodeFromString<TwitterOAuthToken>(doc.payload)
             } catch (e: Throwable) {
-                rethrowIfFatal(e)
+                rethrowIfFatalOrCancelled(e)
                 logger.warn(e) { "Failed to parse Twitter OAuth token from DB" }
                 null
             }
@@ -128,7 +128,7 @@ class TwitterApiModule(
             val authUrl = service.getAuthorizationUrl(token)
             authUrl.right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get Twitter request token" }
             CaughtException(
                     status = 500,
@@ -168,7 +168,7 @@ class TwitterApiModule(
 
             Unit.right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save Twitter OAuth token" }
             CaughtException(
                     status = 500,
@@ -270,7 +270,7 @@ class TwitterApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload media (twitter) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -359,7 +359,7 @@ class TwitterApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to Twitter" }
             CaughtException(
                     status = 500,

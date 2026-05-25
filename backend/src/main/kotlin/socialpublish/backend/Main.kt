@@ -20,7 +20,7 @@ import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DatabaseBundle
@@ -134,7 +134,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                     logger.info { "Server running on port ${config.server.httpPort}" }
                     awaitCancellation()
                 } catch (e: Throwable) {
-                    rethrowIfFatal(e)
+                    rethrowIfFatalOrCancelled(e)
                     logger.error(e) { "Application failed to start" }
                     throw e
                 }
