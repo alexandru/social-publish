@@ -38,7 +38,7 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -64,14 +64,14 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     private fun statusesUrlV1(config: MastodonConfig) = "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: MastodonConfig,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<MastodonMediaResponse> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -183,10 +183,10 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     }
 
     /** Create a post on Mastodon */
+    context(_: UserSession)
     suspend fun createPost(
         config: MastodonConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -198,7 +198,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, imageUuid, userUuid)) {
+                    when (val result = uploadMedia(config, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
                     }
@@ -257,7 +257,8 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
     }
 
     /** Handle Mastodon post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig, userUuid: UUIDv7) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -272,7 +273,7 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                     )
                 }
 
-        when (val result = createPost(config, request, userUuid)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

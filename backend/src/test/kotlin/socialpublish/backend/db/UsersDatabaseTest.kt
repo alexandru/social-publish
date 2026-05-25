@@ -5,7 +5,6 @@ import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -111,7 +110,7 @@ class UsersDatabaseTest {
         }
 
     @Test
-    fun `verifyPassword should return true for correct password`(@TempDir tempDir: Path) = runTest {
+    fun `verifyPassword should return User for correct password`(@TempDir tempDir: Path) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
@@ -119,21 +118,25 @@ class UsersDatabaseTest {
             val usersDb = UsersDatabase(db)
 
             // Create user
-            val _ =
+            val createResult =
                 usersDb
                     .createUser(username = "verifyuser", password = "correctpassword")
                     .getOrElse { throw it }
+            assertTrue(createResult is CreateResult.Created)
+            val createdUser = createResult.toNullable!!
 
             // Verify correct password
             val verified =
                 usersDb.verifyPassword("verifyuser", "correctpassword").getOrElse { throw it }
 
-            assertTrue(verified)
+            assertNotNull(verified)
+            assertEquals(createdUser.uuid, verified.uuid)
+            assertEquals(createdUser.username, verified.username)
         }
     }
 
     @Test
-    fun `verifyPassword should return false for incorrect password`(@TempDir tempDir: Path) =
+    fun `verifyPassword should return null for incorrect password`(@TempDir tempDir: Path) =
         runTest {
             val dbPath = tempDir.resolve("test.db").toString()
 
@@ -151,12 +154,12 @@ class UsersDatabaseTest {
                 val verified =
                     usersDb.verifyPassword("verifyuser", "wrongpassword").getOrElse { throw it }
 
-                assertFalse(verified)
+                assertNull(verified)
             }
         }
 
     @Test
-    fun `verifyPassword should return false for non-existent user`(@TempDir tempDir: Path) =
+    fun `verifyPassword should return null for non-existent user`(@TempDir tempDir: Path) =
         runTest {
             val dbPath = tempDir.resolve("test.db").toString()
 
@@ -167,7 +170,7 @@ class UsersDatabaseTest {
                 val verified =
                     usersDb.verifyPassword("nonexistent", "anypassword").getOrElse { throw it }
 
-                assertFalse(verified)
+                assertNull(verified)
             }
         }
 

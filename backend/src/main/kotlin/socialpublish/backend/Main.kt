@@ -27,7 +27,6 @@ import socialpublish.backend.db.UpdateUsernameResult
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
-import socialpublish.backend.server.ServerAuthConfig
 import socialpublish.backend.server.ServerConfig
 import socialpublish.backend.server.startServer
 
@@ -82,14 +81,6 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .file(mustExist = false, canBeDir = true, canBeFile = false)
             .multiple()
 
-    private val serverAuthJwtSecret: String by
-        option(
-                "--server-auth-jwt-secret",
-                help = "JWT secret for server authentication (env: JWT_SECRET)",
-                envvar = "JWT_SECRET",
-            )
-            .required()
-
     // Files storage configuration
     private val uploadedFilesPath: File by
         option(
@@ -101,15 +92,12 @@ class StartServerCommand : CliktCommand(name = "start-server") {
             .required()
 
     override fun run() {
-        val serverAuthConfig = ServerAuthConfig(jwtSecret = serverAuthJwtSecret)
-
         val serverConfig =
             ServerConfig(
                 dbPath = dbPath,
                 httpPort = httpPort,
                 baseUrl = baseUrl,
                 staticContentPaths = staticContentPaths,
-                auth = serverAuthConfig,
             )
 
         val filesConfig = FilesConfig(uploadedFilesPath = uploadedFilesPath, baseUrl = baseUrl)
@@ -137,6 +125,7 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                                 resources.postsDb,
                                 resources.filesDb,
                                 resources.usersDb,
+                                resources.userSessionsDb,
                                 engine = CIO,
                             )
                             .bind()

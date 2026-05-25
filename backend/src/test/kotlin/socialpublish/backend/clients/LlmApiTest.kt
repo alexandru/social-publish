@@ -25,6 +25,7 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.uploadTestImage
 
 class LlmApiTest {
@@ -48,7 +49,11 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     // Mock OpenAI API
                     post("/v1/chat/completions") {
                         receivedRequest = call.receive<OpenAiChatRequest>()
@@ -95,7 +100,10 @@ class LlmApiTest {
                     apiKey = "test-key",
                     model = "gpt-4o-mini",
                 )
-            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    llmModule.generateAltText(llmConfig, upload.uuid)
+                }
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result but got: $result")
@@ -144,7 +152,11 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     // Mock Mistral API
                     post("/v1/chat/completions") {
                         call.respondText(
@@ -190,7 +202,10 @@ class LlmApiTest {
                     apiKey = "test-key",
                     model = "pixtral-12b-2409",
                 )
-            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    llmModule.generateAltText(llmConfig, upload.uuid)
+                }
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result")
@@ -224,7 +239,10 @@ class LlmApiTest {
                     apiKey = "test-key",
                     model = "gpt-4o-mini",
                 )
-            val result = llmModule.generateAltText(dummyConfig, testUserUuid, "non-existent-uuid")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    llmModule.generateAltText(dummyConfig, "non-existent-uuid")
+                }
 
             assertTrue(result is Either.Left, "Expected error result")
             val error = (result as Either.Left).value

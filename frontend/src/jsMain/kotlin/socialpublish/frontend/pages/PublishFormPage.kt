@@ -132,7 +132,7 @@ private fun redirectToLoginIfUnauthorized(response: ApiResponse<*>, currentPath:
     if (!isUnauthorized(response)) {
         return false
     }
-    Storage.clearJwtToken()
+    Storage.clearSessionToken()
     Storage.setConfiguredServices(null)
     navigateTo(buildLoginRedirectPath(currentPath))
     return true
@@ -143,7 +143,7 @@ private fun PostForm(onError: (String) -> Unit, onInfo: (@Composable () -> Unit)
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val configuredServices = Storage.getConfiguredServices()
-    val rssFeedHref = Storage.getJwtUserUuid()?.let { "/rss/$it" } ?: "#"
+    val rssFeedHref = "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {

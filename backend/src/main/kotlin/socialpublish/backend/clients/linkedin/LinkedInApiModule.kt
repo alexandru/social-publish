@@ -74,7 +74,9 @@ import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -158,9 +160,8 @@ class LinkedInApiModule(
         }
     }
 
-    /** Get OAuth callback URL */
-    private fun getCallbackUrl(jwtToken: String): String {
-        return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+    private fun getCallbackUrl(sessionToken: String): String {
+        return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(sessionToken, "UTF-8")}"
     }
 
     /**
@@ -176,11 +177,11 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(state: String, jwtToken: String, userUuid: UUIDv7) {
+    private suspend fun saveOAuthState(state: String, sessionToken: String, userUuid: UUIDv7) {
         val _ =
             documentsDb.createOrUpdate(
                 kind = "linkedin-oauth-state",
-                payload = """{"state":"$state","jwtToken":"$jwtToken"}""",
+                payload = """{"state":"$state","sessionToken":"$sessionToken"}""",
                 userUuid = userUuid,
                 searchKey = state,
                 tags = emptyList(),
@@ -195,7 +196,7 @@ class LinkedInApiModule(
             // In production, we might want to track used states to prevent replay attacks
             try {
                 val json = Json.parseToJsonElement(doc.payload)
-                json.jsonObject["jwtToken"]?.jsonPrimitive?.content
+                json.jsonObject["sessionToken"]?.jsonPrimitive?.content
             } catch (e: Exception) {
                 logger.warn(e) { "Failed to parse OAuth state from DB" }
                 null
@@ -310,20 +311,20 @@ class LinkedInApiModule(
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      *
-     * @param jwtToken JWT token to include in callback URL for state verification
+     * @param sessionToken session token to include in callback URL for state verification
      * @return Authorization URL to redirect the user to, or an error
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
-        jwtToken: String,
+        sessionToken: String,
         userUuid: UUIDv7,
     ): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(jwtToken)
+            val callbackUrl = getCallbackUrl(sessionToken)
             val state = generateOAuthState()
 
             // Save state for verification during callback
-            saveOAuthState(state, jwtToken, userUuid)
+            saveOAuthState(state, sessionToken, userUuid)
 
             val authUrl =
                 "${config.authorizationUrl}?response_type=code" +
@@ -583,16 +584,16 @@ class LinkedInApiModule(
     }
 
     /** Upload media to LinkedIn */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: LinkedInConfig,
         accessToken: String,
         personUrn: String,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -740,12 +741,13 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
+    context(_: UserSession)
     suspend fun createPost(
         config: LinkedInConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             // Validate request
             request.validate()?.let { error ->
                 return error.left()
@@ -774,10 +776,7 @@ class LinkedInApiModule(
             val uploadedAssets = mutableListOf<UploadedAsset>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (
-                        val result =
-                            uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
-                    ) {
+                    when (val result = uploadMedia(config, accessToken, personUrn, imageUuid)) {
                         is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
                     }

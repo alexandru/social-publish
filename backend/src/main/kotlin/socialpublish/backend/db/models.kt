@@ -123,3 +123,10 @@ data class UserSession(
     val createdAt: Instant,
     val revokedAt: Instant?,
 )
+
+/**
+ * Result of creating a new user session on login.
+ *
+ * We need `rawToken` to return it to the client (one time, on login only).
+ */
+data class NewUserSession(val rawToken: String, val session: UserSession)

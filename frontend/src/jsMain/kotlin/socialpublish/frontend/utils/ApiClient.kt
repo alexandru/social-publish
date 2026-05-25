@@ -19,7 +19,7 @@ object ApiClient {
         if (includeContentType) {
             headers["Content-Type"] = "application/json"
         }
-        Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+        Storage.getSessionToken()?.let { headers["Authorization"] = "Bearer $it" }
         return headers
     }
 
@@ -153,7 +153,7 @@ object ApiClient {
             // Don't include Content-Type header for multipart/form-data
             // Browser will set it automatically with boundary
             val headers = js("{}")
-            Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+            Storage.getSessionToken()?.let { headers["Authorization"] = "Bearer $it" }
 
             val requestInit = RequestInit(method = "POST", headers = headers, body = formData)
 

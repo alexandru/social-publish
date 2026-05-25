@@ -20,6 +20,7 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishModuleTest {
     private lateinit var postsDb: PostsDatabase
@@ -48,7 +49,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         assertNotNull(publishModule)
     }
@@ -66,7 +67,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request = NewPostRequest(content = "Test post to RSS", targets = listOf("rss"))
 
@@ -94,7 +95,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
@@ -126,7 +127,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request =
             NewPostRequest(content = "Test post", targets = listOf("rss", "mastodon", "twitter"))
@@ -176,7 +177,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request = NewPostRequest(content = "Test post", targets = emptyList())
 
@@ -200,7 +201,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request = NewPostRequest(content = "Test post", targets = null)
 
@@ -224,7 +225,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request = NewPostRequest(content = "Test post", targets = listOf("RSS", "Mastodon"))
 
@@ -250,7 +251,7 @@ class PublishModuleTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val request =
             NewPostRequest(

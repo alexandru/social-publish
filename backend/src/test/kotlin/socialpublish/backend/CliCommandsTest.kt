@@ -5,7 +5,8 @@ import arrow.fx.coroutines.resourceScope
 import com.github.ajalt.clikt.testing.test
 import java.nio.file.Path
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -97,7 +98,7 @@ class CliCommandsTest {
             assertTrue(result.stdout.contains("Password changed successfully"))
 
             val valid = usersDb.verifyPassword("alice", "newpass").getOrElse { throw it }
-            assertTrue(valid)
+            assertNotNull(valid)
         }
     }
 
@@ -116,7 +117,7 @@ class CliCommandsTest {
                 }
 
             val before = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
-            assertFalse(before)
+            assertNull(before)
 
             val result =
                 SocialPublishCli()
@@ -127,7 +128,7 @@ class CliCommandsTest {
             assertEquals(0, result.statusCode)
 
             val after = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
-            assertTrue(after)
+            assertNotNull(after)
         }
     }
 }

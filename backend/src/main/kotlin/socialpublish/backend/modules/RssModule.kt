@@ -22,6 +22,8 @@ import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -31,8 +33,10 @@ class RssModule(
     private val filesDb: FilesDatabase,
 ) {
     /** Create a new RSS post */
-    suspend fun createPost(request: NewPostRequest, userUuid: UUIDv7): ApiResult<NewPostResponse> {
+    context(_: UserSession)
+    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             // Validate request
             request.validate()?.let { error ->
                 return error.left()

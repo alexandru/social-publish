@@ -23,6 +23,7 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishRoutesTest {
     @Test
@@ -43,7 +44,7 @@ class PublishRoutesTest {
                 null,
                 null,
                 rssModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
             )
         val publishRoutes = PublishRoutes()
 
@@ -102,7 +103,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     rssModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                    createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
                 )
             val publishRoutes = PublishRoutes()
 
@@ -162,7 +163,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     rssModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                    createTestSession(UUIDv7.fromString("00000000-0000-0000-0000-000000000001")),
                 )
             val publishRoutes = PublishRoutes()
 

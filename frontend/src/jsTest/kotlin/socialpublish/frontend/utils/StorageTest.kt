@@ -10,18 +10,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.browser.document
 import kotlinx.browser.localStorage
-import kotlinx.browser.window
 
 class StorageTest {
-
-    private fun base64Url(input: String): String =
-        window.btoa(input).replace('+', '-').replace('/', '_').trimEnd('=')
-
-    private fun jwtWithPayload(payloadJson: String): String {
-        val header = base64Url("""{"alg":"HS256","typ":"JWT"}""")
-        val payload = base64Url(payloadJson)
-        return "$header.$payload.signature"
-    }
 
     @BeforeTest
     fun setup() {
@@ -116,42 +106,42 @@ class StorageTest {
         assertEquals("value3", cookies["cookie3"])
     }
 
-    // JWT Token tests
+    // Session token tests
     @Test
-    fun testSetAndGetJwtToken() {
-        Storage.setJwtToken("jwt-token-123")
+    fun testSetAndGetSessionToken() {
+        Storage.setSessionToken("session-token-123")
 
-        assertNotNull(Storage.getJwtToken())
-        assertEquals("jwt-token-123", Storage.getJwtToken())
+        assertNotNull(Storage.getSessionToken())
+        assertEquals("session-token-123", Storage.getSessionToken())
     }
 
     @Test
-    fun testHasJwtToken() {
-        assertFalse(Storage.hasJwtToken())
+    fun testHasSessionToken() {
+        assertFalse(Storage.hasSessionToken())
 
-        Storage.setJwtToken("some-token")
-        assertTrue(Storage.hasJwtToken())
+        Storage.setSessionToken("some-token")
+        assertTrue(Storage.hasSessionToken())
     }
 
     @Test
-    fun testClearJwtToken() {
-        Storage.setJwtToken("token-to-clear")
-        assertTrue(Storage.hasJwtToken())
+    fun testClearSessionToken() {
+        Storage.setSessionToken("token-to-clear")
+        assertTrue(Storage.hasSessionToken())
 
-        Storage.clearJwtToken()
-        assertFalse(Storage.hasJwtToken())
-        assertNull(Storage.getJwtToken())
+        Storage.clearSessionToken()
+        assertFalse(Storage.hasSessionToken())
+        assertNull(Storage.getSessionToken())
     }
 
     @Test
-    fun testGetJwtTokenWhenNotSet() {
-        assertNull(Storage.getJwtToken())
+    fun testGetSessionTokenWhenNotSet() {
+        assertNull(Storage.getSessionToken())
     }
 
     @Test
-    fun testJwtTokenPersistence() {
+    fun testSessionTokenPersistence() {
         val token = "persistent-token-456"
-        Storage.setJwtToken(token)
+        Storage.setSessionToken(token)
 
         // Verify token is stored in cookies
         val cookies = Storage.cookies()
@@ -160,46 +150,23 @@ class StorageTest {
     }
 
     @Test
-    fun testJwtTokenSameSiteAttribute() {
-        Storage.setJwtToken("token-with-samesite")
+    fun testSessionTokenSameSiteAttribute() {
+        Storage.setSessionToken("token-with-samesite")
 
         // Token should be set
-        assertTrue(Storage.hasJwtToken())
+        assertTrue(Storage.hasSessionToken())
         // The actual SameSite attribute is set to "Lax" in the implementation
     }
 
     @Test
-    fun testJwtTokenSecureFlagBasedOnProtocol() {
-        Storage.setJwtToken("secure-test-token")
+    fun testSessionTokenSecureFlagBasedOnProtocol() {
+        Storage.setSessionToken("secure-test-token")
 
         // Token should be set regardless of protocol
-        assertTrue(Storage.hasJwtToken())
+        assertTrue(Storage.hasSessionToken())
 
         // We can verify the token exists but can't directly verify the secure flag from JS
-        assertNotNull(Storage.getJwtToken())
-    }
-
-    @Test
-    fun testGetJwtUserUuidFromTokenPayload() {
-        val token = jwtWithPayload("""{"userUuid":"00000000-0000-0000-0000-000000000123"}""")
-        Storage.setJwtToken(token)
-
-        assertEquals("00000000-0000-0000-0000-000000000123", Storage.getJwtUserUuid())
-    }
-
-    @Test
-    fun testGetJwtUserUuidReturnsNullForMalformedToken() {
-        Storage.setJwtToken("not-a-jwt")
-
-        assertNull(Storage.getJwtUserUuid())
-    }
-
-    @Test
-    fun testGetJwtUserUuidReturnsNullWhenClaimMissing() {
-        val token = jwtWithPayload("""{"username":"alice"}""")
-        Storage.setJwtToken(token)
-
-        assertNull(Storage.getJwtUserUuid())
+        assertNotNull(Storage.getSessionToken())
     }
 
     // localStorage / ConfiguredServices tests
@@ -293,41 +260,41 @@ class StorageTest {
     @Test
     fun testCompleteAuthenticationFlow() {
         // Initial state: no token, no configured services
-        assertFalse(Storage.hasJwtToken())
+        assertFalse(Storage.hasSessionToken())
         assertEquals(ConfiguredServices(), Storage.getConfiguredServices())
 
         // Login: set token and configured services
-        Storage.setJwtToken("user-session-token")
+        Storage.setSessionToken("user-session-token")
         Storage.setConfiguredServices(ConfiguredServices(twitter = true))
 
-        assertTrue(Storage.hasJwtToken())
+        assertTrue(Storage.hasSessionToken())
         assertTrue(Storage.getConfiguredServices().twitter)
 
         // Logout: clear everything
-        Storage.clearJwtToken()
+        Storage.clearSessionToken()
         Storage.setConfiguredServices(null)
 
-        assertFalse(Storage.hasJwtToken())
+        assertFalse(Storage.hasSessionToken())
         assertEquals(ConfiguredServices(), Storage.getConfiguredServices())
     }
 
     @Test
     fun testStorageIsolation() {
-        // JWT tokens use cookies
-        Storage.setJwtToken("cookie-token")
+        // Session tokens use cookies
+        Storage.setSessionToken("cookie-token")
 
         // Configured services use localStorage
         Storage.setConfiguredServices(ConfiguredServices(twitter = true))
 
         // Both should be independent
-        assertTrue(Storage.hasJwtToken())
+        assertTrue(Storage.hasSessionToken())
         assertTrue(Storage.getConfiguredServices().twitter)
 
         // Clearing one shouldn't affect the other
-        Storage.clearJwtToken()
+        Storage.clearSessionToken()
         assertTrue(Storage.getConfiguredServices().twitter)
 
         Storage.setConfiguredServices(null)
-        assertFalse(Storage.hasJwtToken())
+        assertFalse(Storage.hasSessionToken())
     }
 }

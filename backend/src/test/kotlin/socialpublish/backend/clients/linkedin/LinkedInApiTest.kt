@@ -35,6 +35,7 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.uploadTestImage
 
 class LinkedInApiTest {
@@ -76,7 +77,7 @@ class LinkedInApiTest {
             val result =
                 module.buildAuthorizeURL(
                     config,
-                    "test-jwt-token",
+                    "test-session-token",
                     UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
@@ -294,7 +295,8 @@ class LinkedInApiTest {
                 NewPostRequest(content = "Test LinkedIn post", targets = listOf("linkedin"))
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Right)
             assertTrue(postCreated, "Post should have been created")
@@ -367,7 +369,9 @@ class LinkedInApiTest {
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -436,7 +440,8 @@ class LinkedInApiTest {
                 )
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Right)
             assertTrue(uploadRegistered, "Upload should have been registered")
@@ -481,7 +486,8 @@ class LinkedInApiTest {
             val request = NewPostRequest(content = "", targets = listOf("linkedin"))
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Left)
             val error = (result as Either.Left).value
@@ -662,7 +668,9 @@ class LinkedInApiTest {
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -737,7 +745,8 @@ class LinkedInApiTest {
                 )
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Right)
             assertEquals(3, uploadCount, "Should have uploaded 3 images")
@@ -872,7 +881,8 @@ class LinkedInApiTest {
                     )
 
                 val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-                val result = module.createPost(config, request, testUserUuid)
+                val result =
+                    context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
                 assertTrue(result is Either.Right)
                 // Thumbnail download/upload removed: ensure post was created
@@ -924,7 +934,9 @@ class LinkedInApiTest {
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -993,7 +1005,8 @@ class LinkedInApiTest {
                 )
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Right)
             assertTrue(postCreated, "Post should have been created")
@@ -1526,7 +1539,9 @@ class LinkedInApiTest {
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -1592,7 +1607,8 @@ class LinkedInApiTest {
                 )
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Right)
             assertTrue(registrationReceived, "Upload registration should have been called")
@@ -1643,7 +1659,9 @@ class LinkedInApiTest {
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -1699,7 +1717,8 @@ class LinkedInApiTest {
                 )
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Left, "Should fail when upload registration fails")
             val error = (result as Either.Left).value
@@ -1782,7 +1801,8 @@ class LinkedInApiTest {
             val request = NewPostRequest(content = "Test post", targets = listOf("linkedin"))
 
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) { module.createPost(config, request) }
 
             assertTrue(result is Either.Left, "Should fail when API returns error")
             val error = (result as Either.Left).value

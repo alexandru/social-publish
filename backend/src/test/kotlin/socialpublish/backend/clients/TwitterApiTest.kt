@@ -33,6 +33,7 @@ import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
@@ -53,7 +54,11 @@ class TwitterApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     post("/1.1/media/upload.json") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
@@ -151,7 +156,10 @@ class TwitterApiTest {
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
             assertTrue(result.isRight())
 
             assertEquals(2, uploadedImages.size)
@@ -245,7 +253,10 @@ class TwitterApiTest {
                     cleanupHtml = true,
                 )
             val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-            val result = twitterModule.createPost(twitterConfig, req, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
             assertTrue(result.isRight())
 
             // Jsoup properly decodes HTML entities and removes tags
@@ -305,11 +316,9 @@ class TwitterApiTest {
                     }
                     routing {
                         get("/api/twitter/status") {
-                            TwitterRoutes(twitterModule, documentsDb)
-                                .statusRoute(
-                                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
-                                    call,
-                                )
+                            context(createTestSession(testUserUuid)) {
+                                TwitterRoutes(twitterModule, documentsDb).statusRoute(call)
+                            }
                         }
                     }
                 }
@@ -362,11 +371,9 @@ class TwitterApiTest {
                     }
                     routing {
                         get("/api/twitter/status") {
-                            TwitterRoutes(twitterModule, documentsDb)
-                                .statusRoute(
-                                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
-                                    call,
-                                )
+                            context(createTestSession(testUserUuid)) {
+                                TwitterRoutes(twitterModule, documentsDb).statusRoute(call)
+                            }
                         }
                     }
                 }

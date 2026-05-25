@@ -23,6 +23,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.uploadTestImage
 
@@ -37,7 +38,9 @@ class FilesRoutesTest {
 
         application {
             routing {
-                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                post("/api/files/upload") {
+                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+                }
             }
         }
 
@@ -66,7 +69,9 @@ class FilesRoutesTest {
 
         application {
             routing {
-                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                post("/api/files/upload") {
+                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+                }
             }
         }
 
@@ -111,7 +116,9 @@ class FilesRoutesTest {
 
         application {
             routing {
-                post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                post("/api/files/upload") {
+                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+                }
                 get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
             }
         }

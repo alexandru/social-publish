@@ -49,7 +49,7 @@ fun App() {
     }
 
     LaunchedEffect(currentPath) {
-        val token = Storage.getJwtToken()
+        val token = Storage.getSessionToken()
         if (token == null || currentPath == "/login") {
             sessionChecked = true
             return@LaunchedEffect
@@ -58,7 +58,7 @@ fun App() {
         sessionChecked = false
         val response = ApiClient.get<SessionUserResponse>("/api/protected")
         if (isUnauthorized(response)) {
-            Storage.clearJwtToken()
+            Storage.clearSessionToken()
             Storage.setConfiguredServices(null)
             navigateTo(buildLoginRedirectPath(currentPath))
             return@LaunchedEffect
@@ -71,7 +71,7 @@ fun App() {
 
     Div {
         NavBar(currentPath = currentPath) {
-            Storage.clearJwtToken()
+            Storage.clearSessionToken()
             Storage.setConfiguredServices(null)
             navigateTo("/login")
         }

@@ -26,7 +26,7 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -53,9 +53,9 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
         }
     }
 
+    context(_: UserSession)
     suspend fun generateAltText(
         config: LlmConfig,
-        userUuid: UUIDv7,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
@@ -65,7 +65,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             // Images are optimized during upload to max 1600x1600, which is sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid, userUuid = userUuid)
+                filesModule.readImageFile(uuid = imageUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",

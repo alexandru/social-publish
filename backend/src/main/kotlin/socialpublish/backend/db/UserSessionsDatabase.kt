@@ -3,12 +3,49 @@ package socialpublish.backend.db
 import arrow.core.Either
 import arrow.core.raise.either
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.security.MessageDigest
 import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.UUID
+import kotlinx.coroutines.withContext
 
 private val logger = KotlinLogging.logger {}
 
 /** Database access layer for the user_sessions table. */
 class UserSessionsDatabase(private val db: Database, private val usersDb: UsersDatabase) {
+    /** Called by the login endpoint, one time, for creating the new session token. */
+    suspend fun login(username: String, password: String): Either<DBException, NewUserSession?> =
+        withContext(Database.Dispatcher) {
+            either {
+                val user = usersDb.verifyPassword(username, password).bind() ?: return@either null
+                // Note this can block threads
+                val rawToken = UUID.randomUUID().toString()
+                val tokenHash = hashToken(rawToken)
+                val expiresAt = db.clock.instant().plus(SESSION_DURATION_DAYS, ChronoUnit.DAYS)
+                val sessionResult = createSession(user.uuid, tokenHash, expiresAt).bind()
+                when (sessionResult) {
+                    CreateResult.Duplicate ->
+                        raise(DBException("Generated duplicate session token hash"))
+                    is CreateResult.Created -> NewUserSession(rawToken, sessionResult.value)
+                }
+            }
+        }
+
+    suspend fun logout(token: String): Either<DBException, Boolean> =
+        deleteSession(hashToken(token))
+
+    suspend fun authorize(token: String): Either<DBException, UserSession?> = either {
+        val tokenHash = hashToken(token)
+        val session = findSessionByTokenHash(tokenHash).bind() ?: return@either null
+        val now = db.clock.instant()
+        if (session.revokedAt != null || !session.expiresAt.isAfter(now)) {
+            val _ = deleteSession(tokenHash).bind()
+            null
+        } else {
+            session
+        }
+    }
+
     suspend fun createSession(
         userUuid: UUIDv7,
         tokenHash: String,
@@ -131,5 +168,14 @@ class UserSessionsDatabase(private val db: Database, private val usersDb: UsersD
                 executeUpdate()
             }
         }
+    }
+
+    companion object {
+        private const val SESSION_DURATION_DAYS = 90L
+
+        fun hashToken(token: String): String =
+            MessageDigest.getInstance("SHA-256")
+                .digest(token.toByteArray(Charsets.UTF_8))
+                .joinToString("") { byte -> "%02x".format(byte) }
     }
 }

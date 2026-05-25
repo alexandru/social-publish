@@ -14,6 +14,7 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class RssModuleTest {
     private lateinit var rssModule: RssModule
@@ -39,7 +40,7 @@ class RssModuleTest {
                 link = "https://example.com",
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Right)
         val response = (result as Either.Right).value
@@ -56,7 +57,7 @@ class RssModuleTest {
                 targets = listOf("rss"),
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Right)
 
@@ -75,7 +76,7 @@ class RssModuleTest {
     fun `createPost with empty content returns validation error`() = runTest {
         val request = NewPostRequest(content = "", targets = listOf("rss"))
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -88,7 +89,7 @@ class RssModuleTest {
         val longContent = "a".repeat(1001)
         val request = NewPostRequest(content = longContent, targets = listOf("rss"))
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -104,7 +105,7 @@ class RssModuleTest {
                 cleanupHtml = true,
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Right)
 
@@ -121,7 +122,7 @@ class RssModuleTest {
         val request =
             NewPostRequest(content = htmlContent, targets = listOf("rss"), cleanupHtml = false)
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Right)
 
@@ -141,7 +142,7 @@ class RssModuleTest {
                 images = listOf("image-uuid-1", "image-uuid-2"),
             )
 
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
 
         assertTrue(result is Either.Right)
 
@@ -158,7 +159,8 @@ class RssModuleTest {
     fun `generateRss produces valid RSS feed`() = runTest {
         // Create a test post first
         val request = NewPostRequest(content = "Test RSS post", targets = listOf("rss"))
-        val createResult = rssModule.createPost(request, testUserUuid)
+        val createResult =
+            context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
         assertTrue(createResult is Either.Right)
 
         val rssContent = rssModule.generateRss(testUserUuid)
@@ -172,7 +174,9 @@ class RssModuleTest {
     @Test
     fun `generateRss item link for local posts includes user UUID`() = runTest {
         val result =
-            rssModule.createPost(NewPostRequest(content = "No external link"), testUserUuid)
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(NewPostRequest(content = "No external link"))
+            }
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
@@ -187,14 +191,17 @@ class RssModuleTest {
     fun `generateRss filters by links when filterByLinks is include`() = runTest {
         // Post with link
         val result1 =
-            rssModule.createPost(
-                NewPostRequest(content = "Post with link", link = "https://example.com"),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(
+                    NewPostRequest(content = "Post with link", link = "https://example.com")
+                )
+            }
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
-            rssModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(NewPostRequest(content = "Post without link"))
+            }
         assertTrue(result2 is Either.Right)
 
         val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "include")
@@ -207,14 +214,17 @@ class RssModuleTest {
     fun `generateRss filters by links when filterByLinks is exclude`() = runTest {
         // Post with link
         val result1 =
-            rssModule.createPost(
-                NewPostRequest(content = "Post with link", link = "https://example.com"),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(
+                    NewPostRequest(content = "Post with link", link = "https://example.com")
+                )
+            }
         assertTrue(result1 is Either.Right)
         // Post without link
         val result2 =
-            rssModule.createPost(NewPostRequest(content = "Post without link"), testUserUuid)
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(NewPostRequest(content = "Post without link"))
+            }
         assertTrue(result2 is Either.Right)
 
         val rssContent = rssModule.generateRss(testUserUuid, filterByLinks = "exclude")
@@ -226,16 +236,18 @@ class RssModuleTest {
     @Test
     fun `generateRss filters by target`() = runTest {
         val result1 =
-            rssModule.createPost(
-                NewPostRequest(content = "Twitter post", targets = listOf("twitter")),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(
+                    NewPostRequest(content = "Twitter post", targets = listOf("twitter"))
+                )
+            }
         assertTrue(result1 is Either.Right)
         val result2 =
-            rssModule.createPost(
-                NewPostRequest(content = "Mastodon post", targets = listOf("mastodon")),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                rssModule.createPost(
+                    NewPostRequest(content = "Mastodon post", targets = listOf("mastodon"))
+                )
+            }
         assertTrue(result2 is Either.Right)
 
         val rssContent = rssModule.generateRss(testUserUuid, target = "twitter")
@@ -247,7 +259,7 @@ class RssModuleTest {
     @Test
     fun `getRssItemByUuid returns post when found`() = runTest {
         val request = NewPostRequest(content = "Test post")
-        val result = rssModule.createPost(request, testUserUuid)
+        val result = context(createTestSession(testUserUuid)) { rssModule.createPost(request) }
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)

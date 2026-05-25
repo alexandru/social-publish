@@ -19,17 +19,18 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
 import socialpublish.backend.common.*
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
 import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
-    suspend fun uploadFileRoute(userUuid: UUIDv7, call: ApplicationCall) = resourceScope {
+    context(_: UserSession)
+    suspend fun uploadFileRoute(call: ApplicationCall) = resourceScope {
         val result =
             when (val upload = receiveUpload(call).bind()) {
-                is Either.Right -> filesModule.uploadFile(upload.value, userUuid)
+                is Either.Right -> filesModule.uploadFile(upload.value)
                 is Either.Left -> upload
             }
 

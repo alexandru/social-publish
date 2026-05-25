@@ -14,8 +14,9 @@ import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithInternalServerError
+import socialpublish.backend.server.userUuid
 
 @Serializable
 data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
@@ -24,13 +25,13 @@ class TwitterRoutes(
     private val twitterModule: TwitterApiModule,
     private val documentsDb: DocumentsDatabase,
 ) {
+    context(_: UserSession)
     suspend fun authorizeRoute(
-        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
-        callbackJwtToken: String,
+        sessionToken: String,
         call: ApplicationCall,
     ) {
-        when (val result = twitterModule.buildAuthorizeURL(twitterConfig, callbackJwtToken)) {
+        when (val result = twitterModule.buildAuthorizeURL(twitterConfig, sessionToken)) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value
@@ -42,11 +43,9 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun callbackRoute(
-        userUuid: UUIDv7,
-        twitterConfig: TwitterConfig,
-        call: ApplicationCall,
-    ) {
+    context(_: UserSession)
+    suspend fun callbackRoute(twitterConfig: TwitterConfig, call: ApplicationCall) {
+        val userUuid = userUuid()
         val token = call.request.queryParameters["oauth_token"]
         val verifier = call.request.queryParameters["oauth_verifier"]
 
@@ -75,9 +74,11 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun statusRoute(userUuid: UUIDv7, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun statusRoute(call: ApplicationCall) {
+        val userUuid = userUuid()
         val row =
-            documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse { error ->
+            documentsDb.searchByKey("twitter-oauth-token:$userUuid").getOrElse { error ->
                 call.respondWithInternalServerError(error)
                 return
             }
@@ -89,11 +90,8 @@ class TwitterRoutes(
         )
     }
 
-    suspend fun createPostRoute(
-        userUuid: UUIDv7,
-        twitterConfig: TwitterConfig,
-        call: ApplicationCall,
-    ) {
+    context(_: UserSession)
+    suspend fun createPostRoute(twitterConfig: TwitterConfig, call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -108,7 +106,7 @@ class TwitterRoutes(
                     )
                 }
 
-        when (val result = twitterModule.createPost(twitterConfig, request, userUuid)) {
+        when (val result = twitterModule.createPost(twitterConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

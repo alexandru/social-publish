@@ -1,68 +1,17 @@
 package socialpublish.backend.modules
 
+import arrow.core.Either
+import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.Test
-import socialpublish.backend.db.UUIDv7
+import kotlinx.coroutines.test.runTest
+import socialpublish.backend.db.Database
+import socialpublish.backend.db.UserSessionsDatabase
+import socialpublish.backend.db.UsersDatabase
 
 class AuthModuleTest {
-    private val jwtSecret = "test-secret"
-
-    @Test
-    fun `should generate valid JWT token`() {
-        val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser", UUIDv7.generate())
-
-        assertNotNull(token)
-        assertTrue(token.isNotEmpty())
-    }
-
-    @Test
-    fun `should verify valid JWT token`() {
-        val authModule = AuthModule(jwtSecret)
-        val token = authModule.generateToken("testuser", UUIDv7.generate())
-        val result = authModule.verifyTokenPayload(token)
-
-        assertEquals("testuser", result?.username)
-    }
-
-    @Test
-    fun `should reject invalid JWT token`() {
-        val authModule = AuthModule(jwtSecret)
-        val result = authModule.verifyTokenPayload("invalid-token")
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `verifyToken should reject token signed with different secret`() {
-        val authModule1 = AuthModule("secret1")
-        val authModule2 = AuthModule("secret2")
-
-        val token = authModule1.generateToken("testuser", UUIDv7.generate())
-        val result = authModule2.verifyTokenPayload(token)
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `verifyToken should reject malformed token`() {
-        val authModule = AuthModule(jwtSecret)
-        val result = authModule.verifyTokenPayload("not.a.valid.jwt.token")
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `verifyToken should reject empty token`() {
-        val authModule = AuthModule(jwtSecret)
-        val result = authModule.verifyTokenPayload("")
-
-        assertNull(result)
-    }
-
     @Test
     fun `hashPassword should generate valid BCrypt hash`() {
         val password = "mySecurePassword123"
@@ -70,9 +19,7 @@ class AuthModuleTest {
 
         assertNotNull(hash)
         assertTrue(hash.startsWith("\$2"))
-
-        val authModule = AuthModule(jwtSecret)
-        assertTrue(authModule.verifyPassword(password, hash))
+        assertTrue(AuthModule.verifyPassword(password, hash))
     }
 
     @Test
@@ -85,62 +32,98 @@ class AuthModuleTest {
         assertNotNull(hash2)
         assertTrue(hash1 != hash2)
 
-        val authModule = AuthModule(jwtSecret)
-        assertTrue(authModule.verifyPassword(password, hash1))
-        assertTrue(authModule.verifyPassword(password, hash2))
+        assertTrue(AuthModule.verifyPassword(password, hash1))
+        assertTrue(AuthModule.verifyPassword(password, hash2))
     }
 
     @Test
     fun `verifyPassword should handle trimmed stored passwords`() {
-        val authModule = AuthModule(jwtSecret)
         val password = "myPassword"
         val hash = AuthModule.hashPassword(password)
 
-        val verified = authModule.verifyPassword(password, "  $hash  ")
+        val verified = AuthModule.verifyPassword(password, "  $hash  ")
         assertTrue(verified)
     }
 
     @Test
     fun `verifyPassword should return false for incorrect password`() {
-        val authModule = AuthModule(jwtSecret)
         val hash = AuthModule.hashPassword("correctPassword")
 
-        val verified = authModule.verifyPassword("wrongPassword", hash)
-        assertEquals(false, verified)
+        val verified = AuthModule.verifyPassword("wrongPassword", hash)
+        assertFalse(verified)
     }
 
     @Test
     fun `verifyPassword should return false for malformed hash`() {
-        val authModule = AuthModule(jwtSecret)
-
-        val verified = authModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
-        assertEquals(false, verified)
+        val verified = AuthModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
+        assertFalse(verified)
     }
 
     @Test
-    fun `getUserUuidFromToken should return the uuid embedded in the token`() {
-        val authModule = AuthModule(jwtSecret)
-        val uuid = UUIDv7.generate()
-        val token = authModule.generateToken("testuser", uuid)
-
-        val extracted = authModule.verifyTokenPayload(token)
-        assertEquals(uuid, extracted?.userUuid)
+    fun `verifyPassword should return false for empty password`() {
+        val hash = AuthModule.hashPassword("somePassword")
+        assertFalse(AuthModule.verifyPassword("", hash))
     }
 
     @Test
-    fun `getUserUuidFromToken should return null for invalid token`() {
-        val authModule = AuthModule(jwtSecret)
-        val result = authModule.verifyTokenPayload("invalid-token")
-        assertEquals(null, result)
+    fun `AuthService login returns CreatedUserSession for valid credentials`() = runTest {
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
+
+        val _ = usersDb.createUser("testuser", "password123")
+
+        val result = authService.login("testuser", "password123")
+        assertTrue(result is Either.Right)
+        val created = result.getOrNull()
+        assertNotNull(created)
+        assertTrue(created.rawToken.isNotBlank())
     }
 
     @Test
-    fun `getUserUuidFromToken should return null for token signed with different secret`() {
-        val authModule1 = AuthModule("secret1")
-        val authModule2 = AuthModule("secret2")
+    fun `AuthService login returns null for invalid credentials`() = runTest {
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
 
-        val token = authModule1.generateToken("testuser", UUIDv7.generate())
-        val result = authModule2.verifyTokenPayload(token)
-        assertEquals(null, result)
+        val _ = usersDb.createUser("testuser", "password123")
+
+        val result = authService.login("testuser", "wrongpassword")
+        assertTrue(result is Either.Right)
+        val created = result.getOrNull()
+        assertEquals(null, created)
+    }
+
+    @Test
+    fun `AuthService authorize returns UserSession for valid token`() = runTest {
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
+
+        val _ = usersDb.createUser("testuser", "password123")
+
+        val loginResult = authService.login("testuser", "password123").getOrNull()!!
+        assertNotNull(loginResult)
+
+        val session = authService.authorize(loginResult.rawToken)
+        assertTrue(session is Either.Right)
+        assertNotNull(session.getOrNull())
+    }
+
+    @Test
+    fun `AuthService authorize returns unauthorized for invalid token`() = runTest {
+        val db = Database.connectUnmanaged(":memory:")
+        val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
+
+        val _ = usersDb.createUser("testuser", "password123")
+
+        val result = authService.authorize("invalid-token")
+        assertTrue(result is Either.Left)
+        assertEquals("Unauthorized", result.value.errorMessage)
     }
 }

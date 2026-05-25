@@ -36,7 +36,27 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
+    context(session: UserSession)
     suspend fun createOrUpdate(
+        kind: String,
+        payload: String,
+        searchKey: String? = null,
+        tags: List<Tag> = emptyList(),
+    ): Either<DBException, Document> = either {
+        val userUuid = session.user.uuid
+        createOrUpdateForUser(kind, payload, userUuid, searchKey, tags).bind()
+    }
+
+    suspend fun createOrUpdate(
+        kind: String,
+        payload: String,
+        userUuid: UUIDv7,
+        searchKey: String? = null,
+        tags: List<Tag> = emptyList(),
+    ): Either<DBException, Document> =
+        createOrUpdateForUser(kind, payload, userUuid, searchKey, tags)
+
+    private suspend fun createOrUpdateForUser(
         kind: String,
         payload: String,
         userUuid: UUIDv7,
@@ -111,34 +131,51 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
+    context(session: UserSession)
+    suspend fun searchByKey(searchKey: String): Either<DBException, Document?> = either {
+        val userUuid = session.user.uuid
+        searchByKeyForUser(searchKey, userUuid).bind()
+    }
+
     suspend fun searchByKey(searchKey: String, userUuid: UUIDv7): Either<DBException, Document?> =
-        either {
-            db.transaction {
-                val docData =
-                    query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
-                        setString(1, searchKey)
-                        setString(2, userUuid.toString())
-                        executeQuery().safe().firstOrNull { rs ->
-                            Pair(
-                                rs.getString("uuid"),
-                                Document(
-                                    uuid = rs.getString("uuid"),
-                                    kind = rs.getString("kind"),
-                                    payload = rs.getString("payload"),
-                                    searchKey = rs.getString("search_key"),
-                                    tags = emptyList(),
-                                    userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                                    createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                                ),
-                            )
-                        }
+        searchByKeyForUser(searchKey, userUuid)
+
+    private suspend fun searchByKeyForUser(
+        searchKey: String,
+        userUuid: UUIDv7,
+    ): Either<DBException, Document?> = either {
+        db.transaction {
+            val docData =
+                query("SELECT * FROM documents WHERE search_key = ? AND user_uuid = ?") {
+                    setString(1, searchKey)
+                    setString(2, userUuid.toString())
+                    executeQuery().safe().firstOrNull { rs ->
+                        Pair(
+                            rs.getString("uuid"),
+                            Document(
+                                uuid = rs.getString("uuid"),
+                                kind = rs.getString("kind"),
+                                payload = rs.getString("payload"),
+                                searchKey = rs.getString("search_key"),
+                                tags = emptyList(),
+                                userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
+                                createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                            ),
+                        )
                     }
-                docData?.let { (uuid, doc) ->
-                    val tags = getDocumentTags(uuid)
-                    doc.copy(tags = tags)
                 }
+            docData?.let { (uuid, doc) ->
+                val tags = getDocumentTags(uuid)
+                doc.copy(tags = tags)
             }
         }
+    }
+
+    context(session: UserSession)
+    suspend fun searchByUuidForCurrentUser(uuid: String): Either<DBException, Document?> = either {
+        val userUuid = session.user.uuid
+        searchByUuidForUser(uuid, userUuid).bind()
+    }
 
     suspend fun searchByUuid(uuid: String): Either<DBException, Document?> = either {
         db.transaction {
@@ -164,8 +201,45 @@ class DocumentsDatabase(private val db: Database) {
         }
     }
 
+    private suspend fun searchByUuidForUser(
+        uuid: String,
+        userUuid: UUIDv7,
+    ): Either<DBException, Document?> = either {
+        db.transaction {
+            val doc =
+                query("SELECT * FROM documents WHERE uuid = ? AND user_uuid = ?") {
+                    setString(1, uuid)
+                    setString(2, userUuid.toString())
+                    executeQuery().safe().firstOrNull { rs ->
+                        Document(
+                            uuid = rs.getString("uuid"),
+                            kind = rs.getString("kind"),
+                            payload = rs.getString("payload"),
+                            searchKey = rs.getString("search_key"),
+                            tags = emptyList(),
+                            userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
+                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                        )
+                    }
+                }
+            doc?.let {
+                val tags = getDocumentTags(uuid)
+                it.copy(tags = tags)
+            }
+        }
+    }
+
     enum class OrderBy(val sql: String) {
         CREATED_AT_DESC("created_at DESC")
+    }
+
+    context(session: UserSession)
+    suspend fun getAll(
+        kind: String,
+        orderBy: OrderBy = OrderBy.CREATED_AT_DESC,
+    ): Either<DBException, List<Document>> = either {
+        val userUuid = session.user.uuid
+        getAllForUser(kind, userUuid, orderBy).bind()
     }
 
     suspend fun getAllForUser(

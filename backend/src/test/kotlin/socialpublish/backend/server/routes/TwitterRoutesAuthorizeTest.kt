@@ -21,13 +21,14 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class TwitterRoutesAuthorizeTest {
     private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-    private val callbackJwtToken = "trusted-callback-jwt"
+    private val callbackSessionToken = "trusted-callback-session-token"
 
     @Test
-    fun `authorize uses provided callback jwt token`(@TempDir tempDir: Path) = testApplication {
+    fun `authorize uses provided callback session token`(@TempDir tempDir: Path) = testApplication {
         val db = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, db)
         val documentsDb = DocumentsDatabase(db)
@@ -62,7 +63,9 @@ class TwitterRoutesAuthorizeTest {
                     )
                 }
                 get("/api/twitter/authorize") {
-                    routes.authorizeRoute(testUserUuid, config, callbackJwtToken, call)
+                    context(createTestSession(testUserUuid)) {
+                        routes.authorizeRoute(config, callbackSessionToken, call)
+                    }
                 }
             }
         }
@@ -112,7 +115,9 @@ class TwitterRoutesAuthorizeTest {
                         )
                     }
                     get("/api/twitter/authorize") {
-                        routes.authorizeRoute(testUserUuid, config, callbackJwtToken, call)
+                        context(createTestSession(testUserUuid)) {
+                            routes.authorizeRoute(config, callbackSessionToken, call)
+                        }
                     }
                 }
             }

@@ -36,14 +36,14 @@ class SerializationTest {
     fun testLoginResponseSerializationRoundTrip() {
         val original =
             LoginResponse(
-                token = "jwt-token-123",
+                token = "session-token-123",
                 configuredServices = ConfiguredServices(twitter = true),
             )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
         assertEquals(original, decoded)
-        assertEquals("jwt-token-123", decoded.token)
+        assertEquals("session-token-123", decoded.token)
         assertTrue(decoded.configuredServices.twitter)
     }
 

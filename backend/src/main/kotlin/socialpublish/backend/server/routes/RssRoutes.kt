@@ -12,11 +12,13 @@ import io.ktor.server.response.respondText
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.RssModule
 
 class RssRoutes(private val rssModule: RssModule) {
     /** Handle RSS post creation HTTP route */
-    suspend fun createPostRoute(userUuid: UUIDv7, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -42,7 +44,7 @@ class RssRoutes(private val rssModule: RssModule) {
                     )
                 }
 
-        when (val result = rssModule.createPost(request, userUuid)) {
+        when (val result = rssModule.createPost(request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

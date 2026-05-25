@@ -4,6 +4,7 @@ import arrow.core.Either
 import arrow.core.raise.either
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.sql.PreparedStatement
 import java.time.Instant
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.modules.AuthModule
@@ -92,16 +93,7 @@ class UsersDatabase(private val db: Database) {
         db.transaction {
             query("SELECT * FROM users WHERE username = ?") {
                 setString(1, username)
-                executeQuery().safe().firstOrNull { rs ->
-                    User(
-                        uuid = UUIDv7.fromString(rs.getString("uuid")),
-                        username = rs.getString("username"),
-                        passwordHash = rs.getString("password_hash"),
-                        settings = parseUserSettings(rs.getString("settings")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
-                    )
-                }
+                executeQueryGetUserOrNull()
             }
         }
     }
@@ -116,19 +108,22 @@ class UsersDatabase(private val db: Database) {
         db.transaction {
             query("SELECT * FROM users WHERE uuid = ?") {
                 setString(1, uuid.toString())
-                executeQuery().safe().firstOrNull { rs ->
-                    User(
-                        uuid = UUIDv7.fromString(rs.getString("uuid")),
-                        username = rs.getString("username"),
-                        passwordHash = rs.getString("password_hash"),
-                        settings = parseUserSettings(rs.getString("settings")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
-                    )
-                }
+                executeQueryGetUserOrNull()
             }
         }
     }
+
+    private fun PreparedStatement.executeQueryGetUserOrNull(): User? =
+        executeQuery().safe().firstOrNull { rs ->
+            User(
+                uuid = UUIDv7.fromString(rs.getString("uuid")),
+                username = rs.getString("username"),
+                passwordHash = rs.getString("password_hash"),
+                settings = parseUserSettings(rs.getString("settings")),
+                createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
+            )
+        }
 
     /**
      * Update a user's settings.
@@ -158,20 +153,17 @@ class UsersDatabase(private val db: Database) {
      *
      * @param username Username of the user
      * @param password Plain text password to verify
-     * @return Either a DBException or true if password matches, false otherwise
+     * @return Either a DBException, the verified user when credentials match, or null otherwise
      */
-    suspend fun verifyPassword(username: String, password: String): Either<DBException, Boolean> =
+    suspend fun verifyPassword(username: String, password: String): Either<DBException, User?> =
         either {
-            val user = findByUsername(username).bind()
-            if (user == null) {
-                return@either false
-            }
+            val user = findByUsername(username).bind() ?: return@either null
 
             val result =
                 user.passwordHash?.let {
                     FavreBCrypt.verifyer().verify(password.toCharArray(), it.toCharArray())
-                } ?: return@either false
-            result.verified
+                } ?: return@either null
+            if (result.verified) user else null
         }
 
     /**

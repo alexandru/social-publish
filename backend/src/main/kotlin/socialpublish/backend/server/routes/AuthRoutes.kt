@@ -5,14 +5,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
-import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.jwt.jwt
-import io.ktor.server.auth.principal
+import io.ktor.server.auth.*
 import io.ktor.server.request.contentType
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
@@ -20,13 +16,15 @@ import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.db.UUIDv7
-import socialpublish.backend.db.UsersDatabase
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.modules.VerifiedToken
-import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.modules.AuthService
+import socialpublish.backend.server.putUserSession
+import socialpublish.backend.server.respondApiError
+import socialpublish.backend.server.respondWithUnauthorized
 
 private val logger = KotlinLogging.logger {}
+
+const val AUTH_SESSION = "auth-session"
 
 @Serializable data class LoginRequest(val username: String, val password: String)
 
@@ -52,12 +50,79 @@ data class LoginResponse(val token: String, val configuredServices: ConfiguredSe
 @Serializable
 data class UserResponse(val username: String, val configuredServices: ConfiguredServices)
 
+suspend fun withSession(
+    call: ApplicationCall,
+    block:
+        suspend context(UserSession)
+        () -> Unit,
+) {
+    val session = call.principal<UserSession>()
+    if (session == null) {
+        call.respondWithUnauthorized()
+        return
+    }
+    context(session) { block() }
+}
+
+class UserSessionAuthenticationProvider(config: Config) : AuthenticationProvider(config) {
+    private val authRoutes = config.authRoutes
+
+    class Config(name: String?, val authRoutes: AuthRoutes) : AuthenticationProvider.Config(name)
+
+    override suspend fun onAuthenticate(context: AuthenticationContext) {
+        val call = context.call
+        val token = authRoutes.extractAccessToken(call)
+        if (token == null) {
+            context.challenge(AUTH_SESSION, AuthenticationFailedCause.NoCredentials) { challenge, _
+                ->
+                call.respondWithUnauthorized()
+                challenge.complete()
+            }
+            return
+        }
+
+        when (val result = authRoutes.authorize(token)) {
+            is arrow.core.Either.Left ->
+                context.challenge(AUTH_SESSION, AuthenticationFailedCause.InvalidCredentials) {
+                    challenge,
+                    _ ->
+                    call.respondApiError(result.value)
+                    challenge.complete()
+                }
+            is arrow.core.Either.Right -> {
+                call.putUserSession(result.value)
+                context.principal(result.value)
+            }
+        }
+    }
+}
+
 class AuthRoutes(
-    config: ServerAuthConfig,
-    private val usersDb: UsersDatabase,
+    private val authService: AuthService,
     private val documentsDb: DocumentsDatabase?,
 ) {
-    val authModule = AuthModule(config.jwtSecret)
+    suspend fun authorize(token: String) = authService.authorize(token)
+
+    suspend fun loginRoute(call: ApplicationCall) {
+        val request = receiveLoginRequest(call)
+        if (request == null) {
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
+            return
+        }
+
+        val login =
+            authService.login(request.username, request.password).getOrElse { error ->
+                call.respondApiError(error)
+                return
+            }
+        if (login == null) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            return
+        }
+
+        val configuredServices = context(login.session) { computeConfiguredServices() }
+        call.respond(LoginResponse(token = login.rawToken, configuredServices = configuredServices))
+    }
 
     private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
         when (call.request.contentType()) {
@@ -80,87 +145,36 @@ class AuthRoutes(
             }
         }
 
-    suspend fun loginRoute(call: ApplicationCall) {
-        val request = receiveLoginRequest(call)
-        if (request == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
-            return
-        }
+    context(session: UserSession)
+    suspend fun protectedRoute(call: ApplicationCall) {
+        val configuredServices = computeConfiguredServices()
+        call.respond(
+            UserResponse(username = session.user.username, configuredServices = configuredServices)
+        )
+    }
 
-        val user =
-            usersDb.findByUsername(request.username).getOrElse {
-                logger.error(it) { "DB error during login for ${request.username}" }
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    ErrorResponse(error = "Server error"),
-                )
+    suspend fun logoutRoute(token: String, call: ApplicationCall) {
+        val _ =
+            authService.logout(token).getOrElse { error ->
+                call.respondApiError(error)
                 return
             }
-
-        if (user == null) {
-            call.respond(HttpStatusCode.Forbidden, ErrorResponse("Invalid credentials"))
-            return
-        }
-
-        val isPasswordValid =
-            if (user.passwordHash != null) {
-                try {
-                    authModule.verifyPassword(request.password, user.passwordHash)
-                } catch (e: Exception) {
-                    logger.warn(e) { "Failed to verify password for user: ${request.username}" }
-                    false
-                }
-            } else {
-                false
-            }
-
-        if (!isPasswordValid) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
-            return
-        }
-
-        val token = authModule.generateToken(user.username, user.uuid)
-        val configuredServices = computeConfiguredServices(user.uuid)
-        call.respond(LoginResponse(token = token, configuredServices = configuredServices))
+        call.respond(mapOf("success" to true))
     }
 
-    suspend fun protectedRoute(call: ApplicationCall) {
-        val principal = call.principal<JWTPrincipal>()
-        val username = principal?.getClaim("username", String::class)
-
-        if (username == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-            return
-        }
-
-        val userUuid = call.resolveUserUuid()
-        if (userUuid == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-            return
-        }
-
-        val user = usersDb.findByUuid(userUuid).getOrElse { null }
-        if (user == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-            return
-        }
-
-        val configuredServices = computeConfiguredServices(userUuid)
-        call.respond(UserResponse(username = username, configuredServices = configuredServices))
-    }
-
-    private suspend fun computeConfiguredServices(userUuid: UUIDv7): ConfiguredServices {
-        val user = usersDb.findByUuid(userUuid).getOrElse { null }
-        val settings = user?.settings
+    context(session: UserSession)
+    private suspend fun computeConfiguredServices(): ConfiguredServices {
+        val userUuid = session.user.uuid
+        val settings = session.user.settings
 
         val twitterTokenKey = "twitter-oauth-token:$userUuid"
         val linkedInTokenKey = "linkedin-oauth-token:$userUuid"
         val twitterOk =
             settings?.twitter != null &&
-                documentsDb?.searchByKey(twitterTokenKey, userUuid)?.getOrElse { null } != null
+                documentsDb?.searchByKey(twitterTokenKey)?.getOrElse { null } != null
         val linkedInOk =
             settings?.linkedin != null &&
-                documentsDb?.searchByKey(linkedInTokenKey, userUuid)?.getOrElse { null } != null
+                documentsDb?.searchByKey(linkedInTokenKey)?.getOrElse { null } != null
 
         return ConfiguredServices(
             mastodon = settings?.mastodon != null,
@@ -171,8 +185,7 @@ class AuthRoutes(
         )
     }
 
-    /** Extract a raw JWT string from the request (Authorization header, query param, or cookie). */
-    fun extractJwtToken(call: ApplicationCall): String? {
+    fun extractAccessToken(call: ApplicationCall): String? {
         val authHeader = call.request.headers[HttpHeaders.Authorization]
         if (!authHeader.isNullOrBlank()) {
             val parts = authHeader.trim().split(" ")
@@ -190,51 +203,14 @@ class AuthRoutes(
         }
         return null
     }
-
-    /**
-     * Verify the JWT in the request and return the verified token payload, or null if missing /
-     * invalid.
-     */
-    fun verifyRequest(call: ApplicationCall): VerifiedToken? {
-        val token = extractJwtToken(call) ?: return null
-        return authModule.verifyTokenPayload(token)
-    }
-
-    fun configureAuth(app: Application) {
-        app.install(Authentication) {
-            jwt("auth-jwt") {
-                realm = "social-publish"
-                authHeader { call ->
-                    extractJwtToken(call)?.let { token -> HttpAuthHeader.Single("Bearer", token) }
-                }
-                verifier(authModule.verifier)
-                validate { credential ->
-                    val username = credential.payload.getClaim("username").asString()
-                    val userUuid = credential.payload.getClaim("userUuid").asString()
-                    val isValidUuid =
-                        userUuid?.let { runCatching { UUIDv7.fromString(it) }.isSuccess } == true
-                    if (username != null && isValidUuid) {
-                        JWTPrincipal(credential.payload)
-                    } else {
-                        null
-                    }
-                }
-                challenge { _, _ ->
-                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse(error = "Unauthorized"))
-                }
-            }
-        }
-    }
 }
 
 fun Application.configureAuth(authRoutes: AuthRoutes) {
-    authRoutes.configureAuth(this)
-}
-
-/** Resolve the authenticated user's UUID from the Ktor JWT principal in the call. */
-fun ApplicationCall.resolveUserUuid(): UUIDv7? {
-    val principal = principal<JWTPrincipal>() ?: return null
-    return principal.getClaim("userUuid", String::class)?.let {
-        runCatching { UUIDv7.fromString(it) }.getOrNull()
+    install(Authentication) {
+        register(
+            UserSessionAuthenticationProvider(
+                UserSessionAuthenticationProvider.Config(AUTH_SESSION, authRoutes)
+            )
+        )
     }
 }

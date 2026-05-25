@@ -35,7 +35,7 @@ import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
 
@@ -110,15 +110,15 @@ class BlueskyApiModule(
     }
 
     /** Upload image blob to Bluesky */
+    context(_: UserSession)
     private suspend fun uploadBlob(
         config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
-        userUuid: UUIDv7,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -412,10 +412,10 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
+    context(_: UserSession)
     suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
             // Validate request
@@ -432,7 +432,7 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(config, imageUuid, session, userUuid)) {
+                        when (val uploadResult = uploadBlob(config, imageUuid, session)) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -575,7 +575,8 @@ class BlueskyApiModule(
     }
 
     /** Handle Bluesky post creation HTTP route */
-    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig, userUuid: UUIDv7) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -590,7 +591,7 @@ class BlueskyApiModule(
                     )
                 }
 
-        when (val result = createPost(config, request, userUuid)) {
+        when (val result = createPost(config, request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

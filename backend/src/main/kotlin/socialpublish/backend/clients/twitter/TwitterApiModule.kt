@@ -39,7 +39,9 @@ import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -87,9 +89,8 @@ class TwitterApiModule(
         return builder.build(TwitterApi(config))
     }
 
-    /** Get OAuth callback URL */
-    private fun getCallbackUrl(jwtToken: String): String {
-        return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
+    private fun getCallbackUrl(sessionToken: String): String {
+        return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(sessionToken, "UTF-8")}"
     }
 
     /** Check if Twitter auth exists for the given user */
@@ -117,9 +118,9 @@ class TwitterApiModule(
     }
 
     /** Build authorization URL for OAuth flow */
-    suspend fun buildAuthorizeURL(config: TwitterConfig, jwtToken: String): ApiResult<String> {
+    suspend fun buildAuthorizeURL(config: TwitterConfig, sessionToken: String): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(jwtToken)
+            val callbackUrl = getCallbackUrl(sessionToken)
             val service = createOAuthService(config, callbackUrl)
             val token = withContext(Dispatchers.LoomIO) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
@@ -191,15 +192,15 @@ class TwitterApiModule(
         }
 
     /** Upload media to Twitter */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: TwitterConfig,
         token: TwitterOAuthToken,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<String> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage = "Failed to read image file — uuid: $uuid",
@@ -276,12 +277,13 @@ class TwitterApiModule(
     }
 
     /** Create a post on Twitter */
+    context(_: UserSession)
     suspend fun createPost(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             // Validate request
             request.validate()?.let { error ->
                 return error.left()
@@ -301,7 +303,7 @@ class TwitterApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, token, imageUuid, userUuid)) {
+                    when (val result = uploadMedia(config, token, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
