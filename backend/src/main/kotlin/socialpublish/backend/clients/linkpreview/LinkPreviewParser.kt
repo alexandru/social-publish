@@ -14,7 +14,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 
 private val logger = KotlinLogging.logger {}
 
@@ -114,7 +114,7 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val html = response.bodyAsText()
             parseHtml(html, url)
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Error fetching link preview for $url" }
             null
         }
@@ -158,7 +158,7 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val json = response.bodyAsText()
             parseYouTubeOEmbedResponse(json)
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
             null
         }

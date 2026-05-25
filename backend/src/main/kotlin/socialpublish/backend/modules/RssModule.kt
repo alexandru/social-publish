@@ -17,7 +17,7 @@ import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.NewRssPostResponse
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
@@ -73,7 +73,7 @@ class RssModule(
 
             NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save RSS item" }
             CaughtException(
                     status = 500,

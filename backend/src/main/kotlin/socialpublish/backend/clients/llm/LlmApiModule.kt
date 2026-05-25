@@ -26,7 +26,7 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
@@ -90,7 +90,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                 )
                 .left()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
             CaughtException(
                     status = 500,
@@ -208,7 +208,7 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                 }
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to call LLM API" }
             CaughtException(
                     status = 500,

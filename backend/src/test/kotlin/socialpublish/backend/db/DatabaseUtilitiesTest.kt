@@ -1,6 +1,7 @@
 package socialpublish.backend.db
 
 import arrow.core.getOrElse
+import arrow.core.raise.context.raise
 import arrow.core.raise.either
 import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
@@ -121,6 +122,42 @@ class DatabaseUtilitiesTest {
             val count =
                 either {
                         db.query("SELECT COUNT(*) as cnt FROM test_rollback") {
+                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                        }
+                    }
+                    .getOrElse { throw it }
+            assertEquals(0, count)
+        }
+    }
+
+    @Test
+    fun `transaction rolls back on raised database error`(@TempDir tempDir: Path) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+
+            db.transaction {
+                    query("CREATE TABLE test_raise_rollback (id INTEGER PRIMARY KEY, value TEXT)") {
+                        execute()
+                        Unit
+                    }
+                }
+                .getOrElse { throw it }
+
+            val result =
+                db.transaction<Unit> {
+                    query("INSERT INTO test_raise_rollback (id, value) VALUES (1, 'test')") {
+                        execute()
+                        Unit
+                    }
+                    raise(DBException("Forced typed database error"))
+                }
+            assertTrue(result.isLeft())
+
+            val count =
+                either {
+                        db.query("SELECT COUNT(*) as cnt FROM test_raise_rollback") {
                             executeQuery().safe().firstOrNull { it.getInt("cnt") }
                         }
                     }

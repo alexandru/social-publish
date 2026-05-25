@@ -35,7 +35,7 @@ import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
@@ -100,7 +100,7 @@ class BlueskyApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to authenticate to Bluesky" }
             CaughtException(
                     status = 500,
@@ -177,7 +177,7 @@ class BlueskyApiModule(
                 )
                 .left()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -245,7 +245,7 @@ class BlueskyApiModule(
             logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
             null
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
             null
         }
@@ -271,7 +271,7 @@ class BlueskyApiModule(
                 null
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Error resolving handle $handle" }
             null
         }
@@ -569,7 +569,7 @@ class BlueskyApiModule(
                     .left()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to Bluesky" }
             CaughtException(
                     status = 500,

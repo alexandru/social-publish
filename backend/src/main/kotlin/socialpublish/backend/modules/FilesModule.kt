@@ -18,7 +18,7 @@ import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.common.*
-import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.UploadPayload
 import socialpublish.backend.db.UserSession
@@ -126,7 +126,7 @@ private constructor(
                     .right()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload file" }
             CaughtException(
                     status = 500,
@@ -175,7 +175,7 @@ private constructor(
                     .right()
             }
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to process uploaded file" }
             CaughtException(
                     status = 500,
@@ -216,7 +216,7 @@ private constructor(
                 )
                 .right()
         } catch (e: Throwable) {
-            rethrowIfFatal(e)
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get file" }
             CaughtException(
                     status = 500,
@@ -266,7 +266,7 @@ private constructor(
                     else -> null
                 }
             } catch (e: Throwable) {
-                rethrowIfFatal(e)
+                rethrowIfFatalOrCancelled(e)
                 logger.warn(e) { "Failed to detect image format" }
                 null
             }
