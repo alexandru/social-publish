@@ -2,6 +2,7 @@ package socialpublish.backend.modules
 
 import arrow.core.Either
 import arrow.core.getOrElse
+import arrow.core.raise.either
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -380,11 +381,14 @@ class EndpointSecurityTest {
 
             // Manually expire the session in DB
             val _ =
-                db.query("UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?") {
-                    setLong(1, java.time.Instant.now().minusSeconds(3600).toEpochMilli())
-                    setString(2, UserSessionsDatabase.hashToken(loginResult.rawToken))
-                    executeUpdate()
-                }
+                either {
+                        db.query("UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?") {
+                            setLong(1, java.time.Instant.now().minusSeconds(3600).toEpochMilli())
+                            setString(2, UserSessionsDatabase.hashToken(loginResult.rawToken))
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             // Should be rejected
             val result = authService.authorize(loginResult.rawToken)

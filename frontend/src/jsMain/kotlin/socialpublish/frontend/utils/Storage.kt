@@ -112,7 +112,8 @@ object Storage {
         val stored = localStorage[CONFIGURED_SERVICES_KEY] ?: return ConfiguredServices()
         return try {
             Json.decodeFromString<ConfiguredServices>(stored)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             console.error(
                 "Error decoding ConfiguredServices from localStorage:",
                 e,

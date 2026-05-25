@@ -8,6 +8,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
+import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSessionsDatabase
 
@@ -49,7 +50,8 @@ object AuthModule {
                 FavreBCrypt.verifyer()
                     .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
             result.verified
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.warn(e) { "Failed to verify BCrypt password" }
             false
         }

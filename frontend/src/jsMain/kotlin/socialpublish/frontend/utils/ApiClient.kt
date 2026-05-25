@@ -42,7 +42,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -72,7 +73,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -102,7 +104,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }
@@ -127,7 +130,8 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.warn("Failed to decode error response from $url:", e)
                     ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
                 }

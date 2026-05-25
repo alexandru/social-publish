@@ -1,10 +1,9 @@
 package socialpublish.backend.db
 
+import arrow.core.raise.context.Raise
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.Types
 import java.time.Instant
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * A database migration with an idempotency check and an execution function.
@@ -17,12 +16,17 @@ data class Migration(
      * Test function to check if this migration has already been applied. Returns true if the
      * migration has been applied, false otherwise.
      */
-    val testIfApplied: suspend (SafeConnection) -> Boolean,
+    val testIfApplied:
+        suspend context(Raise<DBException>)
+        (SafeConnection) -> Boolean,
     /** Executes the migration DDL/DML — only called when [testIfApplied] returned false. */
-    val execute: suspend (SafeConnection) -> Unit,
+    val execute:
+        suspend context(Raise<DBException>)
+        (SafeConnection) -> Unit,
 )
 
 /** Convenience to execute a single DDL statement inside a migration. */
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.ddl(vararg statements: String) {
     for (s in statements) {
         query(s.trimIndent()) {
@@ -389,6 +393,7 @@ val migrations: List<Migration> =
  * @param tableName The name of the table to check
  * @return true if the table exists, false otherwise
  */
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
     query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?") {
         setString(1, tableName)
@@ -403,8 +408,11 @@ private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
  * @param columnName The name of the column
  * @return true if the column exists, false otherwise
  */
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.columnExists(tableName: String, columnName: String): Boolean =
     query("PRAGMA table_info($tableName)") {
         val rs = executeQuery()
         rs.safe().toList { it.getString("name") }.contains(columnName)
     }
+
+private val logger = KotlinLogging.logger {}

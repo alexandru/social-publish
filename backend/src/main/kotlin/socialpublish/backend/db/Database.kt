@@ -1,9 +1,12 @@
+@file:MustUseReturnValues
+
 package socialpublish.backend.db
 
 import arrow.core.Either
 import arrow.core.getOrElse
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.Raise
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
@@ -25,8 +28,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
 import socialpublish.backend.common.LoomIO
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.db.Database.Companion.connect
 
 /**
  * Database connection with HikariCP pooling.
@@ -73,7 +76,7 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
             dbFile.parentFile?.mkdirs()
 
             val hikariConfig = createHikariConfig(dbPath)
-            val dataSource = withContext(Database.Dispatcher) { HikariDataSource(hikariConfig) }
+            val dataSource = withContext(Dispatcher) { HikariDataSource(hikariConfig) }
             val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
 
             // Run migrations
@@ -98,7 +101,7 @@ data class DatabaseResources(
 object DatabaseBundle {
     /** Creates a bundle with all database access objects. */
     fun resource(dbPath: String): Resource<DatabaseResources> = resource {
-        val db = Database.connect(dbPath).bind()
+        val db = connect(dbPath).bind()
         val documentsDb = DocumentsDatabase(db)
         val postsDb = PostsDatabase(documentsDb)
         val filesDb = FilesDatabase(db)
@@ -174,18 +177,25 @@ fun Database.connection(): Resource<SafeConnection> = resource {
  * Automatically commits on success and rolls back on exception. Auto-commit is disabled during
  * execution and restored afterwards.
  */
-suspend fun <A> Database.transaction(block: suspend SafeConnection.() -> A): A = resourceScope {
-    val ref = connection().bind()
-    try {
-        ref.connection.autoCommit = false
-        val result = block(ref)
-        ref.connection.commit()
-        result
-    } catch (e: Exception) {
-        ref.connection.rollback()
-        throw e
-    } finally {
-        ref.connection.autoCommit = true
+suspend fun <A> Database.transaction(
+    block:
+        suspend context(Raise<DBException>)
+        SafeConnection.() -> A
+): Either<DBException, A> = resourceScope {
+    either {
+        val ref = connection().bind()
+        try {
+            ref.connection.autoCommit = false
+            val result = block(ref)
+            ref.connection.commit()
+            result
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
+            ref.connection.rollback()
+            raise(DBException("Transaction failed", e))
+        } finally {
+            ref.connection.autoCommit = true
+        }
     }
 }
 
@@ -199,33 +209,42 @@ suspend fun <A> Database.transaction(block: suspend SafeConnection.() -> A): A =
  * table/column information may not always be available.
  */
 suspend fun <A> Database.transactionForUpdates(
-    block: suspend SafeConnection.() -> A
-): Either<SqlUpdateException, A> =
+    block:
+        suspend context(Raise<DBException>)
+        SafeConnection.() -> A
+): Either<SqlUpdateException, A> = either {
     try {
-        transaction(block).right()
+        transaction(block).getOrElse { throw it.cause ?: it }
     } catch (e: SqlUpdateException) {
-        e.left()
+        raise(e)
     } catch (e: SQLException) {
         // SQLite error handling
         when {
             e.message?.contains("UNIQUE constraint", ignoreCase = true) == true -> {
                 // Extract constraint name from error message if possible
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.UniqueViolation(null, null, constraintName, e).left()
+                raise(SqlUpdateException.UniqueViolation(null, null, constraintName, e))
             }
+
             e.message?.contains("FOREIGN KEY constraint", ignoreCase = true) == true -> {
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.ForeignKeyViolation(null, null, constraintName, e).left()
+                raise(SqlUpdateException.ForeignKeyViolation(null, null, constraintName, e))
             }
+
             e.message?.contains("CHECK constraint", ignoreCase = true) == true -> {
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.CheckViolation(null, null, constraintName, e).left()
+                raise(SqlUpdateException.CheckViolation(null, null, constraintName, e))
             }
+
             else -> {
-                SqlUpdateException.Unknown(e.message ?: "Unknown SQL error", e).left()
+                raise(SqlUpdateException.Unknown(e.message ?: "Unknown SQL error", e))
             }
         }
+    } catch (e: Throwable) {
+        rethrowIfFatal(e)
+        raise(SqlUpdateException.Unknown("Unexpected exception", e))
     }
+}
 
 /** Extracts constraint name from SQLite error messages. */
 private fun extractConstraintName(message: String?): String? {
@@ -276,13 +295,18 @@ suspend fun <A> SafePreparedStatement.useWithInterruption(
     }
 
 /** Executes a SQL query on an existing connection. */
+context(_: Raise<DBException>)
 suspend fun <A> SafeConnection.query(
     @Language("SQL") sql: String,
     block: suspend PreparedStatement.() -> A,
-): A =
+) =
     withContext(Database.Dispatcher) {
-        @Suppress("SqlSourceToSinkFlow")
-        connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
+        try {
+            connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
+            raise(DBException("Database query failed", e))
+        }
     }
 
 /**
@@ -290,6 +314,7 @@ suspend fun <A> SafeConnection.query(
  *
  * For multiple queries in a transaction, use [transaction] instead.
  */
+context(_: Raise<DBException>)
 suspend fun <A> Database.query(
     @Language("SQL") sql: String,
     block: suspend PreparedStatement.() -> A,
@@ -330,14 +355,9 @@ fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? = resultSet.use {
  *
  * Migrations are idempotent - safe to call multiple times. Already-applied migrations are skipped.
  */
-suspend fun migrate(db: Database): Either<DBException, Unit> =
-    try {
-        db.transaction { runMigrations() }
-        Either.Right(Unit)
-    } catch (e: Exception) {
-        DBException("Migration failed", e).left()
-    }
+suspend fun migrate(db: Database): Either<DBException, Unit> = db.transaction { runMigrations() }
 
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.runMigrations() {
     logger.info { "Running database migrations..." }
 
@@ -353,3 +373,5 @@ private suspend fun SafeConnection.runMigrations() {
 
     logger.info { "Database migrations completed" }
 }
+
+private val logger = KotlinLogging.logger {}

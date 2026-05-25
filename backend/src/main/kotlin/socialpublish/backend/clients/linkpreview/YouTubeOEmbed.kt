@@ -5,6 +5,7 @@ import java.net.URI
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatal
 
 private val logger = KotlinLogging.logger {}
 
@@ -70,7 +71,8 @@ fun parseYouTubeOEmbedResponse(jsonResponse: String): LinkPreview? {
         val image = response.thumbnailUrl?.takeIf { it.isNotBlank() }
 
         LinkPreview(title = title, description = description, image = image)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        rethrowIfFatal(e)
         logger.warn(e) { "Failed to parse YouTube OEmbed response" }
         null
     }

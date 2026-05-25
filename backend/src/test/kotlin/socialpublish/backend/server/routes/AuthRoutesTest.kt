@@ -1,6 +1,8 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.Either
+import arrow.core.getOrElse
+import arrow.core.raise.either
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -42,7 +44,7 @@ class AuthRoutesTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
         val authRoute = AuthRoutes(authService, DocumentsDatabase(db))
-        val _ = usersDb.createUser("testuser", password)
+        val _ = usersDb.createUser("testuser", password).getOrElse { throw it }
         return TestContext(db, usersDb, userSessionsDb, authService, authRoute)
     }
 
@@ -153,12 +155,15 @@ class AuthRoutesTest {
             val userSessionsDb = UserSessionsDatabase(db, usersDb)
             val authService = AuthService(userSessionsDb)
             val authRoute = AuthRoutes(authService, null)
-            val _ = usersDb.createUser("testuser", "testpass")
+            val _ = usersDb.createUser("testuser", "testpass").getOrElse { throw it }
             val _ =
-                db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-                    setString(1, "testuser")
-                    executeUpdate()
-                }
+                either {
+                        db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+                            setString(1, "testuser")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }
@@ -459,10 +464,13 @@ class AuthRoutesTest {
 
             // Delete the user from the database
             val _ =
-                ctx.db.query("DELETE FROM users WHERE username = ?") {
-                    setString(1, "testuser")
-                    executeUpdate()
-                }
+                either {
+                        ctx.db.query("DELETE FROM users WHERE username = ?") {
+                            setString(1, "testuser")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }

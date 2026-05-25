@@ -26,6 +26,7 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
@@ -88,7 +89,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         "Request timed out. The LLM took too long to respond. Please try again.",
                 )
                 .left()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
             CaughtException(
                     status = 500,
@@ -205,7 +207,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         .left()
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to call LLM API" }
             CaughtException(
                     status = 500,

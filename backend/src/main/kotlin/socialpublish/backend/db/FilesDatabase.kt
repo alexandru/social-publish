@@ -1,7 +1,9 @@
+@file:MustUseReturnValues
+
 package socialpublish.backend.db
 
 import arrow.core.Either
-import arrow.core.raise.either
+import arrow.core.raise.context.either
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.sql.Types
@@ -60,84 +62,82 @@ class FilesDatabase(private val db: Database) {
         }
     }
 
-    suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = either {
-        db.transaction {
-            val uuidInput =
-                listOf(
-                        "u:${payload.userUuid}",
-                        "h:${payload.hash}",
-                        "n:${payload.originalname}",
-                        "a:${payload.altText ?: ""}",
-                        "w:${payload.imageWidth ?: ""}",
-                        "h:${payload.imageHeight ?: ""}",
-                        "m:${payload.mimetype}",
-                    )
-                    .joinToString("/")
-
-            val uuid = generateUuidV5(uuidInput).toString()
-
-            val existing =
-                query("SELECT * FROM uploads WHERE uuid = ?") {
-                    setString(1, uuid)
-                    executeQuery().safe().firstOrNull { rs ->
-                        Upload(
-                            uuid = rs.getString("uuid"),
-                            hash = rs.getString("hash"),
-                            originalname = rs.getString("originalname"),
-                            mimetype = rs.getString("mimetype"),
-                            size = rs.getLong("size"),
-                            altText = rs.getString("altText"),
-                            imageWidth = rs.getObject("imageWidth") as? Int,
-                            imageHeight = rs.getObject("imageHeight") as? Int,
-                            userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                            createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
-                        )
-                    }
-                }
-
-            if (existing != null) {
-                return@transaction existing
-            }
-
-            val now = db.clock.instant()
-            val upload =
-                Upload(
-                    uuid = uuid,
-                    hash = payload.hash,
-                    originalname = payload.originalname,
-                    mimetype = payload.mimetype,
-                    size = payload.size,
-                    altText = payload.altText,
-                    imageWidth = payload.imageWidth,
-                    imageHeight = payload.imageHeight,
-                    userUuid = payload.userUuid,
-                    createdAt = now,
+    suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = db.transaction {
+        val uuidInput =
+            listOf(
+                    "u:${payload.userUuid}",
+                    "h:${payload.hash}",
+                    "n:${payload.originalname}",
+                    "a:${payload.altText ?: ""}",
+                    "w:${payload.imageWidth ?: ""}",
+                    "h:${payload.imageHeight ?: ""}",
+                    "m:${payload.mimetype}",
                 )
+                .joinToString("/")
 
-            query(
-                """
-                INSERT INTO uploads
-                    (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-                    .trimIndent()
-            ) {
-                setString(1, upload.uuid)
-                setString(2, upload.hash)
-                setString(3, upload.originalname)
-                setString(4, upload.mimetype)
-                setLong(5, upload.size)
-                setString(6, upload.altText)
-                upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, Types.INTEGER)
-                upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, Types.INTEGER)
-                setString(9, upload.userUuid.toString())
-                setLong(10, upload.createdAt.toEpochMilli())
-                execute()
-                Unit
+        val uuid = generateUuidV5(uuidInput).toString()
+
+        val existing =
+            query("SELECT * FROM uploads WHERE uuid = ?") {
+                setString(1, uuid)
+                executeQuery().safe().firstOrNull { rs ->
+                    Upload(
+                        uuid = rs.getString("uuid"),
+                        hash = rs.getString("hash"),
+                        originalname = rs.getString("originalname"),
+                        mimetype = rs.getString("mimetype"),
+                        size = rs.getLong("size"),
+                        altText = rs.getString("altText"),
+                        imageWidth = rs.getObject("imageWidth") as? Int,
+                        imageHeight = rs.getObject("imageHeight") as? Int,
+                        userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
+                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                    )
+                }
             }
 
-            upload
+        if (existing != null) {
+            return@transaction existing
         }
+
+        val now = db.clock.instant()
+        val upload =
+            Upload(
+                uuid = uuid,
+                hash = payload.hash,
+                originalname = payload.originalname,
+                mimetype = payload.mimetype,
+                size = payload.size,
+                altText = payload.altText,
+                imageWidth = payload.imageWidth,
+                imageHeight = payload.imageHeight,
+                userUuid = payload.userUuid,
+                createdAt = now,
+            )
+
+        query(
+            """
+            INSERT INTO uploads
+                (uuid, hash, originalname, mimetype, size, altText, imageWidth, imageHeight, user_uuid, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+                .trimIndent()
+        ) {
+            setString(1, upload.uuid)
+            setString(2, upload.hash)
+            setString(3, upload.originalname)
+            setString(4, upload.mimetype)
+            setLong(5, upload.size)
+            setString(6, upload.altText)
+            upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, Types.INTEGER)
+            upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, Types.INTEGER)
+            setString(9, upload.userUuid.toString())
+            setLong(10, upload.createdAt.toEpochMilli())
+            execute()
+            Unit
+        }
+
+        upload
     }
 
     suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> = either {

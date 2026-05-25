@@ -35,6 +35,7 @@ import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
@@ -98,7 +99,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to authenticate to Bluesky" }
             CaughtException(
                     status = 500,
@@ -174,7 +176,8 @@ class BlueskyApiModule(
                     body = ResponseBody(asString = errorBody),
                 )
                 .left()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -241,7 +244,8 @@ class BlueskyApiModule(
 
             logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
             null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
             null
         }
@@ -266,7 +270,8 @@ class BlueskyApiModule(
                 logger.warn { "Failed to resolve handle $handle: ${response.status}" }
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Error resolving handle $handle" }
             null
         }
@@ -563,7 +568,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatal(e)
             logger.error(e) { "Failed to post to Bluesky" }
             CaughtException(
                     status = 500,

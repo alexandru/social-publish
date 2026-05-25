@@ -1,6 +1,7 @@
 package socialpublish.backend
 
 import arrow.core.getOrElse
+import arrow.core.raise.either
 import arrow.fx.coroutines.resourceScope
 import com.github.ajalt.clikt.testing.test
 import java.nio.file.Path
@@ -111,10 +112,13 @@ class CliCommandsTest {
             val usersDb = UsersDatabase(db)
             val _ = usersDb.createUser("bob", "initial").getOrElse { throw it }
             val _ =
-                db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-                    setString(1, "bob")
-                    executeUpdate()
-                }
+                either {
+                        db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+                            setString(1, "bob")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             val before = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
             assertNull(before)

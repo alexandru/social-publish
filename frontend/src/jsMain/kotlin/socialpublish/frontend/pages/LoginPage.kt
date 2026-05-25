@@ -14,6 +14,7 @@ import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable internal data class LoginRequest(val username: String, val password: String)
 
@@ -72,7 +73,8 @@ fun LoginPage() {
                         error = "Exception while logging in: ${response.message}"
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatal(e)
                 error = "Exception while logging in: ${e.message}"
             } finally {
                 isLoading = false

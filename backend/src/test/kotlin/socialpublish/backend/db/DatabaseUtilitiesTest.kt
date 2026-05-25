@@ -1,10 +1,10 @@
 package socialpublish.backend.db
 
 import arrow.core.getOrElse
+import arrow.core.raise.either
 import arrow.fx.coroutines.resourceScope
 import java.nio.file.Path
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -34,7 +34,12 @@ class DatabaseUtilitiesTest {
                 val conn = db.connection().bind()
                 // Verify connection is usable
                 val result =
-                    conn.query("SELECT 1") { executeQuery().safe().firstOrNull { it.getInt(1) } }
+                    either {
+                            conn.query("SELECT 1") {
+                                executeQuery().safe().firstOrNull { it.getInt(1) }
+                            }
+                        }
+                        .getOrElse { throw it }
                 assertEquals(1, result)
             }
 
@@ -42,7 +47,12 @@ class DatabaseUtilitiesTest {
             resourceScope {
                 val conn = db.connection().bind()
                 val result =
-                    conn.query("SELECT 2") { executeQuery().safe().firstOrNull { it.getInt(1) } }
+                    either {
+                            conn.query("SELECT 2") {
+                                executeQuery().safe().firstOrNull { it.getInt(1) }
+                            }
+                        }
+                        .getOrElse { throw it }
                 assertEquals(2, result)
             }
         }
@@ -57,21 +67,25 @@ class DatabaseUtilitiesTest {
 
             // Create a test table and insert data in a transaction
             db.transaction {
-                query("CREATE TABLE test_commits (id INTEGER PRIMARY KEY, value TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_commits (id INTEGER PRIMARY KEY, value TEXT)") {
+                        execute()
+                        Unit
+                    }
+                    query("INSERT INTO test_commits (id, value) VALUES (1, 'test')") {
+                        execute()
+                        Unit
+                    }
                 }
-                query("INSERT INTO test_commits (id, value) VALUES (1, 'test')") {
-                    execute()
-                    Unit
-                }
-            }
+                .getOrElse { throw it }
 
             // Verify data was committed
             val result =
-                db.query("SELECT value FROM test_commits WHERE id = 1") {
-                    executeQuery().safe().firstOrNull { it.getString("value") }
-                }
+                either {
+                        db.query("SELECT value FROM test_commits WHERE id = 1") {
+                            executeQuery().safe().firstOrNull { it.getString("value") }
+                        }
+                    }
+                    .getOrElse { throw it }
             assertEquals("test", result)
         }
     }
@@ -85,29 +99,32 @@ class DatabaseUtilitiesTest {
 
             // Create a test table
             db.transaction {
-                query("CREATE TABLE test_rollback (id INTEGER PRIMARY KEY, value TEXT)") {
-                    execute()
-                    Unit
-                }
-            }
-
-            // Attempt a transaction that fails
-            assertFailsWith<RuntimeException> {
-                db.transaction {
-                    query("INSERT INTO test_rollback (id, value) VALUES (1, 'test')") {
+                    query("CREATE TABLE test_rollback (id INTEGER PRIMARY KEY, value TEXT)") {
                         execute()
                         Unit
                     }
-                    // Force a rollback
-                    throw RuntimeException("Forced error")
                 }
+                .getOrElse { throw it }
+
+            // Attempt a transaction that fails
+            val result = db.transaction {
+                query("INSERT INTO test_rollback (id, value) VALUES (1, 'test')") {
+                    execute()
+                    Unit
+                }
+                // Force a rollback
+                throw RuntimeException("Forced error")
             }
+            assertTrue(result.isLeft())
 
             // Verify data was NOT committed
             val count =
-                db.query("SELECT COUNT(*) as cnt FROM test_rollback") {
-                    executeQuery().safe().firstOrNull { it.getInt("cnt") }
-                }
+                either {
+                        db.query("SELECT COUNT(*) as cnt FROM test_rollback") {
+                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                        }
+                    }
+                    .getOrElse { throw it }
             assertEquals(0, count)
         }
     }
@@ -122,15 +139,20 @@ class DatabaseUtilitiesTest {
 
                 // Create a table with a unique constraint
                 db.transaction {
-                    query("CREATE TABLE test_unique (id INTEGER PRIMARY KEY, email TEXT UNIQUE)") {
-                        execute()
-                        Unit
+                        query(
+                            "CREATE TABLE test_unique (id INTEGER PRIMARY KEY, email TEXT UNIQUE)"
+                        ) {
+                            execute()
+                            Unit
+                        }
+                        query(
+                            "INSERT INTO test_unique (id, email) VALUES (1, 'test@example.com')"
+                        ) {
+                            execute()
+                            Unit
+                        }
                     }
-                    query("INSERT INTO test_unique (id, email) VALUES (1, 'test@example.com')") {
-                        execute()
-                        Unit
-                    }
-                }
+                    .getOrElse { throw it }
 
                 // Try to insert duplicate email
                 val result = db.transactionForUpdates {
@@ -157,11 +179,12 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_success (id INTEGER PRIMARY KEY, value TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_success (id INTEGER PRIMARY KEY, value TEXT)") {
+                        execute()
+                        Unit
+                    }
                 }
-            }
+                .getOrElse { throw it }
 
             val result = db.transactionForUpdates {
                 query("INSERT INTO test_success (id, value) VALUES (1, 'success')") {
@@ -184,24 +207,28 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_query (id INTEGER PRIMARY KEY, name TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_query (id INTEGER PRIMARY KEY, name TEXT)") {
+                        execute()
+                        Unit
+                    }
+                    query(
+                        "INSERT INTO test_query (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
+                    ) {
+                        execute()
+                        Unit
+                    }
                 }
-                query(
-                    "INSERT INTO test_query (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
-                ) {
-                    execute()
-                    Unit
-                }
-            }
+                .getOrElse { throw it }
 
             // Test query with parameter
             val name =
-                db.query("SELECT name FROM test_query WHERE id = ?") {
-                    setInt(1, 2)
-                    executeQuery().safe().firstOrNull { it.getString("name") }
-                }
+                either {
+                        db.query("SELECT name FROM test_query WHERE id = ?") {
+                            setInt(1, 2)
+                            executeQuery().safe().firstOrNull { it.getString("name") }
+                        }
+                    }
+                    .getOrElse { throw it }
             assertEquals("Bob", name)
         }
     }
@@ -214,23 +241,27 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_list (id INTEGER PRIMARY KEY, name TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_list (id INTEGER PRIMARY KEY, name TEXT)") {
+                        execute()
+                        Unit
+                    }
+                    query(
+                        "INSERT INTO test_list (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
+                    ) {
+                        execute()
+                        Unit
+                    }
                 }
-                query(
-                    "INSERT INTO test_list (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')"
-                ) {
-                    execute()
-                    Unit
-                }
-            }
+                .getOrElse { throw it }
 
             // Test toList
             val names =
-                db.query("SELECT name FROM test_list ORDER BY id") {
-                    executeQuery().safe().toList { it.getString("name") }
-                }
+                either {
+                        db.query("SELECT name FROM test_list ORDER BY id") {
+                            executeQuery().safe().toList { it.getString("name") }
+                        }
+                    }
+                    .getOrElse { throw it }
 
             assertEquals(3, names.size)
             assertEquals(listOf("Alice", "Bob", "Charlie"), names)
@@ -245,16 +276,20 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_empty (id INTEGER PRIMARY KEY)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_empty (id INTEGER PRIMARY KEY)") {
+                        execute()
+                        Unit
+                    }
                 }
-            }
+                .getOrElse { throw it }
 
             val results =
-                db.query("SELECT * FROM test_empty") {
-                    executeQuery().safe().toList { it.getInt("id") }
-                }
+                either {
+                        db.query("SELECT * FROM test_empty") {
+                            executeQuery().safe().toList { it.getInt("id") }
+                        }
+                    }
+                    .getOrElse { throw it }
 
             assertTrue(results.isEmpty())
         }
@@ -268,20 +303,24 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_first (id INTEGER PRIMARY KEY, name TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_first (id INTEGER PRIMARY KEY, name TEXT)") {
+                        execute()
+                        Unit
+                    }
+                    query("INSERT INTO test_first (id, name) VALUES (1, 'First'), (2, 'Second')") {
+                        execute()
+                        Unit
+                    }
                 }
-                query("INSERT INTO test_first (id, name) VALUES (1, 'First'), (2, 'Second')") {
-                    execute()
-                    Unit
-                }
-            }
+                .getOrElse { throw it }
 
             val first =
-                db.query("SELECT name FROM test_first ORDER BY id") {
-                    executeQuery().safe().firstOrNull { it.getString("name") }
-                }
+                either {
+                        db.query("SELECT name FROM test_first ORDER BY id") {
+                            executeQuery().safe().firstOrNull { it.getString("name") }
+                        }
+                    }
+                    .getOrElse { throw it }
 
             assertEquals("First", first)
         }
@@ -295,16 +334,20 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                query("CREATE TABLE test_null (id INTEGER PRIMARY KEY)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_null (id INTEGER PRIMARY KEY)") {
+                        execute()
+                        Unit
+                    }
                 }
-            }
+                .getOrElse { throw it }
 
             val result =
-                db.query("SELECT * FROM test_null") {
-                    executeQuery().safe().firstOrNull { it.getInt("id") }
-                }
+                either {
+                        db.query("SELECT * FROM test_null") {
+                            executeQuery().safe().firstOrNull { it.getInt("id") }
+                        }
+                    }
+                    .getOrElse { throw it }
 
             assertEquals(null, result)
         }
@@ -319,28 +362,29 @@ class DatabaseUtilitiesTest {
                 val db = Database.connect(dbPath).bind()
 
                 db.transaction {
-                    query("CREATE TABLE test_conn (id INTEGER PRIMARY KEY, value TEXT)") {
-                        execute()
-                        Unit
-                    }
-
-                    // Execute multiple queries in same transaction via SafeConnection
-                    query("INSERT INTO test_conn (id, value) VALUES (1, 'one')") {
-                        execute()
-                        Unit
-                    }
-                    query("INSERT INTO test_conn (id, value) VALUES (2, 'two')") {
-                        execute()
-                        Unit
-                    }
-
-                    val count =
-                        query("SELECT COUNT(*) as cnt FROM test_conn") {
-                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                        query("CREATE TABLE test_conn (id INTEGER PRIMARY KEY, value TEXT)") {
+                            execute()
+                            Unit
                         }
 
-                    assertEquals(2, count)
-                }
+                        // Execute multiple queries in same transaction via SafeConnection
+                        query("INSERT INTO test_conn (id, value) VALUES (1, 'one')") {
+                            execute()
+                            Unit
+                        }
+                        query("INSERT INTO test_conn (id, value) VALUES (2, 'two')") {
+                            execute()
+                            Unit
+                        }
+
+                        val count =
+                            query("SELECT COUNT(*) as cnt FROM test_conn") {
+                                executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                            }
+
+                        assertEquals(2, count)
+                    }
+                    .getOrElse { throw it }
             }
         }
 
@@ -353,30 +397,34 @@ class DatabaseUtilitiesTest {
 
             // First transaction
             db.transaction {
-                query("CREATE TABLE test_multi (id INTEGER PRIMARY KEY, value TEXT)") {
-                    execute()
-                    Unit
+                    query("CREATE TABLE test_multi (id INTEGER PRIMARY KEY, value TEXT)") {
+                        execute()
+                        Unit
+                    }
+                    query("INSERT INTO test_multi (id, value) VALUES (1, 'first')") {
+                        execute()
+                        Unit
+                    }
                 }
-                query("INSERT INTO test_multi (id, value) VALUES (1, 'first')") {
-                    execute()
-                    Unit
-                }
-            }
+                .getOrElse { throw it }
 
             // Second transaction
             db.transaction {
-                query("INSERT INTO test_multi (id, value) VALUES (2, 'second')") {
-                    execute()
-                    Unit
+                    query("INSERT INTO test_multi (id, value) VALUES (2, 'second')") {
+                        execute()
+                        Unit
+                    }
                 }
-            }
+                .getOrElse { throw it }
 
             // Third transaction to verify
-            val count = db.transaction {
-                query("SELECT COUNT(*) as cnt FROM test_multi") {
-                    executeQuery().safe().firstOrNull { it.getInt("cnt") }
-                }
-            }
+            val count =
+                db.transaction {
+                        query("SELECT COUNT(*) as cnt FROM test_multi") {
+                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                        }
+                    }
+                    .getOrElse { throw it }
 
             assertEquals(2, count)
         }

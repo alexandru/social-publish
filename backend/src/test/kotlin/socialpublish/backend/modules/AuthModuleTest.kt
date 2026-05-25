@@ -1,6 +1,7 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -72,7 +73,7 @@ class AuthModuleTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123")
+        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
 
         val result = authService.login("testuser", "password123")
         assertTrue(result is Either.Right)
@@ -88,7 +89,7 @@ class AuthModuleTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123")
+        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
 
         val result = authService.login("testuser", "wrongpassword")
         assertTrue(result is Either.Right)
@@ -103,7 +104,7 @@ class AuthModuleTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123")
+        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
 
         val loginResult = authService.login("testuser", "password123").getOrNull()!!
         assertNotNull(loginResult)
@@ -120,7 +121,7 @@ class AuthModuleTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123")
+        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
 
         val result = authService.authorize("invalid-token")
         assertTrue(result is Either.Left)

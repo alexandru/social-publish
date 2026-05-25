@@ -1,7 +1,8 @@
+@file:MustUseReturnValues
+
 package socialpublish.backend.db
 
 import arrow.core.Either
-import arrow.core.raise.context.bind
 import arrow.core.raise.either
 import socialpublish.backend.common.jsonCommon
 

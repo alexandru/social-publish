@@ -19,6 +19,7 @@ import org.w3c.files.get
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable
 internal data class GenerateAltTextRequest(
@@ -60,7 +61,8 @@ fun ImageUpload(
                     val result = event.target.asDynamic().result
                     val previewUrl = result as? String
                     onSelect(state.copy(imagePreviewUrl = previewUrl))
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
                     console.error("Failed to read image file", e)
                     onSelect(state.copy(imagePreviewUrl = null))
                 }
@@ -293,7 +295,8 @@ fun ImageUpload(
                                                                 )
                                                             }
                                                         }
-                                                    } catch (e: Exception) {
+                                                    } catch (e: Throwable) {
+                                                        rethrowIfFatal(e)
                                                         onSelect(
                                                             state.copy(isGeneratingAltText = false)
                                                         )

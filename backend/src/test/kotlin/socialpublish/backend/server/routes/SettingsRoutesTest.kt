@@ -182,7 +182,10 @@ class SettingsRoutesTest {
                 UserSettings(
                     mastodon = MastodonConfig(host = "https://old.host", accessToken = "real-token")
                 )
-            val _ = authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings)
+            val _ =
+                authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings).getOrElse {
+                    throw it
+                }
 
             application {
                 install(ContentNegotiation) { json() }
@@ -219,7 +222,10 @@ class SettingsRoutesTest {
                 UserSettings(
                     mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "tok")
                 )
-            val _ = authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings)
+            val _ =
+                authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings).getOrElse {
+                    throw it
+                }
 
             application {
                 install(ContentNegotiation) { json() }
