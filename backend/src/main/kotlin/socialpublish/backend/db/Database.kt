@@ -166,7 +166,13 @@ fun createDataSource(dbPath: String): Resource<DataSource> = resource {
  */
 fun Database.connection(): Resource<SafeConnection> = resource {
     install(
-        { withContext(Database.Dispatcher) { SafeConnection(dataSource.connection) } },
+        {
+            withContext(Database.Dispatcher) {
+                val c = dataSource.connection
+                c.autoCommit = true
+                SafeConnection(c)
+            }
+        },
         { c, _ -> withContext(Database.Dispatcher) { c.connection.close() } },
     )
 }
@@ -193,8 +199,6 @@ suspend fun <A> Database.transaction(
             rethrowIfFatal(e)
             ref.connection.rollback()
             raise(DBException("Transaction failed", e))
-        } finally {
-            ref.connection.autoCommit = true
         }
     }
 }
