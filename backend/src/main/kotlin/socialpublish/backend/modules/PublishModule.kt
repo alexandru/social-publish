@@ -26,7 +26,8 @@ import socialpublish.backend.db.UserSession
 /**
  * Module for broadcasting posts to multiple social media platforms.
  *
- * Each social module is shared at the server level; per-user config is passed per call.
+ * Each social module is shared at the server level; per-user config is passed
+ * per call.
  */
 class PublishModule(
     private val mastodonModule: MastodonApiModule?,
@@ -41,10 +42,13 @@ class PublishModule(
     private val userSession: UserSession,
 ) {
     /** Broadcast post to multiple platforms */
-    suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
+    suspend fun broadcastPost(
+        request: NewPostRequest
+    ): ApiResult<Map<String, NewPostResponse>> {
         return with(userSession) {
             val targets = request.targets?.map { it.lowercase() } ?: emptyList()
-            val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
+            val tasks =
+                mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
 
             if (targets.contains("rss")) {
                 tasks.add { rssModule.createPost(request) }
@@ -59,7 +63,8 @@ class PublishModule(
                     } else {
                         ValidationError(
                                 status = 503,
-                                errorMessage = "Mastodon integration not configured",
+                                errorMessage =
+                                    "Mastodon integration not configured",
                                 module = "publish",
                             )
                             .left()
@@ -76,7 +81,8 @@ class PublishModule(
                     } else {
                         ValidationError(
                                 status = 503,
-                                errorMessage = "Bluesky integration not configured",
+                                errorMessage =
+                                    "Bluesky integration not configured",
                                 module = "publish",
                             )
                             .left()
@@ -93,7 +99,8 @@ class PublishModule(
                     } else {
                         ValidationError(
                                 status = 503,
-                                errorMessage = "Twitter integration not configured",
+                                errorMessage =
+                                    "Twitter integration not configured",
                                 module = "publish",
                             )
                             .left()
@@ -110,7 +117,8 @@ class PublishModule(
                     } else {
                         ValidationError(
                                 status = 503,
-                                errorMessage = "LinkedIn integration not configured",
+                                errorMessage =
+                                    "LinkedIn integration not configured",
                                 module = "publish",
                             )
                             .left()
@@ -118,7 +126,9 @@ class PublishModule(
                 }
             }
 
-            val results = coroutineScope { tasks.map { task -> async { task() } }.awaitAll() }
+            val results = coroutineScope {
+                tasks.map { task -> async { task() } }.awaitAll()
+            }
 
             val errors = results.filterIsInstance<Either.Left<ApiError>>()
             if (errors.isNotEmpty()) {
@@ -126,7 +136,10 @@ class PublishModule(
                 val responsePayloads = results.map { result ->
                     when (result) {
                         is Either.Right ->
-                            CompositeErrorResponse(type = "success", result = result.value)
+                            CompositeErrorResponse(
+                                type = "success",
+                                result = result.value,
+                            )
                         is Either.Left ->
                             CompositeErrorResponse(
                                 type = "error",
@@ -144,9 +157,12 @@ class PublishModule(
                     .left()
             } else {
                 val successResults =
-                    results.filterIsInstance<Either.Right<NewPostResponse>>().map { it.value }
+                    results
+                        .filterIsInstance<Either.Right<NewPostResponse>>()
+                        .map { it.value }
                 return buildMap {
-                        targets.zip(successResults).forEach { (target, result) ->
+                        targets.zip(successResults).forEach { (target, result)
+                            ->
                             put(target, result)
                         }
                     }

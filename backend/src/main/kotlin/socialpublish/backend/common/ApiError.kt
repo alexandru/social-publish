@@ -34,7 +34,8 @@ data class RequestError(
     val body: ResponseBody? = null,
 ) : ApiError()
 
-@Serializable data class ResponseBody(val asString: String, val asJson: String? = null)
+@Serializable
+data class ResponseBody(val asString: String, val asJson: String? = null)
 
 @Serializable
 @SerialName("exception")
@@ -67,7 +68,10 @@ data class CompositeError(
 
 /** Composite error response with details */
 @Serializable
-data class CompositeErrorWithDetails(val error: String, val responses: List<CompositeErrorResponse>)
+data class CompositeErrorWithDetails(
+    val error: String,
+    val responses: List<CompositeErrorResponse>,
+)
 
 /** Type alias for common Result type pattern */
 typealias ApiResult<T> = Either<ApiError, T>
@@ -76,5 +80,9 @@ context(logger: KLogger)
 fun <T> Either<DBException, T>.toApiResult() =
     this.getOrElse { e ->
         logger.error(e) { "Database exception occurred" }
-        CaughtException(status = 500, module = "database", errorMessage = "Database error")
+        CaughtException(
+            status = 500,
+            module = "database",
+            errorMessage = "Database error",
+        )
     }

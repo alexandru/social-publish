@@ -29,13 +29,20 @@ context(session: UserSession)
 internal fun userSession(): UserSession = session
 
 context(session: UserSession)
-internal fun userSettings(): UserSettings = session.user.settings ?: UserSettings()
+internal fun userSettings(): UserSettings =
+    session.user.settings ?: UserSettings()
 
 /** Respond with 500 Internal Server Error and log the exception. */
-suspend fun ApplicationCall.respondWithInternalServerError(cause: Throwable, context: String = "") {
+suspend fun ApplicationCall.respondWithInternalServerError(
+    cause: Throwable,
+    context: String = "",
+) {
     val msg = if (context.isNotBlank()) context else "Server error"
     logger.error(cause) { msg }
-    respond(HttpStatusCode.InternalServerError, ErrorResponse(error = "Server error"))
+    respond(
+        HttpStatusCode.InternalServerError,
+        ErrorResponse(error = "Server error"),
+    )
 }
 
 /** Respond with 404 Not Found for the named entity. */
@@ -44,7 +51,9 @@ suspend fun ApplicationCall.respondWithNotFound(entity: String = "Resource") {
 }
 
 /** Respond with 403 Forbidden. */
-suspend fun ApplicationCall.respondWithForbidden(message: String = "Forbidden") {
+suspend fun ApplicationCall.respondWithForbidden(
+    message: String = "Forbidden"
+) {
     respond(HttpStatusCode.Forbidden, ErrorResponse(error = message))
 }
 
@@ -62,5 +71,8 @@ suspend fun ApplicationCall.respondWithNotConfigured(integration: String) {
 }
 
 suspend fun ApplicationCall.respondApiError(error: ApiError) {
-    respond(HttpStatusCode.fromValue(error.status), ErrorResponse(error = error.errorMessage))
+    respond(
+        HttpStatusCode.fromValue(error.status),
+        ErrorResponse(error = error.errorMessage),
+    )
 }

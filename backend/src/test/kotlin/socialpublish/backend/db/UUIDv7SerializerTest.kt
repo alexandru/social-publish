@@ -14,7 +14,10 @@ class UUIDv7SerializerTest {
 
         val json = Json.encodeToString(TestPayload(uuid))
 
-        assertEquals("""{"uuid":"018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"}""", json)
+        assertEquals(
+            """{"uuid":"018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"}""",
+            json,
+        )
     }
 
     @Test
@@ -24,7 +27,10 @@ class UUIDv7SerializerTest {
                 """{"uuid":"018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"}"""
             )
 
-        assertEquals(UUIDv7.fromString("018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"), decoded.uuid)
+        assertEquals(
+            UUIDv7.fromString("018f7c6f-9c2d-7a4e-8d6b-0d673c47c6aa"),
+            decoded.uuid,
+        )
     }
 
     @Test

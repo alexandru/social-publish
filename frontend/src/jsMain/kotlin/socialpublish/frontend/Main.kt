@@ -18,7 +18,9 @@ import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.logoutAndClearLocalSession
 import socialpublish.frontend.utils.navigateTo
 
-@JsModule("bulma/css/bulma.min.css") @JsNonModule external val bulmaStyles: dynamic
+@JsModule("bulma/css/bulma.min.css")
+@JsNonModule
+external val bulmaStyles: dynamic
 
 @JsModule("@fortawesome/fontawesome-free/css/all.min.css")
 @JsNonModule
@@ -46,7 +48,9 @@ fun App() {
 
     // Handle browser navigation
     DisposableEffect(Unit) {
-        val listener: (dynamic) -> Unit = { currentPath = window.location.pathname }
+        val listener: (dynamic) -> Unit = {
+            currentPath = window.location.pathname
+        }
         window.addEventListener("popstate", listener)
         onDispose { window.removeEventListener("popstate", listener) }
     }

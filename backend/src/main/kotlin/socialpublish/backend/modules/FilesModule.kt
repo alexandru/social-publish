@@ -26,9 +26,18 @@ import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable data class FileUploadResponse(val uuid: String, val url: String, val mimeType: String)
+@Serializable
+data class FileUploadResponse(
+    val uuid: String,
+    val url: String,
+    val mimeType: String,
+)
 
-data class UploadedFile(val fileName: String, val source: UploadSource, val altText: String?)
+data class UploadedFile(
+    val fileName: String,
+    val source: UploadSource,
+    val altText: String?,
+)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -40,7 +49,11 @@ data class ProcessedUpload(
     val source: UploadSource,
 )
 
-data class StoredFile(val file: File, val mimeType: String, val originalName: String)
+data class StoredFile(
+    val file: File,
+    val mimeType: String,
+    val originalName: String,
+)
 
 data class FilesConfig(val uploadedFilesPath: File, val baseUrl: String)
 
@@ -54,16 +67,24 @@ private constructor(
     companion object {
         private val optimizationStripes = Array(64) { Mutex() }
 
-        suspend fun create(config: FilesConfig, db: FilesDatabase): FilesModule {
+        suspend fun create(
+            config: FilesConfig,
+            db: FilesDatabase,
+        ): FilesModule {
             val imageMagick =
-                ImageMagick().getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
-            val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
+                ImageMagick().getOrElse {
+                    error("Failed to initialize ImageMagick: ${it.message}")
+                }
+            val ref =
+                FilesModule(config, db, config.uploadedFilesPath, imageMagick)
             runInterruptible(Dispatchers.LoomIO) {
                 ref.uploadedFilesPath.mkdirs()
                 ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
             }
-            logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
+            logger.info {
+                "Files module initialized at ${config.uploadedFilesPath}"
+            }
             return ref
         }
     }
@@ -73,19 +94,25 @@ private constructor(
 
     /** Upload and process file */
     context(_: UserSession)
-    suspend fun uploadFile(upload: UploadedFile): ApiResult<FileUploadResponse> = resourceScope {
+    suspend fun uploadFile(
+        upload: UploadedFile
+    ): ApiResult<FileUploadResponse> = resourceScope {
         val userUuid = userUuid()
         try {
             val originalFileTmp = upload.source.asFileResource().bind()
             val hash = originalFileTmp.calculateHash()
             val lock =
-                optimizationStripes[(hash.hashCode() and Int.MAX_VALUE) % optimizationStripes.size]
+                optimizationStripes[
+                    (hash.hashCode() and Int.MAX_VALUE) %
+                        optimizationStripes.size]
 
             lock.withLock {
                 val processedFilePath = File(processedPath, hash)
                 val processed =
                     processFile(
-                            upload.copy(source = UploadSource.FromFile(originalFileTmp)),
+                            upload.copy(
+                                source = UploadSource.FromFile(originalFileTmp)
+                            ),
                             saveToFile = processedFilePath,
                         )
                         .bind()
@@ -103,8 +130,12 @@ private constructor(
                                 size = processed.size,
                                 userUuid = userUuid,
                                 altText = processed.altText,
-                                imageWidth = if (processed.width > 0) processed.width else null,
-                                imageHeight = if (processed.height > 0) processed.height else null,
+                                imageWidth =
+                                    if (processed.width > 0) processed.width
+                                    else null,
+                                imageHeight =
+                                    if (processed.height > 0) processed.height
+                                    else null,
                             )
                         )
                         .getOrElse { throw it }
@@ -117,7 +148,9 @@ private constructor(
                     originalFileTmp.copyTo(originalFilePath, overwrite = true)
                 }
 
-                logger.info { "File uploaded: ${storedUpload.uuid} (${storedUpload.originalname})" }
+                logger.info {
+                    "File uploaded: ${storedUpload.uuid} (${storedUpload.originalname})"
+                }
                 FileUploadResponse(
                         uuid = storedUpload.uuid,
                         url = "${config.baseUrl}/files/${storedUpload.uuid}",
@@ -160,10 +193,12 @@ private constructor(
             }
 
             val safeSuffix = sanitizeFilename(fileName)
-            val processedFilePath = saveToFile ?: createTempFileResource("tmp-", safeSuffix).bind()
+            val processedFilePath =
+                saveToFile ?: createTempFileResource("tmp-", safeSuffix).bind()
             processedFilePath.deleteWithBackup {
                 processImage(
-                        // WARNING: This param is fine, only because `processImage`
+                        // WARNING: This param is fine, only because
+                        // `processImage`
                         // doesn't need to keep the source after:
                         UploadSource.FromFile(originalFileTmp),
                         originalName = fileName,
@@ -231,7 +266,9 @@ private constructor(
     context(_: UserSession)
     suspend fun readImageFile(uuid: String): ProcessedUpload? {
         val userUuid = userUuid()
-        val upload = db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it } ?: return null
+        val upload =
+            db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it }
+                ?: return null
         val filePath = File(processedPath, upload.hash)
 
         val (source, size) =
@@ -261,7 +298,8 @@ private constructor(
             try {
                 val mimeType = Tika().detect(file).lowercase()
                 when {
-                    mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpeg"
+                    mimeType.contains("jpeg") || mimeType.contains("jpg") ->
+                        "jpeg"
                     mimeType.contains("png") -> "png"
                     else -> null
                 }
@@ -285,8 +323,8 @@ private constructor(
     /**
      * Process and optimize image upload.
      *
-     * @param uploadSource The source of the uploaded image — this can be destroyed after
-     *   processing.
+     * @param uploadSource The source of the uploaded image — this can be
+     *   destroyed after processing.
      * @param originalName The original file name of the uploaded image.
      * @param mimeType The MIME type of the uploaded image.
      * @param altText Optional alt text for the image.
@@ -300,18 +338,23 @@ private constructor(
         saveToFile: File? = null,
     ): Resource<ProcessedUpload> = resource {
         val sourceFile = uploadSource.asFileResource().bind()
-        val optimizedFile = saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
+        val optimizedFile =
+            saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
         // Go, go, go
-        imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse { throw it }
+        imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse {
+            throw it
+        }
 
-        val fileSize = withContext(Dispatchers.LoomIO) { optimizedFile.length() }
+        val fileSize =
+            withContext(Dispatchers.LoomIO) { optimizedFile.length() }
         val imageSize =
             imageMagick.identifyImageSize(optimizedFile).getOrElse {
                 logger.warn(it) { "Failed to identify optimized image size" }
                 null
             }
         val newMimeType =
-            detectImageFormat(optimizedFile)?.let { toSupportedMimeType(it) } ?: mimeType
+            detectImageFormat(optimizedFile)?.let { toSupportedMimeType(it) }
+                ?: mimeType
         ProcessedUpload(
             originalname = originalName,
             mimetype = newMimeType,

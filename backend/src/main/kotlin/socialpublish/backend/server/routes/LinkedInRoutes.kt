@@ -20,7 +20,10 @@ import socialpublish.backend.server.respondWithInternalServerError
 import socialpublish.backend.server.userUuid
 
 @Serializable
-data class LinkedInStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
+data class LinkedInStatusResponse(
+    val hasAuthorization: Boolean,
+    val createdAt: Long? = null,
+)
 
 class LinkedInRoutes(
     private val linkedInModule: LinkedInApiModule,
@@ -34,7 +37,12 @@ class LinkedInRoutes(
     ) {
         val userUuid = userUuid()
         when (
-            val result = linkedInModule.buildAuthorizeURL(linkedInConfig, sessionToken, userUuid)
+            val result =
+                linkedInModule.buildAuthorizeURL(
+                    linkedInConfig,
+                    sessionToken,
+                    userUuid,
+                )
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
@@ -48,7 +56,10 @@ class LinkedInRoutes(
     }
 
     context(_: UserSession)
-    suspend fun callbackRoute(linkedInConfig: LinkedInConfig, call: ApplicationCall) {
+    suspend fun callbackRoute(
+        linkedInConfig: LinkedInConfig,
+        call: ApplicationCall,
+    ) {
         val userUuid = userUuid()
         val code = call.request.queryParameters["code"]
         val state = call.request.queryParameters["state"]
@@ -60,15 +71,21 @@ class LinkedInRoutes(
             val userMessage =
                 when (error) {
                     "user_cancelled_login" -> "You cancelled the LinkedIn login"
-                    "user_cancelled_authorize" -> "You declined the LinkedIn authorization request"
-                    else -> errorDescription ?: "LinkedIn authorization failed: $error"
+                    "user_cancelled_authorize" ->
+                        "You declined the LinkedIn authorization request"
+                    else ->
+                        errorDescription
+                            ?: "LinkedIn authorization failed: $error"
                 }
-            call.respondRedirect("/account?error=${URLEncoder.encode(userMessage, Charsets.UTF_8)}")
+            call.respondRedirect(
+                "/account?error=${URLEncoder.encode(userMessage, Charsets.UTF_8)}"
+            )
             return
         }
 
         if (state != null) {
-            val storedSessionToken = linkedInModule.verifyOAuthState(state, userUuid)
+            val storedSessionToken =
+                linkedInModule.verifyOAuthState(state, userUuid)
             if (storedSessionToken == null) {
                 val msg =
                     URLEncoder.encode(
@@ -82,7 +99,10 @@ class LinkedInRoutes(
 
         if (code == null) {
             val msg =
-                URLEncoder.encode("LinkedIn authorization failed: missing code", Charsets.UTF_8)
+                URLEncoder.encode(
+                    "LinkedIn authorization failed: missing code",
+                    Charsets.UTF_8,
+                )
             call.respondRedirect("/account?error=$msg")
             return
         }
@@ -95,10 +115,21 @@ class LinkedInRoutes(
             }
 
         when (
-            val tokenResult = linkedInModule.exchangeCodeForToken(linkedInConfig, code, redirectUri)
+            val tokenResult =
+                linkedInModule.exchangeCodeForToken(
+                    linkedInConfig,
+                    code,
+                    redirectUri,
+                )
         ) {
             is arrow.core.Either.Right -> {
-                when (val saveResult = linkedInModule.saveOAuthToken(tokenResult.value, userUuid)) {
+                when (
+                    val saveResult =
+                        linkedInModule.saveOAuthToken(
+                            tokenResult.value,
+                            userUuid,
+                        )
+                ) {
                     is arrow.core.Either.Right -> {
                         call.response.header(
                             "Cache-Control",
@@ -109,13 +140,21 @@ class LinkedInRoutes(
                         call.respondRedirect("/account")
                     }
                     is arrow.core.Either.Left -> {
-                        val msg = URLEncoder.encode(saveResult.value.errorMessage, Charsets.UTF_8)
+                        val msg =
+                            URLEncoder.encode(
+                                saveResult.value.errorMessage,
+                                Charsets.UTF_8,
+                            )
                         call.respondRedirect("/account?error=$msg")
                     }
                 }
             }
             is arrow.core.Either.Left -> {
-                val msg = URLEncoder.encode(tokenResult.value.errorMessage, Charsets.UTF_8)
+                val msg =
+                    URLEncoder.encode(
+                        tokenResult.value.errorMessage,
+                        Charsets.UTF_8,
+                    )
                 call.respondRedirect("/account?error=$msg")
             }
         }
@@ -125,10 +164,12 @@ class LinkedInRoutes(
     suspend fun statusRoute(call: ApplicationCall) {
         val userUuid = userUuid()
         val row =
-            documentsDb.searchByKey("linkedin-oauth-token:$userUuid").getOrElse { error ->
-                call.respondWithInternalServerError(error)
-                return
-            }
+            documentsDb
+                .searchByKey("linkedin-oauth-token:$userUuid")
+                .getOrElse { error ->
+                    call.respondWithInternalServerError(error)
+                    return
+                }
         call.respond(
             LinkedInStatusResponse(
                 hasAuthorization = row != null,
@@ -138,7 +179,10 @@ class LinkedInRoutes(
     }
 
     context(_: UserSession)
-    suspend fun createPostRoute(linkedInConfig: LinkedInConfig, call: ApplicationCall) {
+    suspend fun createPostRoute(
+        linkedInConfig: LinkedInConfig,
+        call: ApplicationCall,
+    ) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {

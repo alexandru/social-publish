@@ -3,7 +3,9 @@ package socialpublish.backend.common
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 
-/** Tests to ensure error JSON serialization matches the legacy backend format. */
+/**
+ * Tests to ensure error JSON serialization matches the legacy backend format.
+ */
 class ErrorSerializationTest {
     private val json = Json {
         prettyPrint = false
@@ -66,7 +68,9 @@ class ErrorSerializationTest {
 
         assert(jsonString.contains("\"status\":500"))
         assert(jsonString.contains("\"module\":\"twitter\""))
-        assert(jsonString.contains("\"errorMessage\":\"Internal server error\""))
+        assert(
+            jsonString.contains("\"errorMessage\":\"Internal server error\"")
+        )
     }
 
     @Test
@@ -74,7 +78,8 @@ class ErrorSerializationTest {
         val response =
             CompositeErrorResponse(
                 type = "success",
-                result = NewRssPostResponse(uri = "http://localhost:3000/rss/123"),
+                result =
+                    NewRssPostResponse(uri = "http://localhost:3000/rss/123"),
             )
 
         val jsonString = json.encodeToString(response)
@@ -99,7 +104,11 @@ class ErrorSerializationTest {
         assert(jsonString.contains("\"type\":\"error\""))
         assert(jsonString.contains("\"module\":\"mastodon\""))
         assert(jsonString.contains("\"status\":503"))
-        assert(jsonString.contains("\"error\":\"Mastodon integration not configured\""))
+        assert(
+            jsonString.contains(
+                "\"error\":\"Mastodon integration not configured\""
+            )
+        )
     }
 
     @Test
@@ -113,7 +122,10 @@ class ErrorSerializationTest {
                     listOf(
                         CompositeErrorResponse(
                             type = "success",
-                            result = NewRssPostResponse(uri = "http://localhost:3000/rss/123"),
+                            result =
+                                NewRssPostResponse(
+                                    uri = "http://localhost:3000/rss/123"
+                                ),
                         ),
                         CompositeErrorResponse(
                             type = "error",
@@ -128,7 +140,11 @@ class ErrorSerializationTest {
 
         assert(jsonString.contains("\"status\":503"))
         assert(jsonString.contains("\"module\":\"form\""))
-        assert(jsonString.contains("\"errorMessage\":\"Failed to create post via mastodon.\""))
+        assert(
+            jsonString.contains(
+                "\"errorMessage\":\"Failed to create post via mastodon.\""
+            )
+        )
         assert(jsonString.contains("\"responses\""))
         assert(jsonString.contains("\"type\":\"success\""))
         assert(jsonString.contains("\"type\":\"error\""))

@@ -57,9 +57,17 @@ class SettingsRoutesTest {
         val authRoutes = AuthRoutes(authService, null)
         val result = usersDb.createUser("settingsuser", "settingspass")
         val user = (result.getOrElse { throw it } as CreateResult.Created).value
-        val loginResult = authService.login("settingsuser", "settingspass").getOrNull()!!
+        val loginResult =
+            authService.login("settingsuser", "settingspass").getOrNull()!!
         val token = loginResult.rawToken
-        return AuthContext(usersDb, user.uuid, token, userSessionsDb, authService, authRoutes)
+        return AuthContext(
+            usersDb,
+            user.uuid,
+            token,
+            userSessionsDb,
+            authService,
+            authRoutes,
+        )
     }
 
     /** Helper to run a protected route using token-based auth. */
@@ -100,7 +108,11 @@ class SettingsRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.getSettingsRoute(call)
                         }
                     }
@@ -113,7 +125,10 @@ class SettingsRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
-            val result = json.decodeFromString<AccountSettingsView>(response.bodyAsText())
+            val result =
+                json.decodeFromString<AccountSettingsView>(
+                    response.bodyAsText()
+                )
             assertNull(result.bluesky)
             assertNull(result.mastodon)
             assertNull(result.twitter)
@@ -132,12 +147,20 @@ class SettingsRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.getSettingsRoute(call)
                         }
                     }
                     patch("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.patchSettingsRoute(call)
                         }
                     }
@@ -151,7 +174,10 @@ class SettingsRoutesTest {
             val patchResponse =
                 client.patch("/api/account/settings") {
                     header(HttpHeaders.Authorization, "Bearer ${authCtx.token}")
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody(patchBody)
                 }
 
@@ -163,7 +189,10 @@ class SettingsRoutesTest {
                 }
 
             assertEquals(HttpStatusCode.OK, getResponse.status)
-            val view = json.decodeFromString<AccountSettingsView>(getResponse.bodyAsText())
+            val view =
+                json.decodeFromString<AccountSettingsView>(
+                    getResponse.bodyAsText()
+                )
             assertEquals("https://mastodon.social", view.mastodon?.host)
             // sensitive field is masked
             assertEquals(MASKED_VALUE, view.mastodon?.accessToken)
@@ -180,32 +209,45 @@ class SettingsRoutesTest {
             // Seed existing settings with a real token
             val seededSettings =
                 UserSettings(
-                    mastodon = MastodonConfig(host = "https://old.host", accessToken = "real-token")
+                    mastodon =
+                        MastodonConfig(
+                            host = "https://old.host",
+                            accessToken = "real-token",
+                        )
                 )
             val _ =
-                authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings).getOrElse {
-                    throw it
-                }
+                authCtx.usersDb
+                    .updateSettings(authCtx.userUuid, seededSettings)
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     patch("/api/account/settings") {
-                        context(createTestSession(authCtx.userUuid, settings = seededSettings)) {
+                        context(
+                            createTestSession(
+                                authCtx.userUuid,
+                                settings = seededSettings,
+                            )
+                        ) {
                             settingsRoutes.patchSettingsRoute(call)
                         }
                     }
                 }
             }
 
-            // PATCH with updated host only — accessToken key is absent → keep existing
+            // PATCH with updated host only — accessToken key is absent → keep
+            // existing
             val patchBody = """{"mastodon":{"host":"https://new.host"}}"""
             client.patch("/api/account/settings") {
                 header(HttpHeaders.ContentType, ContentType.Application.Json)
                 setBody(patchBody)
             }
 
-            val stored = authCtx.usersDb.findByUuid(authCtx.userUuid).getOrElse { throw it }
+            val stored =
+                authCtx.usersDb.findByUuid(authCtx.userUuid).getOrElse {
+                    throw it
+                }
             assertEquals("https://new.host", stored?.settings?.mastodon?.host)
             // token was not sent → preserved unchanged
             assertEquals("real-token", stored?.settings?.mastodon?.accessToken)
@@ -220,18 +262,27 @@ class SettingsRoutesTest {
 
             val seededSettings =
                 UserSettings(
-                    mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "tok")
+                    mastodon =
+                        MastodonConfig(
+                            host = "https://mastodon.social",
+                            accessToken = "tok",
+                        )
                 )
             val _ =
-                authCtx.usersDb.updateSettings(authCtx.userUuid, seededSettings).getOrElse {
-                    throw it
-                }
+                authCtx.usersDb
+                    .updateSettings(authCtx.userUuid, seededSettings)
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     patch("/api/account/settings") {
-                        context(createTestSession(authCtx.userUuid, settings = seededSettings)) {
+                        context(
+                            createTestSession(
+                                authCtx.userUuid,
+                                settings = seededSettings,
+                            )
+                        ) {
                             settingsRoutes.patchSettingsRoute(call)
                         }
                     }
@@ -245,7 +296,10 @@ class SettingsRoutesTest {
                 setBody(patchBody)
             }
 
-            val stored = authCtx.usersDb.findByUuid(authCtx.userUuid).getOrElse { throw it }
+            val stored =
+                authCtx.usersDb.findByUuid(authCtx.userUuid).getOrElse {
+                    throw it
+                }
             assertNull(stored?.settings?.mastodon)
         }
     }
@@ -260,7 +314,11 @@ class SettingsRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.getSettingsRoute(call)
                         }
                     }
@@ -282,7 +340,11 @@ class SettingsRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     patch("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.patchSettingsRoute(call)
                         }
                     }
@@ -292,7 +354,10 @@ class SettingsRoutesTest {
             val response =
                 client.patch("/api/account/settings") {
                     header(HttpHeaders.Authorization, "Bearer ${authCtx.token}")
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("not valid json {{{")
                 }
 
@@ -310,7 +375,11 @@ class SettingsRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     patch("/api/account/settings") {
-                        authorizedRoute(call, authCtx.authService, authCtx.authRoutes) {
+                        authorizedRoute(
+                            call,
+                            authCtx.authService,
+                            authCtx.authRoutes,
+                        ) {
                             settingsRoutes.patchSettingsRoute(call)
                         }
                     }
@@ -320,7 +389,10 @@ class SettingsRoutesTest {
             val response =
                 client.patch("/api/account/settings") {
                     header(HttpHeaders.Authorization, "Bearer ${authCtx.token}")
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"mastodon":{"accessToken":"****"}}""")
                 }
 
@@ -332,7 +404,11 @@ class SettingsRoutesTest {
 class MergeSettingsPatchTest {
     private val existing =
         UserSettings(
-            mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real-token")
+            mastodon =
+                MastodonConfig(
+                    host = "https://mastodon.social",
+                    accessToken = "real-token",
+                )
         )
 
     @Test
@@ -358,7 +434,8 @@ class MergeSettingsPatchTest {
                     Patched.Some(
                         MastodonSettingsPatch(
                             host = Patched.Some("https://new.host")
-                            // accessToken absent → Patched.Undefined → keep existing
+                            // accessToken absent → Patched.Undefined → keep
+                            // existing
                         )
                     )
             )
@@ -393,7 +470,11 @@ class MergeSettingsPatchTest {
                         username = "alice.bsky.social",
                         password = "real-password",
                     ),
-                mastodon = MastodonConfig(host = "https://mastodon.social", accessToken = "real"),
+                mastodon =
+                    MastodonConfig(
+                        host = "https://mastodon.social",
+                        accessToken = "real",
+                    ),
                 llm =
                     LlmConfig(
                         apiUrl = "https://llm.example.com",

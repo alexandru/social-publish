@@ -72,7 +72,9 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
     }
 
-    private fun receiveUpload(call: ApplicationCall): Resource<ApiResult<UploadedFile>> = resource {
+    private fun receiveUpload(
+        call: ApplicationCall
+    ): Resource<ApiResult<UploadedFile>> = resource {
         val multipart = call.receiveMultipart()
         var altText: String? = null
         var fileName: String? = null
@@ -90,7 +92,10 @@ class FilesRoutes(private val filesModule: FilesModule) {
                 is PartData.FileItem -> {
                     if (part.name == "file") {
                         fileName = part.originalFileName ?: "unknown"
-                        fileSource = UploadSource.FromSource(part.provider().readRemaining())
+                        fileSource =
+                            UploadSource.FromSource(
+                                part.provider().readRemaining()
+                            )
                     }
                 }
                 else -> {}
@@ -98,14 +103,26 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
 
         if (fileSource == null || fileName == null) {
-            ValidationError(status = 400, errorMessage = "Missing file in upload", module = "files")
+            ValidationError(
+                    status = 400,
+                    errorMessage = "Missing file in upload",
+                    module = "files",
+                )
                 .left()
         } else {
-            UploadedFile(fileName = fileName, altText = altText, source = fileSource).right()
+            UploadedFile(
+                    fileName = fileName,
+                    altText = altText,
+                    source = fileSource,
+                )
+                .right()
         }
     }
 
-    private suspend fun respondFile(call: ApplicationCall, storedFile: StoredFile) {
+    private suspend fun respondFile(
+        call: ApplicationCall,
+        storedFile: StoredFile,
+    ) {
         call.response.header(HttpHeaders.ContentType, storedFile.mimeType)
         call.response.header(
             HttpHeaders.ContentDisposition,

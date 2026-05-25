@@ -30,7 +30,8 @@ fun Application.configureOpenApiSecuritySchemes() {
         name = "accessTokenQuery",
         keyName = "access_token",
         keyLocation = SecuritySchemeIn.QUERY,
-        description = "Session token via ?access_token=... (discouraged, but supported)",
+        description =
+            "Session token via ?access_token=... (discouraged, but supported)",
     )
 
     registerApiKeySecurityScheme(
@@ -66,7 +67,8 @@ inline fun <reified T : Any> Responses.Builder.documentNewPostResponses() {
 
 fun Responses.Builder.documentOAuthCallbackResponses() {
     HttpStatusCode.Found {
-        description = "Successful authorization, redirects to account page (302 Found)"
+        description =
+            "Successful authorization, redirects to account page (302 Found)"
     }
     HttpStatusCode.BadRequest {
         description = "Missing required parameters (code, state, or verifier)"
@@ -83,19 +85,26 @@ fun Responses.Builder.documentOAuthCallbackResponses() {
 }
 
 fun Responses.Builder.documentOAuthStatusResponses() {
-    HttpStatusCode.OK { description = "Authorization status retrieved successfully" }
+    HttpStatusCode.OK {
+        description = "Authorization status retrieved successfully"
+    }
     HttpStatusCode.InternalServerError {
         description = "Failed to check authorization status"
         schema = jsonSchema<ErrorResponse>()
     }
 }
 
-fun Operation.Builder.documentOAuthAuthorizeSpec(oauthVersion: String, platform: String) {
+fun Operation.Builder.documentOAuthAuthorizeSpec(
+    oauthVersion: String,
+    platform: String,
+) {
     description =
         "Starts the $oauthVersion authorization flow for $platform. Redirects to $platform's authorization page."
     documentSecurityRequirements()
     responses {
-        HttpStatusCode.Found { description = "Redirect to $platform authorization URL (302 Found)" }
+        HttpStatusCode.Found {
+            description = "Redirect to $platform authorization URL (302 Found)"
+        }
         HttpStatusCode.Unauthorized {
             description = "Not authenticated (missing or invalid session token)"
             schema = jsonSchema<ErrorResponse>()

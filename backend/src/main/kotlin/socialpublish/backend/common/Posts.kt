@@ -28,7 +28,8 @@ sealed class NewPostResponse {
 }
 
 @Serializable
-data class NewBlueSkyPostResponse(val uri: String, val cid: String? = null) : NewPostResponse() {
+data class NewBlueSkyPostResponse(val uri: String, val cid: String? = null) :
+    NewPostResponse() {
     override val module: String = "bluesky"
 }
 

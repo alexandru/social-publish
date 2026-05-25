@@ -35,7 +35,9 @@ class RssModule(
 ) {
     /** Create a new RSS post */
     context(_: UserSession)
-    suspend fun createPost(request: NewPostRequest): ApiResult<NewPostResponse> {
+    suspend fun createPost(
+        request: NewPostRequest
+    ): ApiResult<NewPostResponse> {
         return try {
             val userUuid = userUuid()
             // Validate request
@@ -67,11 +69,12 @@ class RssModule(
                 )
 
             val post =
-                postsDb.create(payload, request.targets ?: emptyList(), userUuid).getOrElse {
-                    throw it
-                }
+                postsDb
+                    .create(payload, request.targets ?: emptyList(), userUuid)
+                    .getOrElse { throw it }
 
-            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}").right()
+            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}")
+                .right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save RSS item" }
@@ -92,7 +95,8 @@ class RssModule(
         target: String? = null,
     ): String {
         val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
-        val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
+        val mediaNamespace =
+            Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
 
         val feed =
             SyndFeedImpl().apply {
@@ -127,8 +131,9 @@ class RssModule(
 
             for (imageUuid in post.images.orEmpty()) {
                 val upload =
-                    filesDb.getFileByUuidForUser(imageUuid, userUuid).getOrElse { throw it }
-                        ?: continue
+                    filesDb
+                        .getFileByUuidForUser(imageUuid, userUuid)
+                        .getOrElse { throw it } ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())
@@ -186,7 +191,9 @@ class RssModule(
 
     /** Get RSS item by UUID */
     suspend fun getRssItemByUuid(userUuid: UUIDv7, uuid: String): Post? {
-        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
+        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse {
+            throw it
+        }
     }
 
     private fun cleanupHtml(html: String): String {

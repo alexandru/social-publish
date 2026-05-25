@@ -37,7 +37,11 @@ import socialpublish.backend.db.Database.Companion.connect
  *
  * @property clock Clock instance for time-based operations (useful for testing)
  */
-data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: String) {
+data class Database(
+    val dataSource: DataSource,
+    val clock: Clock,
+    val dbPath: String,
+) {
     companion object {
         /** Dispatcher used for all database operations (virtual threads). */
         val Dispatcher = Dispatchers.LoomIO
@@ -45,8 +49,8 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
         /**
          * Creates a database connection and runs migrations.
          *
-         * Creates parent directories and the database file if they don't exist. Runs all pending
-         * migrations before returning.
+         * Creates parent directories and the database file if they don't exist.
+         * Runs all pending migrations before returning.
          */
         fun connect(dbPath: String): Resource<Database> = resource {
             logger.info { "Connecting to database at $dbPath" }
@@ -54,7 +58,12 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
             dbFile.parentFile?.mkdirs()
 
             val dataSource = createDataSource(dbPath).bind()
-            val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
+            val db =
+                Database(
+                    dataSource = dataSource,
+                    clock = Clock.systemUTC(),
+                    dbPath = dbPath,
+                )
 
             // Run migrations
             migrate(db).getOrElse { throw it }
@@ -65,11 +74,13 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
         /**
          * Creates an unmanaged database connection for testing.
          *
-         * Unlike [connect], this does not use Arrow Resource management and returns the Database
-         * directly. The caller is responsible for closing the connection pool when done, though in
-         * practice test JVMs exit quickly so this is rarely necessary.
+         * Unlike [connect], this does not use Arrow Resource management and
+         * returns the Database directly. The caller is responsible for closing
+         * the connection pool when done, though in practice test JVMs exit
+         * quickly so this is rarely necessary.
          *
-         * This is intended for test scenarios where the database needs to outlive a single scope.
+         * This is intended for test scenarios where the database needs to
+         * outlive a single scope.
          */
         suspend fun connectUnmanaged(dbPath: String): Database {
             logger.info { "Connecting to database (unmanaged) at $dbPath" }
@@ -77,8 +88,14 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
             dbFile.parentFile?.mkdirs()
 
             val hikariConfig = createHikariConfig(dbPath)
-            val dataSource = withContext(Dispatcher) { HikariDataSource(hikariConfig) }
-            val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
+            val dataSource =
+                withContext(Dispatcher) { HikariDataSource(hikariConfig) }
+            val db =
+                Database(
+                    dataSource = dataSource,
+                    clock = Clock.systemUTC(),
+                    dbPath = dbPath,
+                )
 
             // Run migrations
             migrate(db).getOrElse { throw it }
@@ -127,7 +144,8 @@ fun Connection.safe(): SafeConnection = SafeConnection(this)
 /** Type-safe wrapper around JDBC PreparedStatement (zero runtime overhead). */
 @JvmInline value class SafePreparedStatement(val statement: PreparedStatement)
 
-fun PreparedStatement.safe(): SafePreparedStatement = SafePreparedStatement(this)
+fun PreparedStatement.safe(): SafePreparedStatement =
+    SafePreparedStatement(this)
 
 /** Type-safe wrapper around JDBC ResultSet (zero runtime overhead). */
 @JvmInline value class SafeResultSet(val resultSet: ResultSet)
@@ -142,7 +160,8 @@ private fun createHikariConfig(dbPath: String): HikariConfig =
         // Keep pool size low for SQLite
         maximumPoolSize = 3
         minimumIdle = 1
-        // Allow SQLite to wait briefly when the DB file is locked by another writer.
+        // Allow SQLite to wait briefly when the DB file is locked by another
+        // writer.
         connectionInitSql = "PRAGMA busy_timeout = 5000"
         // Instructs HikariCP to not throw if the pool cannot be seeded
         // with an initial connection
@@ -163,7 +182,8 @@ fun createDataSource(dbPath: String): Resource<DataSource> = resource {
 /**
  * Acquires a connection from the pool.
  *
- * Connection is automatically returned to the pool when the Resource is released.
+ * Connection is automatically returned to the pool when the Resource is
+ * released.
  */
 fun Database.connection(): Resource<SafeConnection> = resource {
     install(
@@ -205,11 +225,11 @@ suspend fun <A> Database.transaction(
 /**
  * Executes a transaction with typed constraint violation handling.
  *
- * Returns `Either<SqlUpdateException, A>` for handling constraint violations. Useful for
- * INSERT/UPDATE operations.
+ * Returns `Either<SqlUpdateException, A>` for handling constraint violations.
+ * Useful for INSERT/UPDATE operations.
  *
- * SQLite note: Unlike PostgreSQL, constraint violations are detected by parsing error messages, so
- * table/column information may not always be available.
+ * SQLite note: Unlike PostgreSQL, constraint violations are detected by parsing
+ * error messages, so table/column information may not always be available.
  */
 suspend fun <A> Database.transactionForUpdates(
     block:
@@ -223,24 +243,53 @@ suspend fun <A> Database.transactionForUpdates(
     } catch (e: SQLException) {
         // SQLite error handling
         when {
-            e.message?.contains("UNIQUE constraint", ignoreCase = true) == true -> {
+            e.message?.contains("UNIQUE constraint", ignoreCase = true) ==
+                true -> {
                 // Extract constraint name from error message if possible
                 val constraintName = extractConstraintName(e.message)
-                raise(SqlUpdateException.UniqueViolation(null, null, constraintName, e))
+                raise(
+                    SqlUpdateException.UniqueViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
 
-            e.message?.contains("FOREIGN KEY constraint", ignoreCase = true) == true -> {
+            e.message?.contains("FOREIGN KEY constraint", ignoreCase = true) ==
+                true -> {
                 val constraintName = extractConstraintName(e.message)
-                raise(SqlUpdateException.ForeignKeyViolation(null, null, constraintName, e))
+                raise(
+                    SqlUpdateException.ForeignKeyViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
 
-            e.message?.contains("CHECK constraint", ignoreCase = true) == true -> {
+            e.message?.contains("CHECK constraint", ignoreCase = true) ==
+                true -> {
                 val constraintName = extractConstraintName(e.message)
-                raise(SqlUpdateException.CheckViolation(null, null, constraintName, e))
+                raise(
+                    SqlUpdateException.CheckViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
 
             else -> {
-                raise(SqlUpdateException.Unknown(e.message ?: "Unknown SQL error", e))
+                raise(
+                    SqlUpdateException.Unknown(
+                        e.message ?: "Unknown SQL error",
+                        e,
+                    )
+                )
             }
         }
     } catch (e: Throwable) {
@@ -254,15 +303,17 @@ private fun extractConstraintName(message: String?): String? {
     if (message == null) return null
     // Try to extract constraint name from SQLite error messages
     // Example: "UNIQUE constraint failed: users.email"
-    val pattern = """constraint\s+(?:failed:\s+)?([^\s,]+)""".toRegex(RegexOption.IGNORE_CASE)
+    val pattern =
+        """constraint\s+(?:failed:\s+)?([^\s,]+)"""
+            .toRegex(RegexOption.IGNORE_CASE)
     return pattern.find(message)?.groupValues?.get(1)
 }
 
 /**
  * Executes a PreparedStatement with coroutine cancellation support.
  *
- * If the coroutine is cancelled, the SQL statement is cancelled and resources are cleaned up
- * properly.
+ * If the coroutine is cancelled, the SQL statement is cancelled and resources
+ * are cleaned up properly.
  */
 suspend fun <A> SafePreparedStatement.useWithInterruption(
     block: suspend PreparedStatement.() -> A
@@ -276,7 +327,9 @@ suspend fun <A> SafePreparedStatement.useWithInterruption(
                     block(statement)
                 } catch (e: Exception) {
                     // Filter cancellation to avoid logging downstream
-                    if (!isActive) throw CancellationException("Query cancelled", e) else throw e
+                    if (!isActive)
+                        throw CancellationException("Query cancelled", e)
+                    else throw e
                 }
             }
             // (3) Wait for result
@@ -305,7 +358,10 @@ suspend fun <A> SafeConnection.query(
 ) =
     withContext(Database.Dispatcher) {
         try {
-            connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
+            connection
+                .prepareStatement(sql.trimIndent())
+                .safe()
+                .useWithInterruption(block)
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             raise(DBException("Database query failed", e))
@@ -356,9 +412,12 @@ fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? = resultSet.use {
 /**
  * Runs all pending database migrations.
  *
- * Migrations are idempotent - safe to call multiple times. Already-applied migrations are skipped.
+ * Migrations are idempotent - safe to call multiple times. Already-applied
+ * migrations are skipped.
  */
-suspend fun migrate(db: Database): Either<DBException, Unit> = db.transaction { runMigrations() }
+suspend fun migrate(db: Database): Either<DBException, Unit> = db.transaction {
+    runMigrations()
+}
 
 context(_: Raise<DBException>)
 private suspend fun SafeConnection.runMigrations() {

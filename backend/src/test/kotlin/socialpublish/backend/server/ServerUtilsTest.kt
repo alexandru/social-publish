@@ -41,7 +41,10 @@ class ServerUtilsTest {
 
     @Test
     fun `userSettings returns session user settings`() {
-        val expected = UserSettings(mastodon = MastodonConfig("https://example.social", "token"))
+        val expected =
+            UserSettings(
+                mastodon = MastodonConfig("https://example.social", "token")
+            )
         val session = session(settings = expected)
 
         val resolved = context(session) { userSettings() }

@@ -16,19 +16,30 @@ import socialpublish.backend.modules.PublishModule
 
 class PublishRoutes {
     /** Handle broadcast POST HTTP route */
-    suspend fun broadcastPostRoute(call: ApplicationCall, publishModule: PublishModule) {
+    suspend fun broadcastPostRoute(
+        call: ApplicationCall,
+        publishModule: PublishModule,
+    ) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
                     // If JSON receive failed, try form parameters. To avoid
                     // RequestAlreadyConsumedException,
-                    // only attempt to read form parameters if content type is form data.
-                    val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
-                    val contentType = contentTypeHeader?.let { ContentType.parse(it) }
+                    // only attempt to read form parameters if content type is
+                    // form data.
+                    val contentTypeHeader =
+                        call.request.headers[HttpHeaders.ContentType]
+                    val contentType = contentTypeHeader?.let {
+                        ContentType.parse(it)
+                    }
                     val params =
                         if (
-                            contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
-                                contentType?.match(ContentType.MultiPart.FormData) == true
+                            contentType?.match(
+                                ContentType.Application.FormUrlEncoded
+                            ) == true ||
+                                contentType?.match(
+                                    ContentType.MultiPart.FormData
+                                ) == true
                         ) {
                             call.receiveParameters()
                         } else {

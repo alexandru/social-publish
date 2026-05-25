@@ -20,19 +20,30 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
             val canonicalBaseDir = baseDir.canonicalFile
 
             val file =
-                if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
+                if (
+                    path.isBlank() ||
+                        path.matches(Regex("^(login|form|account).*"))
+                ) {
                     File(canonicalBaseDir, "index.html")
                 } else {
                     File(canonicalBaseDir, path)
                 }
 
-            // Security: Check that the resolved file is within the allowed directory
-            if (file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)) {
+            // Security: Check that the resolved file is within the allowed
+            // directory
+            if (
+                file.exists() &&
+                    file.isFile &&
+                    isPathWithinBase(file, canonicalBaseDir)
+            ) {
                 // Set appropriate caching headers based on file type
                 when {
-                    // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable, cache forever
+                    // Hashed files (app.{hash}.js, {hash}.woff2, etc.) -
+                    // immutable, cache forever
                     file.name.matches(
-                        Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
+                        Regex(
+                            "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)"
+                        )
                     ) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
@@ -46,8 +57,11 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
                             "public, max-age=7200, stale-while-revalidate=86400",
                         )
                     }
-                    // Images and other assets - 2 days with stale-while-revalidate
-                    file.name.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")) -> {
+                    // Images and other assets - 2 days with
+                    // stale-while-revalidate
+                    file.name.matches(
+                        Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")
+                    ) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
                             "public, max-age=172800, stale-while-revalidate=86400",

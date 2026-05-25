@@ -32,7 +32,8 @@ class StorageTest {
         for (cookie in cookies) {
             val name = cookie.split("=")[0].trim()
             val expiryDate = kotlin.js.Date(0)
-            document.cookie = "$name=;expires=${expiryDate.toUTCString()};path=/"
+            document.cookie =
+                "$name=;expires=${expiryDate.toUTCString()};path=/"
         }
     }
 
@@ -49,7 +50,11 @@ class StorageTest {
     @Test
     fun testSetCookieWithExpiration() {
         // Set cookie with 1 hour expiration
-        Storage.setCookie("expiring_cookie", "value", expirationMillis = 3600000)
+        Storage.setCookie(
+            "expiring_cookie",
+            "value",
+            expirationMillis = 3600000,
+        )
         val cookies = Storage.cookies()
 
         assertTrue(cookies.containsKey("expiring_cookie"))
@@ -165,7 +170,8 @@ class StorageTest {
         // Token should be set regardless of protocol
         assertTrue(Storage.hasSessionToken())
 
-        // We can verify the token exists but can't directly verify the secure flag from JS
+        // We can verify the token exists but can't directly verify the secure
+        // flag from JS
         assertNotNull(Storage.getSessionToken())
     }
 

@@ -28,136 +28,162 @@ import socialpublish.backend.testutils.loadTestResourceBytes
 import socialpublish.backend.testutils.uploadTestImage
 
 class FilesRoutesTest {
-    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
-    fun `upload route processes file uploads`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val filesModule = createFilesModule(tempDir, jdbi)
-        val filesRoutes = FilesRoutes(filesModule)
+    fun `upload route processes file uploads`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
 
-        application {
-            routing {
-                post("/api/files/upload") {
-                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                 }
             }
-        }
 
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
             }
+
+            val response = uploadTestImage(client, "flower1.jpeg", "rose")
+            assertTrue(response.uuid.isNotBlank())
+
+            client.close()
         }
-
-        val response = uploadTestImage(client, "flower1.jpeg", "rose")
-        assertTrue(response.uuid.isNotBlank())
-
-        client.close()
-    }
 
     @Test
-    fun `fails when file part name is incorrect`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val filesModule = createFilesModule(tempDir, jdbi)
-        val filesRoutes = FilesRoutes(filesModule)
+    fun `fails when file part name is incorrect`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
 
-        application {
-            routing {
-                post("/api/files/upload") {
-                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                 }
             }
-        }
 
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
             }
+
+            val response =
+                client.submitFormWithBinaryData(
+                    url = "/api/files/upload",
+                    formData =
+                        formData {
+                            append(
+                                "wrongName",
+                                loadTestResourceBytes("flower1.jpeg"),
+                                Headers.build {
+                                    append(
+                                        HttpHeaders.ContentType,
+                                        "image/jpeg",
+                                    )
+                                    append(
+                                        HttpHeaders.ContentDisposition,
+                                        "filename=\"flower1.jpeg\"",
+                                    )
+                                },
+                            )
+                        },
+                )
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertTrue(response.bodyAsText().contains("Missing file in upload"))
+
+            client.close()
         }
 
-        val response =
-            client.submitFormWithBinaryData(
-                url = "/api/files/upload",
-                formData =
-                    formData {
-                        append(
-                            "wrongName",
-                            loadTestResourceBytes("flower1.jpeg"),
-                            Headers.build {
-                                append(HttpHeaders.ContentType, "image/jpeg")
-                                append(HttpHeaders.ContentDisposition, "filename=\"flower1.jpeg\"")
-                            },
-                        )
-                    },
+    @Test
+    fun `get route returns stored file`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
+                    get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            val upload = uploadTestImage(client, "flower1.jpeg", "rose")
+            val response = client.get("/files/${upload.uuid}")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(
+                "image/jpeg",
+                response.headers[HttpHeaders.ContentType],
             )
+            assertTrue(
+                response.headers[HttpHeaders.ContentDisposition]?.contains(
+                    "flower1.jpeg"
+                ) == true
+            )
+            assertTrue(response.bodyAsBytes().isNotEmpty())
 
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        assertTrue(response.bodyAsText().contains("Missing file in upload"))
-
-        client.close()
-    }
+            client.close()
+        }
 
     @Test
-    fun `get route returns stored file`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val filesModule = createFilesModule(tempDir, jdbi)
-        val filesRoutes = FilesRoutes(filesModule)
+    fun `get route returns not found for unknown uuid`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val filesRoutes = FilesRoutes(filesModule)
 
-        application {
-            routing {
-                post("/api/files/upload") {
-                    context(createTestSession(testUserUuid)) { filesRoutes.uploadFileRoute(call) }
+            application {
+                routing {
+                    get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
                 }
-                get("/files/{uuid}") { filesRoutes.getFileRoute(call) }
             }
+
+            val response = client.get("/files/missing-uuid")
+
+            assertEquals(HttpStatusCode.NotFound, response.status)
+            assertTrue(response.bodyAsText().contains("File not found"))
         }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        val upload = uploadTestImage(client, "flower1.jpeg", "rose")
-        val response = client.get("/files/${upload.uuid}")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("image/jpeg", response.headers[HttpHeaders.ContentType])
-        assertTrue(
-            response.headers[HttpHeaders.ContentDisposition]?.contains("flower1.jpeg") == true
-        )
-        assertTrue(response.bodyAsBytes().isNotEmpty())
-
-        client.close()
-    }
-
-    @Test
-    fun `get route returns not found for unknown uuid`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val filesModule = createFilesModule(tempDir, jdbi)
-        val filesRoutes = FilesRoutes(filesModule)
-
-        application { routing { get("/files/{uuid}") { filesRoutes.getFileRoute(call) } } }
-
-        val response = client.get("/files/missing-uuid")
-
-        assertEquals(HttpStatusCode.NotFound, response.status)
-        assertTrue(response.bodyAsText().contains("File not found"))
-    }
 }

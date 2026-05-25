@@ -4,10 +4,11 @@ import java.time.Instant
 import kotlinx.serialization.Serializable
 
 /**
- * Custom exception class for database-related errors, because we want typed exceptions in our
- * lives.
+ * Custom exception class for database-related errors, because we want typed
+ * exceptions in our lives.
  */
-class DBException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class DBException(message: String, cause: Throwable? = null) :
+    Exception(message, cause)
 
 /** Sealed class for SQL update exceptions with constraint violation details. */
 sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
@@ -24,7 +25,11 @@ sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
         val column: String?,
         val constraint: String?,
         override val cause: Throwable,
-    ) : SqlUpdateException("Foreign key constraint violation: $constraint", cause)
+    ) :
+        SqlUpdateException(
+            "Foreign key constraint violation: $constraint",
+            cause,
+        )
 
     data class CheckViolation(
         val table: String?,
@@ -33,8 +38,10 @@ sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
         override val cause: Throwable,
     ) : SqlUpdateException("Check constraint violation: $constraint", cause)
 
-    data class Unknown(override val message: String, override val cause: Throwable) :
-        SqlUpdateException(message, cause)
+    data class Unknown(
+        override val message: String,
+        override val cause: Throwable,
+    ) : SqlUpdateException(message, cause)
 }
 
 @Serializable
@@ -93,7 +100,9 @@ sealed interface CreateResult<out T> {
     /** Value already exists (duplicate). */
     data object Duplicate : CreateResult<Nothing>
 
-    /** Convert to nullable, returning the value if Created, null if Duplicate. */
+    /**
+     * Convert to nullable, returning the value if Created, null if Duplicate.
+     */
     val toNullable: T?
         get() =
             when (this) {

@@ -57,7 +57,8 @@ class AuthRoutesTest {
     )
 
     private suspend fun loginAndGetToken(ctx: TestContext): String {
-        val created = ctx.authService.login("testuser", "testpass").getOrNull()!!
+        val created =
+            ctx.authService.login("testuser", "testpass").getOrNull()!!
         return created.rawToken
     }
 
@@ -90,19 +91,28 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { ctx.authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             assertTrue(body.token.isNotBlank())
         }
     }
@@ -114,13 +124,20 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { ctx.authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"wrongpass"}""")
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
+                    setBody(
+                        """{"username":"testuser","password":"wrongpass"}"""
+                    )
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -134,13 +151,20 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { ctx.authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"wronguser","password":"testpass"}""")
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
+                    setBody(
+                        """{"username":"wronguser","password":"testpass"}"""
+                    )
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -155,10 +179,15 @@ class AuthRoutesTest {
             val userSessionsDb = UserSessionsDatabase(db, usersDb)
             val authService = AuthService(userSessionsDb)
             val authRoute = AuthRoutes(authService, null)
-            val _ = usersDb.createUser("testuser", "testpass").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("testuser", "testpass").getOrElse {
+                    throw it
+                }
             val _ =
                 either {
-                        db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
+                        db.query(
+                            "UPDATE users SET password_hash = NULL WHERE username = ?"
+                        ) {
                             setString(1, "testuser")
                             executeUpdate()
                         }
@@ -172,7 +201,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
@@ -184,7 +216,8 @@ class AuthRoutesTest {
     fun `login should return twitter auth status`() {
         testApplication {
             val ctx = testSetup()
-            val authRoute = AuthRoutes(ctx.authService, DocumentsDatabase(ctx.db))
+            val authRoute =
+                AuthRoutes(ctx.authService, DocumentsDatabase(ctx.db))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -193,14 +226,21 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             // User has no OAuth token stored → twitter should be false
             assertEquals(false, body.configuredServices.twitter)
         }
@@ -219,14 +259,21 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             // User has no OAuth token stored → linkedin should be false
             assertEquals(false, body.configuredServices.linkedin)
         }
@@ -239,12 +286,17 @@ class AuthRoutesTest {
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { ctx.authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("username=testuser&password=testpass")
                 }
 
@@ -268,7 +320,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser"}""")
                 }
 
@@ -316,7 +371,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("password=testpass")
                 }
 
@@ -340,7 +398,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("username=testuser")
                 }
 
@@ -357,7 +418,9 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
@@ -377,7 +440,9 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
@@ -401,13 +466,17 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
             val response =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
@@ -423,13 +492,17 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
             val response =
-                client.get("/api/protected") { header(HttpHeaders.Cookie, "access_token=$token") }
+                client.get("/api/protected") {
+                    header(HttpHeaders.Cookie, "access_token=$token")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
@@ -445,7 +518,9 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
@@ -476,13 +551,17 @@ class AuthRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/api/protected") {
-                        authorizedEndpoint(call, ctx) { call.respondText("Success") }
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
             val response =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
 
             // Session is orphaned (user deleted) → should still be invalid
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -504,7 +583,9 @@ class AuthRoutesTest {
             }
 
             val response =
-                client.get("/test") { header(HttpHeaders.Authorization, "Bearer test-token-123") }
+                client.get("/test") {
+                    header(HttpHeaders.Authorization, "Bearer test-token-123")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("test-token-123"))
@@ -527,7 +608,9 @@ class AuthRoutesTest {
             }
 
             val response =
-                client.get("/test") { header(HttpHeaders.Authorization, "InvalidFormat") }
+                client.get("/test") {
+                    header(HttpHeaders.Authorization, "InvalidFormat")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("null"))
@@ -571,7 +654,9 @@ class AuthRoutesTest {
             }
 
             val response =
-                client.get("/test") { header(HttpHeaders.Cookie, "access_token=cookie-token-456") }
+                client.get("/test") {
+                    header(HttpHeaders.Cookie, "access_token=cookie-token-456")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("cookie-token-456"))
@@ -612,14 +697,21 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             assertEquals(false, body.configuredServices.twitter)
             assertEquals(false, body.configuredServices.linkedin)
         }
@@ -646,7 +738,9 @@ class AuthRoutesTest {
             }
 
             val response =
-                client.post("/api/logout") { header(HttpHeaders.Authorization, "Bearer $token") }
+                client.post("/api/logout") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("true"))

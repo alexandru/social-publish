@@ -18,37 +18,60 @@ class AuthService(private val userSessionsDb: UserSessionsDatabase) {
     suspend fun login(username: String, password: String) =
         userSessionsDb.login(username, password).mapLeft { dbError ->
             logger.error(dbError) { "DB error during login for $username" }
-            CaughtException(status = 500, module = "auth", errorMessage = "Server error")
+            CaughtException(
+                status = 500,
+                module = "auth",
+                errorMessage = "Server error",
+            )
         }
 
     suspend fun logout(token: String): Either<ApiError, Boolean> =
         userSessionsDb.logout(token).mapLeft { dbError ->
             logger.error(dbError) { "DB error during logout" }
-            CaughtException(status = 500, module = "auth", errorMessage = "Server error")
+            CaughtException(
+                status = 500,
+                module = "auth",
+                errorMessage = "Server error",
+            )
         }
 
     suspend fun authorize(token: String): Either<ApiError, UserSession> =
         when (val result = userSessionsDb.authorize(token)) {
             is Either.Left -> {
                 logger.error(result.value) { "DB error during authorization" }
-                CaughtException(status = 500, module = "auth", errorMessage = "Server error").left()
+                CaughtException(
+                        status = 500,
+                        module = "auth",
+                        errorMessage = "Server error",
+                    )
+                    .left()
             }
             is Either.Right -> result.value?.right() ?: unauthorized().left()
         }
 
     companion object {
         fun unauthorized(): RequestError =
-            RequestError(status = 401, module = "auth", errorMessage = "Unauthorized")
+            RequestError(
+                status = 401,
+                module = "auth",
+                errorMessage = "Unauthorized",
+            )
     }
 }
 
 object AuthModule {
-    fun verifyPassword(providedPassword: String, storedPassword: String): Boolean {
+    fun verifyPassword(
+        providedPassword: String,
+        storedPassword: String,
+    ): Boolean {
         val trimmedStoredPassword = storedPassword.trim()
         return try {
             val result =
                 FavreBCrypt.verifyer()
-                    .verify(providedPassword.toCharArray(), trimmedStoredPassword.toCharArray())
+                    .verify(
+                        providedPassword.toCharArray(),
+                        trimmedStoredPassword.toCharArray(),
+                    )
             result.verified
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)

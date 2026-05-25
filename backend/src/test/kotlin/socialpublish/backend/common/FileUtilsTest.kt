@@ -59,9 +59,18 @@ class FileUtilsTest {
 
         // Should be valid UUIDs (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
         // UUIDs contain hyphens which are allowed characters
-        assertTrue(result1.isNotBlank() && result1.all { it.isLetterOrDigit() || it == '-' })
-        assertTrue(result2.isNotBlank() && result2.all { it.isLetterOrDigit() || it == '-' })
-        assertTrue(result3.isNotBlank() && result3.all { it.isLetterOrDigit() || it == '-' })
+        assertTrue(
+            result1.isNotBlank() &&
+                result1.all { it.isLetterOrDigit() || it == '-' }
+        )
+        assertTrue(
+            result2.isNotBlank() &&
+                result2.all { it.isLetterOrDigit() || it == '-' }
+        )
+        assertTrue(
+            result3.isNotBlank() &&
+                result3.all { it.isLetterOrDigit() || it == '-' }
+        )
     }
 
     @Test
@@ -69,7 +78,10 @@ class FileUtilsTest {
         val result = sanitizeFilename("")
         // Should be a valid UUID
         // UUIDs contain hyphens which are allowed characters
-        assertTrue(result.isNotBlank() && result.all { it.isLetterOrDigit() || it == '-' })
+        assertTrue(
+            result.isNotBlank() &&
+                result.all { it.isLetterOrDigit() || it == '-' }
+        )
     }
 
     @Test
@@ -88,7 +100,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should allow files in base directory`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should allow files in base directory`(
+        @TempDir tempDir: File
+    ) {
         val baseDir = tempDir
         val file = File(baseDir, "test.txt")
         file.createNewFile()
@@ -97,7 +111,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should allow files in subdirectories`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should allow files in subdirectories`(
+        @TempDir tempDir: File
+    ) {
         val baseDir = tempDir
         val subDir = File(baseDir, "subdir")
         subDir.mkdir()
@@ -108,7 +124,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should reject files outside base directory`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should reject files outside base directory`(
+        @TempDir tempDir: File
+    ) {
         val baseDir = File(tempDir, "base")
         baseDir.mkdir()
         val outsideFile = File(tempDir, "outside.txt")
@@ -118,7 +136,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should reject path traversal attempts`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should reject path traversal attempts`(
+        @TempDir tempDir: File
+    ) {
         val baseDir = File(tempDir, "base")
         baseDir.mkdir()
 
@@ -132,7 +152,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should prevent base path prefix confusion`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should prevent base path prefix confusion`(
+        @TempDir tempDir: File
+    ) {
         // Create two directories: /app and /app-malicious
         val appDir = File(tempDir, "app")
         val maliciousDir = File(tempDir, "app-malicious")
@@ -147,7 +169,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `isPathWithinBase should handle base directory itself`(@TempDir tempDir: File) {
+    fun `isPathWithinBase should handle base directory itself`(
+        @TempDir tempDir: File
+    ) {
         val baseDir = tempDir
 
         // The base directory itself should be considered within base
@@ -160,33 +184,43 @@ class FileUtilsTest {
         val source = ByteReadChannel(bytes).asSource().buffered()
         val chunks = mutableListOf<ByteArray>()
 
-        source.forEachChunk(chunkSize = 6) { buffer, len -> chunks.add(buffer.copyOf(len)) }
+        source.forEachChunk(chunkSize = 6) { buffer, len ->
+            chunks.add(buffer.copyOf(len))
+        }
 
-        val reconstructed = chunks.fold(ByteArray(0)) { acc, chunk -> acc + chunk }
+        val reconstructed =
+            chunks.fold(ByteArray(0)) { acc, chunk -> acc + chunk }
         assertEquals(bytes.toList(), reconstructed.toList())
         assertEquals(listOf(6, 6, 6, 2), chunks.map { it.size })
     }
 
     @Test
-    fun `calculateHash matches SHA-256 output`(@TempDir tempDir: File) = runTest {
-        val file = File(tempDir, "hash.txt").apply { writeText("hello") }
+    fun `calculateHash matches SHA-256 output`(@TempDir tempDir: File) =
+        runTest {
+            val file = File(tempDir, "hash.txt").apply { writeText("hello") }
 
-        val hash = file.calculateHash()
+            val hash = file.calculateHash()
 
-        assertEquals("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", hash)
-    }
-
-    @Test
-    fun `UploadSource from source creates and cleans temp file`(): Unit = runTest {
-        val tempPath = resourceScope {
-            val source = ByteReadChannel("data".toByteArray()).asSource().buffered()
-            val file = UploadSource.FromSource(source).asFileResource().bind()
-            assertTrue(file.exists())
-            file.absolutePath
+            assertEquals(
+                "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+                hash,
+            )
         }
 
-        assertFalse(File(tempPath).exists())
-    }
+    @Test
+    fun `UploadSource from source creates and cleans temp file`(): Unit =
+        runTest {
+            val tempPath = resourceScope {
+                val source =
+                    ByteReadChannel("data".toByteArray()).asSource().buffered()
+                val file =
+                    UploadSource.FromSource(source).asFileResource().bind()
+                assertTrue(file.exists())
+                file.absolutePath
+            }
+
+            assertFalse(File(tempPath).exists())
+        }
 
     @Test
     fun `createTempFileResource cleans up after scope`(): Unit = runTest {
@@ -215,7 +249,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `createTempFileName returns a non-existing file`(@TempDir tempDir: File) = runTest {
+    fun `createTempFileName returns a non-existing file`(
+        @TempDir tempDir: File
+    ) = runTest {
         val file = createTempFileName("reserved-", ".tmp")
 
         try {
@@ -239,7 +275,9 @@ class FileUtilsTest {
     }
 
     @Test
-    fun `deleteWithBackup restores original on failure`(@TempDir tempDir: File) = runTest {
+    fun `deleteWithBackup restores original on failure`(
+        @TempDir tempDir: File
+    ) = runTest {
         val file = File(tempDir, "data.txt").apply { writeText("original") }
 
         assertFails {

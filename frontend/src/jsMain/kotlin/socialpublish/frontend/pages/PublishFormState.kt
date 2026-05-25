@@ -59,10 +59,15 @@ data class PublishFormState(
 
     fun updateLink(value: String): PublishFormState = copy(link = value)
 
-    fun updateLanguage(value: String?): PublishFormState = copy(language = value)
+    fun updateLanguage(value: String?): PublishFormState =
+        copy(language = value)
 
     fun toggleTarget(target: String): PublishFormState =
-        copy(targets = if (targets.contains(target)) targets - target else targets + target)
+        copy(
+            targets =
+                if (targets.contains(target)) targets - target
+                else targets + target
+        )
 
     fun addImage(image: SelectedImage): PublishFormState =
         copy(images = images + (image.id to image))
@@ -72,10 +77,15 @@ data class PublishFormState(
 
     fun removeImage(id: Int): PublishFormState = copy(images = images - id)
 
-    fun setSubmitting(value: Boolean): PublishFormState = copy(isSubmitting = value)
+    fun setSubmitting(value: Boolean): PublishFormState =
+        copy(isSubmitting = value)
 
-    fun setProcessing(value: Boolean): PublishFormState = copy(isProcessing = value)
+    fun setProcessing(value: Boolean): PublishFormState =
+        copy(isProcessing = value)
 
     val isFormDisabled: Boolean
-        get() = isSubmitting || isProcessing || images.values.any { it.isGeneratingAltText }
+        get() =
+            isSubmitting ||
+                isProcessing ||
+                images.values.any { it.isGeneratingAltText }
 }

@@ -44,25 +44,36 @@ import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class MastodonApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
+class MastodonApiModule(
+    private val filesModule: FilesModule,
+    private val httpClient: HttpClient,
+) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
-                { HttpClient(CIO) { install(ContentNegotiation) { json(jsonCommon) } } },
+                {
+                    HttpClient(CIO) {
+                        install(ContentNegotiation) { json(jsonCommon) }
+                    }
+                },
                 { client, _ -> client.close() },
             )
         }
 
-        fun resource(filesModule: FilesModule): Resource<MastodonApiModule> = resource {
-            MastodonApiModule(filesModule, defaultHttpClient().bind())
-        }
+        fun resource(filesModule: FilesModule): Resource<MastodonApiModule> =
+            resource {
+                MastodonApiModule(filesModule, defaultHttpClient().bind())
+            }
     }
 
-    private fun mediaUrlV2(config: MastodonConfig) = "${config.host}/api/v2/media"
+    private fun mediaUrlV2(config: MastodonConfig) =
+        "${config.host}/api/v2/media"
 
-    private fun mediaUrlV1(config: MastodonConfig) = "${config.host}/api/v1/media"
+    private fun mediaUrlV1(config: MastodonConfig) =
+        "${config.host}/api/v1/media"
 
-    private fun statusesUrlV1(config: MastodonConfig) = "${config.host}/api/v1/statuses"
+    private fun statusesUrlV1(config: MastodonConfig) =
+        "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
     context(_: UserSession)
@@ -75,7 +86,8 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
-                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            errorMessage =
+                                "Failed to read image file — uuid: $uuid",
                             module = "mastodon",
                         )
                         .left()
@@ -89,7 +101,10 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                                 "file",
                                 file.source.asKotlinSource().bind(),
                                 Headers.build {
-                                    append(HttpHeaders.ContentType, file.mimetype)
+                                    append(
+                                        HttpHeaders.ContentType,
+                                        file.mimetype,
+                                    )
                                     append(
                                         HttpHeaders.ContentDisposition,
                                         "filename=\"${file.originalname}\"",
@@ -215,7 +230,9 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                     request.content
                 } + if (request.link != null) "\n\n${request.link}" else ""
 
-            logger.info { "Posting to Mastodon:\n${content.trim().prependIndent("  |")}" }
+            logger.info {
+                "Posting to Mastodon:\n${content.trim().prependIndent("  |")}"
+            }
 
             // Create status
             val response =
@@ -238,7 +255,9 @@ class MastodonApiModule(private val filesModule: FilesModule, private val httpCl
                 NewMastodonPostResponse(uri = data.url).right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to Mastodon: ${response.status}, body: $errorBody" }
+                logger.warn {
+                    "Failed to post to Mastodon: ${response.status}, body: $errorBody"
+                }
                 RequestError(
                         status = response.status.value,
                         module = "mastodon",

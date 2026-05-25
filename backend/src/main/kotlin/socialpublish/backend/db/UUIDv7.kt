@@ -20,7 +20,8 @@ value class UUIDv7(val value: UUID) {
         fun fromString(value: String): UUIDv7 = UUIDv7(UUID.fromString(value))
 
         @OptIn(ExperimentalUuidApi::class)
-        fun generate(): UUIDv7 = UUIDv7(UUID.fromString(KotlinUuid.generateV7().toString()))
+        fun generate(): UUIDv7 =
+            UUIDv7(UUID.fromString(KotlinUuid.generateV7().toString()))
     }
 }
 

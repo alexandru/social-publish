@@ -15,7 +15,10 @@ import socialpublish.backend.server.respondWithNotConfigured
 
 class LlmRoutes(private val llmModule: LlmApiModule) {
     context(_: UserSession)
-    suspend fun generateAltTextRoute(llmConfig: LlmConfig?, call: ApplicationCall) {
+    suspend fun generateAltTextRoute(
+        llmConfig: LlmConfig?,
+        call: ApplicationCall,
+    ) {
         if (llmConfig == null) {
             call.respondWithNotConfigured("LLM")
             return
@@ -38,7 +41,8 @@ class LlmRoutes(private val llmModule: LlmApiModule) {
                     request.language,
                 )
         ) {
-            is Either.Right -> call.respond(GenerateAltTextResponse(altText = result.value))
+            is Either.Right ->
+                call.respond(GenerateAltTextResponse(altText = result.value))
             is Either.Left -> {
                 val error = result.value
                 call.respond(
@@ -46,7 +50,8 @@ class LlmRoutes(private val llmModule: LlmApiModule) {
                     ErrorResponse(
                         error =
                             error.errorMessage +
-                                if (error.module == "llm") " (llm integration)" else ""
+                                if (error.module == "llm") " (llm integration)"
+                                else ""
                     ),
                 )
             }

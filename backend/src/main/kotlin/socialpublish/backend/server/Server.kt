@@ -85,13 +85,15 @@ fun startServer(
     val filesModule = FilesModule.create(config.files, filesDb)
 
     val authService = AuthService(userSessionsDb)
-    val authRoutes = AuthRoutes(authService = authService, documentsDb = documentsDb)
+    val authRoutes =
+        AuthRoutes(authService = authService, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
     val rssRoutes = RssRoutes(rssModule)
     val settingsRoutes = SettingsRoutes(usersDb = usersDb)
 
-    // Social network modules – instantiated once at startup; per-user config is passed per call.
+    // Social network modules – instantiated once at startup; per-user config is
+    // passed per call.
     val blueskyModule = BlueskyApiModule.resource(filesModule).bind()
     val mastodonModule = MastodonApiModule.resource(filesModule).bind()
     val twitterModule =
@@ -136,7 +138,9 @@ fun startServer(
 
         // Configure rate limiting for login endpoint
         install(RateLimit) {
-            register(RateLimitName("login")) { rateLimiter(limit = 20, refillPeriod = 5.minutes) }
+            register(RateLimitName("login")) {
+                rateLimiter(limit = 20, refillPeriod = 5.minutes)
+            }
         }
 
         install(StatusPages) {
@@ -156,14 +160,20 @@ fun startServer(
         configureOpenApiSecuritySchemes()
 
         routing {
-            // Swagger UI for API documentation - points to dynamically generated spec
-            swaggerUI(path = "docs") { info = OpenApiInfo("Social Publish API", "1.0.0") }
+            // Swagger UI for API documentation - points to dynamically
+            // generated spec
+            swaggerUI(path = "docs") {
+                info = OpenApiInfo("Social Publish API", "1.0.0")
+            }
 
             // Health check endpoints
-            get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
+            get("/ping") {
+                    call.respondText("pong", status = HttpStatusCode.OK)
+                }
                 .describe {
                     summary = "Health check"
-                    description = "Returns 'pong' to indicate the server is running"
+                    description =
+                        "Returns 'pong' to indicate the server is running"
                     responses {
                         HttpStatusCode.OK {
                             description = "Server is healthy"
@@ -176,7 +186,8 @@ fun startServer(
             head("/ping") { call.respondText("", status = HttpStatusCode.OK) }
                 .describe {
                     summary = "Health check (HEAD)"
-                    description = "HEAD method for health checks, returns only headers without body"
+                    description =
+                        "HEAD method for health checks, returns only headers without body"
                     responses {
                         HttpStatusCode.OK {
                             description = "Server is healthy"
@@ -190,17 +201,21 @@ fun startServer(
                 post("/api/login") { authRoutes.loginRoute(call) }
                     .describe {
                         summary = "User login"
-                        description = "Authenticate user and get a session token"
+                        description =
+                            "Authenticate user and get a session token"
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<LoginRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<LoginRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<LoginRequest>()
                             }
                         }
                         responses {
                             HttpStatusCode.OK {
-                                description = "Successful login, returns session token"
+                                description =
+                                    "Successful login, returns session token"
                                 schema = jsonSchema<LoginResponse>()
                             }
                             HttpStatusCode.BadRequest {
@@ -226,7 +241,9 @@ fun startServer(
 
             // Protected routes
             authenticate(AUTH_SESSION) {
-                get("/api/protected") { withSession(call) { authRoutes.protectedRoute(call) } }
+                get("/api/protected") {
+                        withSession(call) { authRoutes.protectedRoute(call) }
+                    }
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
@@ -244,7 +261,9 @@ fun startServer(
                     }
 
                 get("/api/account/settings") {
-                        withSession(call) { settingsRoutes.getSettingsRoute(call) }
+                        withSession(call) {
+                            settingsRoutes.getSettingsRoute(call)
+                        }
                     }
                     .describe {
                         summary = "Get account settings"
@@ -264,7 +283,9 @@ fun startServer(
                     }
 
                 patch("/api/account/settings") {
-                        withSession(call) { settingsRoutes.patchSettingsRoute(call) }
+                        withSession(call) {
+                            settingsRoutes.patchSettingsRoute(call)
+                        }
                     }
                     .describe {
                         summary = "Partially update user settings"
@@ -313,7 +334,8 @@ fun startServer(
                                                 "altText" to
                                                     ReferenceOr.Value(
                                                         JsonSchema(
-                                                            type = JsonType.STRING,
+                                                            type =
+                                                                JsonType.STRING,
                                                             description =
                                                                 "Alt text for accessibility",
                                                         )
@@ -321,9 +343,11 @@ fun startServer(
                                                 "file" to
                                                     ReferenceOr.Value(
                                                         JsonSchema(
-                                                            type = JsonType.STRING,
+                                                            type =
+                                                                JsonType.STRING,
                                                             format = "binary",
-                                                            description = "Image file contents",
+                                                            description =
+                                                                "Image file contents",
                                                         )
                                                     ),
                                             ),
@@ -397,19 +421,25 @@ fun startServer(
                     }
 
                 // RSS post creation
-                post("/api/rss/post") { withSession(call) { rssRoutes.createPostRoute(call) } }
+                post("/api/rss/post") {
+                        withSession(call) { rssRoutes.createPostRoute(call) }
+                    }
                     .describe {
                         summary = "Create RSS post"
                         description = "Create a new RSS feed post"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewRssPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewRssPostResponse>()
+                        }
                     }
 
                 // Social media posts
@@ -430,12 +460,16 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewBlueSkyPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewBlueSkyPostResponse>()
+                        }
                     }
 
                 post("/api/mastodon/post") {
@@ -443,7 +477,9 @@ fun startServer(
                             val mastodonConfig =
                                 userSettings().mastodon
                                     ?: run {
-                                        call.respondWithNotConfigured("Mastodon")
+                                        call.respondWithNotConfigured(
+                                            "Mastodon"
+                                        )
                                         return@withSession
                                     }
                             mastodonModule.createPostRoute(call, mastodonConfig)
@@ -455,12 +491,16 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewMastodonPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewMastodonPostResponse>()
+                        }
                     }
 
                 post("/api/twitter/post") {
@@ -480,12 +520,16 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewTwitterPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewTwitterPostResponse>()
+                        }
                     }
 
                 post("/api/linkedin/post") {
@@ -493,7 +537,9 @@ fun startServer(
                             val linkedInConfig =
                                 userSettings().linkedin
                                     ?: run {
-                                        call.respondWithNotConfigured("LinkedIn")
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
                                         return@withSession
                                     }
                             linkedInRoutes.createPostRoute(linkedInConfig, call)
@@ -505,12 +551,16 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewLinkedInPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewLinkedInPostResponse>()
+                        }
                     }
 
                 post("/api/multiple/post") {
@@ -529,21 +579,31 @@ fun startServer(
                                     rssModule = rssModule,
                                     userSession = userSession(),
                                 )
-                            publishRoutes.broadcastPostRoute(call, publishModule)
+                            publishRoutes.broadcastPostRoute(
+                                call,
+                                publishModule,
+                            )
                         }
                     }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
-                        description = "Publish a post to multiple social media platforms at once"
+                        description =
+                            "Publish a post to multiple social media platforms at once"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<Map<String, NewPostResponse>>() }
+                        responses {
+                            documentNewPostResponses<
+                                Map<String, NewPostResponse>
+                            >()
+                        }
                     }
 
                 // -----------------------------------------------------------
@@ -586,7 +646,9 @@ fun startServer(
                         documentTwitterCallbackSpec()
                     }
 
-                get("/api/twitter/status") { withSession(call) { twitterRoutes.statusRoute(call) } }
+                get("/api/twitter/status") {
+                        withSession(call) { twitterRoutes.statusRoute(call) }
+                    }
                     .describe {
                         summary = "Check Twitter authorization status"
                         description =
@@ -601,7 +663,9 @@ fun startServer(
                             val linkedInConfig =
                                 userSettings().linkedin
                                     ?: run {
-                                        call.respondWithNotConfigured("LinkedIn")
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
                                         return@withSession
                                     }
                             linkedInRoutes.authorizeRoute(
@@ -621,7 +685,9 @@ fun startServer(
                             val linkedInConfig =
                                 userSettings().linkedin
                                     ?: run {
-                                        call.respondWithNotConfigured("LinkedIn")
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
                                         return@withSession
                                     }
                             linkedInRoutes.callbackRoute(linkedInConfig, call)
@@ -650,19 +716,23 @@ fun startServer(
             get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
                 .describe {
                     summary = "Get user RSS feed"
-                    description = "Generate and retrieve the RSS feed for a specific user"
+                    description =
+                        "Generate and retrieve the RSS feed for a specific user"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description =
+                                "UUID of the user whose RSS feed should be returned"
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter to only include posts with links (true/false)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter to only include posts with images (true/false)"
                         }
                     }
                     responses {
@@ -677,7 +747,9 @@ fun startServer(
                     }
                 }
 
-            get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
+            get("/rss/{userUuid}/target/{target}") {
+                    rssRoutes.generateRssRoute(call)
+                }
                 .describe {
                     summary = "Get user RSS feed for specific target"
                     description =
@@ -686,7 +758,8 @@ fun startServer(
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose RSS feed should be returned"
+                            description =
+                                "UUID of the user whose RSS feed should be returned"
                         }
                         path("target") {
                             required = true
@@ -695,16 +768,19 @@ fun startServer(
                         }
                         query("filterByLinks") {
                             required = false
-                            description = "Filter to only include posts with links (true/false)"
+                            description =
+                                "Filter to only include posts with links (true/false)"
                         }
                         query("filterByImages") {
                             required = false
-                            description = "Filter to only include posts with images (true/false)"
+                            description =
+                                "Filter to only include posts with images (true/false)"
                         }
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format filtered by target"
+                            description =
+                                "RSS feed in XML format filtered by target"
                             ContentType.Application.Rss()
                         }
                         HttpStatusCode.InternalServerError {
@@ -717,7 +793,8 @@ fun startServer(
             get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
                 .describe {
                     summary = "Get user RSS item by UUID"
-                    description = "Retrieve a specific RSS post/item by user UUID and post UUID"
+                    description =
+                        "Retrieve a specific RSS post/item by user UUID and post UUID"
                     parameters {
                         path("userUuid") {
                             required = true

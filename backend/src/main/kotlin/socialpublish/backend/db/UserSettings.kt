@@ -11,7 +11,10 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.jsonCommon
 
-/** All per-user social network and integration settings, stored as JSON in the users' table. */
+/**
+ * All per-user social network and integration settings, stored as JSON in the
+ * users' table.
+ */
 @Serializable
 data class UserSettings(
     val bluesky: BlueskyConfig? = null,
@@ -21,7 +24,9 @@ data class UserSettings(
     val llm: LlmConfig? = null,
 ) {
     companion object {
-        fun parse(raw: String): Either<IllegalArgumentException, UserSettings?> =
+        fun parse(
+            raw: String
+        ): Either<IllegalArgumentException, UserSettings?> =
             try {
                 jsonCommon.decodeFromString<UserSettings>(raw).right()
             } catch (e: IllegalArgumentException) {

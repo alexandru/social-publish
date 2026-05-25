@@ -35,14 +35,18 @@ class PostsDatabaseTest {
                     .create(
                         payload,
                         listOf("mastodon", "bluesky"),
-                        UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
                     )
                     .getOrElse { throw it }
             val retrieved =
                 postsDb
                     .searchByUuidForUser(
                         created.uuid,
-                        UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
                     )
                     .getOrElse { throw it }
 

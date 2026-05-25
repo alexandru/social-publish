@@ -8,18 +8,22 @@ import java.time.Instant
 /**
  * A database migration with an idempotency check and an execution function.
  *
- * [testIfApplied] returns true if this migration has already been applied and should be skipped.
- * [execute] performs the actual schema and/or data changes inside the current transaction.
+ * [testIfApplied] returns true if this migration has already been applied and
+ * should be skipped. [execute] performs the actual schema and/or data changes
+ * inside the current transaction.
  */
 data class Migration(
     /**
-     * Test function to check if this migration has already been applied. Returns true if the
-     * migration has been applied, false otherwise.
+     * Test function to check if this migration has already been applied.
+     * Returns true if the migration has been applied, false otherwise.
      */
     val testIfApplied:
         suspend context(Raise<DBException>)
         (SafeConnection) -> Boolean,
-    /** Executes the migration DDL/DML — only called when [testIfApplied] returned false. */
+    /**
+     * Executes the migration DDL/DML — only called when [testIfApplied]
+     * returned false.
+     */
     val execute:
         suspend context(Raise<DBException>)
         (SafeConnection) -> Unit,
@@ -39,8 +43,9 @@ private suspend fun SafeConnection.ddl(vararg statements: String) {
 /**
  * All database migrations in order.
  *
- * Each migration is self-contained and idempotent: [Migration.testIfApplied] determines whether the
- * migration needs to run, and [Migration.execute] performs the changes.
+ * Each migration is self-contained and idempotent: [Migration.testIfApplied]
+ * determines whether the migration needs to run, and [Migration.execute]
+ * performs the changes.
  */
 val migrations: List<Migration> =
     listOf(
@@ -150,7 +155,9 @@ val migrations: List<Migration> =
         // Migration 5: Add settings column to users table
         Migration(
             testIfApplied = { conn -> conn.columnExists("users", "settings") },
-            execute = { conn -> conn.ddl("ALTER TABLE users ADD COLUMN settings TEXT") },
+            execute = { conn ->
+                conn.ddl("ALTER TABLE users ADD COLUMN settings TEXT")
+            },
         ),
         // Migration 6: Make users.password_hash nullable.
         Migration(
@@ -159,7 +166,10 @@ val migrations: List<Migration> =
                     val rs = executeQuery()
                     var nullable = false
                     while (rs.next()) {
-                        if (rs.getString("name") == "password_hash" && rs.getInt("notnull") == 0) {
+                        if (
+                            rs.getString("name") == "password_hash" &&
+                                rs.getInt("notnull") == 0
+                        ) {
                             nullable = true
                             break
                         }
@@ -226,19 +236,26 @@ val migrations: List<Migration> =
             },
         ),
         // Migration 8: Add user_uuid (NOT NULL) to documents and uploads.
-        // - Adds column (nullable) if absent, backfills rows to the single existing user,
-        //   drops the old indexes without user_uuid, recreates tables with NOT NULL, then
+        // - Adds column (nullable) if absent, backfills rows to the single
+        // existing user,
+        //   drops the old indexes without user_uuid, recreates tables with NOT
+        // NULL, then
         //   recreates the new indexes.
-        // testIfApplied: true only when user_uuid is already NOT NULL in documents.
+        // testIfApplied: true only when user_uuid is already NOT NULL in
+        // documents.
         Migration(
             testIfApplied = { conn ->
                 // Check that user_uuid exists AND is NOT NULL in documents.
-                // We iterate PRAGMA results to avoid quoting issues with the 'notnull' column name.
+                // We iterate PRAGMA results to avoid quoting issues with the
+                // 'notnull' column name.
                 conn.query("PRAGMA table_info('documents')") {
                     val rs = executeQuery()
                     var isNotNull = false
                     while (rs.next()) {
-                        if (rs.getString("name") == "user_uuid" && rs.getInt("notnull") == 1) {
+                        if (
+                            rs.getString("name") == "user_uuid" &&
+                                rs.getInt("notnull") == 1
+                        ) {
                             isNotNull = true
                             break
                         }
@@ -249,35 +266,47 @@ val migrations: List<Migration> =
             execute = { conn ->
                 // Step 1: add nullable column if it doesn't exist yet
                 if (!conn.columnExists("documents", "user_uuid")) {
-                    conn.ddl("ALTER TABLE documents ADD COLUMN user_uuid VARCHAR(36)")
+                    conn.ddl(
+                        "ALTER TABLE documents ADD COLUMN user_uuid VARCHAR(36)"
+                    )
                 }
                 if (!conn.columnExists("uploads", "user_uuid")) {
-                    conn.ddl("ALTER TABLE uploads ADD COLUMN user_uuid VARCHAR(36)")
+                    conn.ddl(
+                        "ALTER TABLE uploads ADD COLUMN user_uuid VARCHAR(36)"
+                    )
                 }
 
-                // Step 2: backfill — assign existing rows to the sole user in the DB.
-                // At this point we know there is exactly one user (created by migration 7).
+                // Step 2: backfill — assign existing rows to the sole user in
+                // the DB.
+                // At this point we know there is exactly one user (created by
+                // migration 7).
                 val adminUuid =
                     conn.query("SELECT uuid FROM users LIMIT 1") {
                         val rs = executeQuery()
                         if (rs.next()) rs.getString("uuid") else null
                     }
                 if (adminUuid != null) {
-                    conn.query("UPDATE documents SET user_uuid = ? WHERE user_uuid IS NULL") {
+                    conn.query(
+                        "UPDATE documents SET user_uuid = ? WHERE user_uuid IS NULL"
+                    ) {
                         setString(1, adminUuid)
                         val _ = executeUpdate()
                     }
-                    conn.query("UPDATE uploads SET user_uuid = ? WHERE user_uuid IS NULL") {
+                    conn.query(
+                        "UPDATE uploads SET user_uuid = ? WHERE user_uuid IS NULL"
+                    ) {
                         setString(1, adminUuid)
                         val _ = executeUpdate()
                     }
                 }
 
-                // Step 3: drop old indexes (they lack user_uuid and are now suboptimal)
+                // Step 3: drop old indexes (they lack user_uuid and are now
+                // suboptimal)
                 conn.ddl(
                     "DROP INDEX IF EXISTS documents_created_at",
                     "DROP INDEX IF EXISTS uploads_createdAt",
-                    // Also drop any previously created user_uuid indexes before recreation
+                    // Also drop any previously created user_uuid indexes before
+                    // recreation
                     "DROP INDEX IF EXISTS documents_user_uuid",
                     "DROP INDEX IF EXISTS uploads_user_uuid",
                 )
@@ -336,7 +365,8 @@ val migrations: List<Migration> =
                     "ALTER TABLE uploads RENAME TO uploads_old",
                     "ALTER TABLE uploads_new RENAME TO uploads",
                     "DROP TABLE uploads_old",
-                    // Create index on the renamed table, after old indexes are gone
+                    // Create index on the renamed table, after old indexes are
+                    // gone
                     """
                     CREATE INDEX uploads_user_uuid
                         ON uploads(user_uuid, createdAt)
@@ -344,7 +374,8 @@ val migrations: List<Migration> =
                 )
             },
         ),
-        // Migration 9: Remove refresh-token storage from user_sessions and add revocation time.
+        // Migration 9: Remove refresh-token storage from user_sessions and add
+        // revocation time.
         Migration(
             testIfApplied = { conn ->
                 conn.columnExists("user_sessions", "revoked_at") &&
@@ -372,7 +403,8 @@ val migrations: List<Migration> =
                     """,
                     "ALTER TABLE user_sessions RENAME TO user_sessions_old",
                     "ALTER TABLE user_sessions_new RENAME TO user_sessions",
-                    // Dropping the old table removes its old indexes before recreating current ones
+                    // Dropping the old table removes its old indexes before
+                    // recreating current ones
                     "DROP TABLE user_sessions_old",
                     """
                     CREATE INDEX IF NOT EXISTS user_sessions_expires_at
@@ -402,14 +434,18 @@ private suspend fun SafeConnection.tableExists(tableName: String): Boolean =
     }
 
 /**
- * Helper function to check if a column exists in a table in the SQLite database.
+ * Helper function to check if a column exists in a table in the SQLite
+ * database.
  *
  * @param tableName The name of the table
  * @param columnName The name of the column
  * @return true if the column exists, false otherwise
  */
 context(_: Raise<DBException>)
-private suspend fun SafeConnection.columnExists(tableName: String, columnName: String): Boolean =
+private suspend fun SafeConnection.columnExists(
+    tableName: String,
+    columnName: String,
+): Boolean =
     query("PRAGMA table_info($tableName)") {
         val rs = executeQuery()
         rs.safe().toList { it.getString("name") }.contains(columnName)

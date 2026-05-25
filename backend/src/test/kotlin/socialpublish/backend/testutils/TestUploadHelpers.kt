@@ -33,7 +33,8 @@ import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.modules.FilesModule
 
 private const val UPLOAD_ENDPOINT = "/api/files/upload"
-private val errorJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+private val errorJson =
+    kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
 internal data class ImageDimensions(val width: Int, val height: Int)
 
@@ -56,15 +57,24 @@ internal suspend fun createTestDatabase(tempDir: Path): Database {
     return Database.connectUnmanaged(dbPath)
 }
 
-internal suspend fun createFilesModule(tempDir: Path, db: Database): FilesModule {
+internal suspend fun createFilesModule(
+    tempDir: Path,
+    db: Database,
+): FilesModule {
     val uploadsDir = tempDir.resolve("uploads").toFile()
-    val filesConfig = FilesConfig(uploadedFilesPath = uploadsDir, baseUrl = "http://localhost")
+    val filesConfig =
+        FilesConfig(
+            uploadedFilesPath = uploadsDir,
+            baseUrl = "http://localhost",
+        )
     return FilesModule.create(filesConfig, FilesDatabase(db))
 }
 
 internal fun loadTestResourceBytes(resourceName: String): ByteArray {
     val stream =
-        Thread.currentThread().contextClassLoader.getResourceAsStream(resourceName)
+        Thread.currentThread()
+            .contextClassLoader
+            .getResourceAsStream(resourceName)
             ?: error("Missing test resource: $resourceName")
     return stream.use { it.readBytes() }
 }
@@ -76,7 +86,9 @@ internal suspend fun imageDimensions(bytes: ByteArray): ImageDimensions {
         }
     try {
         val imageMagick =
-            ImageMagick().getOrElse { error("ImageMagick not available: ${it.message}") }
+            ImageMagick().getOrElse {
+                error("ImageMagick not available: ${it.message}")
+            }
         val size =
             imageMagick.identifyImageSize(tempFile).getOrElse {
                 error("Unable to identify image: ${it.message}")
@@ -104,8 +116,14 @@ internal suspend fun uploadTestImage(
                         "file",
                         bytes,
                         Headers.build {
-                            append(HttpHeaders.ContentType, ContentType("image", "jpeg").toString())
-                            append(HttpHeaders.ContentDisposition, "filename=\"$resourceName\"")
+                            append(
+                                HttpHeaders.ContentType,
+                                ContentType("image", "jpeg").toString(),
+                            )
+                            append(
+                                HttpHeaders.ContentDisposition,
+                                "filename=\"$resourceName\"",
+                            )
                         },
                     )
                 },
@@ -114,7 +132,11 @@ internal suspend fun uploadTestImage(
     if (response.status != HttpStatusCode.OK) {
         val rawBody = response.body<String>()
         val parsedError =
-            runCatching { errorJson.decodeFromString(ErrorResponse.serializer(), rawBody).error }
+            runCatching {
+                    errorJson
+                        .decodeFromString(ErrorResponse.serializer(), rawBody)
+                        .error
+                }
                 .getOrNull()
         val details = parsedError ?: rawBody
         error(
@@ -158,8 +180,14 @@ internal suspend fun receiveMultipart(call: ApplicationCall): MultipartRequest {
     return MultipartRequest(files = files, fields = fields)
 }
 
-/** Create a test [UserSession] with the given [userUuid] for use in context(UserSession) calls. */
-internal fun createTestSession(userUuid: UUIDv7, settings: UserSettings? = null): UserSession {
+/**
+ * Create a test [UserSession] with the given [userUuid] for use in
+ * context(UserSession) calls.
+ */
+internal fun createTestSession(
+    userUuid: UUIDv7,
+    settings: UserSettings? = null,
+): UserSession {
     val now = Instant.now()
     return UserSession(
         uuid = UUIDv7.generate(),

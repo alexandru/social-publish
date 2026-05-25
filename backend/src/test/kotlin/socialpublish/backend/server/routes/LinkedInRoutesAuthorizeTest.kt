@@ -24,11 +24,14 @@ import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
 class LinkedInRoutesAuthorizeTest {
-    private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
     private val callbackSessionToken = "trusted-callback-session-token"
 
     @Test
-    fun `authorize uses provided callback session token`(@TempDir tempDir: Path) = testApplication {
+    fun `authorize uses provided callback session token`(
+        @TempDir tempDir: Path
+    ) = testApplication {
         val db = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, db)
         val documentsDb = DocumentsDatabase(db)
@@ -64,7 +67,11 @@ class LinkedInRoutesAuthorizeTest {
             routing {
                 get("/api/linkedin/authorize") {
                     context(createTestSession(testUserUuid)) {
-                        routes.authorizeRoute(config, callbackSessionToken, call)
+                        routes.authorizeRoute(
+                            config,
+                            callbackSessionToken,
+                            call,
+                        )
                     }
                 }
             }
@@ -79,68 +86,87 @@ class LinkedInRoutesAuthorizeTest {
 
         val states =
             documentsDb
-                .getAllForUser(kind = "linkedin-oauth-state", userUuid = testUserUuid)
+                .getAllForUser(
+                    kind = "linkedin-oauth-state",
+                    userUuid = testUserUuid,
+                )
                 .getOrElse { throw it }
         assertTrue(states.isNotEmpty())
-        assertTrue(states.first().payload.contains("trusted-callback-session-token"))
+        assertTrue(
+            states.first().payload.contains("trusted-callback-session-token")
+        )
     }
 
     @Test
-    fun `authorize ignores request access_token query override`(@TempDir tempDir: Path) =
-        testApplication {
-            val db = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, db)
-            val documentsDb = DocumentsDatabase(db)
+    fun `authorize ignores request access_token query override`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val documentsDb = DocumentsDatabase(db)
 
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
+        val linkedInClient = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-            val linkedInModule =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-            val routes = LinkedInRoutes(linkedInModule, documentsDb)
-            val config =
-                LinkedInConfig(
-                    clientId = "client-id",
-                    clientSecret = "client-secret",
-                    authorizationUrl = "http://localhost/oauth/v2/authorization",
-                )
+        }
+        val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+        val linkedInModule =
+            LinkedInApiModule(
+                "http://localhost",
+                documentsDb,
+                filesModule,
+                linkedInClient.engine,
+                linkPreview,
+            )
+        val routes = LinkedInRoutes(linkedInModule, documentsDb)
+        val config =
+            LinkedInConfig(
+                clientId = "client-id",
+                clientSecret = "client-secret",
+                authorizationUrl = "http://localhost/oauth/v2/authorization",
+            )
 
-            application {
-                routing {
-                    get("/api/linkedin/authorize") {
-                        context(createTestSession(testUserUuid)) {
-                            routes.authorizeRoute(config, callbackSessionToken, call)
-                        }
+        application {
+            routing {
+                get("/api/linkedin/authorize") {
+                    context(createTestSession(testUserUuid)) {
+                        routes.authorizeRoute(
+                            config,
+                            callbackSessionToken,
+                            call,
+                        )
                     }
                 }
             }
-
-            val queryResponse =
-                client.get("/api/linkedin/authorize?access_token=attacker-controlled-token")
-            assertTrue(
-                queryResponse.status != HttpStatusCode.Unauthorized,
-                "Expected authorize flow to succeed, got ${queryResponse.status}",
-            )
-            val states =
-                documentsDb
-                    .getAllForUser(kind = "linkedin-oauth-state", userUuid = testUserUuid)
-                    .getOrElse { throw it }
-            assertTrue(states.isNotEmpty())
-            assertTrue(states.first().payload.contains("trusted-callback-session-token"))
-            assertFalse(states.first().payload.contains("attacker-controlled-token"))
         }
+
+        val queryResponse =
+            client.get(
+                "/api/linkedin/authorize?access_token=attacker-controlled-token"
+            )
+        assertTrue(
+            queryResponse.status != HttpStatusCode.Unauthorized,
+            "Expected authorize flow to succeed, got ${queryResponse.status}",
+        )
+        val states =
+            documentsDb
+                .getAllForUser(
+                    kind = "linkedin-oauth-state",
+                    userUuid = testUserUuid,
+                )
+                .getOrElse { throw it }
+        assertTrue(states.isNotEmpty())
+        assertTrue(
+            states.first().payload.contains("trusted-callback-session-token")
+        )
+        assertFalse(
+            states.first().payload.contains("attacker-controlled-token")
+        )
+    }
 }

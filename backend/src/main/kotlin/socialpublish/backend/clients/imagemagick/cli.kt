@@ -47,7 +47,10 @@ class CliCommandException(
  *
  * See [executeShellCommand] for the version that executes `/bin/sh` commands.
  */
-suspend fun executeCommand(executable: Path, vararg args: String): CommandResult =
+suspend fun executeCommand(
+    executable: Path,
+    vararg args: String,
+): CommandResult =
     // Blocking I/O should use threads designated for I/O
     withContext(Dispatchers.LoomIO) {
         val cmdArgs = listOf(executable.toAbsolutePath().toString()) + args
@@ -57,16 +60,20 @@ suspend fun executeCommand(executable: Path, vararg args: String): CommandResult
             // block processing when overflowing
             val stdout = async {
                 runInterruptible {
-                    // That `InputStream.read` doesn't listen to thread interruption
+                    // That `InputStream.read` doesn't listen to thread
+                    // interruption
                     // signals; but for future development it doesn't hurt
                     String(proc.inputStream.readAllBytes(), UTF_8)
                 }
             }
             val stderr = async {
-                runInterruptible { String(proc.errorStream.readAllBytes(), UTF_8) }
+                runInterruptible {
+                    String(proc.errorStream.readAllBytes(), UTF_8)
+                }
             }
             CommandResult(
-                command = listOf(executable.toString(), *args).joinToString(" "),
+                command =
+                    listOf(executable.toString(), *args).joinToString(" "),
                 exitCode = runInterruptible { proc.waitFor() },
                 stdout = stdout.await(),
                 stderr = stderr.await(),
@@ -82,11 +89,17 @@ suspend fun executeCommand(executable: Path, vararg args: String): CommandResult
 /**
  * Executes shell commands.
  *
- * WARN: command arguments need be given explicitly because they need to be properly escaped.
+ * WARN: command arguments need be given explicitly because they need to be
+ * properly escaped.
  */
-suspend fun executeShellCommand(command: String, vararg args: String): CommandResult =
+suspend fun executeShellCommand(
+    command: String,
+    vararg args: String,
+): CommandResult =
     executeCommand(
         Path.of("/bin/sh"),
         "-c",
-        (listOf(command) + args).map(StringEscapeUtils::escapeXSI).joinToString(" "),
+        (listOf(command) + args)
+            .map(StringEscapeUtils::escapeXSI)
+            .joinToString(" "),
     )

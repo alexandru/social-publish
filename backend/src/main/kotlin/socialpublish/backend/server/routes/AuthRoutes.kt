@@ -26,14 +26,16 @@ private val logger = KotlinLogging.logger {}
 
 const val AUTH_SESSION = "auth-session"
 
-@Serializable data class LoginRequest(val username: String, val password: String)
+@Serializable
+data class LoginRequest(val username: String, val password: String)
 
 /**
  * Services configured and ready to use for the authenticated user.
  *
- * For Mastodon and Bluesky: true when credentials are stored. For Twitter and LinkedIn: true when
- * credentials are stored AND the OAuth flow has been completed (i.e. the OAuth token is in the
- * database). LLM is a utility integration (alt-text generation), not a posting target.
+ * For Mastodon and Bluesky: true when credentials are stored. For Twitter and
+ * LinkedIn: true when credentials are stored AND the OAuth flow has been
+ * completed (i.e. the OAuth token is in the database). LLM is a utility
+ * integration (alt-text generation), not a posting target.
  */
 @Serializable
 data class ConfiguredServices(
@@ -45,10 +47,16 @@ data class ConfiguredServices(
 )
 
 @Serializable
-data class LoginResponse(val token: String, val configuredServices: ConfiguredServices)
+data class LoginResponse(
+    val token: String,
+    val configuredServices: ConfiguredServices,
+)
 
 @Serializable
-data class UserResponse(val username: String, val configuredServices: ConfiguredServices)
+data class UserResponse(
+    val username: String,
+    val configuredServices: ConfiguredServices,
+)
 
 suspend fun withSession(
     call: ApplicationCall,
@@ -64,17 +72,21 @@ suspend fun withSession(
     context(session) { block() }
 }
 
-class UserSessionAuthenticationProvider(config: Config) : AuthenticationProvider(config) {
+class UserSessionAuthenticationProvider(config: Config) :
+    AuthenticationProvider(config) {
     private val authRoutes = config.authRoutes
 
-    class Config(name: String?, val authRoutes: AuthRoutes) : AuthenticationProvider.Config(name)
+    class Config(name: String?, val authRoutes: AuthRoutes) :
+        AuthenticationProvider.Config(name)
 
     override suspend fun onAuthenticate(context: AuthenticationContext) {
         val call = context.call
         val token = authRoutes.extractAccessToken(call)
         if (token == null) {
-            context.challenge(AUTH_SESSION, AuthenticationFailedCause.NoCredentials) { challenge, _
-                ->
+            context.challenge(
+                AUTH_SESSION,
+                AuthenticationFailedCause.NoCredentials,
+            ) { challenge, _ ->
                 call.respondWithUnauthorized()
                 challenge.complete()
             }
@@ -83,9 +95,10 @@ class UserSessionAuthenticationProvider(config: Config) : AuthenticationProvider
 
         when (val result = authRoutes.authorize(token)) {
             is arrow.core.Either.Left ->
-                context.challenge(AUTH_SESSION, AuthenticationFailedCause.InvalidCredentials) {
-                    challenge,
-                    _ ->
+                context.challenge(
+                    AUTH_SESSION,
+                    AuthenticationFailedCause.InvalidCredentials,
+                ) { challenge, _ ->
                     call.respondApiError(result.value)
                     challenge.complete()
                 }
@@ -106,31 +119,47 @@ class AuthRoutes(
     suspend fun loginRoute(call: ApplicationCall) {
         val request = receiveLoginRequest(call)
         if (request == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(error = "Invalid request"),
+            )
             return
         }
 
         val login =
-            authService.login(request.username, request.password).getOrElse { error ->
+            authService.login(request.username, request.password).getOrElse {
+                error ->
                 call.respondApiError(error)
                 return
             }
         if (login == null) {
-            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials"))
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                ErrorResponse("Invalid credentials"),
+            )
             return
         }
 
-        val configuredServices = context(login.session) { computeConfiguredServices() }
-        call.respond(LoginResponse(token = login.rawToken, configuredServices = configuredServices))
+        val configuredServices =
+            context(login.session) { computeConfiguredServices() }
+        call.respond(
+            LoginResponse(
+                token = login.rawToken,
+                configuredServices = configuredServices,
+            )
+        )
     }
 
-    private suspend fun receiveLoginRequest(call: ApplicationCall): LoginRequest? =
+    private suspend fun receiveLoginRequest(
+        call: ApplicationCall
+    ): LoginRequest? =
         when (call.request.contentType()) {
             ContentType.Application.Json -> {
                 runCatching { call.receive<LoginRequest>() }.getOrNull()
             }
             ContentType.Application.FormUrlEncoded -> {
-                val params = runCatching { call.receiveParameters() }.getOrNull()
+                val params =
+                    runCatching { call.receiveParameters() }.getOrNull()
                 val username = params?.get("username")
                 val password = params?.get("password")
                 if (username != null && password != null) {
@@ -140,7 +169,9 @@ class AuthRoutes(
                 }
             }
             else -> {
-                logger.warn { "Unsupported content type: ${call.request.contentType()}" }
+                logger.warn {
+                    "Unsupported content type: ${call.request.contentType()}"
+                }
                 null
             }
         }
@@ -149,7 +180,10 @@ class AuthRoutes(
     suspend fun protectedRoute(call: ApplicationCall) {
         val configuredServices = computeConfiguredServices()
         call.respond(
-            UserResponse(username = session.user.username, configuredServices = configuredServices)
+            UserResponse(
+                username = session.user.username,
+                configuredServices = configuredServices,
+            )
         )
     }
 
@@ -171,10 +205,13 @@ class AuthRoutes(
         val linkedInTokenKey = "linkedin-oauth-token:$userUuid"
         val twitterOk =
             settings?.twitter != null &&
-                documentsDb?.searchByKey(twitterTokenKey)?.getOrElse { null } != null
+                documentsDb?.searchByKey(twitterTokenKey)?.getOrElse { null } !=
+                    null
         val linkedInOk =
             settings?.linkedin != null &&
-                documentsDb?.searchByKey(linkedInTokenKey)?.getOrElse { null } != null
+                documentsDb?.searchByKey(linkedInTokenKey)?.getOrElse {
+                    null
+                } != null
 
         return ConfiguredServices(
             mastodon = settings?.mastodon != null,
@@ -189,7 +226,9 @@ class AuthRoutes(
         val authHeader = call.request.headers[HttpHeaders.Authorization]
         if (!authHeader.isNullOrBlank()) {
             val parts = authHeader.trim().split(" ")
-            if (parts.size == 2 && parts[0].equals("Bearer", ignoreCase = true)) {
+            if (
+                parts.size == 2 && parts[0].equals("Bearer", ignoreCase = true)
+            ) {
                 return parts[1]
             } else {
                 logger.warn { "Malformed Authorization header: $authHeader" }
@@ -209,7 +248,10 @@ fun Application.configureAuth(authRoutes: AuthRoutes) {
     install(Authentication) {
         register(
             UserSessionAuthenticationProvider(
-                UserSessionAuthenticationProvider.Config(AUTH_SESSION, authRoutes)
+                UserSessionAuthenticationProvider.Config(
+                    AUTH_SESSION,
+                    authRoutes,
+                )
             )
         )
     }

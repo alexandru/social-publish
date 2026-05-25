@@ -24,40 +24,45 @@ import org.junit.jupiter.api.io.TempDir
 class DatabaseUtilitiesTest {
 
     @Test
-    fun `connection is properly acquired and released`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `connection is properly acquired and released`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-
-            // Acquire a connection within resourceScope
             resourceScope {
-                val conn = db.connection().bind()
-                // Verify connection is usable
-                val result =
-                    either {
-                            conn.query("SELECT 1") {
-                                executeQuery().safe().firstOrNull { it.getInt(1) }
-                            }
-                        }
-                        .getOrElse { throw it }
-                assertEquals(1, result)
-            }
+                val db = Database.connect(dbPath).bind()
 
-            // Connection should be returned to pool and reusable
-            resourceScope {
-                val conn = db.connection().bind()
-                val result =
-                    either {
-                            conn.query("SELECT 2") {
-                                executeQuery().safe().firstOrNull { it.getInt(1) }
+                // Acquire a connection within resourceScope
+                resourceScope {
+                    val conn = db.connection().bind()
+                    // Verify connection is usable
+                    val result =
+                        either {
+                                conn.query("SELECT 1") {
+                                    executeQuery().safe().firstOrNull {
+                                        it.getInt(1)
+                                    }
+                                }
                             }
-                        }
-                        .getOrElse { throw it }
-                assertEquals(2, result)
+                            .getOrElse { throw it }
+                    assertEquals(1, result)
+                }
+
+                // Connection should be returned to pool and reusable
+                resourceScope {
+                    val conn = db.connection().bind()
+                    val result =
+                        either {
+                                conn.query("SELECT 2") {
+                                    executeQuery().safe().firstOrNull {
+                                        it.getInt(1)
+                                    }
+                                }
+                            }
+                            .getOrElse { throw it }
+                    assertEquals(2, result)
+                }
             }
         }
-    }
 
     @Test
     fun `transaction commits on success`(@TempDir tempDir: Path) = runTest {
@@ -68,11 +73,15 @@ class DatabaseUtilitiesTest {
 
             // Create a test table and insert data in a transaction
             db.transaction {
-                    query("CREATE TABLE test_commits (id INTEGER PRIMARY KEY, value TEXT)") {
+                    query(
+                        "CREATE TABLE test_commits (id INTEGER PRIMARY KEY, value TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
-                    query("INSERT INTO test_commits (id, value) VALUES (1, 'test')") {
+                    query(
+                        "INSERT INTO test_commits (id, value) VALUES (1, 'test')"
+                    ) {
                         execute()
                         Unit
                     }
@@ -82,8 +91,12 @@ class DatabaseUtilitiesTest {
             // Verify data was committed
             val result =
                 either {
-                        db.query("SELECT value FROM test_commits WHERE id = 1") {
-                            executeQuery().safe().firstOrNull { it.getString("value") }
+                        db.query(
+                            "SELECT value FROM test_commits WHERE id = 1"
+                        ) {
+                            executeQuery().safe().firstOrNull {
+                                it.getString("value")
+                            }
                         }
                     }
                     .getOrElse { throw it }
@@ -92,53 +105,66 @@ class DatabaseUtilitiesTest {
     }
 
     @Test
-    fun `transaction rolls back on exception`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
+    fun `transaction rolls back on exception`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
 
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
 
-            // Create a test table
-            db.transaction {
-                    query("CREATE TABLE test_rollback (id INTEGER PRIMARY KEY, value TEXT)") {
-                        execute()
-                        Unit
-                    }
-                }
-                .getOrElse { throw it }
-
-            // Attempt a transaction that fails
-            val result = db.transaction {
-                query("INSERT INTO test_rollback (id, value) VALUES (1, 'test')") {
-                    execute()
-                    Unit
-                }
-                // Force a rollback
-                throw RuntimeException("Forced error")
-            }
-            assertTrue(result.isLeft())
-
-            // Verify data was NOT committed
-            val count =
-                either {
-                        db.query("SELECT COUNT(*) as cnt FROM test_rollback") {
-                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                // Create a test table
+                db.transaction {
+                        query(
+                            "CREATE TABLE test_rollback (id INTEGER PRIMARY KEY, value TEXT)"
+                        ) {
+                            execute()
+                            Unit
                         }
                     }
                     .getOrElse { throw it }
-            assertEquals(0, count)
+
+                // Attempt a transaction that fails
+                val result = db.transaction {
+                    query(
+                        "INSERT INTO test_rollback (id, value) VALUES (1, 'test')"
+                    ) {
+                        execute()
+                        Unit
+                    }
+                    // Force a rollback
+                    throw RuntimeException("Forced error")
+                }
+                assertTrue(result.isLeft())
+
+                // Verify data was NOT committed
+                val count =
+                    either {
+                            db.query(
+                                "SELECT COUNT(*) as cnt FROM test_rollback"
+                            ) {
+                                executeQuery().safe().firstOrNull {
+                                    it.getInt("cnt")
+                                }
+                            }
+                        }
+                        .getOrElse { throw it }
+                assertEquals(0, count)
+            }
         }
-    }
 
     @Test
-    fun `transaction rolls back on raised database error`(@TempDir tempDir: Path) = runTest {
+    fun `transaction rolls back on raised database error`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                    query("CREATE TABLE test_raise_rollback (id INTEGER PRIMARY KEY, value TEXT)") {
+                    query(
+                        "CREATE TABLE test_raise_rollback (id INTEGER PRIMARY KEY, value TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
@@ -147,7 +173,9 @@ class DatabaseUtilitiesTest {
 
             val result =
                 db.transaction<Unit> {
-                    query("INSERT INTO test_raise_rollback (id, value) VALUES (1, 'test')") {
+                    query(
+                        "INSERT INTO test_raise_rollback (id, value) VALUES (1, 'test')"
+                    ) {
                         execute()
                         Unit
                     }
@@ -157,8 +185,12 @@ class DatabaseUtilitiesTest {
 
             val count =
                 either {
-                        db.query("SELECT COUNT(*) as cnt FROM test_raise_rollback") {
-                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                        db.query(
+                            "SELECT COUNT(*) as cnt FROM test_raise_rollback"
+                        ) {
+                            executeQuery().safe().firstOrNull {
+                                it.getInt("cnt")
+                            }
                         }
                     }
                     .getOrElse { throw it }
@@ -167,56 +199,65 @@ class DatabaseUtilitiesTest {
     }
 
     @Test
-    fun `transactionForUpdates detects unique constraint violations`(@TempDir tempDir: Path) =
-        runTest {
-            val dbPath = tempDir.resolve("test.db").toString()
+    fun `transactionForUpdates detects unique constraint violations`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
 
-            resourceScope {
-                val db = Database.connect(dbPath).bind()
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
 
-                // Create a table with a unique constraint
-                db.transaction {
-                        query(
-                            "CREATE TABLE test_unique (id INTEGER PRIMARY KEY, email TEXT UNIQUE)"
-                        ) {
-                            execute()
-                            Unit
-                        }
-                        query(
-                            "INSERT INTO test_unique (id, email) VALUES (1, 'test@example.com')"
-                        ) {
-                            execute()
-                            Unit
-                        }
+            // Create a table with a unique constraint
+            db.transaction {
+                    query(
+                        "CREATE TABLE test_unique (id INTEGER PRIMARY KEY, email TEXT UNIQUE)"
+                    ) {
+                        execute()
+                        Unit
                     }
-                    .getOrElse { throw it }
-
-                // Try to insert duplicate email
-                val result = db.transactionForUpdates {
-                    query("INSERT INTO test_unique (id, email) VALUES (2, 'test@example.com')") {
+                    query(
+                        "INSERT INTO test_unique (id, email) VALUES (1, 'test@example.com')"
+                    ) {
                         execute()
                         Unit
                     }
                 }
+                .getOrElse { throw it }
 
-                // Should return Left with UniqueViolation
-                assertTrue(result.isLeft())
-                val error = result.leftOrNull()
-                assertNotNull(error)
-                assertTrue(error is SqlUpdateException.UniqueViolation)
-                assertTrue(error.message!!.contains("Unique constraint", ignoreCase = true))
+            // Try to insert duplicate email
+            val result = db.transactionForUpdates {
+                query(
+                    "INSERT INTO test_unique (id, email) VALUES (2, 'test@example.com')"
+                ) {
+                    execute()
+                    Unit
+                }
             }
+
+            // Should return Left with UniqueViolation
+            assertTrue(result.isLeft())
+            val error = result.leftOrNull()
+            assertNotNull(error)
+            assertTrue(error is SqlUpdateException.UniqueViolation)
+            assertTrue(
+                error.message!!.contains("Unique constraint", ignoreCase = true)
+            )
         }
+    }
 
     @Test
-    fun `transactionForUpdates returns Right on success`(@TempDir tempDir: Path) = runTest {
+    fun `transactionForUpdates returns Right on success`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                    query("CREATE TABLE test_success (id INTEGER PRIMARY KEY, value TEXT)") {
+                    query(
+                        "CREATE TABLE test_success (id INTEGER PRIMARY KEY, value TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
@@ -224,7 +265,9 @@ class DatabaseUtilitiesTest {
                 .getOrElse { throw it }
 
             val result = db.transactionForUpdates {
-                query("INSERT INTO test_success (id, value) VALUES (1, 'success')") {
+                query(
+                    "INSERT INTO test_success (id, value) VALUES (1, 'success')"
+                ) {
                     execute()
                     Unit
                 }
@@ -244,7 +287,9 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                    query("CREATE TABLE test_query (id INTEGER PRIMARY KEY, name TEXT)") {
+                    query(
+                        "CREATE TABLE test_query (id INTEGER PRIMARY KEY, name TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
@@ -262,7 +307,9 @@ class DatabaseUtilitiesTest {
                 either {
                         db.query("SELECT name FROM test_query WHERE id = ?") {
                             setInt(1, 2)
-                            executeQuery().safe().firstOrNull { it.getString("name") }
+                            executeQuery().safe().firstOrNull {
+                                it.getString("name")
+                            }
                         }
                     }
                     .getOrElse { throw it }
@@ -278,7 +325,9 @@ class DatabaseUtilitiesTest {
             val db = Database.connect(dbPath).bind()
 
             db.transaction {
-                    query("CREATE TABLE test_list (id INTEGER PRIMARY KEY, name TEXT)") {
+                    query(
+                        "CREATE TABLE test_list (id INTEGER PRIMARY KEY, name TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
@@ -295,7 +344,9 @@ class DatabaseUtilitiesTest {
             val names =
                 either {
                         db.query("SELECT name FROM test_list ORDER BY id") {
-                            executeQuery().safe().toList { it.getString("name") }
+                            executeQuery().safe().toList {
+                                it.getString("name")
+                            }
                         }
                     }
                     .getOrElse { throw it }
@@ -306,92 +357,7 @@ class DatabaseUtilitiesTest {
     }
 
     @Test
-    fun `toList returns empty list for no results`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
-
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-
-            db.transaction {
-                    query("CREATE TABLE test_empty (id INTEGER PRIMARY KEY)") {
-                        execute()
-                        Unit
-                    }
-                }
-                .getOrElse { throw it }
-
-            val results =
-                either {
-                        db.query("SELECT * FROM test_empty") {
-                            executeQuery().safe().toList { it.getInt("id") }
-                        }
-                    }
-                    .getOrElse { throw it }
-
-            assertTrue(results.isEmpty())
-        }
-    }
-
-    @Test
-    fun `firstOrNull returns first row when exists`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
-
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-
-            db.transaction {
-                    query("CREATE TABLE test_first (id INTEGER PRIMARY KEY, name TEXT)") {
-                        execute()
-                        Unit
-                    }
-                    query("INSERT INTO test_first (id, name) VALUES (1, 'First'), (2, 'Second')") {
-                        execute()
-                        Unit
-                    }
-                }
-                .getOrElse { throw it }
-
-            val first =
-                either {
-                        db.query("SELECT name FROM test_first ORDER BY id") {
-                            executeQuery().safe().firstOrNull { it.getString("name") }
-                        }
-                    }
-                    .getOrElse { throw it }
-
-            assertEquals("First", first)
-        }
-    }
-
-    @Test
-    fun `firstOrNull returns null when no rows`(@TempDir tempDir: Path) = runTest {
-        val dbPath = tempDir.resolve("test.db").toString()
-
-        resourceScope {
-            val db = Database.connect(dbPath).bind()
-
-            db.transaction {
-                    query("CREATE TABLE test_null (id INTEGER PRIMARY KEY)") {
-                        execute()
-                        Unit
-                    }
-                }
-                .getOrElse { throw it }
-
-            val result =
-                either {
-                        db.query("SELECT * FROM test_null") {
-                            executeQuery().safe().firstOrNull { it.getInt("id") }
-                        }
-                    }
-                    .getOrElse { throw it }
-
-            assertEquals(null, result)
-        }
-    }
-
-    @Test
-    fun `SafeConnection query executes within existing transaction`(@TempDir tempDir: Path) =
+    fun `toList returns empty list for no results`(@TempDir tempDir: Path) =
         runTest {
             val dbPath = tempDir.resolve("test.db").toString()
 
@@ -399,34 +365,148 @@ class DatabaseUtilitiesTest {
                 val db = Database.connect(dbPath).bind()
 
                 db.transaction {
-                        query("CREATE TABLE test_conn (id INTEGER PRIMARY KEY, value TEXT)") {
+                        query(
+                            "CREATE TABLE test_empty (id INTEGER PRIMARY KEY)"
+                        ) {
                             execute()
                             Unit
                         }
-
-                        // Execute multiple queries in same transaction via SafeConnection
-                        query("INSERT INTO test_conn (id, value) VALUES (1, 'one')") {
-                            execute()
-                            Unit
-                        }
-                        query("INSERT INTO test_conn (id, value) VALUES (2, 'two')") {
-                            execute()
-                            Unit
-                        }
-
-                        val count =
-                            query("SELECT COUNT(*) as cnt FROM test_conn") {
-                                executeQuery().safe().firstOrNull { it.getInt("cnt") }
-                            }
-
-                        assertEquals(2, count)
                     }
                     .getOrElse { throw it }
+
+                val results =
+                    either {
+                            db.query("SELECT * FROM test_empty") {
+                                executeQuery().safe().toList { it.getInt("id") }
+                            }
+                        }
+                        .getOrElse { throw it }
+
+                assertTrue(results.isEmpty())
             }
         }
 
     @Test
-    fun `multiple transactions can be executed sequentially`(@TempDir tempDir: Path) = runTest {
+    fun `firstOrNull returns first row when exists`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+
+                db.transaction {
+                        query(
+                            "CREATE TABLE test_first (id INTEGER PRIMARY KEY, name TEXT)"
+                        ) {
+                            execute()
+                            Unit
+                        }
+                        query(
+                            "INSERT INTO test_first (id, name) VALUES (1, 'First'), (2, 'Second')"
+                        ) {
+                            execute()
+                            Unit
+                        }
+                    }
+                    .getOrElse { throw it }
+
+                val first =
+                    either {
+                            db.query(
+                                "SELECT name FROM test_first ORDER BY id"
+                            ) {
+                                executeQuery().safe().firstOrNull {
+                                    it.getString("name")
+                                }
+                            }
+                        }
+                        .getOrElse { throw it }
+
+                assertEquals("First", first)
+            }
+        }
+
+    @Test
+    fun `firstOrNull returns null when no rows`(@TempDir tempDir: Path) =
+        runTest {
+            val dbPath = tempDir.resolve("test.db").toString()
+
+            resourceScope {
+                val db = Database.connect(dbPath).bind()
+
+                db.transaction {
+                        query(
+                            "CREATE TABLE test_null (id INTEGER PRIMARY KEY)"
+                        ) {
+                            execute()
+                            Unit
+                        }
+                    }
+                    .getOrElse { throw it }
+
+                val result =
+                    either {
+                            db.query("SELECT * FROM test_null") {
+                                executeQuery().safe().firstOrNull {
+                                    it.getInt("id")
+                                }
+                            }
+                        }
+                        .getOrElse { throw it }
+
+                assertEquals(null, result)
+            }
+        }
+
+    @Test
+    fun `SafeConnection query executes within existing transaction`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val dbPath = tempDir.resolve("test.db").toString()
+
+        resourceScope {
+            val db = Database.connect(dbPath).bind()
+
+            db.transaction {
+                    query(
+                        "CREATE TABLE test_conn (id INTEGER PRIMARY KEY, value TEXT)"
+                    ) {
+                        execute()
+                        Unit
+                    }
+
+                    // Execute multiple queries in same transaction via
+                    // SafeConnection
+                    query(
+                        "INSERT INTO test_conn (id, value) VALUES (1, 'one')"
+                    ) {
+                        execute()
+                        Unit
+                    }
+                    query(
+                        "INSERT INTO test_conn (id, value) VALUES (2, 'two')"
+                    ) {
+                        execute()
+                        Unit
+                    }
+
+                    val count =
+                        query("SELECT COUNT(*) as cnt FROM test_conn") {
+                            executeQuery().safe().firstOrNull {
+                                it.getInt("cnt")
+                            }
+                        }
+
+                    assertEquals(2, count)
+                }
+                .getOrElse { throw it }
+        }
+    }
+
+    @Test
+    fun `multiple transactions can be executed sequentially`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
@@ -434,11 +514,15 @@ class DatabaseUtilitiesTest {
 
             // First transaction
             db.transaction {
-                    query("CREATE TABLE test_multi (id INTEGER PRIMARY KEY, value TEXT)") {
+                    query(
+                        "CREATE TABLE test_multi (id INTEGER PRIMARY KEY, value TEXT)"
+                    ) {
                         execute()
                         Unit
                     }
-                    query("INSERT INTO test_multi (id, value) VALUES (1, 'first')") {
+                    query(
+                        "INSERT INTO test_multi (id, value) VALUES (1, 'first')"
+                    ) {
                         execute()
                         Unit
                     }
@@ -447,7 +531,9 @@ class DatabaseUtilitiesTest {
 
             // Second transaction
             db.transaction {
-                    query("INSERT INTO test_multi (id, value) VALUES (2, 'second')") {
+                    query(
+                        "INSERT INTO test_multi (id, value) VALUES (2, 'second')"
+                    ) {
                         execute()
                         Unit
                     }
@@ -458,7 +544,9 @@ class DatabaseUtilitiesTest {
             val count =
                 db.transaction {
                         query("SELECT COUNT(*) as cnt FROM test_multi") {
-                            executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                            executeQuery().safe().firstOrNull {
+                                it.getInt("cnt")
+                            }
                         }
                     }
                     .getOrElse { throw it }

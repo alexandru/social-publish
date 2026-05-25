@@ -13,12 +13,14 @@ object LoggingConfig {
     fun setRootLogLevel(level: String) {
         val logLevel = Level.toLevel(level, Level.INFO)
         val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        val rootLogger = loggerContext.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+        val rootLogger =
+            loggerContext.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
         rootLogger.level = logLevel
     }
 
     /**
-     * Configure logging for CLI commands (quieter, only warnings and errors by default).
+     * Configure logging for CLI commands (quieter, only warnings and errors by
+     * default).
      *
      * @param verbose If true, use INFO level; otherwise use WARN level
      */

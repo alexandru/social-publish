@@ -52,27 +52,34 @@ class BlueskyApiModule(
 ) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
-            install({ HttpClient(CIO) { install(ContentNegotiation) { json(jsonCommon) } } }) {
-                client,
-                _ ->
+            install({
+                HttpClient(CIO) {
+                    install(ContentNegotiation) { json(jsonCommon) }
+                }
+            }) { client, _ ->
                 client.close()
             }
         }
 
-        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> = resource {
-            BlueskyApiModule(
-                filesModule = filesModule,
-                linkPreviewParser = LinkPreviewParser().bind(),
-                httpClient = defaultHttpClient().bind(),
-            )
-        }
+        fun resource(filesModule: FilesModule): Resource<BlueskyApiModule> =
+            resource {
+                BlueskyApiModule(
+                    filesModule = filesModule,
+                    linkPreviewParser = LinkPreviewParser().bind(),
+                    httpClient = defaultHttpClient().bind(),
+                )
+            }
     }
 
     /** Login to Bluesky and get session token */
-    private suspend fun createSession(config: BlueskyConfig): ApiResult<BlueskySessionResponse> {
+    private suspend fun createSession(
+        config: BlueskyConfig
+    ): ApiResult<BlueskySessionResponse> {
         return try {
             val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.server.createSession") {
+                httpClient.post(
+                    "${config.service}/xrpc/com.atproto.server.createSession"
+                ) {
                     contentType(ContentType.Application.Json)
                     setBody(
                         buildJsonObject {
@@ -105,7 +112,8 @@ class BlueskyApiModule(
             CaughtException(
                     status = 500,
                     module = "bluesky",
-                    errorMessage = "Failed to authenticate to Bluesky: ${e.message}",
+                    errorMessage =
+                        "Failed to authenticate to Bluesky: ${e.message}",
                 )
                 .left()
         }
@@ -123,16 +131,21 @@ class BlueskyApiModule(
                 filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
-                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            errorMessage =
+                                "Failed to read image file — uuid: $uuid",
                             module = "bluesky",
                         )
                         .left()
 
             val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
+                httpClient.post(
+                    "${config.service}/xrpc/com.atproto.repo.uploadBlob"
+                ) {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(file.mimetype))
-                    setBody(ByteReadChannel(file.source.asKotlinSource().bind()))
+                    setBody(
+                        ByteReadChannel(file.source.asKotlinSource().bind())
+                    )
                 }
 
             if (response.status.value == 200) {
@@ -159,7 +172,10 @@ class BlueskyApiModule(
                         image = blobRef,
                         aspectRatio =
                             if (file.width > 0 && file.height > 0) {
-                                BlueskyAspectRatio(width = file.width, height = file.height)
+                                BlueskyAspectRatio(
+                                    width = file.width,
+                                    height = file.height,
+                                )
                             } else {
                                 null
                             },
@@ -168,7 +184,9 @@ class BlueskyApiModule(
             }
 
             val errorBody = response.bodyAsText()
-            logger.warn { "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody" }
+            logger.warn {
+                "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody"
+            }
             RequestError(
                     status = response.status.value,
                     module = "bluesky",
@@ -198,17 +216,27 @@ class BlueskyApiModule(
             // Fetch the image
             val response = httpClient.get(imageUrl)
             if (response.status.value != 200) {
-                logger.warn { "Failed to fetch image from $imageUrl: ${response.status}" }
+                logger.warn {
+                    "Failed to fetch image from $imageUrl: ${response.status}"
+                }
                 return@resourceScope null
             }
 
-            val fileName = imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() } ?: "image"
+            val fileName =
+                imageUrl.substringAfterLast('/').takeIf { it.isNotBlank() }
+                    ?: "image"
             val imageSource =
-                UploadSource.FromSource(response.body<ByteReadChannel>().asSource().buffered())
+                UploadSource.FromSource(
+                    response.body<ByteReadChannel>().asSource().buffered()
+                )
             val uploadedFile =
                 filesModule
                     .processFile(
-                        UploadedFile(fileName = fileName, source = imageSource, altText = null)
+                        UploadedFile(
+                            fileName = fileName,
+                            source = imageSource,
+                            altText = null,
+                        )
                     )
                     .bind()
                     .getOrElse { error ->
@@ -224,10 +252,16 @@ class BlueskyApiModule(
 
             // Upload to Bluesky
             val uploadResponse =
-                httpClient.post("${config.service}/xrpc/com.atproto.repo.uploadBlob") {
+                httpClient.post(
+                    "${config.service}/xrpc/com.atproto.repo.uploadBlob"
+                ) {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.parse(uploadedFile.mimetype))
-                    setBody(ByteReadChannel(uploadedFile.source.asKotlinSource().bind()))
+                    setBody(
+                        ByteReadChannel(
+                            uploadedFile.source.asKotlinSource().bind()
+                        )
+                    )
                 }
 
             if (uploadResponse.status.isSuccess()) {
@@ -242,7 +276,9 @@ class BlueskyApiModule(
                 )
             }
 
-            logger.warn { "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}" }
+            logger.warn {
+                "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
+            }
             null
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
@@ -256,10 +292,15 @@ class BlueskyApiModule(
     // ... (existing code)
 
     /** Resolve a handle to a DID using the Bluesky API */
-    private suspend fun resolveHandle(config: BlueskyConfig, handle: String): String? {
+    private suspend fun resolveHandle(
+        config: BlueskyConfig,
+        handle: String,
+    ): String? {
         return try {
             val response =
-                httpClient.get("${config.service}/xrpc/com.atproto.identity.resolveHandle") {
+                httpClient.get(
+                    "${config.service}/xrpc/com.atproto.identity.resolveHandle"
+                ) {
                     url { parameters.append("handle", handle) }
                 }
 
@@ -267,7 +308,9 @@ class BlueskyApiModule(
                 val data = response.body<DidResolutionResponse>()
                 data.did
             } else {
-                logger.warn { "Failed to resolve handle $handle: ${response.status}" }
+                logger.warn {
+                    "Failed to resolve handle $handle: ${response.status}"
+                }
                 null
             }
         } catch (e: Throwable) {
@@ -277,9 +320,13 @@ class BlueskyApiModule(
         }
     }
 
-    private data class RichTextPayload(val text: String, val facets: List<JsonObject>)
+    private data class RichTextPayload(
+        val text: String,
+        val facets: List<JsonObject>,
+    )
 
-    private fun utf8Length(value: String): Int = value.toByteArray(Charsets.UTF_8).size
+    private fun utf8Length(value: String): Int =
+        value.toByteArray(Charsets.UTF_8).size
 
     private fun shortenLinkForDisplay(
         url: String,
@@ -294,7 +341,11 @@ class BlueskyApiModule(
         }
     }
 
-    private fun buildLinkFacet(byteStart: Int, byteEnd: Int, uri: String): JsonObject {
+    private fun buildLinkFacet(
+        byteStart: Int,
+        byteEnd: Int,
+        uri: String,
+    ): JsonObject {
         return buildJsonObject {
             putJsonObject("index") {
                 put("byteStart", byteStart)
@@ -326,11 +377,13 @@ class BlueskyApiModule(
         val mentionRegex = Regex("""(?<=\s|^)(@[a-zA-Z0-9.-]+)""")
         for (match in mentionRegex.findAll(text)) {
             val handle = match.value.substring(1) // Remove '@'
-            // Only resolve if it looks like a valid handle (has at least one dot)
+            // Only resolve if it looks like a valid handle (has at least one
+            // dot)
             if (handle.contains(".")) {
                 val did = resolveHandle(config, handle)
                 if (did != null) {
-                    val byteStart = utf8Length(text.substring(0, match.range.first))
+                    val byteStart =
+                        utf8Length(text.substring(0, match.range.first))
                     val byteEnd = byteStart + utf8Length(match.value)
 
                     val facet = buildJsonObject {
@@ -341,7 +394,10 @@ class BlueskyApiModule(
                         putJsonArray("features") {
                             add(
                                 buildJsonObject {
-                                    put("\$type", "app.bsky.richtext.facet#mention")
+                                    put(
+                                        "\$type",
+                                        "app.bsky.richtext.facet#mention",
+                                    )
                                     put("did", did)
                                 }
                             )
@@ -384,7 +440,10 @@ class BlueskyApiModule(
      *
      * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
      */
-    private suspend fun buildRichText(config: BlueskyConfig, text: String): RichTextPayload {
+    private suspend fun buildRichText(
+        config: BlueskyConfig,
+        text: String,
+    ): RichTextPayload {
         val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
         val facets = mutableListOf<JsonObject>()
         val builder = StringBuilder()
@@ -437,7 +496,10 @@ class BlueskyApiModule(
             val imageEmbeds =
                 if (!request.images.isNullOrEmpty()) {
                     request.images.map { imageUuid ->
-                        when (val uploadResult = uploadBlob(config, imageUuid, session)) {
+                        when (
+                            val uploadResult =
+                                uploadBlob(config, imageUuid, session)
+                        ) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
                         }
@@ -447,7 +509,8 @@ class BlueskyApiModule(
                 }
 
             // Fetch link preview if link is present and no images
-            // Note: Bluesky only supports one embed type at a time, and images take priority
+            // Note: Bluesky only supports one embed type at a time, and images
+            // take priority
             val linkPreview =
                 if (request.link != null && imageEmbeds.isEmpty()) {
                     linkPreviewParser.fetchPreview(request.link)
@@ -474,10 +537,13 @@ class BlueskyApiModule(
                     request.content.trim()
                 } + if (url != null) "\n\n$url" else ""
 
-            // Detect facets (mentions, links, hashtags) and shorten link display text
+            // Detect facets (mentions, links, hashtags) and shorten link
+            // display text
             val richText = buildRichText(config, text)
 
-            logger.info { "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}" }
+            logger.info {
+                "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}"
+            }
 
             // Build post record
             val record = buildJsonObject {
@@ -486,11 +552,15 @@ class BlueskyApiModule(
                 put("createdAt", Instant.now().toString())
 
                 if (richText.facets.isNotEmpty()) {
-                    putJsonArray("facets") { richText.facets.forEach { add(it) } }
+                    putJsonArray("facets") {
+                        richText.facets.forEach { add(it) }
+                    }
                 }
 
                 if (request.language != null) {
-                    putJsonArray("langs") { add(JsonPrimitive(request.language)) }
+                    putJsonArray("langs") {
+                        add(JsonPrimitive(request.language))
+                    }
                 }
 
                 if (imageEmbeds.isNotEmpty()) {
@@ -504,7 +574,10 @@ class BlueskyApiModule(
                                         putJsonObject("image") {
                                             put("\$type", embed.image.`$type`)
                                             put("ref", embed.image.ref)
-                                            put("mimeType", embed.image.mimeType)
+                                            put(
+                                                "mimeType",
+                                                embed.image.mimeType,
+                                            )
                                             put("size", embed.image.size)
                                         }
                                         embed.aspectRatio?.let { ratio ->
@@ -542,7 +615,9 @@ class BlueskyApiModule(
 
             // Create the post
             val response =
-                httpClient.post("${config.service}/xrpc/com.atproto.repo.createRecord") {
+                httpClient.post(
+                    "${config.service}/xrpc/com.atproto.repo.createRecord"
+                ) {
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.Application.Json)
                     setBody(
@@ -559,7 +634,9 @@ class BlueskyApiModule(
                 NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to Bluesky: ${response.status}, body: $errorBody" }
+                logger.warn {
+                    "Failed to post to Bluesky: ${response.status}, body: $errorBody"
+                }
                 RequestError(
                         status = response.status.value,
                         module = "bluesky",

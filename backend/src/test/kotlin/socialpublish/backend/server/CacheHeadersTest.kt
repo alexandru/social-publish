@@ -30,12 +30,18 @@ class CacheHeadersTest {
             client.get("/app.12345678.js").apply {
                 assertEquals(HttpStatusCode.OK, status)
                 val cacheControl = headers[HttpHeaders.CacheControl]!!
-                assertTrue(cacheControl.contains("public"), "Expected public cache for hashed file")
+                assertTrue(
+                    cacheControl.contains("public"),
+                    "Expected public cache for hashed file",
+                )
                 assertTrue(
                     cacheControl.contains("max-age=31536000"),
                     "Expected 1 year cache for hashed file",
                 )
-                assertTrue(cacheControl.contains("immutable"), "Expected immutable for hashed file")
+                assertTrue(
+                    cacheControl.contains("immutable"),
+                    "Expected immutable for hashed file",
+                )
             }
         } finally {
             tempDir.deleteRecursively()
@@ -133,7 +139,8 @@ class CacheHeadersTest {
     private fun Application.configureStaticFileServing(staticDir: File) {
         routing {
             get("/{path...}") {
-                val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
+                val path =
+                    call.parameters.getAll("path")?.joinToString("/") ?: ""
                 val file = File(staticDir, path.ifBlank { "index.html" })
 
                 if (file.exists() && file.isFile) {
@@ -155,7 +162,9 @@ class CacheHeadersTest {
                                 "public, max-age=7200, stale-while-revalidate=86400",
                             )
                         }
-                        file.name.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")) -> {
+                        file.name.matches(
+                            Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")
+                        ) -> {
                             call.response.headers.append(
                                 HttpHeaders.CacheControl,
                                 "public, max-age=172800, stale-while-revalidate=86400",

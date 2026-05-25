@@ -20,6 +20,7 @@ subprojects {
 
     extensions.configure<com.ncorti.ktfmt.gradle.KtfmtExtension> {
         kotlinLangStyle()
+        maxWidth = 80
         // Enable automatic removal of unused imports during formatting
         removeUnusedImports.set(true)
     }

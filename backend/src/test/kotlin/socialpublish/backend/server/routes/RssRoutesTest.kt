@@ -30,60 +30,184 @@ import socialpublish.backend.testutils.createTestSession
 
 @Serializable data class RssPostResponse(val uri: String, val module: String)
 
-private val testUserUuid = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+private val testUserUuid =
+    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 private val testUserUuidPath = testUserUuid.toString()
 
 class RssRoutesTest {
     @Test
-    fun `createPostRoute accepts JSON request`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
+    fun `createPostRoute accepts JSON request`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val rssRoutes = RssRoutes(rssModule)
 
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/rss/post") {
+                        context(createTestSession(testUserUuid)) {
+                            rssRoutes.createPostRoute(call)
+                        }
+                    }
                 }
             }
-        }
 
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
             }
+
+            val request =
+                NewPostRequest(
+                    content = "Test post via JSON",
+                    targets = listOf("rss"),
+                )
+
+            val response =
+                client.post("/api/rss/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("http://localhost:3000/rss/"))
+            assertTrue(body.contains("\"module\":\"rss\""))
+
+            client.close()
         }
 
-        val request = NewPostRequest(content = "Test post via JSON", targets = listOf("rss"))
+    @Test
+    fun `createPostRoute validates empty content`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val rssRoutes = RssRoutes(rssModule)
 
-        val response =
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/rss/post") {
+                        context(createTestSession(testUserUuid)) {
+                            rssRoutes.createPostRoute(call)
+                        }
+                    }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            val request = NewPostRequest(content = "", targets = listOf("rss"))
+
+            val response =
+                client.post("/api/rss/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("between 1 and 1000 characters"))
+
+            client.close()
+        }
+
+    @Test
+    fun `generateRssRoute returns RSS feed`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val rssRoutes = RssRoutes(rssModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/rss/post") {
+                        context(createTestSession(testUserUuid)) {
+                            rssRoutes.createPostRoute(call)
+                        }
+                    }
+                    get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            // Create a post first
             client.post("/api/rss/post") {
                 contentType(ContentType.Application.Json)
-                setBody(request)
+                setBody(NewPostRequest(content = "Test RSS feed content"))
             }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("http://localhost:3000/rss/"))
-        assertTrue(body.contains("\"module\":\"rss\""))
+            // Get the RSS feed
+            val response = client.get("/rss/$testUserUuidPath")
 
-        client.close()
-    }
+            assertEquals(HttpStatusCode.OK, response.status)
+            // Check content type starts with application/rss+xml (may have
+            // charset)
+            assertTrue(
+                response
+                    .contentType()
+                    .toString()
+                    .startsWith("application/rss+xml")
+            )
+            val body = response.bodyAsText()
+            assertTrue(body.contains("<?xml"))
+            assertTrue(body.contains("<rss"))
+            assertTrue(body.contains("Test RSS feed content"))
+
+            client.close()
+        }
 
     @Test
-    fun `createPostRoute validates empty content`(@TempDir tempDir: Path) = testApplication {
+    fun `generateRssRoute with filterByLinks parameter`(
+        @TempDir tempDir: Path
+    ) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
         val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
         val rssRoutes = RssRoutes(rssModule)
@@ -92,101 +216,9 @@ class RssRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
-                }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
+                    context(createTestSession(testUserUuid)) {
+                        rssRoutes.createPostRoute(call)
                     }
-                )
-            }
-        }
-
-        val request = NewPostRequest(content = "", targets = listOf("rss"))
-
-        val response =
-            client.post("/api/rss/post") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("between 1 and 1000 characters"))
-
-        client.close()
-    }
-
-    @Test
-    fun `generateRssRoute returns RSS feed`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
-                }
-                get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        // Create a post first
-        client.post("/api/rss/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Test RSS feed content"))
-        }
-
-        // Get the RSS feed
-        val response = client.get("/rss/$testUserUuidPath")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        // Check content type starts with application/rss+xml (may have charset)
-        assertTrue(response.contentType().toString().startsWith("application/rss+xml"))
-        val body = response.bodyAsText()
-        assertTrue(body.contains("<?xml"))
-        assertTrue(body.contains("<rss"))
-        assertTrue(body.contains("Test RSS feed content"))
-
-        client.close()
-    }
-
-    @Test
-    fun `generateRssRoute with filterByLinks parameter`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
                 }
                 get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
             }
@@ -206,7 +238,12 @@ class RssRoutesTest {
         // Create posts
         client.post("/api/rss/post") {
             contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Post with link", link = "https://example.com"))
+            setBody(
+                NewPostRequest(
+                    content = "Post with link",
+                    link = "https://example.com",
+                )
+            )
         }
         client.post("/api/rss/post") {
             contentType(ContentType.Application.Json)
@@ -215,7 +252,9 @@ class RssRoutesTest {
 
         // Get RSS with filterByLinks=include
         val response =
-            client.get("/rss/$testUserUuidPath") { parameter("filterByLinks", "include") }
+            client.get("/rss/$testUserUuidPath") {
+                parameter("filterByLinks", "include")
+            }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
@@ -226,132 +265,7 @@ class RssRoutesTest {
     }
 
     @Test
-    fun `generateRssRoute with target parameter`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
-                }
-                get("/rss/{userUuid}/target/{target}") { rssRoutes.generateRssRoute(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        // Create posts with different targets
-        client.post("/api/rss/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Twitter post", targets = listOf("twitter")))
-        }
-        client.post("/api/rss/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Mastodon post", targets = listOf("mastodon")))
-        }
-
-        // Get RSS for twitter target
-        val response = client.get("/rss/$testUserUuidPath/target/twitter")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("Twitter post"))
-        assertFalse(body.contains("Mastodon post"))
-
-        client.close()
-    }
-
-    @Test
-    fun `getRssItem returns post when found`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/rss/post") {
-                    context(createTestSession(testUserUuid)) { rssRoutes.createPostRoute(call) }
-                }
-                get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        // Create a post
-        val createResponse =
-            client.post("/api/rss/post") {
-                contentType(ContentType.Application.Json)
-                setBody(NewPostRequest(content = "Test post for retrieval"))
-            }
-        val createBody = createResponse.bodyAsText()
-        // Extract UUID from the response URI
-        val uuidMatch = Regex("""/rss/[a-f0-9-]+/([a-f0-9-]+)""").find(createBody)
-        assertNotNull(uuidMatch)
-        val uuid = uuidMatch!!.groupValues[1]
-
-        // Get the post by UUID
-        val response = client.get("/rss/$testUserUuidPath/$uuid")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("Test post for retrieval"))
-        assertTrue(body.contains(uuid))
-
-        client.close()
-    }
-
-    @Test
-    fun `getRssItem returns not found for invalid UUID`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
-        val rssRoutes = RssRoutes(rssModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing { get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) } }
-        }
-
-        val response = client.get("/rss/$testUserUuidPath/nonexistent-uuid")
-
-        assertEquals(HttpStatusCode.NotFound, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("Post not found"))
-    }
-
-    @Test
-    fun `getRssItem returns bad request when UUID is missing`(@TempDir tempDir: Path) =
+    fun `generateRssRoute with target parameter`(@TempDir tempDir: Path) =
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val postsDb =
@@ -365,15 +279,170 @@ class RssRoutesTest {
             application {
                 install(ContentNegotiation) { json() }
                 routing {
-                    // This simulates a route without the uuid parameter
-                    get("/rss/{userUuid}/") { rssRoutes.getRssItem(call) }
+                    post("/api/rss/post") {
+                        context(createTestSession(testUserUuid)) {
+                            rssRoutes.createPostRoute(call)
+                        }
+                    }
+                    get("/rss/{userUuid}/target/{target}") {
+                        rssRoutes.generateRssRoute(call)
+                    }
                 }
             }
 
-            val response = client.get("/rss/$testUserUuidPath/")
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            // Create posts with different targets
+            client.post("/api/rss/post") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    NewPostRequest(
+                        content = "Twitter post",
+                        targets = listOf("twitter"),
+                    )
+                )
+            }
+            client.post("/api/rss/post") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    NewPostRequest(
+                        content = "Mastodon post",
+                        targets = listOf("mastodon"),
+                    )
+                )
+            }
+
+            // Get RSS for twitter target
+            val response = client.get("/rss/$testUserUuidPath/target/twitter")
+
+            assertEquals(HttpStatusCode.OK, response.status)
             val body = response.bodyAsText()
-            assertTrue(body.contains("Missing UUID"))
+            assertTrue(body.contains("Twitter post"))
+            assertFalse(body.contains("Mastodon post"))
+
+            client.close()
         }
+
+    @Test
+    fun `getRssItem returns post when found`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val rssRoutes = RssRoutes(rssModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/rss/post") {
+                        context(createTestSession(testUserUuid)) {
+                            rssRoutes.createPostRoute(call)
+                        }
+                    }
+                    get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            // Create a post
+            val createResponse =
+                client.post("/api/rss/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(NewPostRequest(content = "Test post for retrieval"))
+                }
+            val createBody = createResponse.bodyAsText()
+            // Extract UUID from the response URI
+            val uuidMatch =
+                Regex("""/rss/[a-f0-9-]+/([a-f0-9-]+)""").find(createBody)
+            assertNotNull(uuidMatch)
+            val uuid = uuidMatch!!.groupValues[1]
+
+            // Get the post by UUID
+            val response = client.get("/rss/$testUserUuidPath/$uuid")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("Test post for retrieval"))
+            assertTrue(body.contains(uuid))
+
+            client.close()
+        }
+
+    @Test
+    fun `getRssItem returns not found for invalid UUID`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        val rssRoutes = RssRoutes(rssModule)
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+            }
+        }
+
+        val response = client.get("/rss/$testUserUuidPath/nonexistent-uuid")
+
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("Post not found"))
+    }
+
+    @Test
+    fun `getRssItem returns bad request when UUID is missing`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        val rssRoutes = RssRoutes(rssModule)
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                // This simulates a route without the uuid parameter
+                get("/rss/{userUuid}/") { rssRoutes.getRssItem(call) }
+            }
+        }
+
+        val response = client.get("/rss/$testUserUuidPath/")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("Missing UUID"))
+    }
 }

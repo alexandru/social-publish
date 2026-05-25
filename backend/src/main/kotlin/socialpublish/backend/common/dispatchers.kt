@@ -9,8 +9,8 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
 /**
  * A coroutine dispatcher based on Java Virtual Threads (Project Loom).
  *
- * Creates a new virtual thread for each dispatched coroutine, providing lightweight concurrency
- * without the overhead of platform threads.
+ * Creates a new virtual thread for each dispatched coroutine, providing
+ * lightweight concurrency without the overhead of platform threads.
  *
  * Requires Java 21 or later.
  */

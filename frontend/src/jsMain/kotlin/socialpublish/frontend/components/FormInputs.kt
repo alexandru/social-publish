@@ -18,7 +18,8 @@ data class SelectOption(val text: String, val value: String?)
  * @param required Whether the field is required
  * @param disabled Whether the field is disabled
  * @param pattern Optional regex pattern for validation
- * @param id Optional HTML id for the input element (auto-generated if not provided)
+ * @param id Optional HTML id for the input element (auto-generated if not
+ *   provided)
  */
 @Composable
 fun TextInputField(
@@ -72,7 +73,8 @@ fun TextInputField(
  * @param placeholder Optional placeholder text
  * @param required Whether the field is required
  * @param disabled Whether the field is disabled
- * @param id Optional HTML id for the textarea element (auto-generated if not provided)
+ * @param id Optional HTML id for the textarea element (auto-generated if not
+ *   provided)
  */
 @Composable
 fun TextAreaField(
@@ -85,7 +87,8 @@ fun TextAreaField(
     disabled: Boolean = false,
     id: String? = null,
 ) {
-    val textareaId = id ?: remember { "textarea-${kotlin.random.Random.nextLong()}" }
+    val textareaId =
+        id ?: remember { "textarea-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
         Label(
@@ -180,7 +183,8 @@ fun ServiceCheckboxField(
  * @param icon Optional Font Awesome icon class (e.g., "fa-globe")
  * @param disabled Whether the field is disabled
  * @param required Whether the field is required
- * @param id Optional HTML id for the select element (auto-generated if not provided)
+ * @param id Optional HTML id for the select element (auto-generated if not
+ *   provided)
  */
 @Composable
 fun SelectInputField(
@@ -193,7 +197,8 @@ fun SelectInputField(
     required: Boolean = false,
     id: String? = null,
 ) {
-    val selectId = id ?: remember { "select-${kotlin.random.Random.nextLong()}" }
+    val selectId =
+        id ?: remember { "select-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
         if (label != null)
@@ -220,7 +225,10 @@ fun SelectInputField(
                         id(selectId)
                         onChange { event ->
                             val selectedValue = event.target.value
-                            onValueChange(if (selectedValue.isEmpty()) null else selectedValue)
+                            onValueChange(
+                                if (selectedValue.isEmpty()) null
+                                else selectedValue
+                            )
                         }
                         if (disabled) attr("disabled", "")
                         if (required) attr("required", "")
@@ -241,7 +249,9 @@ fun SelectInputField(
                 }
             }
             if (icon != null) {
-                Span(attrs = { classes("icon", "is-left") }) { I(attrs = { classes("fas", icon) }) }
+                Span(attrs = { classes("icon", "is-left") }) {
+                    I(attrs = { classes("fas", icon) })
+                }
             }
         }
     }

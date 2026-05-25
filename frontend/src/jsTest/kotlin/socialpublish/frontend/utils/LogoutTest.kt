@@ -21,13 +21,18 @@ class LogoutTest {
                 Storage.clearSessionToken()
             },
             clearConfiguredServices = {
-                events += "clear-services:${Storage.getConfiguredServices().twitter}"
+                events +=
+                    "clear-services:${Storage.getConfiguredServices().twitter}"
                 Storage.setConfiguredServices(null)
             },
         )
 
         assertEquals(
-            listOf("api:existing-token", "clear-token:existing-token", "clear-services:true"),
+            listOf(
+                "api:existing-token",
+                "clear-token:existing-token",
+                "clear-services:true",
+            ),
             events,
         )
         assertEquals(null, Storage.getSessionToken())
@@ -39,7 +44,9 @@ class LogoutTest {
         Storage.setSessionToken("existing-token")
         Storage.setConfiguredServices(ConfiguredServices(linkedin = true))
 
-        logoutAndClearLocalSession(logoutRequest = { throw Throwable("Network error") })
+        logoutAndClearLocalSession(
+            logoutRequest = { throw Throwable("Network error") }
+        )
 
         assertEquals(null, Storage.getSessionToken())
         assertEquals(ConfiguredServices(), Storage.getConfiguredServices())

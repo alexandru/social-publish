@@ -23,8 +23,13 @@ private constructor(
     private val identifyPath: File? = null, // Only used for V6
     private val options: MagickOptimizeOptions = MagickOptimizeOptions(),
 ) {
-    /** Returns the dimensions of an image file, using ImageMagick's `identify` command. */
-    suspend fun identifyImageSize(source: File): Either<MagickException, MagickImageSize> = either {
+    /**
+     * Returns the dimensions of an image file, using ImageMagick's `identify`
+     * command.
+     */
+    suspend fun identifyImageSize(
+        source: File
+    ): Either<MagickException, MagickImageSize> = either {
         if (!source.exists() || !source.canRead()) {
             raise(
                 MagickException(
@@ -37,7 +42,12 @@ private constructor(
                 ImageMagickVersion.V7 ->
                     Pair(
                         magickPath.absolutePath,
-                        arrayOf("identify", "-format", "%w %h", source.absolutePath),
+                        arrayOf(
+                            "identify",
+                            "-format",
+                            "%w %h",
+                            source.absolutePath,
+                        ),
                     )
                 ImageMagickVersion.V6 ->
                     Pair(
@@ -49,11 +59,17 @@ private constructor(
             executeShellCommand(command, *params)
                 .orError()
                 .mapLeft {
-                    MagickException("ImageMagick-powered identification of image size failed", it)
+                    MagickException(
+                        "ImageMagick-powered identification of image size failed",
+                        it,
+                    )
                 }
                 .bind()
         // Parse output into Pair<Int, Int>
-        val parts = output.trim().split("\\s+".toRegex()).mapNotNull { it.toIntOrNull() }
+        val parts =
+            output.trim().split("\\s+".toRegex()).mapNotNull {
+                it.toIntOrNull()
+            }
         if (parts.size != 2)
             raise(
                 MagickException(
@@ -64,14 +80,19 @@ private constructor(
     }
 
     /**
-     * Optimizes an image file, writing the optimized result to the destination file.
+     * Optimizes an image file, writing the optimized result to the destination
+     * file.
      *
-     * The optimization process may involve resizing, recompressing, and converting between formats
-     * (PNG to JPEG) to meet the specified size constraints. If the optimized image still exceeds
-     * the maximum size, the process will iteratively adjust parameters (e.g., reducing JPEG
-     * quality) until the size requirement is met or quality limits are reached.
+     * The optimization process may involve resizing, recompressing, and
+     * converting between formats (PNG to JPEG) to meet the specified size
+     * constraints. If the optimized image still exceeds the maximum size, the
+     * process will iteratively adjust parameters (e.g., reducing JPEG quality)
+     * until the size requirement is met or quality limits are reached.
      */
-    suspend fun optimizeImage(source: File, dest: File): Either<MagickException, Unit> = either {
+    suspend fun optimizeImage(
+        source: File,
+        dest: File,
+    ): Either<MagickException, Unit> = either {
         var mimeType = detectMimeType(source)
         var hasDestination = false
         var quality = options.jpegQuality
@@ -80,7 +101,8 @@ private constructor(
             when (mimeType) {
                 MimeType.PNG -> optimizePng(source, dest).bind()
                 MimeType.JPEG,
-                MimeType.IMAGE_UNKNOWN -> optimizeJpeg(source, dest, quality).bind()
+                MimeType.IMAGE_UNKNOWN ->
+                    optimizeJpeg(source, dest, quality).bind()
                 MimeType.OTHER ->
                     raise(
                         MagickException(
@@ -126,22 +148,40 @@ private constructor(
                     "image/jpg" -> MimeType.JPEG
                     "image/png" -> MimeType.PNG
                     else ->
-                        if (mimeType.startsWith("image/")) MimeType.IMAGE_UNKNOWN
+                        if (mimeType.startsWith("image/"))
+                            MimeType.IMAGE_UNKNOWN
                         else MimeType.OTHER
                 }
             } catch (_: Exception) {
-                logger.warn { "Failed to detect MIME type for file: ${file.absolutePath}" }
+                logger.warn {
+                    "Failed to detect MIME type for file: ${file.absolutePath}"
+                }
                 MimeType.OTHER
             }
         }
 
-    private fun validateFiles(source: File, dest: File): Either<MagickException, Unit> = either {
+    private fun validateFiles(
+        source: File,
+        dest: File,
+    ): Either<MagickException, Unit> = either {
         if (!source.exists()) {
-            raise(MagickException("Source file does not exist: ${source.absolutePath}"))
+            raise(
+                MagickException(
+                    "Source file does not exist: ${source.absolutePath}"
+                )
+            )
         } else if (!source.canRead()) {
-            raise(MagickException("Source file is not readable: ${source.absolutePath}"))
+            raise(
+                MagickException(
+                    "Source file is not readable: ${source.absolutePath}"
+                )
+            )
         } else if (dest.exists()) {
-            raise(MagickException("Destination file already exists: ${dest.absolutePath}"))
+            raise(
+                MagickException(
+                    "Destination file already exists: ${dest.absolutePath}"
+                )
+            )
         }
     }
 
@@ -151,7 +191,8 @@ private constructor(
         quality: Int = options.jpegQuality,
     ): Either<MagickException, Unit> = either {
         validateFiles(source, dest).bind()
-        // Both ImageMagick 6 and 7 use the same parameters for JPEG optimization
+        // Both ImageMagick 6 and 7 use the same parameters for JPEG
+        // optimization
         val command = magickPath.absolutePath
         val params =
             arrayOf(
@@ -171,7 +212,12 @@ private constructor(
         val _ =
             executeShellCommand(command, *params)
                 .orError()
-                .mapLeft { MagickException("ImageMagick JPEG optimization command failed", it) }
+                .mapLeft {
+                    MagickException(
+                        "ImageMagick JPEG optimization command failed",
+                        it,
+                    )
+                }
                 .bind()
         if (!dest.exists()) {
             raise(
@@ -182,37 +228,44 @@ private constructor(
         }
     }
 
-    private suspend fun optimizePng(source: File, dest: File): Either<MagickException, Unit> =
-        either {
-            validateFiles(source, dest).bind()
-            // Both ImageMagick 6 and 7 use the same parameters for PNG optimization
-            val command = magickPath.absolutePath
-            val params =
-                arrayOf(
-                    source.absolutePath,
-                    "-auto-orient",
-                    "-resize",
-                    "${options.maxWidth}x${options.maxHeight}>",
-                    "-strip",
-                    "-define",
-                    "png:compression-level=9",
-                    "-define",
-                    "png:compression-strategy=1",
-                    "png:${dest.absolutePath}",
-                )
-            val _ =
-                executeShellCommand(command, *params)
-                    .orError()
-                    .mapLeft { MagickException("ImageMagick PNG optimization command failed", it) }
-                    .bind()
-            if (!dest.exists()) {
-                raise(
+    private suspend fun optimizePng(
+        source: File,
+        dest: File,
+    ): Either<MagickException, Unit> = either {
+        validateFiles(source, dest).bind()
+        // Both ImageMagick 6 and 7 use the same parameters for PNG optimization
+        val command = magickPath.absolutePath
+        val params =
+            arrayOf(
+                source.absolutePath,
+                "-auto-orient",
+                "-resize",
+                "${options.maxWidth}x${options.maxHeight}>",
+                "-strip",
+                "-define",
+                "png:compression-level=9",
+                "-define",
+                "png:compression-strategy=1",
+                "png:${dest.absolutePath}",
+            )
+        val _ =
+            executeShellCommand(command, *params)
+                .orError()
+                .mapLeft {
                     MagickException(
-                        "Optimization failed, destination file not created: ${dest.absolutePath}"
+                        "ImageMagick PNG optimization command failed",
+                        it,
                     )
+                }
+                .bind()
+        if (!dest.exists()) {
+            raise(
+                MagickException(
+                    "Optimization failed, destination file not created: ${dest.absolutePath}"
                 )
-            }
+            )
         }
+    }
 
     companion object {
         suspend operator fun invoke(
@@ -225,13 +278,23 @@ private constructor(
             if (magickV7 != null) {
                 val path = File(magickV7)
                 if (path.exists() && path.canExecute()) {
-                    logger.info { "Found ImageMagick 7 at: ${path.absolutePath}" }
-                    return@either ImageMagick(path, ImageMagickVersion.V7, null, options)
+                    logger.info {
+                        "Found ImageMagick 7 at: ${path.absolutePath}"
+                    }
+                    return@either ImageMagick(
+                        path,
+                        ImageMagickVersion.V7,
+                        null,
+                        options,
+                    )
                 }
             }
 
-            // Fall back to ImageMagick 6 (separate convert and identify commands)
-            logger.info { "ImageMagick 7 'magick' command not found, trying ImageMagick 6..." }
+            // Fall back to ImageMagick 6 (separate convert and identify
+            // commands)
+            logger.info {
+                "ImageMagick 7 'magick' command not found, trying ImageMagick 6..."
+            }
 
             val convertResult = executeShellCommand("which", "convert")
             val convertPath = convertResult.orError().getOrNull()?.trim()
@@ -252,7 +315,12 @@ private constructor(
                     logger.info {
                         "Found ImageMagick 6 - convert: ${convert.absolutePath}, identify: ${identify.absolutePath}"
                     }
-                    return@either ImageMagick(convert, ImageMagickVersion.V6, identify, options)
+                    return@either ImageMagick(
+                        convert,
+                        ImageMagickVersion.V6,
+                        identify,
+                        options,
+                    )
                 }
             }
 
@@ -276,7 +344,8 @@ data class MagickOptimizeOptions(
     val maxSizeBytes: Long = 1_000_000L, // 1 MB
 )
 
-class MagickException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class MagickException(message: String, cause: Throwable? = null) :
+    Exception(message, cause)
 
 enum class MimeType {
     JPEG,

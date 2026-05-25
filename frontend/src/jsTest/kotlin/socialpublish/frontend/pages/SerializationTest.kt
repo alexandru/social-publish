@@ -14,7 +14,8 @@ class SerializationTest {
 
     @Test
     fun testLoginRequestSerializationRoundTrip() {
-        val original = LoginRequest(username = "testuser", password = "testpass")
+        val original =
+            LoginRequest(username = "testuser", password = "testpass")
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<LoginRequest>(encoded)
 
@@ -49,7 +50,8 @@ class SerializationTest {
 
     @Test
     fun testLoginResponseDeserialization() {
-        val jsonString = """{"token":"abc123","configuredServices":{"twitter":true}}"""
+        val jsonString =
+            """{"token":"abc123","configuredServices":{"twitter":true}}"""
         val decoded = json.decodeFromString<LoginResponse>(jsonString)
 
         assertEquals("abc123", decoded.token)
@@ -203,7 +205,8 @@ class SerializationTest {
     @Test
     fun testSerializationPreservesStructure() {
         // Test that serialization output has expected structure
-        val request = PublishRequest(content = "Test", targets = listOf("twitter"))
+        val request =
+            PublishRequest(content = "Test", targets = listOf("twitter"))
         val encoded = json.encodeToString(request)
 
         assertTrue(encoded.contains("\"content\":\"Test\""))
@@ -214,7 +217,10 @@ class SerializationTest {
     fun testComplexNestedSerialization() {
         // Test nested object serialization
         val response =
-            LoginResponse(token = "token", configuredServices = ConfiguredServices(twitter = true))
+            LoginResponse(
+                token = "token",
+                configuredServices = ConfiguredServices(twitter = true),
+            )
         val encoded = json.encodeToString(response)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
@@ -225,7 +231,8 @@ class SerializationTest {
     @Test
     fun testTwitterStatusResponseDeserializationWithAuthorization() {
         // Backend returns createdAt as Long (epoch milliseconds)
-        val jsonString = """{"hasAuthorization":true,"createdAt":1737478801545}"""
+        val jsonString =
+            """{"hasAuthorization":true,"createdAt":1737478801545}"""
         val decoded = json.decodeFromString<TwitterStatusResponse>(jsonString)
 
         assertTrue(decoded.hasAuthorization)
@@ -259,7 +266,11 @@ class SerializationTest {
 
     @Test
     fun testTwitterStatusResponseSerializationRoundTrip() {
-        val original = TwitterStatusResponse(hasAuthorization = true, createdAt = 1737478801545L)
+        val original =
+            TwitterStatusResponse(
+                hasAuthorization = true,
+                createdAt = 1737478801545L,
+            )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<TwitterStatusResponse>(encoded)
 

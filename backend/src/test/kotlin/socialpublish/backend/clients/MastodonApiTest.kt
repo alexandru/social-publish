@@ -31,10 +31,13 @@ import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
 class MastodonApiTest {
-    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
-    fun `uploads images with alt text and creates status`(@TempDir tempDir: Path) = runTest {
+    fun `uploads images with alt text and creates status`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -55,7 +58,9 @@ class MastodonApiTest {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
                         uploadedImages.add(imageDimensions(file.bytes))
-                        descriptions.add(multipart.fields["description"]?.firstOrNull())
+                        descriptions.add(
+                            multipart.fields["description"]?.firstOrNull()
+                        )
                         mediaCounter += 1
                         call.respondText(
                             "{" +
@@ -86,20 +91,28 @@ class MastodonApiTest {
                 }
             }
 
-            val upload1 = uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
-            val upload2 = uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
+            val upload1 =
+                uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
+            val upload2 =
+                uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
 
             val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
 
-            val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
-            val mastodonConfig = MastodonConfig(host = "http://localhost", accessToken = "token")
+            val req =
+                NewPostRequest(
+                    content = "Hello",
+                    images = listOf(upload1.uuid, upload2.uuid),
+                )
+            val mastodonConfig =
+                MastodonConfig(host = "http://localhost", accessToken = "token")
             val result =
                 context(createTestSession(testUserUuid)) {
                     mastodonModule.createPost(mastodonConfig, req)
                 }
 
             assertTrue(result.isRight())
-            val response = (result as Either.Right).value as NewMastodonPostResponse
+            val response =
+                (result as Either.Right).value as NewMastodonPostResponse
             assertNotNull(response.uri)
 
             assertEquals(listOf("rose", "tulip"), descriptions)

@@ -36,10 +36,17 @@ data class Upload(
 
 class FilesDatabase(private val db: Database) {
     companion object {
-        private val UUID_NAMESPACE = UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac")
+        private val UUID_NAMESPACE =
+            UUID.fromString("5b9ba0d0-8825-4c51-a34e-f849613dbcac")
 
-        /** Generate UUID v5 from string (deterministic UUID based on namespace and name) */
-        fun generateUuidV5(name: String, namespace: UUID = UUID_NAMESPACE): UUID {
+        /**
+         * Generate UUID v5 from string (deterministic UUID based on namespace
+         * and name)
+         */
+        fun generateUuidV5(
+            name: String,
+            namespace: UUID = UUID_NAMESPACE,
+        ): UUID {
             val namespaceBytes =
                 ByteBuffer.allocate(16)
                     .apply {
@@ -62,7 +69,9 @@ class FilesDatabase(private val db: Database) {
         }
     }
 
-    suspend fun createFile(payload: UploadPayload): Either<DBException, Upload> = db.transaction {
+    suspend fun createFile(
+        payload: UploadPayload
+    ): Either<DBException, Upload> = db.transaction {
         val uuidInput =
             listOf(
                     "u:${payload.userUuid}",
@@ -91,7 +100,8 @@ class FilesDatabase(private val db: Database) {
                         imageWidth = rs.getObject("imageWidth") as? Int,
                         imageHeight = rs.getObject("imageHeight") as? Int,
                         userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
+                        createdAt =
+                            Instant.ofEpochMilli(rs.getLong("createdAt")),
                     )
                 }
             }
@@ -129,8 +139,10 @@ class FilesDatabase(private val db: Database) {
             setString(4, upload.mimetype)
             setLong(5, upload.size)
             setString(6, upload.altText)
-            upload.imageWidth?.let { setInt(7, it) } ?: setNull(7, Types.INTEGER)
-            upload.imageHeight?.let { setInt(8, it) } ?: setNull(8, Types.INTEGER)
+            upload.imageWidth?.let { setInt(7, it) }
+                ?: setNull(7, Types.INTEGER)
+            upload.imageHeight?.let { setInt(8, it) }
+                ?: setNull(8, Types.INTEGER)
             setString(9, upload.userUuid.toString())
             setLong(10, upload.createdAt.toEpochMilli())
             execute()
@@ -140,9 +152,35 @@ class FilesDatabase(private val db: Database) {
         upload
     }
 
-    suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> = either {
-        db.query("SELECT * FROM uploads WHERE uuid = ?") {
+    suspend fun getFileByUuid(uuid: String): Either<DBException, Upload?> =
+        either {
+            db.query("SELECT * FROM uploads WHERE uuid = ?") {
+                setString(1, uuid)
+                executeQuery().safe().firstOrNull { rs ->
+                    Upload(
+                        uuid = rs.getString("uuid"),
+                        hash = rs.getString("hash"),
+                        originalname = rs.getString("originalname"),
+                        mimetype = rs.getString("mimetype"),
+                        size = rs.getLong("size"),
+                        altText = rs.getString("altText"),
+                        imageWidth = rs.getObject("imageWidth") as? Int,
+                        imageHeight = rs.getObject("imageHeight") as? Int,
+                        userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
+                        createdAt =
+                            Instant.ofEpochMilli(rs.getLong("createdAt")),
+                    )
+                }
+            }
+        }
+
+    suspend fun getFileByUuidForUser(
+        uuid: String,
+        userUuid: UUIDv7,
+    ): Either<DBException, Upload?> = either {
+        db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
             setString(1, uuid)
+            setString(2, userUuid.toString())
             executeQuery().safe().firstOrNull { rs ->
                 Upload(
                     uuid = rs.getString("uuid"),
@@ -159,26 +197,4 @@ class FilesDatabase(private val db: Database) {
             }
         }
     }
-
-    suspend fun getFileByUuidForUser(uuid: String, userUuid: UUIDv7): Either<DBException, Upload?> =
-        either {
-            db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
-                setString(1, uuid)
-                setString(2, userUuid.toString())
-                executeQuery().safe().firstOrNull { rs ->
-                    Upload(
-                        uuid = rs.getString("uuid"),
-                        hash = rs.getString("hash"),
-                        originalname = rs.getString("originalname"),
-                        mimetype = rs.getString("mimetype"),
-                        size = rs.getLong("size"),
-                        altText = rs.getString("altText"),
-                        imageWidth = rs.getObject("imageWidth") as? Int,
-                        imageHeight = rs.getObject("imageHeight") as? Int,
-                        userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
-                    )
-                }
-            }
-        }
 }

@@ -18,22 +18,28 @@ fun isFatalOrCancelled(e: Throwable): Boolean =
         }
 
 /**
- * Catching exceptions such as `CancellationException` or `InterruptedException` is pretty bad,
- * because these should never be caught by mistake, captured in some `Either` datatype or ignored.
+ * Catching exceptions such as `CancellationException` or `InterruptedException`
+ * is pretty bad, because these should never be caught by mistake, captured in
+ * some `Either` datatype or ignored.
  *
- * Ditto for `VirtualMachineError`, because in that case the whole process should crash as fast as
- * possible, or we risk it being left in a zombie state.
+ * Ditto for `VirtualMachineError`, because in that case the whole process
+ * should crash as fast as possible, or we risk it being left in a zombie state.
  */
 fun rethrowIfFatal(e: Throwable) {
     if (isFatal(e)) throw e
 }
 
-/** This check also detects `CancellationException` and `InterruptedException`. */
+/**
+ * This check also detects `CancellationException` and `InterruptedException`.
+ */
 fun rethrowIfFatalOrCancelled(e: Throwable) {
     if (isFatalOrCancelled(e)) throw e
 }
 
-/** Runs [finalizer] and rethrows any exceptions that are not fatal in a safe way. */
+/**
+ * Runs [finalizer] and rethrows any exceptions that are not fatal in a safe
+ * way.
+ */
 inline fun rethrowIfFatal(e: Throwable, finalizer: () -> Unit) {
     rethrowIfFatal(e)
     try {

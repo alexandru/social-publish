@@ -29,7 +29,8 @@ import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.uploadTestImage
 
 class LlmApiTest {
-    private val testUserUuid: UUIDv7 = UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `generates alt text using OpenAI`(@TempDir tempDir: Path) = runTest {
@@ -106,7 +107,10 @@ class LlmApiTest {
                 }
 
             // Verify result
-            assertTrue(result is Either.Right, "Expected successful result but got: $result")
+            assertTrue(
+                result is Either.Right,
+                "Expected successful result but got: $result",
+            )
             val altText = (result as Either.Right).value
             assertEquals("A beautiful red rose in bloom", altText)
 
@@ -129,7 +133,10 @@ class LlmApiTest {
             val imageContent = message?.content?.find { it.type == "image_url" }
             assertNotNull(imageContent?.imageUrl)
             assertTrue(
-                imageContent?.imageUrl?.url?.startsWith("data:image/jpeg;base64,") == true,
+                imageContent
+                    ?.imageUrl
+                    ?.url
+                    ?.startsWith("data:image/jpeg;base64,") == true,
                 "Image should be base64 encoded",
             )
         }
@@ -210,44 +217,53 @@ class LlmApiTest {
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result")
             val altText = (result as Either.Right).value
-            assertEquals("A vibrant yellow tulip against a green background", altText)
+            assertEquals(
+                "A vibrant yellow tulip against a green background",
+                altText,
+            )
         }
     }
 
     @Test
-    fun `returns error for non-existent image`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
+    fun `returns error for non-existent image`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
 
-            val client = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
+                val client = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+
+                val llmModule = LlmApiModule(filesModule, client)
+
+                val dummyConfig =
+                    LlmConfig(
+                        apiUrl = "/v1/chat/completions",
+                        apiKey = "test-key",
+                        model = "gpt-4o-mini",
                     )
-                }
-            }
+                val result =
+                    context(createTestSession(testUserUuid)) {
+                        llmModule.generateAltText(
+                            dummyConfig,
+                            "non-existent-uuid",
+                        )
+                    }
 
-            val llmModule = LlmApiModule(filesModule, client)
-
-            val dummyConfig =
-                LlmConfig(
-                    apiUrl = "/v1/chat/completions",
-                    apiKey = "test-key",
-                    model = "gpt-4o-mini",
+                assertTrue(result is Either.Left, "Expected error result")
+                val error = (result as Either.Left).value
+                assertEquals(404, error.status)
+                assertTrue(
+                    error.errorMessage.contains("not found", ignoreCase = true)
                 )
-            val result =
-                context(createTestSession(testUserUuid)) {
-                    llmModule.generateAltText(dummyConfig, "non-existent-uuid")
-                }
-
-            assertTrue(result is Either.Left, "Expected error result")
-            val error = (result as Either.Left).value
-            assertEquals(404, error.status)
-            assertTrue(error.errorMessage.contains("not found", ignoreCase = true))
+            }
         }
-    }
 }

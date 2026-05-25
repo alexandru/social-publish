@@ -4,7 +4,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-data class BlueskyConfig(val service: String, val username: String, val password: String)
+data class BlueskyConfig(
+    val service: String,
+    val username: String,
+    val password: String,
+)
 
 @Serializable
 data class BlueskySessionResponse(

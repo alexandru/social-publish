@@ -10,7 +10,8 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasSessionToken()
     var navbarActive by remember { mutableStateOf(false) }
 
-    // Normalize currentPath to ignore trailing slashes and query strings so active checks are
+    // Normalize currentPath to ignore trailing slashes and query strings so
+    // active checks are
     // robust
 
     Nav(
@@ -180,7 +181,9 @@ private fun NavButton(
                 }
             },
         ) {
-            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            Span(attrs = { classes("icon") }) {
+                I(attrs = { classes(*iconClasses) })
+            }
             B { Text(label) }
         }
     } else {
@@ -190,7 +193,9 @@ private fun NavButton(
                 if (onClick != null) onClick { onClick() }
             }
         ) {
-            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            Span(attrs = { classes("icon") }) {
+                I(attrs = { classes(*iconClasses) })
+            }
             B { Text(label) }
         }
     }
@@ -213,7 +218,9 @@ private fun NavItemLink(
             }
         },
     ) {
-        Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+        Span(attrs = { classes("icon") }) {
+            I(attrs = { classes(*iconClasses) })
+        }
         B { Text(label) }
     }
 }

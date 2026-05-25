@@ -110,7 +110,10 @@ class EndpointSecurityTest {
 
             val response =
                 client.get("/api/protected") {
-                    header(HttpHeaders.Authorization, "Bearer invalid-token-12345")
+                    header(
+                        HttpHeaders.Authorization,
+                        "Bearer invalid-token-12345",
+                    )
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -207,7 +210,8 @@ class EndpointSecurityTest {
                 }
             }
 
-            val response = client.get("/api/protected?access_token=${ctx.token}")
+            val response =
+                client.get("/api/protected?access_token=${ctx.token}")
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
@@ -239,7 +243,10 @@ class EndpointSecurityTest {
 
             val response =
                 client.post("/api/files/upload") {
-                    header(HttpHeaders.ContentType, ContentType.MultiPart.FormData)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.MultiPart.FormData,
+                    )
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -273,7 +280,10 @@ class EndpointSecurityTest {
             val response =
                 client.post("/api/submit") {
                     header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"data":"test"}""")
                 }
 
@@ -282,39 +292,40 @@ class EndpointSecurityTest {
     }
 
     @Test
-    fun `session token should contain user info via protected route`() = testApplication {
-        val ctx = createTestContext()
+    fun `session token should contain user info via protected route`() =
+        testApplication {
+            val ctx = createTestContext()
 
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                get("/api/protected") {
-                    val token =
-                        ctx.authRoutes.extractAccessToken(call)
-                            ?: run {
-                                call.respondWithUnauthorized()
-                                return@get
-                            }
-                    val result = ctx.authService.authorize(token)
-                    if (result is Either.Left) {
-                        call.respondWithUnauthorized()
-                        return@get
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    get("/api/protected") {
+                        val token =
+                            ctx.authRoutes.extractAccessToken(call)
+                                ?: run {
+                                    call.respondWithUnauthorized()
+                                    return@get
+                                }
+                        val result = ctx.authService.authorize(token)
+                        if (result is Either.Left) {
+                            call.respondWithUnauthorized()
+                            return@get
+                        }
+                        val session = result.getOrNull()!!
+                        call.respondText(session.user.username)
                     }
-                    val session = result.getOrNull()!!
-                    call.respondText(session.user.username)
                 }
             }
+
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("secuser"))
         }
-
-        val response =
-            client.get("/api/protected") {
-                header(HttpHeaders.Authorization, "Bearer ${ctx.token}")
-            }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("secuser"))
-    }
 
     @Test
     fun `different sessions should have different tokens`() {
@@ -322,7 +333,8 @@ class EndpointSecurityTest {
             val ctx = createTestContext()
 
             // Login a second time to get a different token
-            val login2 = ctx.authService.login("secuser", "secpass").getOrNull()!!
+            val login2 =
+                ctx.authService.login("secuser", "secpass").getOrNull()!!
             assertNotNull(login2)
             val token2 = login2.rawToken
 
@@ -343,7 +355,10 @@ class EndpointSecurityTest {
             val ctx = createTestContext()
 
             // Logout the session
-            val _ = ctx.authService.logout(ctx.token).getOrElse { error(it.errorMessage) }
+            val _ =
+                ctx.authService.logout(ctx.token).getOrElse {
+                    error(it.errorMessage)
+                }
 
             // Token should now be invalid
             val result = ctx.authService.authorize(ctx.token)
@@ -374,17 +389,33 @@ class EndpointSecurityTest {
             val userSessionsDb = UserSessionsDatabase(db, usersDb)
             val authService = AuthService(userSessionsDb)
 
-            val _ = usersDb.createUser("expireuser", "testpass").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("expireuser", "testpass").getOrElse {
+                    throw it
+                }
 
             // Login with a session that already expired (back-date it)
-            val loginResult = authService.login("expireuser", "testpass").getOrNull()!!
+            val loginResult =
+                authService.login("expireuser", "testpass").getOrNull()!!
 
             // Manually expire the session in DB
             val _ =
                 either {
-                        db.query("UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?") {
-                            setLong(1, java.time.Instant.now().minusSeconds(3600).toEpochMilli())
-                            setString(2, UserSessionsDatabase.hashToken(loginResult.rawToken))
+                        db.query(
+                            "UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?"
+                        ) {
+                            setLong(
+                                1,
+                                java.time.Instant.now()
+                                    .minusSeconds(3600)
+                                    .toEpochMilli(),
+                            )
+                            setString(
+                                2,
+                                UserSessionsDatabase.hashToken(
+                                    loginResult.rawToken
+                                ),
+                            )
                             executeUpdate()
                         }
                     }

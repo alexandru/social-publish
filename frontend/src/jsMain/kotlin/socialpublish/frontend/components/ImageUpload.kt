@@ -89,7 +89,10 @@ fun ImageUpload(
             attrs = {
                 classes("card-content", "p-4")
                 style {
-                    property("background", "linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)")
+                    property(
+                        "background",
+                        "linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)",
+                    )
                 }
             }
         ) {
@@ -174,7 +177,9 @@ fun ImageUpload(
                                     }
                                 }
                             ) {
-                                Text("File: ${state.file?.name ?: "No file selected"}")
+                                Text(
+                                    "File: ${state.file?.name ?: "No file selected"}"
+                                )
                             }
                             Button(
                                 attrs = {
@@ -200,7 +205,9 @@ fun ImageUpload(
                     }
 
                     Div(attrs = { classes("field") }) {
-                        Label(attrs = { classes("label", "is-small") }) { Text("Alt text") }
+                        Label(attrs = { classes("label", "is-small") }) {
+                            Text("Alt text")
+                        }
                         Div(attrs = { classes("control") }) {
                             TextArea(
                                 attrs = {
@@ -208,14 +215,19 @@ fun ImageUpload(
                                     id("altText_$id")
                                     attr("name", "altText_$id")
                                     attr("rows", "2")
-                                    attr("placeholder", "Describe this image for accessibility...")
+                                    attr(
+                                        "placeholder",
+                                        "Describe this image for accessibility...",
+                                    )
                                     value(state.altText ?: "")
                                     if (state.isGeneratingAltText) {
                                         attr("disabled", "")
                                     }
                                     onInput { event ->
                                         val target = event.target
-                                        onSelect(state.copy(altText = target.value))
+                                        onSelect(
+                                            state.copy(altText = target.value)
+                                        )
                                     }
                                 }
                             )
@@ -225,7 +237,12 @@ fun ImageUpload(
                             Div(attrs = { classes("control", "mt-2") }) {
                                 Button(
                                     attrs = {
-                                        classes("button", "is-small", "is-info", "is-outlined")
+                                        classes(
+                                            "button",
+                                            "is-small",
+                                            "is-info",
+                                            "is-outlined",
+                                        )
                                         attr("type", "button")
                                         if (state.isGeneratingAltText) {
                                             attr("disabled", "")
@@ -234,7 +251,12 @@ fun ImageUpload(
                                         onClick { event ->
                                             event.preventDefault()
                                             if (!state.isGeneratingAltText) {
-                                                onSelect(state.copy(isGeneratingAltText = true))
+                                                onSelect(
+                                                    state.copy(
+                                                        isGeneratingAltText =
+                                                            true
+                                                    )
+                                                )
                                                 scope.launch {
                                                     try {
                                                         val response =
@@ -244,24 +266,38 @@ fun ImageUpload(
                                                             >(
                                                                 "/api/llm/generate-alt-text",
                                                                 GenerateAltTextRequest(
-                                                                    imageUuid = state.uploadedUuid,
-                                                                    userContext = state.altText,
-                                                                    language = language,
+                                                                    imageUuid =
+                                                                        state
+                                                                            .uploadedUuid,
+                                                                    userContext =
+                                                                        state
+                                                                            .altText,
+                                                                    language =
+                                                                        language,
                                                                 ),
                                                             )
 
                                                         when (response) {
                                                             is ApiResponse.Success -> {
-                                                                val altText = response.data.altText
+                                                                val altText =
+                                                                    response
+                                                                        .data
+                                                                        .altText
                                                                 onSelect(
                                                                     state.copy(
-                                                                        altText = altText,
-                                                                        isGeneratingAltText = false,
+                                                                        altText =
+                                                                            altText,
+                                                                        isGeneratingAltText =
+                                                                            false,
                                                                     )
                                                                 )
                                                             }
                                                             is ApiResponse.Error -> {
-                                                                if (response.code == 401) {
+                                                                if (
+                                                                    response
+                                                                        .code ==
+                                                                        401
+                                                                ) {
                                                                     navigateTo(
                                                                         "/login?error=${response.code}&redirect=/form"
                                                                     )
@@ -269,7 +305,8 @@ fun ImageUpload(
                                                                 }
                                                                 onSelect(
                                                                     state.copy(
-                                                                        isGeneratingAltText = false
+                                                                        isGeneratingAltText =
+                                                                            false
                                                                     )
                                                                 )
                                                                 onError(
@@ -277,13 +314,15 @@ fun ImageUpload(
                                                                 )
                                                                 console.error(
                                                                     "Alt-text generation failed:",
-                                                                    response.message,
+                                                                    response
+                                                                        .message,
                                                                 )
                                                             }
                                                             is ApiResponse.Exception -> {
                                                                 onSelect(
                                                                     state.copy(
-                                                                        isGeneratingAltText = false
+                                                                        isGeneratingAltText =
+                                                                            false
                                                                     )
                                                                 )
                                                                 onError(
@@ -291,30 +330,46 @@ fun ImageUpload(
                                                                 )
                                                                 console.error(
                                                                     "Alt-text generation exception:",
-                                                                    response.message,
+                                                                    response
+                                                                        .message,
                                                                 )
                                                             }
                                                         }
                                                     } catch (e: Throwable) {
                                                         rethrowIfFatal(e)
                                                         onSelect(
-                                                            state.copy(isGeneratingAltText = false)
+                                                            state.copy(
+                                                                isGeneratingAltText =
+                                                                    false
+                                                            )
                                                         )
-                                                        onError("An unexpected error occurred")
-                                                        console.error("Unexpected error:", e)
+                                                        onError(
+                                                            "An unexpected error occurred"
+                                                        )
+                                                        console.error(
+                                                            "Unexpected error:",
+                                                            e,
+                                                        )
                                                     }
                                                 }
                                             }
                                         }
                                     }
                                 ) {
-                                    Span(attrs = { classes("icon", "is-small") }) {
+                                    Span(
+                                        attrs = { classes("icon", "is-small") }
+                                    ) {
                                         I(
                                             attrs = {
                                                 classes(
                                                     "fas",
-                                                    if (state.isGeneratingAltText) "fa-spinner"
-                                                    else "fa-wand-magic-sparkles",
+                                                    if (
+                                                        state
+                                                            .isGeneratingAltText
+                                                    )
+                                                        "fa-spinner"
+                                                    else
+                                                        "fa-wand-magic-sparkles",
                                                 )
                                             }
                                         )
@@ -333,7 +388,9 @@ fun ImageUpload(
 @Composable
 fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
     // Hidden file input - use Long for better uniqueness
-    val inputId = remember { "hidden-file-input-${kotlin.random.Random.nextLong()}" }
+    val inputId = remember {
+        "hidden-file-input-${kotlin.random.Random.nextLong()}"
+    }
 
     Input(
         type = InputType.File,
@@ -346,7 +403,8 @@ fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
                 val file = target.files?.get(0)
                 if (file != null) {
                     onImageSelected(file)
-                    // Reset input to allow selecting the same file again if removed
+                    // Reset input to allow selecting the same file again if
+                    // removed
                     target.value = ""
                 }
             }
@@ -363,16 +421,21 @@ fun AddImageButton(onImageSelected: (File) -> Unit, disabled: Boolean = false) {
             }
             onClick { event ->
                 event.preventDefault()
-                val input = document.getElementById(inputId) as? HTMLInputElement
+                val input =
+                    document.getElementById(inputId) as? HTMLInputElement
                 if (input != null) {
                     input.click()
                 } else {
-                    console.error("Could not find hidden file input with id: $inputId")
+                    console.error(
+                        "Could not find hidden file input with id: $inputId"
+                    )
                 }
             }
         }
     ) {
-        Span(attrs = { classes("icon") }) { I(attrs = { classes("fas", "fa-plus") }) }
+        Span(attrs = { classes("icon") }) {
+            I(attrs = { classes("fas", "fa-plus") })
+        }
         Span { Text("Add image") }
     }
 }

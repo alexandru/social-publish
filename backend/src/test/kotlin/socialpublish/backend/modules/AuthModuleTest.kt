@@ -56,7 +56,8 @@ class AuthModuleTest {
 
     @Test
     fun `verifyPassword should return false for malformed hash`() {
-        val verified = AuthModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
+        val verified =
+            AuthModule.verifyPassword("password", "not-a-valid-bcrypt-hash")
         assertFalse(verified)
     }
 
@@ -67,20 +68,24 @@ class AuthModuleTest {
     }
 
     @Test
-    fun `AuthService login returns CreatedUserSession for valid credentials`() = runTest {
-        val db = Database.connectUnmanaged(":memory:")
-        val usersDb = UsersDatabase(db)
-        val userSessionsDb = UserSessionsDatabase(db, usersDb)
-        val authService = AuthService(userSessionsDb)
+    fun `AuthService login returns CreatedUserSession for valid credentials`() =
+        runTest {
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("testuser", "password123").getOrElse {
+                    throw it
+                }
 
-        val result = authService.login("testuser", "password123")
-        assertTrue(result is Either.Right)
-        val created = result.getOrNull()
-        assertNotNull(created)
-        assertTrue(created.rawToken.isNotBlank())
-    }
+            val result = authService.login("testuser", "password123")
+            assertTrue(result is Either.Right)
+            val created = result.getOrNull()
+            assertNotNull(created)
+            assertTrue(created.rawToken.isNotBlank())
+        }
 
     @Test
     fun `AuthService login returns null for invalid credentials`() = runTest {
@@ -89,7 +94,8 @@ class AuthModuleTest {
         val userSessionsDb = UserSessionsDatabase(db, usersDb)
         val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
+        val _ =
+            usersDb.createUser("testuser", "password123").getOrElse { throw it }
 
         val result = authService.login("testuser", "wrongpassword")
         assertTrue(result is Either.Right)
@@ -98,33 +104,42 @@ class AuthModuleTest {
     }
 
     @Test
-    fun `AuthService authorize returns UserSession for valid token`() = runTest {
-        val db = Database.connectUnmanaged(":memory:")
-        val usersDb = UsersDatabase(db)
-        val userSessionsDb = UserSessionsDatabase(db, usersDb)
-        val authService = AuthService(userSessionsDb)
+    fun `AuthService authorize returns UserSession for valid token`() =
+        runTest {
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("testuser", "password123").getOrElse {
+                    throw it
+                }
 
-        val loginResult = authService.login("testuser", "password123").getOrNull()!!
-        assertNotNull(loginResult)
+            val loginResult =
+                authService.login("testuser", "password123").getOrNull()!!
+            assertNotNull(loginResult)
 
-        val session = authService.authorize(loginResult.rawToken)
-        assertTrue(session is Either.Right)
-        assertNotNull(session.getOrNull())
-    }
+            val session = authService.authorize(loginResult.rawToken)
+            assertTrue(session is Either.Right)
+            assertNotNull(session.getOrNull())
+        }
 
     @Test
-    fun `AuthService authorize returns unauthorized for invalid token`() = runTest {
-        val db = Database.connectUnmanaged(":memory:")
-        val usersDb = UsersDatabase(db)
-        val userSessionsDb = UserSessionsDatabase(db, usersDb)
-        val authService = AuthService(userSessionsDb)
+    fun `AuthService authorize returns unauthorized for invalid token`() =
+        runTest {
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
 
-        val _ = usersDb.createUser("testuser", "password123").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("testuser", "password123").getOrElse {
+                    throw it
+                }
 
-        val result = authService.authorize("invalid-token")
-        assertTrue(result is Either.Left)
-        assertEquals("Unauthorized", result.value.errorMessage)
-    }
+            val result = authService.authorize("invalid-token")
+            assertTrue(result is Either.Left)
+            assertEquals("Unauthorized", result.value.errorMessage)
+        }
 }

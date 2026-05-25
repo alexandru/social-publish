@@ -9,7 +9,9 @@ suspend fun logoutAndClearLocalSession(
         ApiClient.post<LogoutResponse, Unit>("/api/logout")
     },
     clearSessionToken: () -> Unit = Storage::clearSessionToken,
-    clearConfiguredServices: () -> Unit = { Storage.setConfiguredServices(null) },
+    clearConfiguredServices: () -> Unit = {
+        Storage.setConfiguredServices(null)
+    },
 ) {
     try {
         val _ = logoutRequest()
