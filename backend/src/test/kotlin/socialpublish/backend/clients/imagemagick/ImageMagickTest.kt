@@ -200,7 +200,7 @@ class ImageMagickTest {
                             maxHeight = 1600,
                             maxSizeBytes =
                                 200_000, // 200KB - achievable with quality
-                                         // reduction
+                            // reduction
                             jpegQuality = 85,
                         )
                 )

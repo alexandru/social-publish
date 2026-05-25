@@ -219,10 +219,10 @@ class LlmApiModule(
                             429 -> 502 // Bad Gateway: LLM integration problem
                             in 500..599 ->
                                 503 // Service Unavailable: Upstream provider
-                                    // error
+                            // error
                             else ->
                                 originalStatus // Validation, not found, etc:
-                                               // propagate
+                        // propagate
                         }
                     RequestError(
                             status = mappedStatus,
