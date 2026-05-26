@@ -509,7 +509,7 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `protectedRoute should accept valid token via access_token query parameter`() {
+    fun `protectedRoute should reject valid token via access_token query parameter`() {
         testApplication {
             val ctx = testSetup()
             val token = loginAndGetToken(ctx)
@@ -527,7 +527,7 @@ class AuthRoutesTest {
 
             val response = client.get("/api/protected?access_token=$token")
 
-            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
 
@@ -664,7 +664,7 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `extractAccessToken should extract token from access_token query parameter`() {
+    fun `extractAccessToken should not extract token from access_token query parameter`() {
         testApplication {
             val ctx = testSetup()
             application {
@@ -680,7 +680,7 @@ class AuthRoutesTest {
             val response = client.get("/test?access_token=query-token-789")
 
             assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("query-token-789"))
+            assertTrue(response.bodyAsText().contains("\"token\":null"))
         }
     }
 

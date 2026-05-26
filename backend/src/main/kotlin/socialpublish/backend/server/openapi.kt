@@ -14,7 +14,6 @@ fun Operation.Builder.documentSecurityRequirements() {
     security {
         // Each call = an OR alternative
         requirement("bearerAuth")
-        requirement("accessTokenQuery")
         requirement("accessTokenCookie")
     }
 }
@@ -24,14 +23,6 @@ fun Application.configureOpenApiSecuritySchemes() {
         name = "bearerAuth",
         description = "Session token via Authorization: Bearer <token>",
         bearerFormat = "session-token",
-    )
-
-    registerApiKeySecurityScheme(
-        name = "accessTokenQuery",
-        keyName = "access_token",
-        keyLocation = SecuritySchemeIn.QUERY,
-        description =
-            "Session token via ?access_token=... (discouraged, but supported)",
     )
 
     registerApiKeySecurityScheme(
@@ -68,19 +59,7 @@ inline fun <reified T : Any> Responses.Builder.documentNewPostResponses() {
 fun Responses.Builder.documentOAuthCallbackResponses() {
     HttpStatusCode.Found {
         description =
-            "Successful authorization, redirects to account page (302 Found)"
-    }
-    HttpStatusCode.BadRequest {
-        description = "Missing required parameters (code, state, or verifier)"
-        schema = jsonSchema<ErrorResponse>()
-    }
-    HttpStatusCode.Unauthorized {
-        description = "State parameter mismatch or authorization failed"
-        schema = jsonSchema<ErrorResponse>()
-    }
-    HttpStatusCode.InternalServerError {
-        description = "Failed to save authorization token"
-        schema = jsonSchema<ErrorResponse>()
+            "Redirects to /account on success, or /account?error=... on failure"
     }
 }
 

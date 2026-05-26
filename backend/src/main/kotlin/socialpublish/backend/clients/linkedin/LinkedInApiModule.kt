@@ -71,8 +71,6 @@ import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
@@ -180,9 +178,7 @@ class LinkedInApiModule(
         }
     }
 
-    private fun getCallbackUrl(sessionToken: String): String {
-        return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(sessionToken, "UTF-8")}"
-    }
+    private val callbackUrl = "$baseUrl/api/linkedin/callback"
 
     /**
      * Generate a cryptographically secure random state string for CSRF
@@ -192,48 +188,10 @@ class LinkedInApiModule(
      * will return this value in the callback, and we verify it matches the
      * original.
      */
-    private fun generateOAuthState(): String {
+    fun generateOAuthState(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-    }
-
-    /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(
-        state: String,
-        sessionToken: String,
-        userUuid: UUIDv7,
-    ) {
-        val _ =
-            documentsDb.createOrUpdate(
-                kind = "linkedin-oauth-state",
-                payload =
-                    """{"state":"$state","sessionToken":"$sessionToken"}""",
-                userUuid = userUuid,
-                searchKey = state,
-                tags = emptyList(),
-            )
-    }
-
-    /** Verify and consume OAuth state during callback */
-    suspend fun verifyOAuthState(state: String, userUuid: UUIDv7): String? {
-        val doc =
-            documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
-        return if (doc != null && doc.kind == "linkedin-oauth-state") {
-            // State found and valid (we don't delete it, but could track usage)
-            // In production, we might want to track used states to prevent
-            // replay attacks
-            try {
-                val json = Json.parseToJsonElement(doc.payload)
-                json.jsonObject["sessionToken"]?.jsonPrimitive?.content
-            } catch (e: Throwable) {
-                rethrowIfFatalOrCancelled(e)
-                logger.warn(e) { "Failed to parse OAuth state from DB" }
-                null
-            }
-        } else {
-            null
-        }
     }
 
     /**
@@ -356,16 +314,10 @@ class LinkedInApiModule(
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
-        sessionToken: String,
         userUuid: UUIDv7,
+        state: String,
     ): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(sessionToken)
-            val state = generateOAuthState()
-
-            // Save state for verification during callback
-            saveOAuthState(state, sessionToken, userUuid)
-
             val authUrl =
                 "${config.authorizationUrl}?response_type=code" +
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +

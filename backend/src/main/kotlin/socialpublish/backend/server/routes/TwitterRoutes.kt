@@ -8,6 +8,7 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import java.net.URLEncoder
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
@@ -31,12 +32,12 @@ class TwitterRoutes(
     context(_: UserSession)
     suspend fun authorizeRoute(
         twitterConfig: TwitterConfig,
-        sessionToken: String,
         call: ApplicationCall,
     ) {
+        val userUuid = userUuid()
         when (
             val result =
-                twitterModule.buildAuthorizeURL(twitterConfig, sessionToken)
+                twitterModule.buildAuthorizeURL(twitterConfig, userUuid)
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
@@ -59,9 +60,8 @@ class TwitterRoutes(
         val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Invalid request"),
+            call.respondRedirect(
+                "/account?error=${URLEncoder.encode("Twitter authorization was incomplete. Please try again.", Charsets.UTF_8)}"
             )
             return
         }
@@ -85,11 +85,12 @@ class TwitterRoutes(
                 call.respondRedirect("/account")
             }
             is arrow.core.Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
+                val msg =
+                    URLEncoder.encode(
+                        "Twitter authorization failed. Please try again.",
+                        Charsets.UTF_8,
+                    )
+                call.respondRedirect("/account?error=$msg")
             }
         }
     }
