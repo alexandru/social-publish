@@ -91,8 +91,12 @@ class LinkedInApiTest {
                 "URL should contain response_type=code",
             )
             assertTrue(
+                url.contains("scope=openid%20profile%20w_member_social"),
+                "URL should contain space-delimited openid profile w_member_social scope",
+            )
+            assertFalse(
                 url.contains("scope=openid+profile+w_member_social"),
-                "URL should contain openid profile w_member_social scope",
+                "LinkedIn treats plus signs as literal scope characters",
             )
             assertTrue(
                 url.contains("redirect_uri="),

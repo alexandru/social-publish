@@ -328,7 +328,7 @@ class LinkedInApiModule(
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
                     "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
                     "&state=${URLEncoder.encode(state, "UTF-8")}" +
-                    "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8")}"
+                    "&scope=${encodeQueryParameter("openid profile w_member_social")}"
             authUrl.right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
@@ -342,6 +342,9 @@ class LinkedInApiModule(
                 .left()
         }
     }
+
+    private fun encodeQueryParameter(value: String): String =
+        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
