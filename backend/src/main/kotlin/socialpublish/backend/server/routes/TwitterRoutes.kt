@@ -3,17 +3,12 @@ package socialpublish.backend.server.routes
 import arrow.core.getOrElse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
-import java.net.URLEncoder
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithInternalServerError
@@ -60,8 +55,8 @@ class TwitterRoutes(
         val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
-            call.respondRedirect(
-                "/account?error=${URLEncoder.encode("Twitter authorization was incomplete. Please try again.", Charsets.UTF_8)}"
+            call.redirectToAccountError(
+                "Twitter authorization was incomplete. Please try again."
             )
             return
         }
@@ -76,22 +71,13 @@ class TwitterRoutes(
                 )
         ) {
             is arrow.core.Either.Right -> {
-                call.response.header(
-                    "Cache-Control",
-                    "no-store, no-cache, must-revalidate, private",
-                )
-                call.response.header("Pragma", "no-cache")
-                call.response.header("Expires", "0")
+                call.preventOAuthRedirectCaching()
                 call.respondRedirect("/account")
             }
-            is arrow.core.Either.Left -> {
-                val msg =
-                    URLEncoder.encode(
-                        "Twitter authorization failed. Please try again.",
-                        Charsets.UTF_8,
-                    )
-                call.respondRedirect("/account?error=$msg")
-            }
+            is arrow.core.Either.Left ->
+                call.redirectToAccountError(
+                    "Twitter authorization failed. Please try again."
+                )
         }
     }
 
@@ -120,19 +106,7 @@ class TwitterRoutes(
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
+        val request = call.receiveNewPostRequest()
 
         when (val result = twitterModule.createPost(twitterConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)

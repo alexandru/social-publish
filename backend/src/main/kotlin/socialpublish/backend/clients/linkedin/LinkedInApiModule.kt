@@ -273,10 +273,8 @@ class LinkedInApiModule(
     }
 
     /** Check if LinkedIn auth exists for the given user */
-    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean {
-        val token = restoreOAuthTokenFromDb(userUuid)
-        return token != null
-    }
+    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean =
+        restoreOAuthTokenFromDb(userUuid) != null
 
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOAuthTokenFromDb(
@@ -322,7 +320,6 @@ class LinkedInApiModule(
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
-        userUuid: UUIDv7,
         state: String,
     ): ApiResult<String> {
         return try {

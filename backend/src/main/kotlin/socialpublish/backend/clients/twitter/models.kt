@@ -1,10 +1,9 @@
 package socialpublish.backend.clients.twitter
 
 import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import socialpublish.backend.common.jsonCommon
 
 @Serializable data class TwitterOAuthToken(val key: String, val secret: String)
@@ -41,40 +40,29 @@ data class TwitterOAuthDocument(
          */
         fun parse(
             payload: String
-        ): Either<IllegalArgumentException, TwitterOAuthDocument> {
-            return try {
-                val document =
-                    json.decodeFromString<TwitterOAuthDocument>(payload)
-                if (
-                    document.accessToken != null ||
-                        document.pendingRequest != null
-                ) {
-                    document.right()
-                } else {
-                    parseBareToken(payload).fold({ document.right() }) { token
-                        ->
-                        TwitterOAuthDocument(accessToken = token).right()
-                    }
-                }
-            } catch (wrapperError: IllegalArgumentException) {
-                parseBareToken(payload).map {
-                    TwitterOAuthDocument(accessToken = it)
+        ): Either<IllegalArgumentException, TwitterOAuthDocument> = either {
+            try {
+                val ref = json.decodeFromString<TwitterOAuthDocument>(payload)
+                if (ref.accessToken == null && ref.pendingRequest == null)
+                    throw IllegalArgumentException(
+                        "Both fields missing from payload"
+                    )
+                ref
+            } catch (e: IllegalArgumentException) {
+                try {
+                    val t = json.decodeFromString<TwitterOAuthToken>(payload)
+                    TwitterOAuthDocument(accessToken = t)
+                } catch (e2: IllegalArgumentException) {
+                    e.addSuppressed(e2)
+                    raise(
+                        IllegalArgumentException(
+                            "Invalid TwitterOAuthDocument",
+                            e,
+                        )
+                    )
                 }
             }
         }
-
-        private fun parseBareToken(
-            payload: String
-        ): Either<IllegalArgumentException, TwitterOAuthToken> =
-            try {
-                json.decodeFromString<TwitterOAuthToken>(payload).right()
-            } catch (tokenError: IllegalArgumentException) {
-                IllegalArgumentException(
-                        "Invalid Twitter OAuth document payload",
-                        tokenError,
-                    )
-                    .left()
-            }
     }
 
     fun toJson(): String = json.encodeToString(this)
