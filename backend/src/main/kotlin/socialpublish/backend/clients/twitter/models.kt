@@ -1,6 +1,11 @@
 package socialpublish.backend.clients.twitter
 
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import socialpublish.backend.common.jsonCommon
 
 @Serializable data class TwitterOAuthToken(val key: String, val secret: String)
 
@@ -22,7 +27,58 @@ data class TwitterOAuthRequestToken(val token: String, val secret: String)
 data class TwitterOAuthDocument(
     val accessToken: TwitterOAuthToken? = null,
     val pendingRequest: TwitterOAuthRequestToken? = null,
-)
+) {
+    companion object {
+        private val json = jsonCommon
+
+        /**
+         * Parse a persisted Twitter OAuth document.
+         *
+         * New records use this wrapper shape so the OAuth 1.0a request-token
+         * secret can be preserved between authorize and callback. Older records
+         * contain a bare [TwitterOAuthToken]; those are still accepted and
+         * wrapped as [accessToken] to preserve DB compatibility.
+         */
+        fun parse(
+            payload: String
+        ): Either<IllegalArgumentException, TwitterOAuthDocument> {
+            return try {
+                val document =
+                    json.decodeFromString<TwitterOAuthDocument>(payload)
+                if (
+                    document.accessToken != null ||
+                        document.pendingRequest != null
+                ) {
+                    document.right()
+                } else {
+                    parseBareToken(payload).fold({ document.right() }) { token
+                        ->
+                        TwitterOAuthDocument(accessToken = token).right()
+                    }
+                }
+            } catch (wrapperError: IllegalArgumentException) {
+                parseBareToken(payload).map {
+                    TwitterOAuthDocument(accessToken = it)
+                }
+            }
+        }
+
+        private fun parseBareToken(
+            payload: String
+        ): Either<IllegalArgumentException, TwitterOAuthToken> =
+            try {
+                json.decodeFromString<TwitterOAuthToken>(payload).right()
+            } catch (tokenError: IllegalArgumentException) {
+                IllegalArgumentException(
+                        "Invalid Twitter OAuth document payload",
+                        tokenError,
+                    )
+                    .left()
+            }
+    }
+
+    fun toJson(): String = json.encodeToString(this)
+}
 
 @Serializable data class TwitterMediaResponse(val media_id_string: String)
 

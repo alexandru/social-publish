@@ -51,7 +51,9 @@ skills-update:
 	npx skills add alexandru/skills -a claude-code github-copilot opencode -y --skill \
 		arrow-resource \
 		arrow-typed-errors \
-		compose-state-hoisting
+		compose-state-hoisting \
+		kotlin-context-parameters \
+		simplify
 
 # Docker setup
 docker-init:

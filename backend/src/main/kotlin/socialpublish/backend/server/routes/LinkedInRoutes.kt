@@ -45,6 +45,7 @@ class LinkedInRoutes(
                 maxAge = 600,
                 path = "/",
                 httpOnly = true,
+                extensions = mapOf("SameSite" to "Lax"),
             )
         )
 
@@ -87,6 +88,7 @@ class LinkedInRoutes(
                 maxAge = 0,
                 path = "/",
                 httpOnly = true,
+                extensions = mapOf("SameSite" to "Lax"),
             )
         )
 

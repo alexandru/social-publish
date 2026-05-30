@@ -70,9 +70,12 @@ import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
+import socialpublish.backend.common.LoomIO
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DocumentsDatabase
@@ -184,13 +187,16 @@ class LinkedInApiModule(
      * Generate a cryptographically secure random state string for CSRF
      * protection.
      *
-     * The state parameter prevents CSRF attacks during the OAuth flow. LinkedIn
-     * will return this value in the callback, and we verify it matches the
-     * original.
+     * The state parameter prevents CSRF attacks during the OAuth flow. We store
+     * it in an HTTP-only, SameSite=Lax cookie during authorization, include the
+     * same value in LinkedIn's authorization URL, and require the callback
+     * query parameter to match the cookie before exchanging the authorization
+     * code. SecureRandom can block when entropy is unavailable, so generation
+     * is dispatched to a blocking-friendly dispatcher.
      */
-    fun generateOAuthState(): String {
+    suspend fun generateOAuthState(): String {
         val bytes = ByteArray(32)
-        SecureRandom().nextBytes(bytes)
+        withContext(Dispatchers.LoomIO) { SecureRandom().nextBytes(bytes) }
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
@@ -301,15 +307,17 @@ class LinkedInApiModule(
      * Constructs the URL to redirect users to LinkedIn for OAuth consent. Uses
      * OpenID Connect (OIDC) scopes: `openid`, `profile`, and `w_member_social`.
      *
-     * Includes a cryptographically secure `state` parameter for CSRF protection
-     * as required by the OAuth 2.0 spec and LinkedIn's API.
+     * Includes the caller-provided `state` parameter for CSRF protection as
+     * required by the OAuth 2.0 spec and LinkedIn's API. The route layer owns
+     * generating the state and storing it in a short-lived HTTP-only cookie;
+     * this method only embeds that value into the provider redirect URL.
      *
      * **API Reference:**
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      *
-     * @param sessionToken session token to include in callback URL for state
-     *   verification
+     * @param state opaque CSRF token generated for this OAuth authorization
+     *   attempt and later verified against the callback cookie
      * @return Authorization URL to redirect the user to, or an error
      */
     suspend fun buildAuthorizeURL(

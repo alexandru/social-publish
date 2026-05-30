@@ -5,6 +5,8 @@ package socialpublish.backend.clients.twitter
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.raise.context.bind
+import arrow.core.raise.either
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -37,6 +39,7 @@ import org.jsoup.Jsoup
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
+import socialpublish.backend.db.DBException
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
@@ -102,65 +105,40 @@ class TwitterApiModule(
 
     private val callbackUrl = "$baseUrl/api/twitter/callback"
 
-    /** Check if Twitter auth exists for the given user */
-    suspend fun hasTwitterAuth(userUuid: UUIDv7): Boolean {
-        val token = restoreOauthTokenFromDb(userUuid)
-        return token != null
-    }
+    /** Parse payload to check for a valid access token without DB lookups. */
+    fun hasValidAccessToken(payload: String): Boolean =
+        TwitterOAuthDocument.parse(payload).fold({ false }) {
+            it.accessToken != null
+        }
 
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOauthTokenFromDb(
         userUuid: UUIDv7
-    ): TwitterOAuthToken? {
-        val doc =
-            documentsDb
-                .searchByKey("twitter-oauth-token:$userUuid", userUuid)
-                .getOrElse { throw it }
-        return if (doc != null) {
-            parseTwitterOAuthDocument(doc.payload)?.accessToken
-        } else {
-            null
+    ): ApiResult<TwitterOAuthToken?> =
+        when (val document = loadTwitterOAuthDocument(userUuid)) {
+            is Either.Right -> document.value.accessToken.right()
+            is Either.Left -> document.value.toTwitterApiError().left()
         }
-    }
-
-    /**
-     * Parse a Twitter OAuth document payload with backward compatibility.
-     *
-     * New format: `{"accessToken":{...},"pendingRequest":{...}}` Old format:
-     * `{"key":"...","secret":"..."}`
-     */
-    private fun parseTwitterOAuthDocument(
-        payload: String
-    ): TwitterOAuthDocument? {
-        return try {
-            Json.decodeFromString<TwitterOAuthDocument>(payload)
-        } catch (e: Throwable) {
-            // Fall back to old format: bare TwitterOAuthToken
-            try {
-                val oldToken = Json.decodeFromString<TwitterOAuthToken>(payload)
-                TwitterOAuthDocument(accessToken = oldToken)
-            } catch (e2: Throwable) {
-                rethrowIfFatalOrCancelled(e2)
-                logger.warn(e2) {
-                    "Failed to parse Twitter OAuth token from DB"
-                }
-                null
-            }
-        }
-    }
 
     /** Load the full OAuth document, or return an empty one if none exists. */
     private suspend fun loadTwitterOAuthDocument(
         userUuid: UUIDv7
-    ): TwitterOAuthDocument {
+    ): Either<DBException, TwitterOAuthDocument> = either {
         val doc =
             documentsDb
                 .searchByKey("twitter-oauth-token:$userUuid", userUuid)
-                .getOrElse { throw it }
-        return if (doc != null) {
-            parseTwitterOAuthDocument(doc.payload) ?: TwitterOAuthDocument()
-        } else {
+                .bind()
+        if (doc == null) {
             TwitterOAuthDocument()
+        } else {
+            TwitterOAuthDocument.parse(doc.payload)
+                .mapLeft {
+                    DBException(
+                        "Invalid Twitter OAuth document payload for user $userUuid",
+                        it,
+                    )
+                }
+                .bind()
         }
     }
 
@@ -168,19 +146,27 @@ class TwitterApiModule(
     private suspend fun saveTwitterOAuthDocument(
         userUuid: UUIDv7,
         document: TwitterOAuthDocument,
-    ) {
+    ): Either<DBException, Unit> = either {
         val _ =
-            documentsDb.createOrUpdate(
-                kind = "twitter-oauth-token",
-                payload =
-                    Json.encodeToString(
-                        TwitterOAuthDocument.serializer(),
-                        document,
-                    ),
-                userUuid = userUuid,
-                searchKey = "twitter-oauth-token:$userUuid",
-                tags = emptyList(),
-            )
+            documentsDb
+                .createOrUpdate(
+                    kind = "twitter-oauth-token",
+                    payload = document.toJson(),
+                    userUuid = userUuid,
+                    searchKey = "twitter-oauth-token:$userUuid",
+                    tags = emptyList(),
+                )
+                .bind()
+        Unit
+    }
+
+    private fun DBException.toTwitterApiError(): ApiError {
+        logger.error(this) { "Twitter OAuth database error" }
+        return CaughtException(
+            status = 500,
+            module = "twitter",
+            errorMessage = "Twitter OAuth database error",
+        )
     }
 
     /** Build authorization URL for OAuth flow */
@@ -194,17 +180,23 @@ class TwitterApiModule(
             val authUrl = service.getAuthorizationUrl(token)
 
             // Store pending request token in existing auth document
-            val existingDoc = loadTwitterOAuthDocument(userUuid)
+            val existingDoc =
+                loadTwitterOAuthDocument(userUuid).getOrElse {
+                    return it.toTwitterApiError().left()
+                }
             saveTwitterOAuthDocument(
-                userUuid,
-                existingDoc.copy(
-                    pendingRequest =
-                        TwitterOAuthRequestToken(
-                            token = token.token,
-                            secret = token.tokenSecret,
-                        )
-                ),
-            )
+                    userUuid,
+                    existingDoc.copy(
+                        pendingRequest =
+                            TwitterOAuthRequestToken(
+                                token = token.token,
+                                secret = token.tokenSecret,
+                            )
+                    ),
+                )
+                .getOrElse {
+                    return it.toTwitterApiError().left()
+                }
 
             authUrl.right()
         } catch (e: Throwable) {
@@ -227,7 +219,10 @@ class TwitterApiModule(
         userUuid: UUIDv7,
     ): ApiResult<Unit> {
         return try {
-            val existingDoc = loadTwitterOAuthDocument(userUuid)
+            val existingDoc =
+                loadTwitterOAuthDocument(userUuid).getOrElse {
+                    return it.toTwitterApiError().left()
+                }
             val pending = existingDoc.pendingRequest
 
             if (pending == null) {
@@ -270,12 +265,15 @@ class TwitterApiModule(
                 )
 
             saveTwitterOAuthDocument(
-                userUuid,
-                existingDoc.copy(
-                    accessToken = authorizedToken,
-                    pendingRequest = null,
-                ),
-            )
+                    userUuid,
+                    existingDoc.copy(
+                        accessToken = authorizedToken,
+                        pendingRequest = null,
+                    ),
+                )
+                .getOrElse {
+                    return it.toTwitterApiError().left()
+                }
 
             Unit.right()
         } catch (e: Throwable) {
@@ -414,7 +412,9 @@ class TwitterApiModule(
 
             // Get OAuth token
             val token =
-                restoreOauthTokenFromDb(userUuid)
+                restoreOauthTokenFromDb(userUuid).getOrElse {
+                    return it.left()
+                }
                     ?: return ValidationError(
                             status = 401,
                             errorMessage =
@@ -427,10 +427,11 @@ class TwitterApiModule(
             val mediaIds = mutableListOf<String>()
             if (!request.images.isNullOrEmpty()) {
                 for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, token, imageUuid)) {
-                        is Either.Right -> mediaIds.add(result.value)
-                        is Either.Left -> return result.value.left()
-                    }
+                    mediaIds.add(
+                        uploadMedia(config, token, imageUuid).getOrElse {
+                            return it.left()
+                        }
+                    )
                 }
             }
 

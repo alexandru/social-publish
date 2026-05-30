@@ -105,9 +105,11 @@ class TwitterRoutes(
                     call.respondWithInternalServerError(error)
                     return
                 }
+        val hasAuthorization =
+            row != null && twitterModule.hasValidAccessToken(row.payload)
         call.respond(
             TwitterStatusResponse(
-                hasAuthorization = row != null,
+                hasAuthorization = hasAuthorization,
                 createdAt = row?.createdAt?.toEpochMilli(),
             )
         )
