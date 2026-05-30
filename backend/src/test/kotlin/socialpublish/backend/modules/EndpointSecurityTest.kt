@@ -187,7 +187,7 @@ class EndpointSecurityTest {
     }
 
     @Test
-    fun `protected endpoint should accept requests with valid token via query parameter`() {
+    fun `protected endpoint should reject requests with token via query parameter`() {
         testApplication {
             val ctx = createTestContext()
 
@@ -213,7 +213,7 @@ class EndpointSecurityTest {
             val response =
                 client.get("/api/protected?access_token=${ctx.token}")
 
-            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
 

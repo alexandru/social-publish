@@ -618,11 +618,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Twitter")
                                         return@withSession
                                     }
-                            twitterRoutes.authorizeRoute(
-                                twitterConfig,
-                                authRoutes.extractAccessToken(call).orEmpty(),
-                                call,
-                            )
+                            twitterRoutes.authorizeRoute(twitterConfig, call)
                         }
                     }
                     .describe {
@@ -668,11 +664,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            linkedInRoutes.authorizeRoute(
-                                linkedInConfig,
-                                authRoutes.extractAccessToken(call).orEmpty(),
-                                call,
-                            )
+                            linkedInRoutes.authorizeRoute(linkedInConfig, call)
                         }
                     }
                     .describe {

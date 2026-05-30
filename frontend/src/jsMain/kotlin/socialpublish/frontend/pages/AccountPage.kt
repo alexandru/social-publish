@@ -14,6 +14,7 @@ import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
+import socialpublish.frontend.components.ErrorModal
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.utils.ApiClient
@@ -175,6 +176,18 @@ fun AccountPage() {
     Authorize {
         var state by remember { mutableStateOf(AccountPageState()) }
         val scope = rememberCoroutineScope()
+
+        // Parse OAuth error from URL query parameter
+        var oauthError by remember {
+            mutableStateOf(URLSearchParams(window.location.search).get("error"))
+        }
+
+        // Clean the URL after reading the error to prevent re-show on refresh
+        LaunchedEffect(oauthError) {
+            if (oauthError != null) {
+                window.history.replaceState(null, "", "/account")
+            }
+        }
 
         LaunchedEffect(Unit) {
             scope.launch {
@@ -388,6 +401,8 @@ fun AccountPage() {
                 }
             }
         }
+
+        ErrorModal(message = oauthError) { oauthError = null }
 
         PageContainer("account") {
             Div(attrs = { classes("block") }) {

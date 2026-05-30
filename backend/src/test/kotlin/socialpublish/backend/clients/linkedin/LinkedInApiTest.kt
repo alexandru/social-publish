@@ -78,12 +78,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result =
-                module.buildAuthorizeURL(
-                    config,
-                    "test-session-token",
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
-                )
+            val result = module.buildAuthorizeURL(config, "test-state-value")
 
             assertTrue(result is Either.Right)
             val url = (result as Either.Right).value

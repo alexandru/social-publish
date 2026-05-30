@@ -237,9 +237,6 @@ class AuthRoutes(
         call.request.cookies["access_token"]?.let {
             return it
         }
-        call.request.queryParameters["access_token"]?.let {
-            return it
-        }
         return null
     }
 }

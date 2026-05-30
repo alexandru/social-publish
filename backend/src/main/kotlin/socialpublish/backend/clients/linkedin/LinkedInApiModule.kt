@@ -70,11 +70,12 @@ import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
+import socialpublish.backend.common.LoomIO
 import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DocumentsDatabase
@@ -180,60 +181,23 @@ class LinkedInApiModule(
         }
     }
 
-    private fun getCallbackUrl(sessionToken: String): String {
-        return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(sessionToken, "UTF-8")}"
-    }
+    private val callbackUrl = "$baseUrl/api/linkedin/callback"
 
     /**
      * Generate a cryptographically secure random state string for CSRF
      * protection.
      *
-     * The state parameter prevents CSRF attacks during the OAuth flow. LinkedIn
-     * will return this value in the callback, and we verify it matches the
-     * original.
+     * The state parameter prevents CSRF attacks during the OAuth flow. We store
+     * it in an HTTP-only, SameSite=Lax cookie during authorization, include the
+     * same value in LinkedIn's authorization URL, and require the callback
+     * query parameter to match the cookie before exchanging the authorization
+     * code. SecureRandom can block when entropy is unavailable, so generation
+     * is dispatched to a blocking-friendly dispatcher.
      */
-    private fun generateOAuthState(): String {
+    suspend fun generateOAuthState(): String {
         val bytes = ByteArray(32)
-        SecureRandom().nextBytes(bytes)
+        withContext(Dispatchers.LoomIO) { SecureRandom().nextBytes(bytes) }
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-    }
-
-    /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(
-        state: String,
-        sessionToken: String,
-        userUuid: UUIDv7,
-    ) {
-        val _ =
-            documentsDb.createOrUpdate(
-                kind = "linkedin-oauth-state",
-                payload =
-                    """{"state":"$state","sessionToken":"$sessionToken"}""",
-                userUuid = userUuid,
-                searchKey = state,
-                tags = emptyList(),
-            )
-    }
-
-    /** Verify and consume OAuth state during callback */
-    suspend fun verifyOAuthState(state: String, userUuid: UUIDv7): String? {
-        val doc =
-            documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
-        return if (doc != null && doc.kind == "linkedin-oauth-state") {
-            // State found and valid (we don't delete it, but could track usage)
-            // In production, we might want to track used states to prevent
-            // replay attacks
-            try {
-                val json = Json.parseToJsonElement(doc.payload)
-                json.jsonObject["sessionToken"]?.jsonPrimitive?.content
-            } catch (e: Throwable) {
-                rethrowIfFatalOrCancelled(e)
-                logger.warn(e) { "Failed to parse OAuth state from DB" }
-                null
-            }
-        } else {
-            null
-        }
     }
 
     /**
@@ -309,10 +273,8 @@ class LinkedInApiModule(
     }
 
     /** Check if LinkedIn auth exists for the given user */
-    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean {
-        val token = restoreOAuthTokenFromDb(userUuid)
-        return token != null
-    }
+    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean =
+        restoreOAuthTokenFromDb(userUuid) != null
 
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOAuthTokenFromDb(
@@ -343,29 +305,24 @@ class LinkedInApiModule(
      * Constructs the URL to redirect users to LinkedIn for OAuth consent. Uses
      * OpenID Connect (OIDC) scopes: `openid`, `profile`, and `w_member_social`.
      *
-     * Includes a cryptographically secure `state` parameter for CSRF protection
-     * as required by the OAuth 2.0 spec and LinkedIn's API.
+     * Includes the caller-provided `state` parameter for CSRF protection as
+     * required by the OAuth 2.0 spec and LinkedIn's API. The route layer owns
+     * generating the state and storing it in a short-lived HTTP-only cookie;
+     * this method only embeds that value into the provider redirect URL.
      *
      * **API Reference:**
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      *
-     * @param sessionToken session token to include in callback URL for state
-     *   verification
+     * @param state opaque CSRF token generated for this OAuth authorization
+     *   attempt and later verified against the callback cookie
      * @return Authorization URL to redirect the user to, or an error
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
-        sessionToken: String,
-        userUuid: UUIDv7,
+        state: String,
     ): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(sessionToken)
-            val state = generateOAuthState()
-
-            // Save state for verification during callback
-            saveOAuthState(state, sessionToken, userUuid)
-
             val authUrl =
                 "${config.authorizationUrl}?response_type=code" +
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +

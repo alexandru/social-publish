@@ -1,19 +1,15 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.getOrElse
+import io.ktor.http.Cookie
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
-import java.net.URLEncoder
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.linkedin.LinkedInApiModule
 import socialpublish.backend.clients.linkedin.LinkedInConfig
 import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithInternalServerError
@@ -32,17 +28,14 @@ class LinkedInRoutes(
     context(_: UserSession)
     suspend fun authorizeRoute(
         linkedInConfig: LinkedInConfig,
-        sessionToken: String,
         call: ApplicationCall,
     ) {
-        val userUuid = userUuid()
+        val state = linkedInModule.generateOAuthState()
+
+        call.setOAuthStateCookie(state, maxAge = 600)
+
         when (
-            val result =
-                linkedInModule.buildAuthorizeURL(
-                    linkedInConfig,
-                    sessionToken,
-                    userUuid,
-                )
+            val result = linkedInModule.buildAuthorizeURL(linkedInConfig, state)
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
@@ -62,64 +55,49 @@ class LinkedInRoutes(
     ) {
         val userUuid = userUuid()
         val code = call.request.queryParameters["code"]
-        val state = call.request.queryParameters["state"]
-        val accessToken = call.request.queryParameters["access_token"]
+        val callbackState = call.request.queryParameters["state"]
         val error = call.request.queryParameters["error"]
         val errorDescription = call.request.queryParameters["error_description"]
+
+        // Clear the OAuth state cookie
+        val cookieState = call.request.cookies["linkedin-oauth-state"]
+        call.setOAuthStateCookie("", maxAge = 0)
 
         if (error != null) {
             val userMessage =
                 when (error) {
-                    "user_cancelled_login" -> "You cancelled the LinkedIn login"
+                    "user_cancelled_login" -> "LinkedIn login was cancelled."
                     "user_cancelled_authorize" ->
-                        "You declined the LinkedIn authorization request"
-                    else ->
-                        errorDescription
-                            ?: "LinkedIn authorization failed: $error"
+                        "LinkedIn authorization was declined."
+                    else -> errorDescription ?: "LinkedIn authorization failed."
                 }
-            call.respondRedirect(
-                "/account?error=${URLEncoder.encode(userMessage, Charsets.UTF_8)}"
-            )
+            call.redirectToAccountError(userMessage)
             return
         }
 
-        if (state != null) {
-            val storedSessionToken =
-                linkedInModule.verifyOAuthState(state, userUuid)
-            if (storedSessionToken == null) {
-                val msg =
-                    URLEncoder.encode(
-                        "Authorization failed: Invalid state parameter. Please try again.",
-                        Charsets.UTF_8,
-                    )
-                call.respondRedirect("/account?error=$msg")
-                return
-            }
+        if (callbackState.isNullOrBlank()) {
+            call.redirectToLinkedInVerificationError()
+            return
+        }
+
+        if (cookieState != callbackState) {
+            call.redirectToLinkedInVerificationError()
+            return
         }
 
         if (code == null) {
-            val msg =
-                URLEncoder.encode(
-                    "LinkedIn authorization failed: missing code",
-                    Charsets.UTF_8,
-                )
-            call.respondRedirect("/account?error=$msg")
+            call.redirectToAccountError(
+                "LinkedIn did not return an authorization code. Please try again."
+            )
             return
         }
-
-        val redirectUri =
-            if (accessToken != null) {
-                "${linkedInModule.baseUrl}/api/linkedin/callback?access_token=${URLEncoder.encode(accessToken, Charsets.UTF_8)}"
-            } else {
-                "${linkedInModule.baseUrl}/api/linkedin/callback"
-            }
 
         when (
             val tokenResult =
                 linkedInModule.exchangeCodeForToken(
                     linkedInConfig,
                     code,
-                    redirectUri,
+                    "${linkedInModule.baseUrl}/api/linkedin/callback",
                 )
         ) {
             is arrow.core.Either.Right -> {
@@ -131,32 +109,15 @@ class LinkedInRoutes(
                         )
                 ) {
                     is arrow.core.Either.Right -> {
-                        call.response.header(
-                            "Cache-Control",
-                            "no-store, no-cache, must-revalidate, private",
-                        )
-                        call.response.header("Pragma", "no-cache")
-                        call.response.header("Expires", "0")
+                        call.preventOAuthRedirectCaching()
                         call.respondRedirect("/account")
                     }
-                    is arrow.core.Either.Left -> {
-                        val msg =
-                            URLEncoder.encode(
-                                saveResult.value.errorMessage,
-                                Charsets.UTF_8,
-                            )
-                        call.respondRedirect("/account?error=$msg")
-                    }
+                    is arrow.core.Either.Left ->
+                        call.redirectToLinkedInAuthorizationFailed()
                 }
             }
-            is arrow.core.Either.Left -> {
-                val msg =
-                    URLEncoder.encode(
-                        tokenResult.value.errorMessage,
-                        Charsets.UTF_8,
-                    )
-                call.respondRedirect("/account?error=$msg")
-            }
+            is arrow.core.Either.Left ->
+                call.redirectToLinkedInAuthorizationFailed()
         }
     }
 
@@ -183,19 +144,7 @@ class LinkedInRoutes(
         linkedInConfig: LinkedInConfig,
         call: ApplicationCall,
     ) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
+        val request = call.receiveNewPostRequest()
 
         when (val result = linkedInModule.createPost(linkedInConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)
@@ -208,4 +157,31 @@ class LinkedInRoutes(
             }
         }
     }
+
+    private fun ApplicationCall.setOAuthStateCookie(
+        value: String,
+        maxAge: Int,
+    ) {
+        response.cookies.append(
+            Cookie(
+                name = "linkedin-oauth-state",
+                value = value,
+                maxAge = maxAge,
+                path = "/",
+                httpOnly = true,
+                extensions = mapOf("SameSite" to "Lax"),
+            )
+        )
+    }
+
+    private suspend fun ApplicationCall.redirectToLinkedInVerificationError() =
+        redirectToAccountError(
+            "LinkedIn authorization could not be verified. Please try again."
+        )
+
+    private suspend fun ApplicationCall
+        .redirectToLinkedInAuthorizationFailed() =
+        redirectToAccountError(
+            "LinkedIn authorization failed. Please try again."
+        )
 }
