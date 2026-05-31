@@ -272,6 +272,29 @@ class LinkedInApiModule(
         return sb.toString()
     }
 
+    /**
+     * Wraps a computation in a try-catch that converts exceptions to API errors.
+     * Logs the error and returns an ApiError.Left. Fatal/cancelled exceptions are
+     * rethrown.
+     */
+    private inline fun <T> tryCatch(
+        errorDescription: String,
+        block: () -> T,
+    ): ApiResult<T> {
+        return try {
+            block().right()
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.error(e) { errorDescription }
+            CaughtException(
+                    status = 500,
+                    module = "linkedin",
+                    errorMessage = "$errorDescription: ${e.message}",
+                )
+                .left()
+        }
+    }
+
     /** Check if LinkedIn auth exists for the given user */
     suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean =
         restoreOAuthTokenFromDb(userUuid) != null
@@ -322,24 +345,12 @@ class LinkedInApiModule(
         config: LinkedInConfig,
         state: String,
     ): ApiResult<String> {
-        return try {
-            val authUrl =
-                "${config.authorizationUrl}?response_type=code" +
-                    "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
-                    "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
-                    "&state=${URLEncoder.encode(state, "UTF-8")}" +
-                    "&scope=${encodeQueryParameter("openid profile w_member_social")}"
-            authUrl.right()
-        } catch (e: Throwable) {
-            rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to build LinkedIn authorization URL" }
-            CaughtException(
-                    status = 500,
-                    module = "linkedin",
-                    errorMessage =
-                        "Failed to build authorization URL: ${e.message}",
-                )
-                .left()
+        return tryCatch("Failed to build LinkedIn authorization URL") {
+            "${config.authorizationUrl}?response_type=code" +
+                "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
+                "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
+                "&state=${URLEncoder.encode(state, "UTF-8")}" +
+                "&scope=${encodeQueryParameter("openid profile w_member_social")}"
         }
     }
 
@@ -461,29 +472,19 @@ class LinkedInApiModule(
         token: LinkedInOAuthToken,
         userUuid: UUIDv7,
     ): ApiResult<Unit> {
-        return try {
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "linkedin-oauth-token",
-                    payload =
-                        Json.encodeToString(
-                            LinkedInOAuthToken.serializer(),
-                            token,
-                        ),
-                    userUuid = userUuid,
-                    searchKey = "linkedin-oauth-token:$userUuid",
-                    tags = emptyList(),
-                )
-            Unit.right()
-        } catch (e: Throwable) {
-            rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to save LinkedIn OAuth token" }
-            CaughtException(
-                    status = 500,
-                    module = "linkedin",
-                    errorMessage = "Failed to save OAuth token: ${e.message}",
-                )
-                .left()
+        return tryCatch("Failed to save LinkedIn OAuth token") {
+            documentsDb.createOrUpdate(
+                kind = "linkedin-oauth-token",
+                payload =
+                    Json.encodeToString(
+                        LinkedInOAuthToken.serializer(),
+                        token,
+                    ),
+                userUuid = userUuid,
+                searchKey = "linkedin-oauth-token:$userUuid",
+                tags = emptyList(),
+            )
+            Unit
         }
     }
 
@@ -575,43 +576,32 @@ class LinkedInApiModule(
                 }
 
                 logger.info { "LinkedIn token expired, refreshing..." }
-                when (
-                    val result = refreshAccessToken(config, token.refreshToken)
-                ) {
-                    is Either.Right -> {
-                        val newToken = result.value
-                        when (
-                            val saveResult = saveOAuthToken(newToken, userUuid)
-                        ) {
-                            is Either.Right -> newToken
-                            is Either.Left -> return saveResult.value.left()
+                refreshAccessToken(config, token.refreshToken)
+                    .flatMap { newToken ->
+                        saveOAuthToken(newToken, userUuid).map { newToken }
+                    }
+                    .let { result ->
+                        when (result) {
+                            is Either.Right -> result.value
+                            is Either.Left -> return result.left()
                         }
                     }
-                    is Either.Left -> return result.value.left()
-                }
             } else {
                 token
             }
 
         // Get person URN from user profile
-        when (
-            val profileResult = getUserProfile(config, validToken.accessToken)
-        ) {
-            is Either.Right -> {
-                // The OIDC /userinfo endpoint returns the subject ID in "sub"
-                // field
-                // Normalize to always use the full URN format
-                val rawId = profileResult.value.sub
+        return getUserProfile(config, validToken.accessToken)
+            .flatMap { profile ->
+                val rawId = profile.sub
                 val personUrn =
                     if (rawId.startsWith("urn:li:person:")) {
                         rawId
                     } else {
                         "urn:li:person:$rawId"
                     }
-                return (validToken.accessToken to personUrn).right()
+                (validToken.accessToken to personUrn).right()
             }
-            is Either.Left -> return profileResult.value.left()
-        }
     }
 
     /** Upload media to LinkedIn */
