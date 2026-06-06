@@ -19,6 +19,7 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.PublishedMessageResponse
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
@@ -63,7 +64,8 @@ class FeedModule(
                 messages = request.messages,
                 userUuid = userUuid,
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save feed item" }
             CaughtException(
                     status = 500,
@@ -107,7 +109,8 @@ class FeedModule(
             val postResult =
                 try {
                     postsDb.create(payload, normalizedTargets, userUuid)
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    rethrowIfFatalOrCancelled(e)
                     logger.error(e) { "Failed to save feed item" }
                     return CaughtException(
                             status = 500,

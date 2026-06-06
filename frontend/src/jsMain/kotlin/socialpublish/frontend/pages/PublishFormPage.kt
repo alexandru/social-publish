@@ -29,6 +29,7 @@ import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable internal data class FileUploadResponse(val uuid: String)
 
@@ -279,7 +280,8 @@ private fun PostForm(
                         onError("Unexpected exception while submitting form!")
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatal(e)
                 console.error("Exception while submitting form:", e)
                 onError("Unexpected exception while submitting form!")
             } finally {

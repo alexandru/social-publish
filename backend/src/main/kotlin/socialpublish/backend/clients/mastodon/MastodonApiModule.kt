@@ -34,6 +34,7 @@ import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
@@ -178,7 +179,8 @@ class MastodonApiModule(
                         .left()
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -316,7 +318,8 @@ class MastodonApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to Mastodon" }
             CaughtException(
                     status = 500,

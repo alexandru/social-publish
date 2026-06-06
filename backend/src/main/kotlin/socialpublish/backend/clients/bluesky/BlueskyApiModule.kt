@@ -113,7 +113,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to authenticate to Bluesky" }
             CaughtException(
                     status = 500,
@@ -190,7 +191,8 @@ class BlueskyApiModule(
                     body = ResponseBody(asString = errorBody),
                 )
                 .left()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -273,7 +275,8 @@ class BlueskyApiModule(
                 "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
             }
             null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
             null
         }
@@ -349,7 +352,8 @@ class BlueskyApiModule(
                 }
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Error resolving handle $handle" }
             null
         }
@@ -678,7 +682,8 @@ class BlueskyApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to Bluesky" }
             CaughtException(
                     status = 500,

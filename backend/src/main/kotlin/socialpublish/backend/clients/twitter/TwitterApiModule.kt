@@ -371,7 +371,8 @@ class TwitterApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to upload media (twitter) — uuid $uuid" }
             CaughtException(
                     status = 500,
@@ -484,7 +485,8 @@ class TwitterApiModule(
                     )
                     .left()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to post to Twitter" }
             CaughtException(
                     status = 500,
