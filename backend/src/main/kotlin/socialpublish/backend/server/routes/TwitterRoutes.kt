@@ -26,16 +26,11 @@ class TwitterRoutes(
     suspend fun authorizeRoute(
         userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
-        callbackJwtToken: String,
         call: ApplicationCall,
     ) {
         when (
             val result =
-                twitterModule.buildAuthorizeURL(
-                    twitterConfig,
-                    callbackJwtToken,
-                    userUuid,
-                )
+                twitterModule.buildAuthorizeURL(twitterConfig, userUuid)
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
@@ -57,9 +52,8 @@ class TwitterRoutes(
         val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Invalid request"),
+            call.redirectToAccountError(
+                "Twitter authorization was incomplete. Please try again."
             )
             return
         }
@@ -78,10 +72,8 @@ class TwitterRoutes(
                 call.respondRedirect("/account")
             }
             is arrow.core.Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+                call.redirectToAccountError(
+                    "Twitter authorization failed. Please try again."
                 )
             }
         }

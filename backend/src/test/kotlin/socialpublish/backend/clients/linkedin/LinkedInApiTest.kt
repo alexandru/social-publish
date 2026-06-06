@@ -82,12 +82,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result =
-                module.buildAuthorizeURL(
-                    config,
-                    "test-state-value",
-                    testUserUuid,
-                )
+            val result = module.buildAuthorizeURL(config, "test-state-value")
 
             assertTrue(result is Either.Right)
             val url = (result as Either.Right).value
@@ -102,6 +97,20 @@ class LinkedInApiTest {
             assertTrue(
                 url.contains("scope=openid%20profile%20w_member_social"),
                 "URL should contain space-delimited scope encoded with %20, not +",
+            )
+            assertTrue(
+                !url.contains("scope=openid+profile+w_member_social"),
+                "URL must never encode LinkedIn scopes with '+' separators",
+            )
+            assertTrue(
+                url.contains(
+                    "redirect_uri=http%3A%2F%2Flocalhost%2Fapi%2Flinkedin%2Fcallback"
+                ),
+                "Redirect URI should match the configured LinkedIn callback exactly",
+            )
+            assertTrue(
+                !url.contains("access_token"),
+                "Redirect URI must not include an access token query parameter",
             )
             assertTrue(
                 url.contains("redirect_uri="),

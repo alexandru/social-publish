@@ -18,6 +18,7 @@ data class PublishFormState(
         const val BLUESKY_LIMIT = 300
         const val MASTODON_LIMIT = 500
         const val TWITTER_LIMIT = 280
+        const val FEED_LIMIT = 1000
         const val LINKEDIN_LIMIT = 2000
     }
 
@@ -45,6 +46,7 @@ data class PublishFormState(
                     if (targets.contains("bluesky")) BLUESKY_LIMIT else null,
                     if (targets.contains("mastodon")) MASTODON_LIMIT else null,
                     if (targets.contains("twitter")) TWITTER_LIMIT else null,
+                    if (targets.contains("feed")) FEED_LIMIT else null,
                     if (targets.contains("linkedin")) LINKEDIN_LIMIT else null,
                 )
                 .filterNotNull()

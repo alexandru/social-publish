@@ -170,9 +170,9 @@ class PublishFormStateTest {
     }
 
     @Test
-    fun testMaxCharactersDefaultsTo2000() {
+    fun testMaxCharactersDefaultsToFeedLimit() {
         val state = PublishFormState()
-        assertEquals(2000, state.maxCharacters)
+        assertEquals(1000, state.maxCharacters)
     }
 
     @Test

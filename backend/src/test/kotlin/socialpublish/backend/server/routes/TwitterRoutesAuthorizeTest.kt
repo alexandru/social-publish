@@ -68,12 +68,7 @@ class TwitterRoutesAuthorizeTest {
                     )
                 }
                 get("/api/twitter/authorize") {
-                    routes.authorizeRoute(
-                        testUserUuid,
-                        config,
-                        "test-callback-token",
-                        call,
-                    )
+                    routes.authorizeRoute(testUserUuid, config, call)
                 }
             }
         }

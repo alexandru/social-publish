@@ -2,6 +2,7 @@ package socialpublish.backend.server.routes
 
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -119,10 +120,90 @@ class LinkedInRoutesCallbackTest {
                 .get("/api/linkedin/callback?code=abc&state=callback-state")
 
         assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals(
+            "/account?error=LinkedIn+authorization+could+not+be+verified.+Please+try+again.",
+            response.headers[HttpHeaders.Location],
+        )
+        assertTrue(
+            response.headers[HttpHeaders.SetCookie]?.contains(
+                "linkedin-oauth-state="
+            ) == true
+        )
+    }
+
+    @Test
+    fun `callback with matching cookie state and missing code redirects with missing code error`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val routes = createRoutes(tempDir)
+
+        application {
+            routing {
+                get("/api/linkedin/callback") {
+                    routes.callbackRoute(
+                        testUserUuid,
+                        LinkedInConfig(
+                            clientId = "client-id",
+                            clientSecret = "secret",
+                        ),
+                        call,
+                    )
+                }
+            }
+        }
+
+        val response =
+            createClient { followRedirects = false }
+                .get("/api/linkedin/callback?state=stored-state") {
+                    header(
+                        HttpHeaders.Cookie,
+                        "linkedin-oauth-state=stored-state",
+                    )
+                }
+
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals(
+            "/account?error=LinkedIn+did+not+return+an+authorization+code.+Please+try+again.",
+            response.headers[HttpHeaders.Location],
+        )
+    }
+
+    @Test
+    fun `callback with provider error forwards readable error once`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val routes = createRoutes(tempDir)
+
+        application {
+            routing {
+                get("/api/linkedin/callback") {
+                    routes.callbackRoute(
+                        testUserUuid,
+                        LinkedInConfig(
+                            clientId = "client-id",
+                            clientSecret = "secret",
+                        ),
+                        call,
+                    )
+                }
+            }
+        }
+
+        val response =
+            createClient { followRedirects = false }
+                .get(
+                    "/api/linkedin/callback?error=invalid_scope&error_description=Unknown+scope+%22openid%2Bprofile%2Bw_member_social%22"
+                )
+
+        assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
             response.headers[HttpHeaders.Location]?.startsWith(
                 "/account?error="
             ) == true
+        )
+        assertEquals(
+            "/account?error=Unknown+scope+%22openid%2Bprofile%2Bw_member_social%22",
+            response.headers[HttpHeaders.Location],
         )
     }
 

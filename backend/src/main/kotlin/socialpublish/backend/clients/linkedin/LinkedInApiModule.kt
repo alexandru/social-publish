@@ -73,8 +73,6 @@ import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
@@ -143,6 +141,8 @@ class LinkedInApiModule(
             install(ContentNegotiation) { json(jsonConfig) }
         }
     }
+
+    private val callbackUrl = "$baseUrl/api/linkedin/callback"
 
     companion object Factory {
         const val LINKEDIN_COMMENT_MAX_LENGTH = 1250
@@ -245,59 +245,18 @@ class LinkedInApiModule(
         return null
     }
 
-    /** Get OAuth callback URL */
-    private fun getCallbackUrl(jwtToken: String): String {
-        return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
-    }
-
     /**
      * Generate a cryptographically secure random state string for CSRF
      * protection.
      *
-     * The state parameter prevents CSRF attacks during the OAuth flow. LinkedIn
-     * will return this value in the callback, and we verify it matches the
-     * original.
+     * The state parameter prevents CSRF attacks during the OAuth flow. The
+     * route layer stores it in an HTTP-only cookie and verifies LinkedIn's
+     * callback query parameter against that cookie.
      */
-    private fun generateOAuthState(): String {
+    fun generateOAuthState(): String {
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-    }
-
-    /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(
-        state: String,
-        jwtToken: String,
-        userUuid: UUIDv7,
-    ) {
-        val _ =
-            documentsDb.createOrUpdate(
-                kind = "linkedin-oauth-state",
-                payload = """{"state":"$state","jwtToken":"$jwtToken"}""",
-                userUuid = userUuid,
-                searchKey = state,
-                tags = emptyList(),
-            )
-    }
-
-    /** Verify and consume OAuth state during callback */
-    suspend fun verifyOAuthState(state: String, userUuid: UUIDv7): String? {
-        val doc =
-            documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
-        return if (doc != null && doc.kind == "linkedin-oauth-state") {
-            // State found and valid (we don't delete it, but could track usage)
-            // In production, we might want to track used states to prevent
-            // replay attacks
-            try {
-                val json = Json.parseToJsonElement(doc.payload)
-                json.jsonObject["jwtToken"]?.jsonPrimitive?.content
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse OAuth state from DB" }
-                null
-            }
-        } else {
-            null
-        }
     }
 
     /**
@@ -418,22 +377,15 @@ class LinkedInApiModule(
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
-        jwtToken: String,
-        userUuid: UUIDv7,
+        state: String,
     ): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(jwtToken)
-            val state = generateOAuthState()
-
-            // Save state for verification during callback
-            saveOAuthState(state, jwtToken, userUuid)
-
             val authUrl =
                 "${config.authorizationUrl}?response_type=code" +
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
                     "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
                     "&state=${URLEncoder.encode(state, "UTF-8")}" +
-                    "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8").replace("+", "%20")}"
+                    "&scope=${encodeQueryParameter("openid profile w_member_social")}"
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to build LinkedIn authorization URL" }
@@ -446,6 +398,9 @@ class LinkedInApiModule(
                 .left()
         }
     }
+
+    private fun encodeQueryParameter(value: String): String =
+        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     context(session: UserSession)
     suspend fun createPost(

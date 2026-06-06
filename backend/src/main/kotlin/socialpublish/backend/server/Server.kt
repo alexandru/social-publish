@@ -636,16 +636,9 @@ fun startServer(
                                         call.respondWithNotConfigured("Twitter")
                                         return@withSession
                                     }
-                            val callbackToken =
-                                authRoutes.extractAccessToken(call)
-                                    ?: run {
-                                        call.respondWithUnauthorized()
-                                        return@withSession
-                                    }
                             twitterRoutes.authorizeRoute(
                                 userUuid(),
                                 twitterConfig,
-                                callbackToken,
                                 call,
                             )
                         }
@@ -698,18 +691,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            val callbackToken =
-                                authRoutes.extractAccessToken(call)
-                                    ?: run {
-                                        call.respondWithUnauthorized()
-                                        return@withSession
-                                    }
-                            linkedInRoutes.authorizeRoute(
-                                userUuid(),
-                                linkedInConfig,
-                                callbackToken,
-                                call,
-                            )
+                            linkedInRoutes.authorizeRoute(linkedInConfig, call)
                         }
                     }
                     .describe {

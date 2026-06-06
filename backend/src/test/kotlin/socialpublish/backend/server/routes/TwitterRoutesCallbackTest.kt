@@ -55,7 +55,11 @@ class TwitterRoutesCallbackTest {
             createClient { followRedirects = false }
                 .get("/api/twitter/callback?oauth_token=req123")
 
-        assertEquals(HttpStatusCode.NotAcceptable, response.status)
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals(
+            "/account?error=Twitter+authorization+was+incomplete.+Please+try+again.",
+            response.headers[HttpHeaders.Location],
+        )
     }
 
     @Test
@@ -81,7 +85,11 @@ class TwitterRoutesCallbackTest {
                     "/api/twitter/callback?oauth_token=req123&oauth_verifier=verifier"
                 )
 
-        assertEquals(HttpStatusCode.NotAcceptable, response.status)
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertEquals(
+            "/account?error=Twitter+authorization+failed.+Please+try+again.",
+            response.headers[HttpHeaders.Location],
+        )
     }
 
     @Test

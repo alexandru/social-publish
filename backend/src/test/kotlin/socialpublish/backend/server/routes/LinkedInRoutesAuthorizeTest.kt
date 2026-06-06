@@ -65,12 +65,7 @@ class LinkedInRoutesAuthorizeTest {
         application {
             routing {
                 get("/api/linkedin/authorize") {
-                    routes.authorizeRoute(
-                        testUserUuid,
-                        config,
-                        "test-callback-token",
-                        call,
-                    )
+                    routes.authorizeRoute(config, call)
                 }
             }
         }
@@ -83,6 +78,16 @@ class LinkedInRoutesAuthorizeTest {
         val location = response.headers[HttpHeaders.Location]
         assertNotNull(location)
         assertTrue(location.contains("state="))
+        assertTrue(
+            location.contains(
+                "redirect_uri=http%3A%2F%2Flocalhost%2Fapi%2Flinkedin%2Fcallback"
+            )
+        )
+        assertTrue(!location.contains("access_token"))
+        val setCookie = response.headers[HttpHeaders.SetCookie]
+        assertNotNull(setCookie)
+        assertTrue(setCookie.contains("linkedin-oauth-state="))
+        assertTrue(setCookie.contains("HttpOnly"))
     }
 
     @Test
@@ -124,12 +129,7 @@ class LinkedInRoutesAuthorizeTest {
                 application {
                     routing {
                         get("/api/linkedin/authorize") {
-                            routes.authorizeRoute(
-                                testUserUuid,
-                                config,
-                                "test-callback-token",
-                                call,
-                            )
+                            routes.authorizeRoute(config, call)
                         }
                     }
                 }

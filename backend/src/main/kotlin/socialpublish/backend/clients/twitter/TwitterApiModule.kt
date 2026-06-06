@@ -29,7 +29,6 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
-import java.net.URLEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -136,10 +135,7 @@ class TwitterApiModule(
         return builder.build(TwitterApi(config))
     }
 
-    /** Get OAuth callback URL */
-    private fun getCallbackUrl(jwtToken: String): String {
-        return "$baseUrl/api/twitter/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
-    }
+    private val callbackUrl = "$baseUrl/api/twitter/callback"
 
     /** Check if Twitter auth exists for the given user */
     suspend fun hasTwitterAuth(userUuid: UUIDv7): Boolean {
@@ -195,11 +191,9 @@ class TwitterApiModule(
     /** Build authorization URL for OAuth flow */
     suspend fun buildAuthorizeURL(
         config: TwitterConfig,
-        jwtToken: String,
         userUuid: UUIDv7,
     ): ApiResult<String> {
         return try {
-            val callbackUrl = getCallbackUrl(jwtToken)
             val service = createOAuthService(config, callbackUrl)
             val token = withContext(Dispatchers.LoomIO) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
@@ -213,7 +207,8 @@ class TwitterApiModule(
                 ),
             )
             authUrl.right()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get Twitter request token" }
             CaughtException(
                     status = 500,
@@ -267,7 +262,8 @@ class TwitterApiModule(
             )
 
             Unit.right()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to save Twitter OAuth token" }
             CaughtException(
                     status = 500,
