@@ -21,6 +21,7 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
@@ -49,6 +50,7 @@ import socialpublish.backend.db.UserSessionsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
 import socialpublish.backend.modules.AuthService
+import socialpublish.backend.server.routes.AUTH_SESSION
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.BlueskyRoutes
@@ -234,8 +236,17 @@ fun startServer(
                     }
             }
 
+            post("/api/logout") {
+                val token = authRoutes.extractAccessToken(call)
+                if (token == null) {
+                    call.respond(mapOf("success" to true))
+                } else {
+                    authRoutes.logoutRoute(token, call)
+                }
+            }
+
             // Protected routes
-            authenticate("auth-jwt") {
+            authenticate(AUTH_SESSION) {
                 get("/api/protected") {
                         withSession(call) { authRoutes.protectedRoute(call) }
                     }

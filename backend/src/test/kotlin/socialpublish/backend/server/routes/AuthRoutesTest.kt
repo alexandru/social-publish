@@ -13,6 +13,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
+import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -483,6 +484,56 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `configured auth-session provider should protect routes`() {
+        testApplication {
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
+
+            application {
+                install(ContentNegotiation) { json() }
+                configureAuth(ctx.authRoute)
+                routing {
+                    authenticate(AUTH_SESSION) {
+                        get("/api/protected") {
+                            withSession(call) { call.respondText("Success") }
+                        }
+                    }
+                }
+            }
+
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `configured auth-session provider should reject requests without token`() {
+        testApplication {
+            val ctx = testSetup()
+
+            application {
+                install(ContentNegotiation) { json() }
+                configureAuth(ctx.authRoute)
+                routing {
+                    authenticate(AUTH_SESSION) {
+                        get("/api/protected") {
+                            withSession(call) { call.respondText("Success") }
+                        }
+                    }
+                }
+            }
+
+            val response = client.get("/api/protected")
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+        }
+    }
+
+    @Test
     fun `protectedRoute should accept valid token via access_token cookie`() {
         testApplication {
             val ctx = testSetup()
@@ -741,6 +792,33 @@ class AuthRoutesTest {
                 client.post("/api/logout") {
                     header(HttpHeaders.Authorization, "Bearer $token")
                 }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains("true"))
+            assertTrue(ctx.authService.authorize(token) is Either.Left)
+        }
+    }
+
+    @Test
+    fun `logout should succeed without token`() {
+        testApplication {
+            val ctx = testSetup()
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/logout") {
+                        val bearerToken = ctx.authRoute.extractAccessToken(call)
+                        if (bearerToken != null) {
+                            ctx.authRoute.logoutRoute(bearerToken, call)
+                        } else {
+                            call.respond(mapOf("success" to true))
+                        }
+                    }
+                }
+            }
+
+            val response = client.post("/api/logout")
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("true"))

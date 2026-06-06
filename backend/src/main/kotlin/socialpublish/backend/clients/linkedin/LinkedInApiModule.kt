@@ -1167,7 +1167,9 @@ class LinkedInApiModule(
 
             // Check alt-text BEFORE uploading — comments don't support it
             val imageUuid = message.images?.firstOrNull()
-            val file = imageUuid?.let { filesModule.readImageFile(it, userUuid) }
+            val file = imageUuid?.let {
+                filesModule.readImageFile(it, userUuid)
+            }
             if (!file?.altText.isNullOrBlank()) {
                 return ValidationError(
                         status = 400,
@@ -1178,22 +1180,21 @@ class LinkedInApiModule(
                     .left()
             }
 
-            val uploadedAsset =
-                imageUuid?.let { uuid ->
-                    when (
-                        val result =
-                            uploadMedia(
-                                config,
-                                accessToken,
-                                personUrn,
-                                uuid,
-                                userUuid,
-                            )
-                    ) {
-                        is Either.Left -> return result.value.left()
-                        is Either.Right -> result.value
-                    }
+            val uploadedAsset = imageUuid?.let { uuid ->
+                when (
+                    val result =
+                        uploadMedia(
+                            config,
+                            accessToken,
+                            personUrn,
+                            uuid,
+                            userUuid,
+                        )
+                ) {
+                    is Either.Left -> return result.value.left()
+                    is Either.Right -> result.value
                 }
+            }
 
             val encodedRootPostId = rootPostId.encodeURLPathPart()
             val commentText =

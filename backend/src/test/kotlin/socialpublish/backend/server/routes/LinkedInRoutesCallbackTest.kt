@@ -61,6 +61,39 @@ class LinkedInRoutesCallbackTest {
     }
 
     @Test
+    fun `callback with missing state redirects with verification error`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val routes = createRoutes(tempDir)
+
+        application {
+            routing {
+                get("/api/linkedin/callback") {
+                    routes.callbackRoute(
+                        testUserUuid,
+                        LinkedInConfig(
+                            clientId = "client-id",
+                            clientSecret = "secret",
+                        ),
+                        call,
+                    )
+                }
+            }
+        }
+
+        val response =
+            createClient { followRedirects = false }
+                .get("/api/linkedin/callback?code=abc")
+
+        assertEquals(HttpStatusCode.Found, response.status)
+        assertTrue(
+            response.headers[HttpHeaders.Location]?.startsWith(
+                "/account?error="
+            ) == true
+        )
+    }
+
+    @Test
     fun `callback with mismatched state redirects with verification error`(
         @TempDir tempDir: Path
     ) = testApplication {

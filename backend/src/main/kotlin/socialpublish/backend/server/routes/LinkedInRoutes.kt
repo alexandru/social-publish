@@ -82,18 +82,25 @@ class LinkedInRoutes(
             return
         }
 
-        if (state != null) {
-            val storedJwtToken =
-                linkedInModule.verifyOAuthState(state, userUuid)
-            if (storedJwtToken == null) {
-                val msg =
-                    URLEncoder.encode(
-                        "Authorization failed: Invalid state parameter. Please try again.",
-                        "UTF-8",
-                    )
-                call.respondRedirect("/account?error=$msg")
-                return
-            }
+        if (state.isNullOrBlank()) {
+            val msg =
+                URLEncoder.encode(
+                    "Authorization failed: Invalid state parameter. Please try again.",
+                    "UTF-8",
+                )
+            call.respondRedirect("/account?error=$msg")
+            return
+        }
+
+        val storedJwtToken = linkedInModule.verifyOAuthState(state, userUuid)
+        if (storedJwtToken == null) {
+            val msg =
+                URLEncoder.encode(
+                    "Authorization failed: Invalid state parameter. Please try again.",
+                    "UTF-8",
+                )
+            call.respondRedirect("/account?error=$msg")
+            return
         }
 
         if (code == null) {
