@@ -86,7 +86,7 @@ docker-build-jvm-local:
 
 docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
-	docker run -it -p 3000:3000 --rm --name social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
+	docker run -it -p 3000:3000 --rm --name social-publish -v social-publish-data:/var/lib/social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
 
 # Code quality
 lint:
