@@ -14,8 +14,10 @@ import socialpublish.frontend.utils.ApiResponse
 import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
 
-@Serializable internal data class LoginRequest(val username: String, val password: String)
+@Serializable
+internal data class LoginRequest(val username: String, val password: String)
 
 @Serializable
 internal data class LoginResponse(
@@ -41,13 +43,19 @@ fun LoginPage() {
     val redirectParam = remember {
         val redirect = URLSearchParams(window.location.search).get("redirect")
         // Only allow internal paths that start with '/' and don't contain '..'
-        if (redirect != null && redirect.startsWith("/") && !redirect.contains("..")) {
+        if (
+            redirect != null &&
+                redirect.startsWith("/") &&
+                !redirect.contains("..")
+        ) {
             redirect
         } else {
             null
         }
     }
-    val reasonParam = remember { URLSearchParams(window.location.search).get("reason") }
+    val reasonParam = remember {
+        URLSearchParams(window.location.search).get("reason")
+    }
 
     val handleSubmit: () -> Unit = {
         scope.launch {
@@ -61,18 +69,22 @@ fun LoginPage() {
 
                 when (response) {
                     is ApiResponse.Success -> {
-                        Storage.setJwtToken(response.data.token)
-                        Storage.setConfiguredServices(response.data.configuredServices)
+                        Storage.setSessionToken(response.data.token)
+                        Storage.setConfiguredServices(
+                            response.data.configuredServices
+                        )
                         navigateTo(redirectParam ?: "/form")
                     }
                     is ApiResponse.Error -> {
                         error = response.message
                     }
                     is ApiResponse.Exception -> {
-                        error = "Exception while logging in: ${response.message}"
+                        error =
+                            "Exception while logging in: ${response.message}"
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatal(e)
                 error = "Exception while logging in: ${e.message}"
             } finally {
                 isLoading = false

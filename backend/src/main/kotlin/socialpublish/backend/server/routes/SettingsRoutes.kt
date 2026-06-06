@@ -5,7 +5,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkedin.LinkedInConfig
@@ -14,25 +13,31 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.Patched
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.server.respondWithInternalServerError
 import socialpublish.backend.server.respondWithNotFound
+import socialpublish.backend.server.userSettings
+import socialpublish.backend.server.userUuid
 
 /**
- * Sentinel returned in GET responses for sensitive fields that have a stored value.
+ * Sentinel returned in GET responses for sensitive fields that have a stored
+ * value.
  *
- * This value is only used in GET/PATCH *responses*. PATCH *requests* use standard JSON Merge Patch
- * semantics via [Patched]: absent field = keep existing, `null` field = remove/clear.
+ * This value is only used in GET/PATCH *responses*. PATCH *requests* use
+ * standard JSON Merge Patch semantics via [Patched]: absent field = keep
+ * existing, `null` field = remove/clear.
  */
 const val MASKED_VALUE = "****"
 
 /**
  * Settings view returned by GET and PATCH responses.
  *
- * Non-sensitive fields (URLs, usernames, IDs) contain their real stored values. Sensitive fields
- * (passwords, tokens, keys, secrets) contain [MASKED_VALUE] when a value is stored, so the frontend
- * knows a value exists without receiving the actual credential.
+ * Non-sensitive fields (URLs, usernames, IDs) contain their real stored values.
+ * Sensitive fields (passwords, tokens, keys, secrets) contain [MASKED_VALUE]
+ * when a value is stored, so the frontend knows a value exists without
+ * receiving the actual credential.
  */
 @Serializable
 data class AccountSettingsView(
@@ -44,16 +49,30 @@ data class AccountSettingsView(
 )
 
 @Serializable
-data class BlueskySettingsView(val service: String, val username: String, val password: String)
-
-@Serializable data class MastodonSettingsView(val host: String, val accessToken: String)
+data class BlueskySettingsView(
+    val service: String,
+    val username: String,
+    val password: String,
+)
 
 @Serializable
-data class TwitterSettingsView(val oauth1ConsumerKey: String, val oauth1ConsumerSecret: String)
+data class MastodonSettingsView(val host: String, val accessToken: String)
 
-@Serializable data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+@Serializable
+data class TwitterSettingsView(
+    val oauth1ConsumerKey: String,
+    val oauth1ConsumerSecret: String,
+)
 
-@Serializable data class LlmSettingsView(val apiUrl: String, val apiKey: String, val model: String)
+@Serializable
+data class LinkedInSettingsView(val clientId: String, val clientSecret: String)
+
+@Serializable
+data class LlmSettingsView(
+    val apiUrl: String,
+    val apiKey: String,
+    val model: String,
+)
 
 // ---------------------------------------------------------------------------
 // PATCH request body DTOs — each field uses Patched<T> so that:
@@ -111,20 +130,12 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
     /**
      * GET /api/account/settings – returns the user's settings.
      *
-     * Non-sensitive fields contain real values. Sensitive fields (passwords, tokens, keys) contain
-     * [MASKED_VALUE] when a value is stored.
+     * Non-sensitive fields contain real values. Sensitive fields (passwords,
+     * tokens, keys) contain [MASKED_VALUE] when a value is stored.
      */
-    suspend fun getSettingsRoute(userUuid: UUID, call: ApplicationCall) {
-        val user =
-            usersDb.findByUuid(userUuid).getOrElse { error ->
-                call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
-                return
-            }
-                ?: run {
-                    call.respondWithNotFound("User")
-                    return
-                }
-        call.respond(user.settings.toView())
+    context(_: UserSession)
+    suspend fun getSettingsRoute(call: ApplicationCall) {
+        call.respond(userSettings().toView())
     }
 
     /**
@@ -135,10 +146,13 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
      * - `null` value at the top level → section is removed.
      * - Object value at the top level → field-level merge within that section.
      *
-     * Within a section, absent field → keep existing, present field → update, `null` field → clear
-     * (which drops the section when it affects a required field).
+     * Within a section, absent field → keep existing, present field → update,
+     * `null` field → clear (which drops the section when it affects a required
+     * field).
      */
-    suspend fun patchSettingsRoute(userUuid: UUID, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun patchSettingsRoute(call: ApplicationCall) {
+        val userUuid = userUuid()
         val patch =
             runCatching { call.receive<UserSettingsPatch>() }.getOrNull()
                 ?: run {
@@ -152,22 +166,15 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
         if (containsMaskedSecretValue(patch)) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                ErrorResponse(error = "Masked values are not allowed in PATCH payload"),
+                ErrorResponse(
+                    error = "Masked values are not allowed in PATCH payload"
+                ),
             )
             return
         }
 
-        val user =
-            usersDb.findByUuid(userUuid).getOrElse { error ->
-                call.respondWithInternalServerError(error, "Failed to retrieve user $userUuid")
-                return
-            }
-                ?: run {
-                    call.respondWithNotFound("User")
-                    return
-                }
-
-        val merged = mergeSettingsPatch(existing = user.settings, patch = patch)
+        val merged =
+            mergeSettingsPatch(existing = userSettings(), patch = patch)
         val updated =
             usersDb.updateSettings(userUuid, merged).getOrElse { error ->
                 call.respondWithInternalServerError(
@@ -186,9 +193,18 @@ class SettingsRoutes(private val usersDb: UsersDatabase) {
 
 private fun containsMaskedSecretValue(patch: UserSettingsPatch): Boolean =
     containsMaskedField(patch.bluesky, BlueskySettingsPatch::password) ||
-        containsMaskedField(patch.mastodon, MastodonSettingsPatch::accessToken) ||
-        containsMaskedField(patch.twitter, TwitterSettingsPatch::oauth1ConsumerSecret) ||
-        containsMaskedField(patch.linkedin, LinkedInSettingsPatch::clientSecret) ||
+        containsMaskedField(
+            patch.mastodon,
+            MastodonSettingsPatch::accessToken,
+        ) ||
+        containsMaskedField(
+            patch.twitter,
+            TwitterSettingsPatch::oauth1ConsumerSecret,
+        ) ||
+        containsMaskedField(
+            patch.linkedin,
+            LinkedInSettingsPatch::clientSecret,
+        ) ||
         containsMaskedField(patch.llm, LlmSettingsPatch::apiKey)
 
 private fun <T> containsMaskedField(
@@ -210,7 +226,10 @@ private fun <T> containsMaskedField(
 // View helpers
 // ---------------------------------------------------------------------------
 
-/** Builds a view of [UserSettings] safe to expose over the API (sensitive fields masked). */
+/**
+ * Builds a view of [UserSettings] safe to expose over the API (sensitive fields
+ * masked).
+ */
 internal fun UserSettings?.toView(): AccountSettingsView =
     AccountSettingsView(
         bluesky =
@@ -234,11 +253,18 @@ internal fun UserSettings?.toView(): AccountSettingsView =
             },
         linkedin =
             this?.linkedin?.let {
-                LinkedInSettingsView(clientId = it.clientId, clientSecret = MASKED_VALUE)
+                LinkedInSettingsView(
+                    clientId = it.clientId,
+                    clientSecret = MASKED_VALUE,
+                )
             },
         llm =
             this?.llm?.let {
-                LlmSettingsView(apiUrl = it.apiUrl, apiKey = MASKED_VALUE, model = it.model)
+                LlmSettingsView(
+                    apiUrl = it.apiUrl,
+                    apiKey = MASKED_VALUE,
+                    model = it.model,
+                )
             },
     )
 
@@ -258,12 +284,26 @@ private fun resolveField(patched: Patched<String>, existing: String?): String? =
         is Patched.Some -> patched.value?.takeIf { it.isNotBlank() }
     }
 
-private fun patchBluesky(existing: BlueskyConfig?, patch: BlueskySettingsPatch): BlueskyConfig? {
-    val service = resolveField(patch.service, existing?.service) ?: "https://bsky.social"
-    val username = resolveField(patch.username, existing?.username) ?: return null
-    val password = resolveField(patch.password, existing?.password) ?: return null
-    return existing?.copy(service = service, username = username, password = password)
-        ?: BlueskyConfig(service = service, username = username, password = password)
+private fun patchBluesky(
+    existing: BlueskyConfig?,
+    patch: BlueskySettingsPatch,
+): BlueskyConfig? {
+    val service =
+        resolveField(patch.service, existing?.service) ?: "https://bsky.social"
+    val username =
+        resolveField(patch.username, existing?.username) ?: return null
+    val password =
+        resolveField(patch.password, existing?.password) ?: return null
+    return existing?.copy(
+        service = service,
+        username = username,
+        password = password,
+    )
+        ?: BlueskyConfig(
+            service = service,
+            username = username,
+            password = password,
+        )
 }
 
 private fun patchMastodon(
@@ -271,29 +311,43 @@ private fun patchMastodon(
     patch: MastodonSettingsPatch,
 ): MastodonConfig? {
     val host = resolveField(patch.host, existing?.host) ?: return null
-    val accessToken = resolveField(patch.accessToken, existing?.accessToken) ?: return null
+    val accessToken =
+        resolveField(patch.accessToken, existing?.accessToken) ?: return null
     return MastodonConfig(host = host, accessToken = accessToken)
 }
 
-private fun patchTwitter(existing: TwitterConfig?, patch: TwitterSettingsPatch): TwitterConfig? {
-    val key = resolveField(patch.oauth1ConsumerKey, existing?.oauth1ConsumerKey) ?: return null
+private fun patchTwitter(
+    existing: TwitterConfig?,
+    patch: TwitterSettingsPatch,
+): TwitterConfig? {
+    val key =
+        resolveField(patch.oauth1ConsumerKey, existing?.oauth1ConsumerKey)
+            ?: return null
     val secret =
-        resolveField(patch.oauth1ConsumerSecret, existing?.oauth1ConsumerSecret) ?: return null
-    return existing?.copy(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
-        ?: TwitterConfig(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
+        resolveField(patch.oauth1ConsumerSecret, existing?.oauth1ConsumerSecret)
+            ?: return null
+    return existing?.copy(
+        oauth1ConsumerKey = key,
+        oauth1ConsumerSecret = secret,
+    ) ?: TwitterConfig(oauth1ConsumerKey = key, oauth1ConsumerSecret = secret)
 }
 
 private fun patchLinkedIn(
     existing: LinkedInConfig?,
     patch: LinkedInSettingsPatch,
 ): LinkedInConfig? {
-    val clientId = resolveField(patch.clientId, existing?.clientId) ?: return null
-    val clientSecret = resolveField(patch.clientSecret, existing?.clientSecret) ?: return null
+    val clientId =
+        resolveField(patch.clientId, existing?.clientId) ?: return null
+    val clientSecret =
+        resolveField(patch.clientSecret, existing?.clientSecret) ?: return null
     return existing?.copy(clientId = clientId, clientSecret = clientSecret)
         ?: LinkedInConfig(clientId = clientId, clientSecret = clientSecret)
 }
 
-private fun patchLlm(existing: LlmConfig?, patch: LlmSettingsPatch): LlmConfig? {
+private fun patchLlm(
+    existing: LlmConfig?,
+    patch: LlmSettingsPatch,
+): LlmConfig? {
     val apiUrl = resolveField(patch.apiUrl, existing?.apiUrl) ?: return null
     val apiKey = resolveField(patch.apiKey, existing?.apiKey) ?: return null
     val model = resolveField(patch.model, existing?.model) ?: ""
@@ -308,27 +362,34 @@ private fun patchLlm(existing: LlmConfig?, patch: LlmSettingsPatch): LlmConfig? 
  * - [Patched.Some]`(null)` → remove section
  * - [Patched.Some]`(patch)` → merge field-by-field
  */
-internal fun mergeSettingsPatch(existing: UserSettings?, patch: UserSettingsPatch): UserSettings =
+internal fun mergeSettingsPatch(
+    existing: UserSettings?,
+    patch: UserSettingsPatch,
+): UserSettings =
     UserSettings(
         bluesky =
             when (val p = patch.bluesky) {
                 Patched.Undefined -> existing?.bluesky
-                is Patched.Some -> p.value?.let { patchBluesky(existing?.bluesky, it) }
+                is Patched.Some ->
+                    p.value?.let { patchBluesky(existing?.bluesky, it) }
             },
         mastodon =
             when (val p = patch.mastodon) {
                 Patched.Undefined -> existing?.mastodon
-                is Patched.Some -> p.value?.let { patchMastodon(existing?.mastodon, it) }
+                is Patched.Some ->
+                    p.value?.let { patchMastodon(existing?.mastodon, it) }
             },
         twitter =
             when (val p = patch.twitter) {
                 Patched.Undefined -> existing?.twitter
-                is Patched.Some -> p.value?.let { patchTwitter(existing?.twitter, it) }
+                is Patched.Some ->
+                    p.value?.let { patchTwitter(existing?.twitter, it) }
             },
         linkedin =
             when (val p = patch.linkedin) {
                 Patched.Undefined -> existing?.linkedin
-                is Patched.Some -> p.value?.let { patchLinkedIn(existing?.linkedin, it) }
+                is Patched.Some ->
+                    p.value?.let { patchLinkedIn(existing?.linkedin, it) }
             },
         llm =
             when (val p = patch.llm) {

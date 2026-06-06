@@ -3,9 +3,11 @@
 package socialpublish.backend.clients.linkedin
 
 /**
- * LinkedIn API integration module using OpenID Connect (OIDC) and UGC (User Generated Content) API.
+ * LinkedIn API integration module using OpenID Connect (OIDC) and UGC (User
+ * Generated Content) API.
  *
- * This module provides complete integration with LinkedIn's social platform, including:
+ * This module provides complete integration with LinkedIn's social platform,
+ * including:
  * - OAuth2 authentication with OpenID Connect (3-legged OAuth flow)
  * - User profile retrieval via OIDC UserInfo endpoint
  * - Post creation with text, images, and link previews via UGC API
@@ -16,10 +18,12 @@ package socialpublish.backend.clients.linkedin
  * Before using this module, you must:
  * 1. Create a LinkedIn App at https://www.linkedin.com/developers/apps
  * 2. Request access to these products in the LinkedIn Developer Portal:
- *     - **Sign In with LinkedIn using OpenID Connect** (provides `openid` and `profile` scopes)
+ *     - **Sign In with LinkedIn using OpenID Connect** (provides `openid` and
+ *       `profile` scopes)
  *     - **Share on LinkedIn** (provides `w_member_social` scope)
  * 3. Configure redirect URL: `{baseUrl}/api/linkedin/callback`
- * 4. Set environment variables: `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`
+ * 4. Set environment variables: `LINKEDIN_CLIENT_ID` and
+ *    `LINKEDIN_CLIENT_SECRET`
  *
  * ## API Documentation
  * - [LinkedIn Developer Portal](https://www.linkedin.com/developers/)
@@ -68,7 +72,6 @@ import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
 import java.security.SecureRandom
 import java.util.Base64
-import java.util.UUID
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -76,20 +79,25 @@ import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
 /**
  * LinkedIn API integration for OAuth2 authentication and posting to LinkedIn.
  *
- * This module provides integration with LinkedIn's APIs using OpenID Connect (OIDC) for
- * authentication and the UGC (User Generated Content) API for creating posts with text and media.
+ * This module provides integration with LinkedIn's APIs using OpenID Connect
+ * (OIDC) for authentication and the UGC (User Generated Content) API for
+ * creating posts with text and media.
  *
  * ## Required LinkedIn Products
  *
  * In the LinkedIn Developer Portal, request access to:
- * - **Sign In with LinkedIn using OpenID Connect** - Provides `openid` and `profile` scopes
+ * - **Sign In with LinkedIn using OpenID Connect** - Provides `openid` and
+ *   `profile` scopes
  * - **Share on LinkedIn** - Provides `w_member_social` scope
  *
  * ## API Documentation
@@ -131,7 +139,9 @@ class LinkedInApiModule(
     private val linkPreviewParser: LinkPreviewParser,
 ) : SocialMediaApi<LinkedInConfig> {
     private val httpClient: HttpClient by lazy {
-        HttpClient(httpClientEngine) { install(ContentNegotiation) { json(jsonConfig) } }
+        HttpClient(httpClientEngine) {
+            install(ContentNegotiation) { json(jsonConfig) }
+        }
     }
 
     companion object Factory {
@@ -144,11 +154,15 @@ class LinkedInApiModule(
             ignoreUnknownKeys = true
             isLenient = true
             encodeDefaults = true
-            // Don't encode null fields in JSON - CRITICAL for LinkedIn API compatibility.
-            // LinkedIn's API rejects requests containing null 'content' field with:
-            // "Unpermitted fields present in REQUEST_BODY: Data Processing Exception
+            // Don't encode null fields in JSON - CRITICAL for LinkedIn API
+            // compatibility.
+            // LinkedIn's API rejects requests containing null 'content' field
+            // with:
+            // "Unpermitted fields present in REQUEST_BODY: Data Processing
+            // Exception
             // while processing fields [/content]"
-            // Text-only posts must omit the 'content' field entirely, not send it as null.
+            // Text-only posts must omit the 'content' field entirely, not send
+            // it as null.
             explicitNulls = false
         }
 
@@ -163,9 +177,16 @@ class LinkedInApiModule(
             documentsDb: DocumentsDatabase,
             filesModule: FilesModule,
         ): Resource<LinkedInApiModule> = resource {
-            val engine = install({ CIO.create() }) { engine, _ -> engine.close() }
+            val engine =
+                install({ CIO.create() }) { engine, _ -> engine.close() }
             val linkPreviewParser = LinkPreviewParser().bind()
-            LinkedInApiModule(baseUrl, documentsDb, filesModule, engine, linkPreviewParser)
+            LinkedInApiModule(
+                baseUrl,
+                documentsDb,
+                filesModule,
+                engine,
+                linkPreviewParser,
+            )
         }
     }
 
@@ -179,12 +200,17 @@ class LinkedInApiModule(
                     errorMessage = "Content must not be empty",
                 )
             }
-            val text = message.content + if (message.link != null) "\n\n${message.link}" else ""
+            val text =
+                message.content +
+                    if (message.link != null) "\n\n${message.link}" else ""
             val links = urlRegex.findAll(text).count()
             val withoutLinks = urlRegex.replace(text, "")
             val effectiveLength =
-                withoutLinks.codePointCount(0, withoutLinks.length) + (links * LinkLength)
-            val limit = if (index == 0) LINKEDIN_POST_MAX_LENGTH else LINKEDIN_COMMENT_MAX_LENGTH
+                withoutLinks.codePointCount(0, withoutLinks.length) +
+                    (links * LinkLength)
+            val limit =
+                if (index == 0) LINKEDIN_POST_MAX_LENGTH
+                else LINKEDIN_COMMENT_MAX_LENGTH
             if (effectiveLength > limit) {
                 val kind = if (index == 0) "post" else "follow-up comment"
                 return ValidationError(
@@ -212,7 +238,8 @@ class LinkedInApiModule(
             return ValidationError(
                 status = 400,
                 module = "linkedin",
-                errorMessage = "LinkedIn follow-up comment supports at most one image",
+                errorMessage =
+                    "LinkedIn follow-up comment supports at most one image",
             )
         }
         return null
@@ -223,11 +250,19 @@ class LinkedInApiModule(
         return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
     }
 
+    suspend fun buildAuthorizeURL(
+        config: LinkedInConfig,
+        jwtToken: String,
+    ): ApiResult<String> =
+        buildAuthorizeURL(config, jwtToken, UUIDv7.generate())
+
     /**
-     * Generate a cryptographically secure random state string for CSRF protection.
+     * Generate a cryptographically secure random state string for CSRF
+     * protection.
      *
-     * The state parameter prevents CSRF attacks during the OAuth flow. LinkedIn will return this
-     * value in the callback, and we verify it matches the original.
+     * The state parameter prevents CSRF attacks during the OAuth flow. LinkedIn
+     * will return this value in the callback, and we verify it matches the
+     * original.
      */
     private fun generateOAuthState(): String {
         val bytes = ByteArray(32)
@@ -236,7 +271,11 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth state to database for verification during callback */
-    private suspend fun saveOAuthState(state: String, jwtToken: String, userUuid: UUID) {
+    private suspend fun saveOAuthState(
+        state: String,
+        jwtToken: String,
+        userUuid: UUIDv7,
+    ) {
         val _ =
             documentsDb.createOrUpdate(
                 kind = "linkedin-oauth-state",
@@ -248,11 +287,13 @@ class LinkedInApiModule(
     }
 
     /** Verify and consume OAuth state during callback */
-    suspend fun verifyOAuthState(state: String, userUuid: UUID): String? {
-        val doc = documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
+    suspend fun verifyOAuthState(state: String, userUuid: UUIDv7): String? {
+        val doc =
+            documentsDb.searchByKey(state, userUuid).getOrElse { throw it }
         return if (doc != null && doc.kind == "linkedin-oauth-state") {
             // State found and valid (we don't delete it, but could track usage)
-            // In production, we might want to track used states to prevent replay attacks
+            // In production, we might want to track used states to prevent
+            // replay attacks
             try {
                 val json = Json.parseToJsonElement(doc.payload)
                 json.jsonObject["jwtToken"]?.jsonPrimitive?.content
@@ -265,7 +306,10 @@ class LinkedInApiModule(
         }
     }
 
-    /** Pretty print JSON string for logging, or return original if not valid JSON */
+    /**
+     * Pretty print JSON string for logging, or return original if not valid
+     * JSON
+     */
     private fun prettyPrintJson(json: String): String {
         return try {
             val jsonElement = Json.parseToJsonElement(json)
@@ -334,22 +378,26 @@ class LinkedInApiModule(
     }
 
     /** Check if LinkedIn auth exists for the given user */
-    suspend fun hasLinkedInAuth(userUuid: UUID): Boolean {
+    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean {
         val token = restoreOAuthTokenFromDb(userUuid)
         return token != null
     }
 
     /** Restore OAuth token from database (scoped to the user) */
-    private suspend fun restoreOAuthTokenFromDb(userUuid: UUID): LinkedInOAuthToken? {
+    private suspend fun restoreOAuthTokenFromDb(
+        userUuid: UUIDv7
+    ): LinkedInOAuthToken? {
         val doc =
-            documentsDb.searchByKey("linkedin-oauth-token:$userUuid", userUuid).getOrElse {
-                throw it
-            }
+            documentsDb
+                .searchByKey("linkedin-oauth-token:$userUuid", userUuid)
+                .getOrElse { throw it }
         return if (doc != null) {
             try {
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
             } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse LinkedIn OAuth token from DB" }
+                logger.warn(e) {
+                    "Failed to parse LinkedIn OAuth token from DB"
+                }
                 null
             }
         } else {
@@ -360,23 +408,24 @@ class LinkedInApiModule(
     /**
      * Build the LinkedIn OAuth2 authorization URL.
      *
-     * Constructs the URL to redirect users to LinkedIn for OAuth consent. Uses OpenID Connect
-     * (OIDC) scopes: `openid`, `profile`, and `w_member_social`.
+     * Constructs the URL to redirect users to LinkedIn for OAuth consent. Uses
+     * OpenID Connect (OIDC) scopes: `openid`, `profile`, and `w_member_social`.
      *
-     * Includes a cryptographically secure `state` parameter for CSRF protection as required by the
-     * OAuth 2.0 spec and LinkedIn's API.
+     * Includes a cryptographically secure `state` parameter for CSRF protection
+     * as required by the OAuth 2.0 spec and LinkedIn's API.
      *
      * **API Reference:**
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      *
-     * @param jwtToken JWT token to include in callback URL for state verification
+     * @param jwtToken JWT token to include in callback URL for state
+     *   verification
      * @return Authorization URL to redirect the user to, or an error
      */
     suspend fun buildAuthorizeURL(
         config: LinkedInConfig,
         jwtToken: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
@@ -397,11 +446,18 @@ class LinkedInApiModule(
             CaughtException(
                     status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to build authorization URL: ${e.message}",
+                    errorMessage =
+                        "Failed to build authorization URL: ${e.message}",
                 )
                 .left()
         }
     }
+
+    context(session: UserSession)
+    suspend fun createPost(
+        config: LinkedInConfig,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> = createPost(config, request, userUuid())
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
@@ -429,7 +485,8 @@ class LinkedInApiModule(
                         accessToken = tokenResponse.accessToken,
                         expiresIn = tokenResponse.expiresIn,
                         refreshToken = tokenResponse.refreshToken,
-                        refreshTokenExpiresIn = tokenResponse.refreshTokenExpiresIn,
+                        refreshTokenExpiresIn =
+                            tokenResponse.refreshTokenExpiresIn,
                     )
                     .right()
             } else {
@@ -450,7 +507,8 @@ class LinkedInApiModule(
             CaughtException(
                     status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to exchange code for token: ${e.message}",
+                    errorMessage =
+                        "Failed to exchange code for token: ${e.message}",
                 )
                 .left()
         }
@@ -480,7 +538,8 @@ class LinkedInApiModule(
                         accessToken = tokenResponse.accessToken,
                         expiresIn = tokenResponse.expiresIn,
                         refreshToken = tokenResponse.refreshToken,
-                        refreshTokenExpiresIn = tokenResponse.refreshTokenExpiresIn,
+                        refreshTokenExpiresIn =
+                            tokenResponse.refreshTokenExpiresIn,
                     )
                     .right()
             } else {
@@ -501,19 +560,27 @@ class LinkedInApiModule(
             CaughtException(
                     status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to refresh access token: ${e.message}",
+                    errorMessage =
+                        "Failed to refresh access token: ${e.message}",
                 )
                 .left()
         }
     }
 
     /** Save OAuth token to database (scoped to the user) */
-    suspend fun saveOAuthToken(token: LinkedInOAuthToken, userUuid: UUID): ApiResult<Unit> {
+    suspend fun saveOAuthToken(
+        token: LinkedInOAuthToken,
+        userUuid: UUIDv7,
+    ): ApiResult<Unit> {
         return try {
             val _ =
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
-                    payload = Json.encodeToString(LinkedInOAuthToken.serializer(), token),
+                    payload =
+                        Json.encodeToString(
+                            LinkedInOAuthToken.serializer(),
+                            token,
+                        ),
                     userUuid = userUuid,
                     searchKey = "linkedin-oauth-token:$userUuid",
                     tags = emptyList(),
@@ -533,17 +600,18 @@ class LinkedInApiModule(
     /**
      * Get user profile information from LinkedIn's OIDC UserInfo endpoint.
      *
-     * Uses the standard OpenID Connect `/userinfo` endpoint to retrieve the user's subject
-     * identifier (sub), which contains the LinkedIn member ID.
+     * Uses the standard OpenID Connect `/userinfo` endpoint to retrieve the
+     * user's subject identifier (sub), which contains the LinkedIn member ID.
      *
-     * This endpoint works with the `openid` and `profile` OAuth scopes and returns standard OIDC
-     * claims. The `sub` field contains either a plain member ID or the full URN format
-     * (`urn:li:person:...`).
+     * This endpoint works with the `openid` and `profile` OAuth scopes and
+     * returns standard OIDC claims. The `sub` field contains either a plain
+     * member ID or the full URN format (`urn:li:person:...`).
      *
      * **API Reference:**
      * - [OpenID Connect
      *   UserInfo](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2#retrieving-member-profiles)
-     * - [OIDC Standard](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo)
+     * - [OIDC
+     *   Standard](https://openid.net/specs/openid-connect-core-1_0.html#UserInfo)
      *
      * @param accessToken OAuth2 access token with `openid` and `profile` scopes
      * @return User profile containing the subject identifier, or an error
@@ -563,7 +631,9 @@ class LinkedInApiModule(
                 profile.right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn { "Failed to get user profile: ${response.status}, body: $errorBody" }
+                logger.warn {
+                    "Failed to get user profile: ${response.status}, body: $errorBody"
+                }
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -583,16 +653,20 @@ class LinkedInApiModule(
         }
     }
 
-    /** Get valid access token, refreshing if needed. Returns (accessToken, personUrn) */
+    /**
+     * Get valid access token, refreshing if needed. Returns (accessToken,
+     * personUrn)
+     */
     suspend fun getValidToken(
         config: LinkedInConfig,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<Pair<String, String>> {
         val token =
             restoreOAuthTokenFromDb(userUuid)
                 ?: return ValidationError(
                         status = 401,
-                        errorMessage = "Unauthorized: Missing LinkedIn OAuth token!",
+                        errorMessage =
+                            "Unauthorized: Missing LinkedIn OAuth token!",
                         module = "linkedin",
                     )
                     .left()
@@ -610,10 +684,14 @@ class LinkedInApiModule(
                 }
 
                 logger.info { "LinkedIn token expired, refreshing..." }
-                when (val result = refreshAccessToken(config, token.refreshToken)) {
+                when (
+                    val result = refreshAccessToken(config, token.refreshToken)
+                ) {
                     is Either.Right -> {
                         val newToken = result.value
-                        when (val saveResult = saveOAuthToken(newToken, userUuid)) {
+                        when (
+                            val saveResult = saveOAuthToken(newToken, userUuid)
+                        ) {
                             is Either.Right -> newToken
                             is Either.Left -> return saveResult.value.left()
                         }
@@ -625,9 +703,12 @@ class LinkedInApiModule(
             }
 
         // Get person URN from user profile
-        when (val profileResult = getUserProfile(config, validToken.accessToken)) {
+        when (
+            val profileResult = getUserProfile(config, validToken.accessToken)
+        ) {
             is Either.Right -> {
-                // The OIDC /userinfo endpoint returns the subject ID in "sub" field
+                // The OIDC /userinfo endpoint returns the subject ID in "sub"
+                // field
                 // Normalize to always use the full URN format
                 val rawId = profileResult.value.sub
                 val personUrn =
@@ -648,14 +729,15 @@ class LinkedInApiModule(
         accessToken: String,
         personUrn: String,
         uuid: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
                 filesModule.readImageFile(uuid, userUuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
-                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            errorMessage =
+                                "Failed to read image file — uuid: $uuid",
                             module = "linkedin",
                         )
                         .left()
@@ -669,7 +751,9 @@ class LinkedInApiModule(
                 altText = file.altText,
             )
         } catch (e: Exception) {
-            logger.error(e) { "Failed to upload media to LinkedIn — uuid $uuid" }
+            logger.error(e) {
+                "Failed to upload media to LinkedIn — uuid $uuid"
+            }
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -694,11 +778,15 @@ class LinkedInApiModule(
                     registerUploadRequest =
                         RegisterUploadRequestData(
                             owner = personUrn,
-                            recipes = listOf("urn:li:digitalmediaRecipe:feedshare-image"),
+                            recipes =
+                                listOf(
+                                    "urn:li:digitalmediaRecipe:feedshare-image"
+                                ),
                             serviceRelationships =
                                 listOf(
                                     ServiceRelationship(
-                                        identifier = "urn:li:userGeneratedContent",
+                                        identifier =
+                                            "urn:li:userGeneratedContent",
                                         relationshipType = "OWNER",
                                     )
                                 ),
@@ -706,7 +794,9 @@ class LinkedInApiModule(
                 )
 
             val registerResponse =
-                httpClient.post("${config.apiBase}/assets?action=registerUpload") {
+                httpClient.post(
+                    "${config.apiBase}/assets?action=registerUpload"
+                ) {
                     header("Authorization", "Bearer $accessToken")
                     header("X-Restli-Protocol-Version", "2.0.0")
                     contentType(ContentType.Application.Json)
@@ -727,8 +817,10 @@ class LinkedInApiModule(
                     .left()
             }
 
-            val registerData = registerResponse.body<LinkedInRegisterUploadResponse>()
-            val uploadUrl = registerData.value.uploadMechanism.uploadRequest.uploadUrl
+            val registerData =
+                registerResponse.body<LinkedInRegisterUploadResponse>()
+            val uploadUrl =
+                registerData.value.uploadMechanism.uploadRequest.uploadUrl
             val asset = registerData.value.asset
 
             // Step 2: Upload the binary
@@ -739,7 +831,10 @@ class LinkedInApiModule(
                     setBody(ByteReadChannel(fileSource.asKotlinSource().bind()))
                 }
 
-            if (uploadBinaryResponse.status !in listOf(HttpStatusCode.OK, HttpStatusCode.Created)) {
+            if (
+                uploadBinaryResponse.status !in
+                    listOf(HttpStatusCode.OK, HttpStatusCode.Created)
+            ) {
                 val errorBody = uploadBinaryResponse.bodyAsText()
                 logger.warn {
                     "Failed to upload binary to LinkedIn: ${uploadBinaryResponse.status}, body: $errorBody"
@@ -752,14 +847,16 @@ class LinkedInApiModule(
                     )
                     .left()
             }
-            // Return asset URN along with optional alt text stored in file metadata
+            // Return asset URN along with optional alt text stored in file
+            // metadata
             UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to upload media to LinkedIn from bytes" }
             CaughtException(
                     status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to upload media from bytes: ${e.message}",
+                    errorMessage =
+                        "Failed to upload media from bytes: ${e.message}",
                 )
                 .left()
         }
@@ -777,8 +874,8 @@ class LinkedInApiModule(
     /**
      * Create a post on LinkedIn with optional text, images, and link previews.
      *
-     * This function uses LinkedIn's UGC (User Generated Content) API to publish content. It
-     * supports:
+     * This function uses LinkedIn's UGC (User Generated Content) API to publish
+     * content. It supports:
      * - Text-only posts (shareMediaCategory: NONE)
      * - Posts with article/link previews (shareMediaCategory: ARTICLE)
      * - Posts with single or multiple images (shareMediaCategory: IMAGE)
@@ -803,7 +900,7 @@ class LinkedInApiModule(
     suspend fun createPost(
         config: LinkedInConfig,
         request: NewPostRequest,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
             validateRequest(request)?.let { error ->
@@ -832,7 +929,13 @@ class LinkedInApiModule(
                 for (imageUuid in message.images) {
                     when (
                         val result =
-                            uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
+                            uploadMedia(
+                                config,
+                                accessToken,
+                                personUrn,
+                                imageUuid,
+                                userUuid,
+                            )
                     ) {
                         is Either.Right -> uploadedAssets.add(result.value)
                         is Either.Left -> return result.value.left()
@@ -841,7 +944,8 @@ class LinkedInApiModule(
             }
 
             // Build UGC post request based on content type
-            // When both images and a link are present, append the link to the content text
+            // When both images and a link are present, append the link to the
+            // content text
             val effectiveContent =
                 if (uploadedAssets.isNotEmpty() && message.link != null) {
                     listOf(content, message.link).joinToString("\n\n")
@@ -860,17 +964,20 @@ class LinkedInApiModule(
                                 UgcSpecificContent(
                                     shareContent =
                                         UgcShareContent(
-                                            shareCommentary = UgcText(effectiveContent),
-                                            shareMediaCategory = UgcMediaCategory.IMAGE,
+                                            shareCommentary =
+                                                UgcText(effectiveContent),
+                                            shareMediaCategory =
+                                                UgcMediaCategory.IMAGE,
                                             media =
                                                 uploadedAssets.map { uploaded ->
                                                     UgcMedia(
                                                         status = "READY",
                                                         media = uploaded.asset,
                                                         description =
-                                                            uploaded.description?.let {
-                                                                UgcText(it)
-                                                            },
+                                                            uploaded.description
+                                                                ?.let {
+                                                                    UgcText(it)
+                                                                },
                                                     )
                                                 },
                                         )
@@ -889,19 +996,37 @@ class LinkedInApiModule(
                                     shareContent =
                                         UgcShareContent(
                                             shareCommentary = UgcText(content),
-                                            shareMediaCategory = UgcMediaCategory.ARTICLE,
+                                            shareMediaCategory =
+                                                UgcMediaCategory.ARTICLE,
                                             media =
                                                 listOf(
                                                     UgcMedia(
                                                         status = "READY",
-                                                        originalUrl = message.link,
+                                                        originalUrl =
+                                                            message.link,
                                                         title =
-                                                            linkPreview?.title?.let { UgcText(it) },
-                                                        description = UgcText(content.take(256)),
+                                                            linkPreview
+                                                                ?.title
+                                                                ?.let {
+                                                                    UgcText(it)
+                                                                },
+                                                        description =
+                                                            UgcText(
+                                                                content.take(
+                                                                    256
+                                                                )
+                                                            ),
                                                         thumbnails =
-                                                            linkPreview?.image?.let {
-                                                                listOf(UgcThumbnail(url = it))
-                                                            },
+                                                            linkPreview
+                                                                ?.image
+                                                                ?.let {
+                                                                    listOf(
+                                                                        UgcThumbnail(
+                                                                            url =
+                                                                                it
+                                                                        )
+                                                                    )
+                                                                },
                                                     )
                                                 ),
                                         )
@@ -919,7 +1044,8 @@ class LinkedInApiModule(
                                     shareContent =
                                         UgcShareContent(
                                             shareCommentary = UgcText(content),
-                                            shareMediaCategory = UgcMediaCategory.NONE,
+                                            shareMediaCategory =
+                                                UgcMediaCategory.NONE,
                                         )
                                 ),
                             visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
@@ -928,7 +1054,11 @@ class LinkedInApiModule(
                 }
 
             // Serialize request body for logging
-            val requestBody = jsonConfig.encodeToString(UgcPostRequest.serializer(), ugcPostRequest)
+            val requestBody =
+                jsonConfig.encodeToString(
+                    UgcPostRequest.serializer(),
+                    ugcPostRequest,
+                )
             val requestUrl = "${config.apiBase}/ugcPosts"
             val requestHeaders =
                 mapOf(
@@ -938,7 +1068,14 @@ class LinkedInApiModule(
                 )
 
             // Log the HTTP request
-            logger.info { formatHttpRequest("POST", requestUrl, requestHeaders, requestBody) }
+            logger.info {
+                formatHttpRequest(
+                    "POST",
+                    requestUrl,
+                    requestHeaders,
+                    requestBody,
+                )
+            }
 
             val response =
                 httpClient.post(requestUrl) {
@@ -953,9 +1090,10 @@ class LinkedInApiModule(
 
             // Log the HTTP response
             val responseHeaders =
-                response.headers.entries().groupBy({ it.key }, { it.value }).mapValues {
-                    it.value.flatten()
-                }
+                response.headers
+                    .entries()
+                    .groupBy({ it.key }, { it.value })
+                    .mapValues { it.value.flatten() }
             logger.info {
                 formatHttpResponse(
                     response.status.value,
@@ -973,20 +1111,34 @@ class LinkedInApiModule(
                             // Try to get it from the response body as fallback
                             try {
                                 val data =
-                                    jsonConfig.decodeFromString<UgcPostResponse>(responseBody)
+                                    jsonConfig.decodeFromString<
+                                        UgcPostResponse
+                                    >(
+                                        responseBody
+                                    )
                                 data.id ?: "unknown"
                             } catch (e: Exception) {
-                                logger.error(e) { "Could not parse postId: $responseBody" }
+                                logger.error(e) {
+                                    "Could not parse postId: $responseBody"
+                                }
                                 "unknown"
                             }
                         }
                 NewLinkedInPostResponse(
                         postId = postId,
-                        messages = listOf(PublishedMessageResponse(id = postId, uri = postId)),
+                        messages =
+                            listOf(
+                                PublishedMessageResponse(
+                                    id = postId,
+                                    uri = postId,
+                                )
+                            ),
                     )
                     .right()
             } else {
-                logger.warn { "Failed to post to LinkedIn via UGC API: ${response.status}" }
+                logger.warn {
+                    "Failed to post to LinkedIn via UGC API: ${response.status}"
+                }
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -1010,7 +1162,7 @@ class LinkedInApiModule(
         config: LinkedInConfig,
         rootPostId: String,
         message: NewPostRequestMessage,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<PublishedMessageResponse> {
         val (accessToken, personUrn) =
             when (val result = getValidToken(config, userUuid)) {
@@ -1021,7 +1173,14 @@ class LinkedInApiModule(
         val uploadedAsset =
             message.images?.firstOrNull()?.let { imageUuid ->
                 when (
-                    val result = uploadMedia(config, accessToken, personUrn, imageUuid, userUuid)
+                    val result =
+                        uploadMedia(
+                            config,
+                            accessToken,
+                            personUrn,
+                            imageUuid,
+                            userUuid,
+                        )
                 ) {
                     is Either.Left -> return result.value.left()
                     is Either.Right -> result.value
@@ -1039,17 +1198,24 @@ class LinkedInApiModule(
                 .left()
         }
 
-        val commentText = message.content + if (message.link != null) "\n\n${message.link}" else ""
+        val commentText =
+            message.content +
+                if (message.link != null) "\n\n${message.link}" else ""
         val requestBody =
             LinkedInCommentRequest(
                 actor = personUrn,
                 `object` = rootPostId,
                 message = LinkedInCommentMessage(text = commentText),
-                content = uploadedAsset?.let { listOf(LinkedInCommentContent(entity = it.asset)) },
+                content =
+                    uploadedAsset?.let {
+                        listOf(LinkedInCommentContent(entity = it.asset))
+                    },
             )
 
         val response =
-            httpClient.post("${config.apiBase}/socialActions/$encodedRootPostId/comments") {
+            httpClient.post(
+                "${config.apiBase}/socialActions/$encodedRootPostId/comments"
+            ) {
                 header("Authorization", "Bearer $accessToken")
                 header("X-Restli-Protocol-Version", "2.0.0")
                 contentType(ContentType.Application.Json)
@@ -1057,7 +1223,10 @@ class LinkedInApiModule(
             }
 
         val responseBody = response.bodyAsText()
-        if (response.status !in listOf(HttpStatusCode.Created, HttpStatusCode.OK)) {
+        if (
+            response.status !in
+                listOf(HttpStatusCode.Created, HttpStatusCode.OK)
+        ) {
             return RequestError(
                     status = response.status.value,
                     module = "linkedin",
@@ -1068,14 +1237,18 @@ class LinkedInApiModule(
         }
 
         val commentId = response.headers["X-RestLi-Id"] ?: "linkedin-comment"
-        return PublishedMessageResponse(id = commentId, uri = commentId, commentOnId = rootPostId)
+        return PublishedMessageResponse(
+                id = commentId,
+                uri = commentId,
+                commentOnId = rootPostId,
+            )
             .right()
     }
 
     override suspend fun createThread(
         config: LinkedInConfig,
         request: NewPostRequest,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateRequest(request)?.let {
             return it.left()
@@ -1098,7 +1271,8 @@ class LinkedInApiModule(
         }
 
         val followUp = request.messages[1]
-        val followUpResult = createComment(config, root.postId, followUp, userUuid)
+        val followUpResult =
+            createComment(config, root.postId, followUp, userUuid)
         return when (followUpResult) {
             is Either.Left -> followUpResult.value.left()
             is Either.Right ->

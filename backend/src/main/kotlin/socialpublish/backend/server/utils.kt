@@ -1,77 +1,48 @@
 package socialpublish.backend.server
 
-import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.createRouteScopedPlugin
-import io.ktor.server.application.install
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
 import io.ktor.util.AttributeKey
-import java.util.UUID
+import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSettings
-import socialpublish.backend.db.UsersDatabase
-import socialpublish.backend.server.routes.resolveUserUuid
 
 private val logger = KotlinLogging.logger {}
-internal val UserUuidKey = AttributeKey<UUID>("userUuid")
+internal val UserUuidKey = AttributeKey<UUIDv7>("userUuid")
 internal val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
+internal val UserSessionKey = AttributeKey<UserSession>("userSession")
 
-/**
- * Installs the UserContextPlugin that loads the authenticated user's UUID and settings into call
- * attributes once per request, avoiding repeated DB queries in downstream handlers.
- *
- * When the user does not exist in the database (e.g., was deleted after the JWT was issued), no
- * attributes are set and downstream handlers will reject the request with 401.
- */
-fun Route.installUserContextPlugin(usersDb: UsersDatabase) {
-    install(
-        createRouteScopedPlugin("UserContextPlugin") {
-            onCall { call ->
-                val userUuid = call.resolveUserUuid() ?: return@onCall
-                val user = usersDb.findByUuid(userUuid).getOrElse { null } ?: return@onCall
-                call.attributes.put(UserUuidKey, userUuid)
-                call.attributes.put(UserSettingsKey, user.settings ?: UserSettings())
-            }
-        }
-    )
+internal fun ApplicationCall.putUserSession(session: UserSession) {
+    attributes.put(UserSessionKey, session)
+    attributes.put(UserUuidKey, session.user.uuid)
+    attributes.put(UserSettingsKey, session.user.settings ?: UserSettings())
 }
 
-internal suspend fun ApplicationCall.requireUserUuid(): UUID? {
-    attributes.getOrNull(UserUuidKey)?.let {
-        return it
-    }
+context(session: UserSession)
+internal fun userUuid(): UUIDv7 = session.user.uuid
 
-    val resolved = resolveUserUuid()
-    if (resolved == null) {
-        respondWithUnauthorized()
-        return null
-    }
+context(session: UserSession)
+internal fun userSession(): UserSession = session
 
-    attributes.put(UserUuidKey, resolved)
-    return resolved
-}
-
-internal suspend fun ApplicationCall.requireUserSettings(
-    usersDb: UsersDatabase,
-    userUuid: UUID,
-): UserSettings {
-    attributes.getOrNull(UserSettingsKey)?.let {
-        return it
-    }
-
-    val settings = usersDb.findByUuid(userUuid).getOrElse { null }?.settings ?: UserSettings()
-    attributes.put(UserSettingsKey, settings)
-    return settings
-}
+context(session: UserSession)
+internal fun userSettings(): UserSettings =
+    session.user.settings ?: UserSettings()
 
 /** Respond with 500 Internal Server Error and log the exception. */
-suspend fun ApplicationCall.respondWithInternalServerError(cause: Throwable, context: String = "") {
+suspend fun ApplicationCall.respondWithInternalServerError(
+    cause: Throwable,
+    context: String = "",
+) {
     val msg = if (context.isNotBlank()) context else "Server error"
     logger.error(cause) { msg }
-    respond(HttpStatusCode.InternalServerError, ErrorResponse(error = "Server error"))
+    respond(
+        HttpStatusCode.InternalServerError,
+        ErrorResponse(error = "Server error"),
+    )
 }
 
 /** Respond with 404 Not Found for the named entity. */
@@ -80,7 +51,9 @@ suspend fun ApplicationCall.respondWithNotFound(entity: String = "Resource") {
 }
 
 /** Respond with 403 Forbidden. */
-suspend fun ApplicationCall.respondWithForbidden(message: String = "Forbidden") {
+suspend fun ApplicationCall.respondWithForbidden(
+    message: String = "Forbidden"
+) {
     respond(HttpStatusCode.Forbidden, ErrorResponse(error = message))
 }
 
@@ -94,5 +67,12 @@ suspend fun ApplicationCall.respondWithNotConfigured(integration: String) {
     respond(
         HttpStatusCode.ServiceUnavailable,
         ErrorResponse(error = "$integration integration not configured"),
+    )
+}
+
+suspend fun ApplicationCall.respondApiError(error: ApiError) {
+    respond(
+        HttpStatusCode.fromValue(error.status),
+        ErrorResponse(error = error.errorMessage),
     )
 }

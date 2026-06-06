@@ -1,8 +1,8 @@
 package socialpublish.backend.server.routes
 
+import arrow.core.Either
 import arrow.core.getOrElse
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
+import arrow.core.raise.either
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -13,9 +13,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
-import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -27,62 +27,92 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import socialpublish.backend.db.Database
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.db.UserSessionsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.db.query
-import socialpublish.backend.modules.AuthModule
-import socialpublish.backend.server.ServerAuthConfig
+import socialpublish.backend.modules.AuthService
+import socialpublish.backend.server.putUserSession
+import socialpublish.backend.server.respondWithUnauthorized
 
 @Serializable private data class TokenResponse(val token: String?)
 
 class AuthRoutesTest {
-    private val config = ServerAuthConfig(jwtSecret = "test-secret")
-
-    private suspend fun testUsersDb(password: String = "testpass"): UsersDatabase {
+    private suspend fun testSetup(password: String = "testpass"): TestContext {
         val db = Database.connectUnmanaged(":memory:")
         val usersDb = UsersDatabase(db)
-        val _ = usersDb.createUser("testuser", password)
-        return usersDb
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
+        val authService = AuthService(userSessionsDb)
+        val authRoute = AuthRoutes(authService, DocumentsDatabase(db))
+        val _ = usersDb.createUser("testuser", password).getOrElse { throw it }
+        return TestContext(db, usersDb, userSessionsDb, authService, authRoute)
     }
 
-    private suspend fun testUsersDbWithDisabledPassword(): UsersDatabase {
-        val db = Database.connectUnmanaged(":memory:")
-        val usersDb = UsersDatabase(db)
-        val _ = usersDb.createUser("testuser", "testpass")
-        val _ =
-            db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-                setString(1, "testuser")
-                executeUpdate()
+    private data class TestContext(
+        val db: Database,
+        val usersDb: UsersDatabase,
+        val userSessionsDb: UserSessionsDatabase,
+        val authService: AuthService,
+        val authRoute: AuthRoutes,
+    )
+
+    private suspend fun loginAndGetToken(ctx: TestContext): String {
+        val created =
+            ctx.authService.login("testuser", "testpass").getOrNull()!!
+        return created.rawToken
+    }
+
+    /** Replicates the `authorized` pattern from Server.kt for use in tests. */
+    private suspend fun authorizedEndpoint(
+        call: io.ktor.server.application.ApplicationCall,
+        ctx: TestContext,
+        block:
+            suspend context(UserSession)
+            () -> Unit,
+    ) {
+        val token = ctx.authRoute.extractAccessToken(call)
+        if (token == null) {
+            call.respondWithUnauthorized()
+            return
+        }
+        when (val result = ctx.authService.authorize(token)) {
+            is Either.Left -> call.respondWithUnauthorized()
+            is Either.Right -> {
+                call.putUserSession(result.value)
+                context(result.value) { block() }
             }
-        return usersDb
-    }
-
-    private suspend fun emptyUsersDb(): UsersDatabase {
-        val db = Database.connectUnmanaged(":memory:")
-        return UsersDatabase(db)
+        }
     }
 
     @Test
     fun `login should work with correct password`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             assertTrue(body.token.isNotBlank())
         }
     }
@@ -90,19 +120,24 @@ class AuthRoutesTest {
     @Test
     fun `login should reject wrong password`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"wrongpass"}""")
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
+                    setBody(
+                        """{"username":"testuser","password":"wrongpass"}"""
+                    )
                 }
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -112,31 +147,52 @@ class AuthRoutesTest {
     @Test
     fun `login should reject wrong username`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"wronguser","password":"testpass"}""")
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
+                    setBody(
+                        """{"username":"wronguser","password":"testpass"}"""
+                    )
                 }
 
-            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
 
     @Test
     fun `login should reject users with disabled password`() {
         testApplication {
-            val usersDb = testUsersDbWithDisabledPassword()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+            val authRoute = AuthRoutes(authService, null)
+            val _ =
+                usersDb.createUser("testuser", "testpass").getOrElse {
+                    throw it
+                }
+            val _ =
+                either {
+                        db.query(
+                            "UPDATE users SET password_hash = NULL WHERE username = ?"
+                        ) {
+                            setString(1, "testuser")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }
@@ -145,7 +201,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
@@ -156,9 +215,9 @@ class AuthRoutesTest {
     @Test
     fun `login should return twitter auth status`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val ctx = testSetup()
+            val authRoute =
+                AuthRoutes(ctx.authService, DocumentsDatabase(ctx.db))
 
             application {
                 install(ContentNegotiation) { json() }
@@ -167,14 +226,21 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             // User has no OAuth token stored → twitter should be false
             assertEquals(false, body.configuredServices.twitter)
         }
@@ -183,8 +249,8 @@ class AuthRoutesTest {
     @Test
     fun `login should return linkedin auth status`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb, null)
+            val ctx = testSetup()
+            val authRoute = AuthRoutes(ctx.authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -193,14 +259,21 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             // User has no OAuth token stored → linkedin should be false
             assertEquals(false, body.configuredServices.linkedin)
         }
@@ -209,18 +282,21 @@ class AuthRoutesTest {
     @Test
     fun `login should work with form-urlencoded data`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val tempDb = Database.connectUnmanaged(":memory:")
-            val authRoute = AuthRoutes(config, usersDb, DocumentsDatabase(tempDb))
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authRoute.loginRoute(call) } }
+                routing {
+                    post("/api/login") { ctx.authRoute.loginRoute(call) }
+                }
             }
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("username=testuser&password=testpass")
                 }
 
@@ -229,34 +305,13 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `should accept access token query param`() {
-        testApplication {
-            val authModule = AuthModule(config.jwtSecret)
-            val usersDb = testUsersDb()
-            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
-
-            application {
-                install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, usersDb, null)
-                configureAuth(authRoutes)
-                routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
-                    }
-                }
-            }
-
-            val token = authModule.generateToken("testuser", user.uuid)
-            val response = client.get("/api/protected?access_token=$token")
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
-    }
-
-    @Test
     fun `login should reject malformed JSON`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+            val authRoute = AuthRoutes(authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -265,7 +320,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser"}""")
                 }
 
@@ -276,7 +334,11 @@ class AuthRoutesTest {
     @Test
     fun `login should reject unsupported content type`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+            val authRoute = AuthRoutes(authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -296,7 +358,11 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing username`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+            val authRoute = AuthRoutes(authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -305,7 +371,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("password=testpass")
                 }
 
@@ -316,7 +385,11 @@ class AuthRoutesTest {
     @Test
     fun `login should reject form-urlencoded with missing password`() {
         testApplication {
-            val authRoute = AuthRoutes(config, emptyUsersDb(), null)
+            val db = Database.connectUnmanaged(":memory:")
+            val usersDb = UsersDatabase(db)
+            val userSessionsDb = UserSessionsDatabase(db, usersDb)
+            val authService = AuthService(userSessionsDb)
+            val authRoute = AuthRoutes(authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -325,7 +398,10 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.FormUrlEncoded,
+                    )
                     setBody("username=testuser")
                 }
 
@@ -334,15 +410,17 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `protectedRoute should reject request without authentication`() {
+    fun `protectedRoute should reject request without Bearer token`() {
         testApplication {
+            val ctx = testSetup()
+
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
@@ -354,15 +432,17 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `protectedRoute should reject invalid token`() {
+    fun `protectedRoute should reject invalid Bearer token`() {
         testApplication {
+            val ctx = testSetup()
+
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
@@ -377,106 +457,135 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `protectedRoute should accept Bearer token`() {
+    fun `protectedRoute should accept valid Bearer token`() {
         testApplication {
-            val authModule = AuthModule(config.jwtSecret)
-            val usersDb = testUsersDb()
-            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, usersDb, null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
-            val token = authModule.generateToken("testuser", user.uuid)
             val response =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
     }
 
     @Test
-    fun `protectedRoute should reject token missing userUuid claim`() {
+    fun `protectedRoute should accept valid token via access_token cookie`() {
         testApplication {
-            val tokenWithoutUserUuid =
-                JWT.create()
-                    .withSubject("testuser")
-                    .withClaim("username", "testuser")
-                    .sign(Algorithm.HMAC256(config.jwtSecret))
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
             val response =
                 client.get("/api/protected") {
-                    header(HttpHeaders.Authorization, "Bearer $tokenWithoutUserUuid")
+                    header(HttpHeaders.Cookie, "access_token=$token")
                 }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+        }
+    }
+
+    @Test
+    fun `protectedRoute should reject valid token via access_token query parameter`() {
+        testApplication {
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
+                    }
+                }
+            }
+
+            val response = client.get("/api/protected?access_token=$token")
 
             assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
 
     @Test
-    fun `protectedRoute should reject token with malformed userUuid claim`() {
+    fun `protectedRoute should reject token for deleted user`() {
         testApplication {
-            val malformedUuidToken =
-                JWT.create()
-                    .withSubject("testuser")
-                    .withClaim("username", "testuser")
-                    .withClaim("userUuid", "not-a-uuid")
-                    .sign(Algorithm.HMAC256(config.jwtSecret))
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
+
+            // Delete the user from the database
+            val _ =
+                either {
+                        ctx.db.query("DELETE FROM users WHERE username = ?") {
+                            setString(1, "testuser")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            call.respondText("Success")
+                        }
                     }
                 }
             }
 
             val response =
                 client.get("/api/protected") {
-                    header(HttpHeaders.Authorization, "Bearer $malformedUuidToken")
+                    header(HttpHeaders.Authorization, "Bearer $token")
                 }
 
+            // Session is orphaned (user deleted) → should still be invalid
             assertEquals(HttpStatusCode.Unauthorized, response.status)
         }
     }
 
     @Test
-    fun `extractJwtToken should extract token from Bearer header`() {
+    fun `extractAccessToken should extract token from Authorization Bearer header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+            val ctx = testSetup()
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
+                        val token = ctx.authRoute.extractAccessToken(call)
                         call.respond(TokenResponse(token = token))
                     }
                 }
             }
 
             val response =
-                client.get("/test") { header(HttpHeaders.Authorization, "Bearer test-token-123") }
+                client.get("/test") {
+                    header(HttpHeaders.Authorization, "Bearer test-token-123")
+                }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("test-token-123"))
@@ -484,45 +593,24 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `extractJwtToken should extract token from cookie`() {
+    fun `extractAccessToken should return null for malformed Authorization header`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
+                        val token = ctx.authRoute.extractAccessToken(call)
                         call.respond(TokenResponse(token = token))
                     }
                 }
             }
 
             val response =
-                client.get("/test") { header(HttpHeaders.Cookie, "access_token=cookie-token-456") }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("cookie-token-456"))
-        }
-    }
-
-    @Test
-    fun `extractJwtToken should return null for malformed Authorization header`() {
-        testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-
-            application {
-                install(ContentNegotiation) { json() }
-                routing {
-                    get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
-                        call.respond(TokenResponse(token = token))
-                    }
+                client.get("/test") {
+                    header(HttpHeaders.Authorization, "InvalidFormat")
                 }
-            }
-
-            val response =
-                client.get("/test") { header(HttpHeaders.Authorization, "InvalidFormat") }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertTrue(response.bodyAsText().contains("null"))
@@ -530,15 +618,15 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `extractJwtToken should return null when no token present`() {
+    fun `extractAccessToken should return null when no token present`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
+            val ctx = testSetup()
 
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
+                        val token = ctx.authRoute.extractAccessToken(call)
                         call.respond(TokenResponse(token = token))
                     }
                 }
@@ -552,60 +640,55 @@ class AuthRoutesTest {
     }
 
     @Test
-    fun `extractJwtToken should prioritize Bearer header over query param`() {
+    fun `extractAccessToken should extract token from access_token cookie`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-
+            val ctx = testSetup()
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
+                        val token = ctx.authRoute.extractAccessToken(call)
                         call.respond(TokenResponse(token = token))
                     }
                 }
             }
 
             val response =
-                client.get("/test?access_token=query-token") {
-                    header(HttpHeaders.Authorization, "Bearer header-token")
+                client.get("/test") {
+                    header(HttpHeaders.Cookie, "access_token=cookie-token-456")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("header-token"))
+            assertTrue(response.bodyAsText().contains("cookie-token-456"))
         }
     }
 
     @Test
-    fun `extractJwtToken should prioritize cookie over query param`() {
+    fun `extractAccessToken should not extract token from access_token query parameter`() {
         testApplication {
-            val authRoutes = AuthRoutes(config, emptyUsersDb(), null)
-
+            val ctx = testSetup()
             application {
                 install(ContentNegotiation) { json() }
                 routing {
                     get("/test") {
-                        val token = authRoutes.extractJwtToken(call)
+                        val token = ctx.authRoute.extractAccessToken(call)
                         call.respond(TokenResponse(token = token))
                     }
                 }
             }
 
-            val response =
-                client.get("/test?access_token=query-token") {
-                    header(HttpHeaders.Cookie, "access_token=cookie-token")
-                }
+            val response = client.get("/test?access_token=query-token-789")
 
             assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("cookie-token"))
+            assertTrue(response.bodyAsText().contains("\"token\":null"))
         }
     }
 
     @Test
     fun `login should return auth status with both providers false when no oauth`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb, null)
+            val ctx = testSetup()
+            val authRoute = AuthRoutes(ctx.authService, null)
 
             application {
                 install(ContentNegotiation) { json() }
@@ -614,83 +697,53 @@ class AuthRoutesTest {
 
             val response =
                 client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
+                    header(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Json,
+                    )
                     setBody("""{"username":"testuser","password":"testpass"}""")
                 }
 
             assertEquals(HttpStatusCode.OK, response.status)
 
             val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
+            val body =
+                json.decodeFromString(
+                    LoginResponse.serializer(),
+                    response.bodyAsText(),
+                )
             assertEquals(false, body.configuredServices.twitter)
             assertEquals(false, body.configuredServices.linkedin)
         }
     }
 
     @Test
-    fun `login should return auth status with both providers false`() {
+    fun `logout should succeed with valid token`() {
         testApplication {
-            val usersDb = testUsersDb()
-            val authRoute = AuthRoutes(config, usersDb, null)
+            val ctx = testSetup()
+            val token = loginAndGetToken(ctx)
 
             application {
                 install(ContentNegotiation) { json() }
-                routing { post("/api/login") { authRoute.loginRoute(call) } }
-            }
-
-            val response =
-                client.post("/api/login") {
-                    header(HttpHeaders.ContentType, ContentType.Application.Json)
-                    setBody("""{"username":"testuser","password":"testpass"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-
-            val json = Json { ignoreUnknownKeys = true }
-            val body = json.decodeFromString(LoginResponse.serializer(), response.bodyAsText())
-            assertEquals(false, body.configuredServices.twitter)
-            assertEquals(false, body.configuredServices.linkedin)
-        }
-    }
-
-    @Test
-    fun `protectedRoute should reject token for deleted user`() {
-        testApplication {
-            val authModule = AuthModule(config.jwtSecret)
-            val db = Database.connectUnmanaged(":memory:")
-            val usersDb = UsersDatabase(db)
-            val _ = usersDb.createUser("testuser", "testpass")
-            val user = usersDb.findByUsername("testuser").getOrElse { null }!!
-
-            application {
-                install(ContentNegotiation) { json() }
-                val authRoutes = AuthRoutes(config, usersDb, null)
-                configureAuth(authRoutes)
                 routing {
-                    authenticate("auth-jwt") {
-                        get("/api/protected") { authRoutes.protectedRoute(call) }
+                    post("/api/logout") {
+                        val bearerToken = ctx.authRoute.extractAccessToken(call)
+                        if (bearerToken != null) {
+                            ctx.authRoute.logoutRoute(bearerToken, call)
+                        } else {
+                            call.respond(mapOf("success" to true))
+                        }
                     }
                 }
             }
 
-            val token = authModule.generateToken("testuser", user.uuid)
-
-            // Verify the token works before deletion
-            val beforeResponse =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
-            assertEquals(HttpStatusCode.OK, beforeResponse.status)
-
-            // Delete the user from the database
-            val _ =
-                db.query("DELETE FROM users WHERE username = ?") {
-                    setString(1, "testuser")
-                    executeUpdate()
+            val response =
+                client.post("/api/logout") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
                 }
 
-            // After deletion, the token should be rejected
-            val afterResponse =
-                client.get("/api/protected") { header(HttpHeaders.Authorization, "Bearer $token") }
-            assertEquals(HttpStatusCode.Unauthorized, afterResponse.status)
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains("true"))
         }
     }
 }

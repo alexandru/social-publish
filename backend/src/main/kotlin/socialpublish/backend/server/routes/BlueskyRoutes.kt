@@ -9,28 +9,35 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import java.util.UUID
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.db.UUIDv7
 
 class BlueskyRoutes(private val blueskyModule: BlueskyApiModule) {
     suspend fun createPostRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         blueskyConfig: BlueskyConfig,
         call: ApplicationCall,
     ) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
-                    val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
-                    val contentType = contentTypeHeader?.let { ContentType.parse(it) }
+                    val contentTypeHeader =
+                        call.request.headers[HttpHeaders.ContentType]
+                    val contentType = contentTypeHeader?.let {
+                        ContentType.parse(it)
+                    }
                     val params =
                         if (
-                            contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
-                                contentType?.match(ContentType.MultiPart.FormData) == true
+                            contentType?.match(
+                                ContentType.Application.FormUrlEncoded
+                            ) == true ||
+                                contentType?.match(
+                                    ContentType.MultiPart.FormData
+                                ) == true
                         ) {
                             call.receiveParameters()
                         } else {
@@ -50,7 +57,10 @@ class BlueskyRoutes(private val blueskyModule: BlueskyApiModule) {
                     )
                 }
 
-        when (val result = blueskyModule.createThread(blueskyConfig, request, userUuid)) {
+        when (
+            val result =
+                blueskyModule.createThread(blueskyConfig, request, userUuid)
+        ) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

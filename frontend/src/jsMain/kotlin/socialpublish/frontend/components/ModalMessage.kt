@@ -24,7 +24,10 @@ fun ModalMessage(
         if (isEnabled) {
             val handleKeyDown: (dynamic) -> Unit = { event ->
                 val keyboardEvent = event as? KeyboardEvent
-                if (keyboardEvent?.key == "Escape" || keyboardEvent?.keyCode == 27) {
+                if (
+                    keyboardEvent?.key == "Escape" ||
+                        keyboardEvent?.keyCode == 27
+                ) {
                     onDisable()
                 }
             }
@@ -50,7 +53,9 @@ fun ModalMessage(
             )
 
             Div(attrs = { classes("modal-content") }) {
-                Article(attrs = { classes("message", "is-medium", type.cssClass) }) {
+                Article(
+                    attrs = { classes("message", "is-medium", type.cssClass) }
+                ) {
                     Div(attrs = { classes("message-header") }) {
                         P { Text(type.title) }
                         Button(

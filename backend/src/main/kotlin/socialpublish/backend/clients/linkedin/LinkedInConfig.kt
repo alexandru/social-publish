@@ -5,11 +5,12 @@ import kotlinx.serialization.Serializable
 /**
  * Configuration for LinkedIn OAuth2 and API integration.
  *
- * Contains the client credentials and endpoint URLs required for authenticating with LinkedIn and
- * making API calls.
+ * Contains the client credentials and endpoint URLs required for authenticating
+ * with LinkedIn and making API calls.
  *
  * ## Obtaining Credentials
- * 1. Go to [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps)
+ * 1. Go to
+ *    [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps)
  * 2. Create a new app or select an existing one
  * 3. Navigate to the "Auth" tab
  * 4. Copy the "Client ID" and "Client Secret"
@@ -34,8 +35,10 @@ data class LinkedInConfig(
     val clientId: String,
     val clientSecret: String,
     // OAuth endpoints
-    val authorizationUrl: String = "https://www.linkedin.com/oauth/v2/authorization",
-    val accessTokenUrl: String = "https://www.linkedin.com/oauth/v2/accessToken",
+    val authorizationUrl: String =
+        "https://www.linkedin.com/oauth/v2/authorization",
+    val accessTokenUrl: String =
+        "https://www.linkedin.com/oauth/v2/accessToken",
     // API endpoints
     val apiBase: String = "https://api.linkedin.com/v2",
 )

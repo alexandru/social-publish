@@ -4,7 +4,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URI
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 
 private val logger = KotlinLogging.logger {}
 
@@ -27,7 +28,8 @@ private data class YouTubeOEmbedResponse(
 /**
  * Checks if a URL is a YouTube URL.
  *
- * Supports both youtube.com and youtu.be domains with various subdomains (www, m, etc.)
+ * Supports both youtube.com and youtu.be domains with various subdomains (www,
+ * m, etc.)
  *
  * @param url The URL to check
  * @return true if the URL is a YouTube URL, false otherwise
@@ -50,28 +52,30 @@ fun isYouTubeUrl(url: String): Boolean {
 /**
  * Parses a YouTube OEmbed API response into a LinkPreview.
  *
- * The YouTube OEmbed API doesn't provide a description field, so we use the author_name as the
- * description to provide context about the video creator.
+ * The YouTube OEmbed API doesn't provide a description field, so we use the
+ * author_name as the description to provide context about the video creator.
  *
  * @param jsonResponse The JSON response from the YouTube OEmbed API
  * @return A LinkPreview if parsing succeeds, null otherwise
  */
 fun parseYouTubeOEmbedResponse(jsonResponse: String): LinkPreview? {
     return try {
-        val json = Json { ignoreUnknownKeys = true }
-        val response = json.decodeFromString<YouTubeOEmbedResponse>(jsonResponse)
+        val response =
+            jsonCommon.decodeFromString<YouTubeOEmbedResponse>(jsonResponse)
 
         // Validate that we have at least a title
         val title = response.title?.takeIf { it.isNotBlank() } ?: return null
 
-        // Use author_name as description since YouTube OEmbed doesn't provide a description field
+        // Use author_name as description since YouTube OEmbed doesn't provide a
+        // description field
         val description = response.authorName?.takeIf { it.isNotBlank() }
 
         // Use thumbnail_url as the image
         val image = response.thumbnailUrl?.takeIf { it.isNotBlank() }
 
         LinkPreview(title = title, description = description, image = image)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        rethrowIfFatalOrCancelled(e)
         logger.warn(e) { "Failed to parse YouTube OEmbed response" }
         null
     }

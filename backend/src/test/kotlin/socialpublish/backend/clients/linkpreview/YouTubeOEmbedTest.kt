@@ -64,38 +64,48 @@ class YouTubeOEmbedTest {
             preview.title,
         )
         assertEquals("Computer History Museum", preview.description)
-        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
+        assertEquals(
+            "https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg",
+            preview.image,
+        )
     }
 
     @Test
-    fun `parses YouTube oembed response with author as description`() = runTest {
-        val json =
-            """
-            {
-                "title": "OpenAI is Broke… and so is everyone else",
-                "author_name": "Vanessa Wingårdh",
-                "author_url": "https://www.youtube.com/@VanessaWing%C3%A5rdh",
-                "type": "video",
-                "height": 113,
-                "width": 200,
-                "version": "1.0",
-                "provider_name": "YouTube",
-                "provider_url": "https://www.youtube.com/",
-                "thumbnail_height": 360,
-                "thumbnail_width": 480,
-                "thumbnail_url": "https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg",
-                "html": "<iframe width=\"200\" height=\"113\" src=\"https://www.youtube.com/embed/Y3N9qlPZBc0?feature=oembed\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen title=\"OpenAI is Broke… and so is everyone else\"></iframe>"
-            }
-            """
-                .trimIndent()
+    fun `parses YouTube oembed response with author as description`() =
+        runTest {
+            val json =
+                """
+                {
+                    "title": "OpenAI is Broke… and so is everyone else",
+                    "author_name": "Vanessa Wingårdh",
+                    "author_url": "https://www.youtube.com/@VanessaWing%C3%A5rdh",
+                    "type": "video",
+                    "height": 113,
+                    "width": 200,
+                    "version": "1.0",
+                    "provider_name": "YouTube",
+                    "provider_url": "https://www.youtube.com/",
+                    "thumbnail_height": 360,
+                    "thumbnail_width": 480,
+                    "thumbnail_url": "https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg",
+                    "html": "<iframe width=\"200\" height=\"113\" src=\"https://www.youtube.com/embed/Y3N9qlPZBc0?feature=oembed\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen title=\"OpenAI is Broke… and so is everyone else\"></iframe>"
+                }
+                """
+                    .trimIndent()
 
-        val preview = parseYouTubeOEmbedResponse(json)
+            val preview = parseYouTubeOEmbedResponse(json)
 
-        assertNotNull(preview)
-        assertEquals("OpenAI is Broke… and so is everyone else", preview.title)
-        assertEquals("Vanessa Wingårdh", preview.description)
-        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
-    }
+            assertNotNull(preview)
+            assertEquals(
+                "OpenAI is Broke… and so is everyone else",
+                preview.title,
+            )
+            assertEquals("Vanessa Wingårdh", preview.description)
+            assertEquals(
+                "https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg",
+                preview.image,
+            )
+        }
 
     @Test
     fun `returns null for invalid JSON`() = runTest {

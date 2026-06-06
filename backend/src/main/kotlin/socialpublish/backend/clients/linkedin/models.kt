@@ -14,8 +14,9 @@ const val TOKEN_REFRESH_BUFFER_SECONDS = 300L
 /**
  * OAuth2 access token with refresh token and expiration tracking.
  *
- * LinkedIn access tokens expire after 60 days, and refresh tokens expire after 1 year. The token is
- * considered expired 5 minutes before actual expiry to allow for refresh.
+ * LinkedIn access tokens expire after 60 days, and refresh tokens expire after
+ * 1 year. The token is considered expired 5 minutes before actual expiry to
+ * allow for refresh.
  *
  * **API Reference:**
  * - [Access Token
@@ -59,7 +60,8 @@ data class LinkedInTokenResponse(
     @SerialName("access_token") val accessToken: String,
     @SerialName("expires_in") val expiresIn: Long,
     @SerialName("refresh_token") val refreshToken: String? = null,
-    @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
+    @SerialName("refresh_token_expires_in")
+    val refreshTokenExpiresIn: Long? = null,
     val scope: String? = null,
 )
 
@@ -89,8 +91,9 @@ data class LinkedInOAuthError(
 /**
  * User profile from LinkedIn's OIDC UserInfo endpoint.
  *
- * The `sub` (subject) field contains the LinkedIn member identifier, which may be either a plain ID
- * (e.g., "abc123") or full URN format (e.g., "urn:li:person:abc123").
+ * The `sub` (subject) field contains the LinkedIn member identifier, which may
+ * be either a plain ID (e.g., "abc123") or full URN format (e.g.,
+ * "urn:li:person:abc123").
  *
  * **API Reference:**
  * - [OIDC
@@ -117,7 +120,8 @@ data class LinkedInUserProfile(
 /**
  * Request to register an image/video upload with LinkedIn.
  *
- * **API Endpoint:** `POST https://api.linkedin.com/v2/assets?action=registerUpload`
+ * **API Endpoint:** `POST
+ * https://api.linkedin.com/v2/assets?action=registerUpload`
  *
  * **Sample request:**
  *
@@ -135,7 +139,9 @@ data class LinkedInUserProfile(
  * ```
  */
 @Serializable
-data class LinkedInRegisterUploadRequest(val registerUploadRequest: RegisterUploadRequestData)
+data class LinkedInRegisterUploadRequest(
+    val registerUploadRequest: RegisterUploadRequestData
+)
 
 @Serializable
 data class RegisterUploadRequestData(
@@ -144,7 +150,11 @@ data class RegisterUploadRequestData(
     val serviceRelationships: List<ServiceRelationship>,
 )
 
-@Serializable data class ServiceRelationship(val identifier: String, val relationshipType: String)
+@Serializable
+data class ServiceRelationship(
+    val identifier: String,
+    val relationshipType: String,
+)
 
 /**
  * Response from LinkedIn's register upload endpoint.
@@ -166,7 +176,8 @@ data class RegisterUploadRequestData(
  * }
  * ```
  */
-@Serializable data class LinkedInRegisterUploadResponse(val value: RegisterUploadValue)
+@Serializable
+data class LinkedInRegisterUploadResponse(val value: RegisterUploadValue)
 
 @Serializable
 data class RegisterUploadValue(
@@ -182,13 +193,17 @@ data class UploadMechanism(
 )
 
 /**
- * Result of a successful media upload registration + binary upload. Carries the LinkedIn asset URN
- * and optional description (alt text) for UGC posts.
+ * Result of a successful media upload registration + binary upload. Carries the
+ * LinkedIn asset URN and optional description (alt text) for UGC posts.
  */
-@Serializable data class UploadedAsset(val asset: String, val description: String? = null)
+@Serializable
+data class UploadedAsset(val asset: String, val description: String? = null)
 
 @Serializable
-data class MediaUploadHttpRequest(val uploadUrl: String, val headers: Map<String, String>? = null)
+data class MediaUploadHttpRequest(
+    val uploadUrl: String,
+    val headers: Map<String, String>? = null,
+)
 
 // ============================================================================
 // UGC Post Models (User Generated Content API)
@@ -230,18 +245,21 @@ data class UgcPostRequest(
 /**
  * Wrapper for UGC share content.
  *
- * Uses the discriminator key `com.linkedin.ugc.ShareContent` as required by LinkedIn's API.
+ * Uses the discriminator key `com.linkedin.ugc.ShareContent` as required by
+ * LinkedIn's API.
  */
 @Serializable
 data class UgcSpecificContent(
-    @SerialName("com.linkedin.ugc.ShareContent") val shareContent: UgcShareContent
+    @SerialName("com.linkedin.ugc.ShareContent")
+    val shareContent: UgcShareContent
 )
 
 /**
  * Share content details for UGC posts.
  *
  * @property shareCommentary Primary text content for the share
- * @property shareMediaCategory Type of media: `NONE`, `ARTICLE`, `IMAGE`, or `VIDEO`
+ * @property shareMediaCategory Type of media: `NONE`, `ARTICLE`, `IMAGE`, or
+ *   `VIDEO`
  * @property media Media assets if shareMediaCategory is not `NONE`
  */
 @Serializable
@@ -289,7 +307,8 @@ data class UgcMedia(
 )
 
 /**
- * Docs: [https://learn.microsoft.com/en-us/linkedin/compliance/integrations/shares/ugc-post-api]
+ * Docs:
+ * [https://learn.microsoft.com/en-us/linkedin/compliance/integrations/shares/ugc-post-api]
  */
 @Serializable
 data class UgcThumbnail(
@@ -311,14 +330,15 @@ data class UgcThumbnail(
  */
 @Serializable
 data class UgcVisibility(
-    @SerialName("com.linkedin.ugc.MemberNetworkVisibility") val visibility: String
+    @SerialName("com.linkedin.ugc.MemberNetworkVisibility")
+    val visibility: String
 )
 
 /**
  * Response from creating a UGC post.
  *
- * A successful response returns `201 Created` with the post ID in the `X-RestLi-Id` header. The
- * response body may also contain the ID.
+ * A successful response returns `201 Created` with the post ID in the
+ * `X-RestLi-Id` header. The response body may also contain the ID.
  */
 @Serializable data class UgcPostResponse(val id: String? = null)
 

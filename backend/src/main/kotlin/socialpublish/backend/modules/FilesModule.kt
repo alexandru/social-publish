@@ -9,7 +9,6 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
@@ -19,14 +18,27 @@ import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.common.*
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UploadPayload
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
-@Serializable data class FileUploadResponse(val uuid: String, val url: String, val mimeType: String)
+@Serializable
+data class FileUploadResponse(
+    val uuid: String,
+    val url: String,
+    val mimeType: String,
+)
 
-data class UploadedFile(val fileName: String, val source: UploadSource, val altText: String?)
+data class UploadedFile(
+    val fileName: String,
+    val source: UploadSource,
+    val altText: String?,
+)
 
 data class ProcessedUpload(
     val originalname: String,
@@ -38,7 +50,11 @@ data class ProcessedUpload(
     val source: UploadSource,
 )
 
-data class StoredFile(val file: File, val mimeType: String, val originalName: String)
+data class StoredFile(
+    val file: File,
+    val mimeType: String,
+    val originalName: String,
+)
 
 data class FilesConfig(val uploadedFilesPath: File, val baseUrl: String)
 
@@ -52,16 +68,24 @@ private constructor(
     companion object {
         private val optimizationStripes = Array(64) { Mutex() }
 
-        suspend fun create(config: FilesConfig, db: FilesDatabase): FilesModule {
+        suspend fun create(
+            config: FilesConfig,
+            db: FilesDatabase,
+        ): FilesModule {
             val imageMagick =
-                ImageMagick().getOrElse { error("Failed to initialize ImageMagick: ${it.message}") }
-            val ref = FilesModule(config, db, config.uploadedFilesPath, imageMagick)
+                ImageMagick().getOrElse {
+                    error("Failed to initialize ImageMagick: ${it.message}")
+                }
+            val ref =
+                FilesModule(config, db, config.uploadedFilesPath, imageMagick)
             runInterruptible(Dispatchers.LoomIO) {
                 ref.uploadedFilesPath.mkdirs()
                 ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
             }
-            logger.info { "Files module initialized at ${config.uploadedFilesPath}" }
+            logger.info {
+                "Files module initialized at ${config.uploadedFilesPath}"
+            }
             return ref
         }
     }
@@ -70,72 +94,82 @@ private constructor(
     private val processedPath = File(uploadedFilesPath, "processed")
 
     /** Upload and process file */
-    suspend fun uploadFile(upload: UploadedFile, userUuid: UUID): ApiResult<FileUploadResponse> =
-        resourceScope {
-            try {
-                val originalFileTmp = upload.source.asFileResource().bind()
-                val hash = originalFileTmp.calculateHash()
-                val lock =
-                    optimizationStripes[
-                        (hash.hashCode() and Int.MAX_VALUE) % optimizationStripes.size]
+    context(_: UserSession)
+    suspend fun uploadFile(
+        upload: UploadedFile
+    ): ApiResult<FileUploadResponse> = resourceScope {
+        val userUuid = userUuid()
+        try {
+            val originalFileTmp = upload.source.asFileResource().bind()
+            val hash = originalFileTmp.calculateHash()
+            val lock =
+                optimizationStripes[
+                    (hash.hashCode() and Int.MAX_VALUE) %
+                        optimizationStripes.size]
 
-                lock.withLock {
-                    val processedFilePath = File(processedPath, hash)
-                    val processed =
-                        processFile(
-                                upload.copy(source = UploadSource.FromFile(originalFileTmp)),
-                                saveToFile = processedFilePath,
-                            )
-                            .bind()
-                            .getOrElse {
-                                return@resourceScope it.left()
-                            }
-
-                    // Save to database
-                    val storedUpload =
-                        db.createFile(
-                                UploadPayload(
-                                    hash = hash,
-                                    originalname = processed.originalname,
-                                    mimetype = processed.mimetype,
-                                    size = processed.size,
-                                    userUuid = userUuid,
-                                    altText = processed.altText,
-                                    imageWidth = if (processed.width > 0) processed.width else null,
-                                    imageHeight =
-                                        if (processed.height > 0) processed.height else null,
-                                )
-                            )
-                            .getOrElse { throw it }
-
-                    // Save both original and processed files to disk
-                    runInterruptible(Dispatchers.LoomIO) {
-                        // Save original unprocessed file
-                        val originalFilePath = File(originalPath, storedUpload.hash)
-                        // copy from temporary file to permanent location
-                        originalFileTmp.copyTo(originalFilePath, overwrite = true)
-                    }
-
-                    logger.info {
-                        "File uploaded: ${storedUpload.uuid} (${storedUpload.originalname})"
-                    }
-                    FileUploadResponse(
-                            uuid = storedUpload.uuid,
-                            url = "${config.baseUrl}/files/${storedUpload.uuid}",
-                            mimeType = storedUpload.mimetype,
+            lock.withLock {
+                val processedFilePath = File(processedPath, hash)
+                val processed =
+                    processFile(
+                            upload.copy(
+                                source = UploadSource.FromFile(originalFileTmp)
+                            ),
+                            saveToFile = processedFilePath,
                         )
-                        .right()
+                        .bind()
+                        .getOrElse {
+                            return@resourceScope it.left()
+                        }
+
+                // Save to database
+                val storedUpload =
+                    db.createFile(
+                            UploadPayload(
+                                hash = hash,
+                                originalname = processed.originalname,
+                                mimetype = processed.mimetype,
+                                size = processed.size,
+                                userUuid = userUuid,
+                                altText = processed.altText,
+                                imageWidth =
+                                    if (processed.width > 0) processed.width
+                                    else null,
+                                imageHeight =
+                                    if (processed.height > 0) processed.height
+                                    else null,
+                            )
+                        )
+                        .getOrElse { throw it }
+
+                // Save both original and processed files to disk
+                runInterruptible(Dispatchers.LoomIO) {
+                    // Save original unprocessed file
+                    val originalFilePath = File(originalPath, storedUpload.hash)
+                    // copy from temporary file to permanent location
+                    originalFileTmp.copyTo(originalFilePath, overwrite = true)
                 }
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to upload file" }
-                CaughtException(
-                        status = 500,
-                        module = "files",
-                        errorMessage = "Failed to upload file: ${e.message}",
+
+                logger.info {
+                    "File uploaded: ${storedUpload.uuid} (${storedUpload.originalname})"
+                }
+                FileUploadResponse(
+                        uuid = storedUpload.uuid,
+                        url = "${config.baseUrl}/files/${storedUpload.uuid}",
+                        mimeType = storedUpload.mimetype,
                     )
-                    .left()
+                    .right()
             }
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.error(e) { "Failed to upload file" }
+            CaughtException(
+                    status = 500,
+                    module = "files",
+                    errorMessage = "Failed to upload file: ${e.message}",
+                )
+                .left()
         }
+    }
 
     /** Process an uploaded file without saving it. */
     fun processFile(
@@ -160,10 +194,12 @@ private constructor(
             }
 
             val safeSuffix = sanitizeFilename(fileName)
-            val processedFilePath = saveToFile ?: createTempFileResource("tmp-", safeSuffix).bind()
+            val processedFilePath =
+                saveToFile ?: createTempFileResource("tmp-", safeSuffix).bind()
             processedFilePath.deleteWithBackup {
                 processImage(
-                        // WARNING: This param is fine, only because `processImage`
+                        // WARNING: This param is fine, only because
+                        // `processImage`
                         // doesn't need to keep the source after:
                         UploadSource.FromFile(originalFileTmp),
                         originalName = fileName,
@@ -174,7 +210,8 @@ private constructor(
                     .bind()
                     .right()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to process uploaded file" }
             CaughtException(
                     status = 500,
@@ -214,7 +251,8 @@ private constructor(
                     originalName = upload.originalname,
                 )
                 .right()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get file" }
             CaughtException(
                     status = 500,
@@ -226,8 +264,19 @@ private constructor(
     }
 
     /** Read image file for API posting */
-    suspend fun readImageFile(uuid: String, userUuid: UUID): ProcessedUpload? {
-        val upload = db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it } ?: return null
+    context(_: UserSession)
+    suspend fun readImageFile(uuid: String): ProcessedUpload? {
+        val userUuid = userUuid()
+        return readImageFile(uuid, userUuid)
+    }
+
+    suspend fun readImageFile(
+        uuid: String,
+        userUuid: UUIDv7,
+    ): ProcessedUpload? {
+        val upload =
+            db.getFileByUuidForUser(uuid, userUuid).getOrElse { throw it }
+                ?: return null
         val filePath = File(processedPath, upload.hash)
 
         val (source, size) =
@@ -257,11 +306,13 @@ private constructor(
             try {
                 val mimeType = Tika().detect(file).lowercase()
                 when {
-                    mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpeg"
+                    mimeType.contains("jpeg") || mimeType.contains("jpg") ->
+                        "jpeg"
                     mimeType.contains("png") -> "png"
                     else -> null
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatalOrCancelled(e)
                 logger.warn(e) { "Failed to detect image format" }
                 null
             }
@@ -280,8 +331,8 @@ private constructor(
     /**
      * Process and optimize image upload.
      *
-     * @param uploadSource The source of the uploaded image — this can be destroyed after
-     *   processing.
+     * @param uploadSource The source of the uploaded image — this can be
+     *   destroyed after processing.
      * @param originalName The original file name of the uploaded image.
      * @param mimeType The MIME type of the uploaded image.
      * @param altText Optional alt text for the image.
@@ -295,18 +346,23 @@ private constructor(
         saveToFile: File? = null,
     ): Resource<ProcessedUpload> = resource {
         val sourceFile = uploadSource.asFileResource().bind()
-        val optimizedFile = saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
+        val optimizedFile =
+            saveToFile ?: createTempFileName("upload-optimized-", ".tmp")
         // Go, go, go
-        imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse { throw it }
+        imageMagick.optimizeImage(sourceFile, optimizedFile).getOrElse {
+            throw it
+        }
 
-        val fileSize = withContext(Dispatchers.LoomIO) { optimizedFile.length() }
+        val fileSize =
+            withContext(Dispatchers.LoomIO) { optimizedFile.length() }
         val imageSize =
             imageMagick.identifyImageSize(optimizedFile).getOrElse {
                 logger.warn(it) { "Failed to identify optimized image size" }
                 null
             }
         val newMimeType =
-            detectImageFormat(optimizedFile)?.let { toSupportedMimeType(it) } ?: mimeType
+            detectImageFormat(optimizedFile)?.let { toSupportedMimeType(it) }
+                ?: mimeType
         ProcessedUpload(
             originalname = originalName,
             mimetype = newMimeType,

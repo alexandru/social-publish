@@ -10,7 +10,11 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-data class BlueskyConfig(val service: String, val username: String, val password: String)
+data class BlueskyConfig(
+    val service: String,
+    val username: String,
+    val password: String,
+)
 
 @Serializable
 data class BlueskySessionResponse(
@@ -20,9 +24,14 @@ data class BlueskySessionResponse(
     val did: String,
 )
 
-@Serializable data class BlueskyCreateSessionRequest(val identifier: String, val password: String)
+@Serializable
+data class BlueskyCreateSessionRequest(
+    val identifier: String,
+    val password: String,
+)
 
-@Serializable data class BlueskyBlobUploadResponse(val blob: BlueskyBlobUploadBlob)
+@Serializable
+data class BlueskyBlobUploadResponse(val blob: BlueskyBlobUploadBlob)
 
 @Serializable
 data class BlueskyBlobUploadBlob(
@@ -33,11 +42,15 @@ data class BlueskyBlobUploadBlob(
 )
 
 @Serializable(with = BlueskyBlobRefSerializer::class)
-data class BlueskyBlobRef(val ref: JsonObject, val mimeType: String, val size: Long)
+data class BlueskyBlobRef(
+    val ref: JsonObject,
+    val mimeType: String,
+    val size: Long,
+)
 
 /**
- * Private surrogate used for serialization of [BlueskyBlobRef]. Always encodes `$type` as "blob"
- * regardless of Json configuration.
+ * Private surrogate used for serialization of [BlueskyBlobRef]. Always encodes
+ * `$type` as "blob" regardless of Json configuration.
  */
 @Serializable
 private data class BlueskyBlobRefSurrogate(
@@ -48,7 +61,8 @@ private data class BlueskyBlobRefSurrogate(
 )
 
 object BlueskyBlobRefSerializer : KSerializer<BlueskyBlobRef> {
-    override val descriptor: SerialDescriptor = BlueskyBlobRefSurrogate.serializer().descriptor
+    override val descriptor: SerialDescriptor =
+        BlueskyBlobRefSurrogate.serializer().descriptor
 
     override fun serialize(encoder: Encoder, value: BlueskyBlobRef) {
         BlueskyBlobRefSurrogate.serializer()
@@ -64,7 +78,8 @@ object BlueskyBlobRefSerializer : KSerializer<BlueskyBlobRef> {
     }
 
     override fun deserialize(decoder: Decoder): BlueskyBlobRef {
-        val surrogate = BlueskyBlobRefSurrogate.serializer().deserialize(decoder)
+        val surrogate =
+            BlueskyBlobRefSurrogate.serializer().deserialize(decoder)
         return BlueskyBlobRef(
             ref = surrogate.ref,
             mimeType = surrogate.mimeType,
@@ -95,11 +110,15 @@ data class BlueskyFacetFeature(
 )
 
 @Serializable
-data class BlueskyFacet(val index: BlueskyFacetIndex, val features: List<BlueskyFacetFeature>)
+data class BlueskyFacet(
+    val index: BlueskyFacetIndex,
+    val features: List<BlueskyFacetFeature>,
+)
 
 @Serializable data class BlueskyReplyRef(val uri: String, val cid: String)
 
-@Serializable data class BlueskyReply(val root: BlueskyReplyRef, val parent: BlueskyReplyRef)
+@Serializable
+data class BlueskyReply(val root: BlueskyReplyRef, val parent: BlueskyReplyRef)
 
 @Serializable
 data class BlueskyExternal(
@@ -109,10 +128,17 @@ data class BlueskyExternal(
     val thumb: BlueskyBlobRef? = null,
 )
 
-@Serializable data class BlueskyExternalEmbed(val `$type`: String, val external: BlueskyExternal)
+@Serializable
+data class BlueskyExternalEmbed(
+    val `$type`: String,
+    val external: BlueskyExternal,
+)
 
 @Serializable
-data class BlueskyImagesEmbed(val `$type`: String, val images: List<BlueskyImageEmbed>)
+data class BlueskyImagesEmbed(
+    val `$type`: String,
+    val images: List<BlueskyImageEmbed>,
+)
 
 @Serializable
 data class BlueskyPostRecord(

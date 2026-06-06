@@ -1,11 +1,13 @@
 package socialpublish.backend
 
 import arrow.core.getOrElse
+import arrow.core.raise.either
 import arrow.fx.coroutines.resourceScope
 import com.github.ajalt.clikt.testing.test
 import java.nio.file.Path
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -20,7 +22,8 @@ class CliCommandsTest {
     fun `gen-bcrypt-hash with --password option should work`() {
         val password = "testpassword123"
 
-        val result = SocialPublishCli().test("gen-bcrypt-hash --password $password")
+        val result =
+            SocialPublishCli().test("gen-bcrypt-hash --password $password")
 
         assertEquals(0, result.statusCode)
 
@@ -42,7 +45,9 @@ class CliCommandsTest {
     fun `gen-bcrypt-hash with --quiet should output only the hash`() {
         val password = "testpassword123"
 
-        val result = SocialPublishCli().test("gen-bcrypt-hash --quiet --password $password")
+        val result =
+            SocialPublishCli()
+                .test("gen-bcrypt-hash --quiet --password $password")
 
         assertEquals(0, result.statusCode)
 
@@ -60,7 +65,9 @@ class CliCommandsTest {
         val result = SocialPublishCli().test("")
 
         // Should show help
-        assertTrue(result.stdout.contains("Usage:") || result.stderr.contains("Usage:"))
+        assertTrue(
+            result.stdout.contains("Usage:") || result.stderr.contains("Usage:")
+        )
         val output = result.stdout + result.stderr
         assertTrue(output.contains("start-server"))
         assertTrue(output.contains("gen-bcrypt-hash"))
@@ -74,18 +81,23 @@ class CliCommandsTest {
         assertTrue(result.statusCode != 0)
         val output = result.stdout + result.stderr
         assertTrue(
-            output.contains("Error") || output.contains("Missing") || output.contains("required")
+            output.contains("Error") ||
+                output.contains("Missing") ||
+                output.contains("required")
         )
     }
 
     @Test
-    fun `change-password updates password for existing user`(@TempDir tempDir: Path) = runTest {
+    fun `change-password updates password for existing user`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
             val db = Database.connect(dbPath).bind()
             val usersDb = UsersDatabase(db)
-            val _ = usersDb.createUser("alice", "oldpass").getOrElse { throw it }
+            val _ =
+                usersDb.createUser("alice", "oldpass").getOrElse { throw it }
 
             val result =
                 SocialPublishCli()
@@ -96,13 +108,18 @@ class CliCommandsTest {
             assertEquals(0, result.statusCode)
             assertTrue(result.stdout.contains("Password changed successfully"))
 
-            val valid = usersDb.verifyPassword("alice", "newpass").getOrElse { throw it }
-            assertTrue(valid)
+            val valid =
+                usersDb.verifyPassword("alice", "newpass").getOrElse {
+                    throw it
+                }
+            assertNotNull(valid)
         }
     }
 
     @Test
-    fun `change-password enables login for null-password user`(@TempDir tempDir: Path) = runTest {
+    fun `change-password enables login for null-password user`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val dbPath = tempDir.resolve("test.db").toString()
 
         resourceScope {
@@ -110,13 +127,19 @@ class CliCommandsTest {
             val usersDb = UsersDatabase(db)
             val _ = usersDb.createUser("bob", "initial").getOrElse { throw it }
             val _ =
-                db.query("UPDATE users SET password_hash = NULL WHERE username = ?") {
-                    setString(1, "bob")
-                    executeUpdate()
-                }
+                either {
+                        db.query(
+                            "UPDATE users SET password_hash = NULL WHERE username = ?"
+                        ) {
+                            setString(1, "bob")
+                            executeUpdate()
+                        }
+                    }
+                    .getOrElse { throw it }
 
-            val before = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
-            assertFalse(before)
+            val before =
+                usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
+            assertNull(before)
 
             val result =
                 SocialPublishCli()
@@ -126,8 +149,9 @@ class CliCommandsTest {
 
             assertEquals(0, result.statusCode)
 
-            val after = usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
-            assertTrue(after)
+            val after =
+                usersDb.verifyPassword("bob", "restored").getOrElse { throw it }
+            assertNotNull(after)
         }
     }
 }

@@ -20,6 +20,7 @@ import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
 
 class PublishModuleTest {
@@ -49,7 +50,7 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         assertNotNull(publishModule)
     }
@@ -67,13 +68,18 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
-        val request = NewPostRequest(content = "Test post to feed", targets = listOf("feed"))
+        val request =
+            NewPostRequest(
+                content = "Test post to feed",
+                targets = listOf("feed"),
+            )
 
         val result = publishModule.broadcastPost(request)
 
-        val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
+        val successResult =
+            assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
         assertEquals(1, responses.size)
         assertTrue(responses.containsKey("feed"))
@@ -95,9 +101,10 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
-        val request = NewPostRequest(content = "Test post", targets = listOf("mastodon"))
+        val request =
+            NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
         val result = publishModule.broadcastPost(request)
 
@@ -115,54 +122,62 @@ class PublishModuleTest {
     }
 
     @Test
-    fun `broadcastPost to multiple targets with mixed results returns composite error`() = runTest {
-        val publishModule =
-            PublishModule(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
-        val request =
-            NewPostRequest(content = "Test post", targets = listOf("feed", "mastodon", "twitter"))
+    fun `broadcastPost to multiple targets with mixed results returns composite error`() =
+        runTest {
+            val publishModule =
+                PublishModule(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                )
+            val request =
+                NewPostRequest(
+                    content = "Test post",
+                    targets = listOf("feed", "mastodon", "twitter"),
+                )
 
-        val result = publishModule.broadcastPost(request)
+            val result = publishModule.broadcastPost(request)
 
-        val errorResult = assertIs<Either.Left<ApiError>>(result)
-        val error = errorResult.value
-        val compositeError = assertIs<CompositeError>(error)
-        assertEquals(503, compositeError.status)
-        assertEquals(3, compositeError.responses.size)
+            val errorResult = assertIs<Either.Left<ApiError>>(result)
+            val error = errorResult.value
+            val compositeError = assertIs<CompositeError>(error)
+            assertEquals(503, compositeError.status)
+            assertEquals(3, compositeError.responses.size)
 
-        // Feed should succeed
-        val feedResponse = compositeError.responses.find { it.result?.module == "feed" }
-        assertNotNull(feedResponse)
-        assertEquals("success", feedResponse.type)
-        val typedFeedResult = assertIs<NewFeedPostResponse>(feedResponse.result)
-        assertNotNull(typedFeedResult)
+            // Feed should succeed
+            val feedResponse =
+                compositeError.responses.find { it.result?.module == "feed" }
+            assertNotNull(feedResponse)
+            assertEquals("success", feedResponse.type)
+            val typedFeedResult =
+                assertIs<NewFeedPostResponse>(feedResponse.result)
+            assertNotNull(typedFeedResult)
 
-        // Mastodon should fail
-        val mastodonResponse =
-            compositeError.responses.find {
-                it.module == "publish" && it.error?.contains("Mastodon") == true
-            }
-        assertNotNull(mastodonResponse)
-        assertEquals("error", mastodonResponse.type)
+            // Mastodon should fail
+            val mastodonResponse =
+                compositeError.responses.find {
+                    it.module == "publish" &&
+                        it.error?.contains("Mastodon") == true
+                }
+            assertNotNull(mastodonResponse)
+            assertEquals("error", mastodonResponse.type)
 
-        // Twitter should fail
-        val twitterResponse =
-            compositeError.responses.find {
-                it.module == "publish" && it.error?.contains("Twitter") == true
-            }
-        assertNotNull(twitterResponse)
-        assertEquals("error", twitterResponse.type)
-    }
+            // Twitter should fail
+            val twitterResponse =
+                compositeError.responses.find {
+                    it.module == "publish" &&
+                        it.error?.contains("Twitter") == true
+                }
+            assertNotNull(twitterResponse)
+            assertEquals("error", twitterResponse.type)
+        }
 
     @Test
     fun `broadcastPost with empty targets returns empty map`() = runTest {
@@ -177,13 +192,15 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
-        val request = NewPostRequest(content = "Test post", targets = emptyList())
+        val request =
+            NewPostRequest(content = "Test post", targets = emptyList())
 
         val result = publishModule.broadcastPost(request)
 
-        val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
+        val successResult =
+            assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
         assertTrue(responses.isEmpty())
     }
@@ -201,13 +218,14 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request = NewPostRequest(content = "Test post", targets = null)
 
         val result = publishModule.broadcastPost(request)
 
-        val successResult = assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
+        val successResult =
+            assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
         val responses = successResult.value
         assertTrue(responses.isEmpty())
     }
@@ -225,9 +243,13 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
-        val request = NewPostRequest(content = "Test post", targets = listOf("FEED", "Mastodon"))
+        val request =
+            NewPostRequest(
+                content = "Test post",
+                targets = listOf("FEED", "Mastodon"),
+            )
 
         val result = publishModule.broadcastPost(request)
 
@@ -251,12 +273,13 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(
                 content = "Test post to all platforms",
-                targets = listOf("feed", "mastodon", "bluesky", "twitter", "linkedin"),
+                targets =
+                    listOf("feed", "mastodon", "bluesky", "twitter", "linkedin"),
             )
 
         val result = publishModule.broadcastPost(request)
@@ -269,7 +292,8 @@ class PublishModuleTest {
         assertEquals(5, compositeError.responses.size)
 
         // Feed should succeed
-        val feedResponse = compositeError.responses.find { it.result?.module == "feed" }
+        val feedResponse =
+            compositeError.responses.find { it.result?.module == "feed" }
         assertNotNull(feedResponse)
         assertEquals("success", feedResponse.type)
 
@@ -279,72 +303,76 @@ class PublishModuleTest {
     }
 
     @Test
-    fun `broadcastPost rejects linkedin with more than two messages`() = runTest {
-        val publishModule =
-            PublishModule(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+    fun `broadcastPost rejects linkedin with more than two messages`() =
+        runTest {
+            val publishModule =
+                PublishModule(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                )
 
-        val request =
-            NewPostRequest(
-                targets = listOf("linkedin", "feed"),
-                messages =
-                    nonEmptyListOf(
-                        NewPostRequestMessage(content = "Root"),
-                        NewPostRequestMessage(content = "Reply #1"),
-                        NewPostRequestMessage(content = "Reply #2"),
-                    ),
-            )
+            val request =
+                NewPostRequest(
+                    targets = listOf("linkedin", "feed"),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(content = "Reply #1"),
+                            NewPostRequestMessage(content = "Reply #2"),
+                        ),
+                )
 
-        val result = publishModule.broadcastPost(request)
+            val result = publishModule.broadcastPost(request)
 
-        val error = assertIs<Either.Left<ApiError>>(result).value
-        assertEquals(400, error.status)
-        assertTrue(error.errorMessage.contains("LinkedIn"))
-    }
+            val error = assertIs<Either.Left<ApiError>>(result).value
+            assertEquals(400, error.status)
+            assertTrue(error.errorMessage.contains("LinkedIn"))
+        }
 
     @Test
-    fun `broadcastPost validation failure prevents feed persistence`() = runTest {
-        val publishModule =
-            PublishModule(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
+    fun `broadcastPost validation failure prevents feed persistence`() =
+        runTest {
+            val publishModule =
+                PublishModule(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
+                )
 
-        val request =
-            NewPostRequest(
-                targets = listOf("linkedin", "feed"),
-                messages =
-                    nonEmptyListOf(
-                        NewPostRequestMessage(content = "Root"),
-                        NewPostRequestMessage(content = "Reply #1"),
-                        NewPostRequestMessage(content = "Reply #2"),
-                    ),
-            )
+            val request =
+                NewPostRequest(
+                    targets = listOf("linkedin", "feed"),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(content = "Reply #1"),
+                            NewPostRequestMessage(content = "Reply #2"),
+                        ),
+                )
 
-        val _ = publishModule.broadcastPost(request)
+            val _ = publishModule.broadcastPost(request)
 
-        val posts =
-            postsDb.getAllForUser(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))
-        assertTrue(posts.isRight())
-        val list = (posts as Either.Right).value
-        assertTrue(list.isEmpty())
-    }
+            val posts =
+                postsDb.getAllForUser(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            assertTrue(posts.isRight())
+            val list = (posts as Either.Right).value
+            assertTrue(list.isEmpty())
+        }
 }

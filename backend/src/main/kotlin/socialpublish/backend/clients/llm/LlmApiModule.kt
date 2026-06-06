@@ -19,35 +19,34 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import java.util.Base64
-import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.serialization.json.Json
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
 
-class LlmApiModule(private val filesModule: FilesModule, private val httpClient: HttpClient) {
+class LlmApiModule(
+    private val filesModule: FilesModule,
+    private val httpClient: HttpClient,
+) {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
                 {
                     HttpClient(CIO) {
-                        install(ContentNegotiation) {
-                            json(
-                                Json {
-                                    ignoreUnknownKeys = true
-                                    isLenient = true
-                                }
-                            )
-                        }
+                        install(ContentNegotiation) { json(jsonCommon) }
                         install(HttpTimeout) {
-                            requestTimeoutMillis = 20.seconds.inWholeMilliseconds
-                            connectTimeoutMillis = 40.seconds.inWholeMilliseconds
+                            requestTimeoutMillis =
+                                20.seconds.inWholeMilliseconds
+                            connectTimeoutMillis =
+                                40.seconds.inWholeMilliseconds
                         }
                     }
                 },
@@ -55,24 +54,26 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
             )
         }
 
-        fun resource(filesModule: FilesModule): Resource<LlmApiModule> = resource {
-            LlmApiModule(filesModule, defaultHttpClient().bind())
-        }
+        fun resource(filesModule: FilesModule): Resource<LlmApiModule> =
+            resource {
+                LlmApiModule(filesModule, defaultHttpClient().bind())
+            }
     }
 
+    context(_: UserSession)
     suspend fun generateAltText(
         config: LlmConfig,
-        userUuid: UUID,
         imageUuid: String,
         userContext: String? = null,
         language: String? = null,
     ): ApiResult<String> {
         return try {
             // Read the already-optimized image file
-            // Images are optimized during upload to max 1600x1600, which is sufficient for
+            // Images are optimized during upload to max 1600x1600, which is
+            // sufficient for
             // alt-text generation and prevents API abuse
             val file =
-                filesModule.readImageFile(uuid = imageUuid, userUuid = userUuid)
+                filesModule.readImageFile(uuid = imageUuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage = "Image not found — uuid: $imageUuid",
@@ -81,7 +82,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         .left()
 
             // Convert image to base64 data URL
-            val base64Image = Base64.getEncoder().encodeToString(file.source.readBytes())
+            val base64Image =
+                Base64.getEncoder().encodeToString(file.source.readBytes())
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
@@ -95,8 +97,11 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         "Request timed out. The LLM took too long to respond. Please try again.",
                 )
                 .left()
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to generate alt-text for image $imageUuid" }
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.error(e) {
+                "Failed to generate alt-text for image $imageUuid"
+            }
             CaughtException(
                     status = 500,
                     module = "llm",
@@ -113,7 +118,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
         language: String?,
     ): ApiResult<String> {
         return try {
-            // Build the prompt text, including user context/instructions if available
+            // Build the prompt text, including user context/instructions if
+            // available
             val promptText = run {
                 val basePrompt =
                     """
@@ -125,8 +131,10 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
 
                 val languageInstruction =
                     when (language) {
-                        "en" -> "\n\nIMPORTANT: Generate the alt-text in English."
-                        "ro" -> "\n\nIMPORTANT: Generate the alt-text in Romanian."
+                        "en" ->
+                            "\n\nIMPORTANT: Generate the alt-text in English."
+                        "ro" ->
+                            "\n\nIMPORTANT: Generate the alt-text in Romanian."
                         null -> ""
                         else ->
                             "\n\nIMPORTANT: Generate the alt-text in the language (ISO 639-1): ${language.uppercase()}."
@@ -149,10 +157,14 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                                 role = "user",
                                 content =
                                     listOf(
-                                        OpenAiContent(type = "text", text = promptText),
+                                        OpenAiContent(
+                                            type = "text",
+                                            text = promptText,
+                                        ),
                                         OpenAiContent(
                                             type = "image_url",
-                                            imageUrl = OpenAiImageUrl(url = dataUrl),
+                                            imageUrl =
+                                                OpenAiImageUrl(url = dataUrl),
                                         ),
                                     ),
                             )
@@ -178,19 +190,25 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         data.choices.firstOrNull()?.message?.content?.trim()
                             ?: return ValidationError(
                                     status = 500,
-                                    errorMessage = "No alt-text generated by LLM",
+                                    errorMessage =
+                                        "No alt-text generated by LLM",
                                     module = "llm",
                                 )
                                 .left()
 
-                    logger.debug { "Generated alt-text (length: ${altText.length})" }
+                    logger.debug {
+                        "Generated alt-text (length: ${altText.length})"
+                    }
                     altText.right()
                 }
                 else -> {
                     val errorBody = response.bodyAsText()
-                    logger.warn { "LLM API error: ${response.status}, body: $errorBody" }
+                    logger.warn {
+                        "LLM API error: ${response.status}, body: $errorBody"
+                    }
 
-                    // Remap LLM HTTP errors to 502/503 so the client doesn't treat as
+                    // Remap LLM HTTP errors to 502/503 so the client doesn't
+                    // treat as
                     // unauthenticated
                     val originalStatus = response.status.value
                     val mappedStatus =
@@ -199,8 +217,12 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                             403,
                             404,
                             429 -> 502 // Bad Gateway: LLM integration problem
-                            in 500..599 -> 503 // Service Unavailable: Upstream provider error
-                            else -> originalStatus // Validation, not found, etc: propagate
+                            in 500..599 ->
+                                503 // Service Unavailable: Upstream provider
+                            // error
+                            else ->
+                                originalStatus // Validation, not found, etc:
+                        // propagate
                         }
                     RequestError(
                             status = mappedStatus,
@@ -212,7 +234,8 @@ class LlmApiModule(private val filesModule: FilesModule, private val httpClient:
                         .left()
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to call LLM API" }
             CaughtException(
                     status = 500,

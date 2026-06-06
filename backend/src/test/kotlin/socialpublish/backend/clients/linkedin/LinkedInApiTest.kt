@@ -16,7 +16,6 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -36,13 +35,16 @@ import socialpublish.backend.common.NewLinkedInPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.uploadTestImage
 
 class LinkedInApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `buildAuthorizeURL generates correct OAuth URL with state parameter`(
@@ -66,7 +68,10 @@ class LinkedInApiTest {
             val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
 
             val config =
-                LinkedInConfig(clientId = "test-client-id", clientSecret = "test-client-secret")
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                )
 
             val module =
                 LinkedInApiModule(
@@ -80,19 +85,34 @@ class LinkedInApiTest {
             val result =
                 module.buildAuthorizeURL(
                     config,
-                    "test-jwt-token",
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    "test-state-value",
+                    testUserUuid,
                 )
 
             assertTrue(result is Either.Right)
             val url = (result as Either.Right).value
-            assertTrue(url.contains("client_id=test-client-id"), "URL should contain client_id")
-            assertTrue(url.contains("response_type=code"), "URL should contain response_type=code")
             assertTrue(
-                url.contains("scope=openid+profile+w_member_social"),
-                "URL should contain openid profile w_member_social scope",
+                url.contains("client_id=test-client-id"),
+                "URL should contain client_id",
             )
-            assertTrue(url.contains("redirect_uri="), "URL should contain redirect_uri parameter")
+            assertTrue(
+                url.contains("response_type=code"),
+                "URL should contain response_type=code",
+            )
+            assertTrue(
+                url.contains("scope="),
+                "URL should contain a scope parameter",
+            )
+            assertTrue(
+                url.contains("openid") &&
+                    url.contains("profile") &&
+                    url.contains("w_member_social"),
+                "URL should contain the LinkedIn OAuth scopes",
+            )
+            assertTrue(
+                url.contains("redirect_uri="),
+                "URL should contain redirect_uri parameter",
+            )
             assertTrue(
                 url.contains("state="),
                 "URL should contain state parameter for CSRF protection",
@@ -103,7 +123,72 @@ class LinkedInApiTest {
     }
 
     @Test
-    fun `exchangeCodeForToken exchanges authorization code for token`(@TempDir tempDir: Path) =
+    fun `exchangeCodeForToken exchanges authorization code for token`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            application {
+                routing {
+                    post("/oauth/v2/accessToken") {
+                        call.respondText(
+                            """{"access_token":"test-access-token","expires_in":5184000,"refresh_token":"test-refresh-token","refresh_token_expires_in":31536000}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    accessTokenUrl = "http://localhost/oauth/v2/accessToken",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val result =
+                module.exchangeCodeForToken(
+                    config,
+                    "test-code",
+                    "http://localhost/callback",
+                )
+
+            assertTrue(result is Either.Right)
+            val token = (result as Either.Right).value
+            assertEquals("test-access-token", token.accessToken)
+            assertEquals("test-refresh-token", token.refreshToken)
+            assertEquals(5184000L, token.expiresIn)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `refreshAccessToken refreshes expired token`(@TempDir tempDir: Path) =
         runTest {
             testApplication {
                 val jdbi = createTestDatabase(tempDir)
@@ -114,7 +199,7 @@ class LinkedInApiTest {
                     routing {
                         post("/oauth/v2/accessToken") {
                             call.respondText(
-                                """{"access_token":"test-access-token","expires_in":5184000,"refresh_token":"test-refresh-token","refresh_token_expires_in":31536000}""",
+                                """{"access_token":"new-access-token","expires_in":5184000,"refresh_token":"new-refresh-token","refresh_token_expires_in":31536000}""",
                                 ContentType.Application.Json,
                             )
                         }
@@ -150,74 +235,16 @@ class LinkedInApiTest {
                     )
 
                 val result =
-                    module.exchangeCodeForToken(config, "test-code", "http://localhost/callback")
+                    module.refreshAccessToken(config, "old-refresh-token")
 
                 assertTrue(result is Either.Right)
                 val token = (result as Either.Right).value
-                assertEquals("test-access-token", token.accessToken)
-                assertEquals("test-refresh-token", token.refreshToken)
-                assertEquals(5184000L, token.expiresIn)
+                assertEquals("new-access-token", token.accessToken)
+                assertEquals("new-refresh-token", token.refreshToken)
 
                 linkedInClient.close()
             }
         }
-
-    @Test
-    fun `refreshAccessToken refreshes expired token`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-
-            application {
-                routing {
-                    post("/oauth/v2/accessToken") {
-                        call.respondText(
-                            """{"access_token":"new-access-token","expires_in":5184000,"refresh_token":"new-refresh-token","refresh_token_expires_in":31536000}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                }
-            }
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val config =
-                LinkedInConfig(
-                    clientId = "test-client-id",
-                    clientSecret = "test-client-secret",
-                    accessTokenUrl = "http://localhost/oauth/v2/accessToken",
-                )
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val result = module.refreshAccessToken(config, "old-refresh-token")
-
-            assertTrue(result is Either.Right)
-            val token = (result as Either.Right).value
-            assertEquals("new-access-token", token.accessToken)
-            assertEquals("new-refresh-token", token.refreshToken)
-
-            linkedInClient.close()
-        }
-    }
 
     @Test
     fun `creates text-only post`(@TempDir tempDir: Path) = runTest {
@@ -240,8 +267,12 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -255,8 +286,12 @@ class LinkedInApiTest {
                     }
                     post("/v2/ugcPosts") {
                         postCreated = true
-                        postBody = call.receiveStream().readBytes().decodeToString()
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
+                        postBody =
+                            call.receiveStream().readBytes().decodeToString()
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
                         call.respondText(
                             """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
@@ -295,14 +330,22 @@ class LinkedInApiTest {
                 )
 
             val request =
-                NewPostRequest(content = "Test LinkedIn post", targets = listOf("linkedin"))
+                NewPostRequest(
+                    content = "Test LinkedIn post",
+                    targets = listOf("linkedin"),
+                )
 
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
 
             assertTrue(result is Either.Right)
             assertTrue(postCreated, "Post should have been created")
-            val response = (result as Either.Right).value as NewLinkedInPostResponse
+            val response =
+                (result as Either.Right).value as NewLinkedInPostResponse
             assertEquals("linkedin", response.module)
             assertNotNull(response.postId)
 
@@ -333,7 +376,9 @@ class LinkedInApiTest {
                 "Post body should contain PUBLISHED value",
             )
             assertTrue(
-                postBody.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
+                postBody.contains(
+                    "\"com.linkedin.ugc.MemberNetworkVisibility\""
+                ),
                 "Post body should contain UGC visibility discriminator",
             )
 
@@ -363,15 +408,21 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -392,7 +443,10 @@ class LinkedInApiTest {
                     }
                     post("/v2/ugcPosts") {
                         postCreated = true
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
                         call.respondText(
                             """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
@@ -439,8 +493,12 @@ class LinkedInApiTest {
                     images = listOf(upload.uuid),
                 )
 
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
 
             assertTrue(result is Either.Right)
             assertTrue(uploadRegistered, "Upload should have been registered")
@@ -472,8 +530,12 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -486,7 +548,10 @@ class LinkedInApiTest {
                         )
                     }
                     post("/v2/ugcPosts") {
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
                         call.respondText(
                             """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
@@ -494,9 +559,17 @@ class LinkedInApiTest {
                         )
                     }
                     post("/v2/socialActions/{postId}/comments") {
-                        commentBody = call.receiveStream().readBytes().decodeToString()
-                        call.response.header("X-RestLi-Id", "urn:li:comment:999")
-                        call.respondText("{}", ContentType.Application.Json, HttpStatusCode.Created)
+                        commentBody =
+                            call.receiveStream().readBytes().decodeToString()
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:comment:999",
+                        )
+                        call.respondText(
+                            "{}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
                     }
                 }
             }
@@ -529,7 +602,8 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val followUpContent = "quote=\" slash=\\ newline=\n tab=\t carriage=\r"
+            val followUpContent =
+                "quote=\" slash=\\ newline=\n tab=\t carriage=\r"
             val request =
                 NewPostRequest(
                     targets = listOf("linkedin"),
@@ -546,7 +620,8 @@ class LinkedInApiTest {
             assertNotNull(commentBody)
 
             val parsed = Json.parseToJsonElement(commentBody!!).jsonObject
-            val parsedText = parsed["message"]!!.jsonObject["text"]!!.jsonPrimitive.content
+            val parsedText =
+                parsed["message"]!!.jsonObject["text"]!!.jsonPrimitive.content
             assertEquals(followUpContent, parsedText)
 
             linkedInClient.close()
@@ -554,110 +629,125 @@ class LinkedInApiTest {
     }
 
     @Test
-    fun `createThread includes follow-up link in LinkedIn comment text`(@TempDir tempDir: Path) =
-        runTest {
-            testApplication {
-                val jdbi = createTestDatabase(tempDir)
-                val filesModule = createFilesModule(tempDir, jdbi)
-                val documentsDb = DocumentsDatabase(jdbi)
-                var commentBody: String? = null
+    fun `createThread includes follow-up link in LinkedIn comment text`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var commentBody: String? = null
 
-                val token =
-                    LinkedInOAuthToken(
-                        accessToken = "test-access-token",
-                        expiresIn = 5184000,
-                        refreshToken = "test-refresh-token",
-                        refreshTokenExpiresIn = 31536000,
-                    )
-                val _ =
-                    documentsDb.createOrUpdate(
-                        kind = "linkedin-oauth-token",
-                        payload = Json.encodeToString(token),
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                        searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                        tags = emptyList(),
-                    )
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
 
-                application {
-                    routing {
-                        get("/v2/userinfo") {
-                            call.respondText(
-                                """{"sub":"urn:li:person:test123"}""",
-                                ContentType.Application.Json,
-                            )
-                        }
-                        post("/v2/ugcPosts") {
-                            call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
-                            call.respondText(
-                                """{"id":"urn:li:ugcPost:12345"}""",
-                                ContentType.Application.Json,
-                                HttpStatusCode.Created,
-                            )
-                        }
-                        post("/v2/socialActions/{postId}/comments") {
-                            commentBody = call.receiveStream().readBytes().decodeToString()
-                            call.response.header("X-RestLi-Id", "urn:li:comment:999")
-                            call.respondText(
-                                "{}",
-                                ContentType.Application.Json,
-                                HttpStatusCode.Created,
-                            )
-                        }
+            application {
+                routing {
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
                     }
-                }
-
-                val linkedInClient = createClient {
-                    install(ClientContentNegotiation) {
-                        json(
-                            Json {
-                                ignoreUnknownKeys = true
-                                isLenient = true
-                            }
+                    post("/v2/ugcPosts") {
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/v2/socialActions/{postId}/comments") {
+                        commentBody =
+                            call.receiveStream().readBytes().decodeToString()
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:comment:999",
+                        )
+                        call.respondText(
+                            "{}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
                         )
                     }
                 }
-                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-                val config =
-                    LinkedInConfig(
-                        clientId = "test-client-id",
-                        clientSecret = "test-client-secret",
-                        apiBase = "http://localhost/v2",
-                    )
-
-                val module =
-                    LinkedInApiModule(
-                        "http://localhost",
-                        documentsDb,
-                        filesModule,
-                        linkedInClient.engine,
-                        linkPreview,
-                    )
-
-                val followUpLink = "https://example.com/follow-up"
-                val request =
-                    NewPostRequest(
-                        targets = listOf("linkedin"),
-                        messages =
-                            nonEmptyListOf(
-                                NewPostRequestMessage(content = "Root"),
-                                NewPostRequestMessage(content = "Follow up", link = followUpLink),
-                            ),
-                    )
-
-                val result = module.createThread(config, request, testUserUuid)
-
-                assertTrue(result is Either.Right)
-                assertNotNull(commentBody)
-
-                val parsed = Json.parseToJsonElement(commentBody!!).jsonObject
-                val parsedText = parsed["message"]!!.jsonObject["text"]!!.jsonPrimitive.content
-                assertEquals("Follow up\n\n$followUpLink", parsedText)
-
-                linkedInClient.close()
             }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val followUpLink = "https://example.com/follow-up"
+            val request =
+                NewPostRequest(
+                    targets = listOf("linkedin"),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(
+                                content = "Follow up",
+                                link = followUpLink,
+                            ),
+                        ),
+                )
+
+            val result = module.createThread(config, request, testUserUuid)
+
+            assertTrue(result is Either.Right)
+            assertNotNull(commentBody)
+
+            val parsed = Json.parseToJsonElement(commentBody!!).jsonObject
+            val parsedText =
+                parsed["message"]!!.jsonObject["text"]!!.jsonPrimitive.content
+            assertEquals("Follow up\n\n$followUpLink", parsedText)
+
+            linkedInClient.close()
         }
+    }
 
     @Test
     fun `validateThreadRequest remains structural for follow-up image references`(
@@ -695,7 +785,10 @@ class LinkedInApiTest {
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
-                            NewPostRequestMessage(content = "Reply", images = listOf("missing")),
+                            NewPostRequestMessage(
+                                content = "Reply",
+                                images = listOf("missing"),
+                            ),
                         ),
                 )
 
@@ -727,8 +820,12 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -741,7 +838,10 @@ class LinkedInApiTest {
                         )
                     }
                     post("/v2/ugcPosts") {
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:with space")
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:with space",
+                        )
                         call.respondText(
                             """{"id":"urn:li:ugcPost:with space"}""",
                             ContentType.Application.Json,
@@ -750,8 +850,15 @@ class LinkedInApiTest {
                     }
                     post("/v2/socialActions/{postId}/comments") {
                         commentPathPostId = call.parameters["postId"]
-                        call.response.header("X-RestLi-Id", "urn:li:comment:999")
-                        call.respondText("{}", ContentType.Application.Json, HttpStatusCode.Created)
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:comment:999",
+                        )
+                        call.respondText(
+                            "{}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
                     }
                 }
             }
@@ -823,265 +930,9 @@ class LinkedInApiTest {
             val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
 
             val config =
-                LinkedInConfig(clientId = "test-client-id", clientSecret = "test-client-secret")
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val request = NewPostRequest(content = "", targets = listOf("linkedin"))
-
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
-
-            assertTrue(result is Either.Left)
-            val error = (result as Either.Left).value
-            assertEquals(400, error.status)
-
-            linkedInClient.close()
-        }
-    }
-
-    @Test
-    fun `hasLinkedInAuth returns true when token exists`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-
-            // Save a mock OAuth token to DB
-            val token = LinkedInOAuthToken(accessToken = "test-access-token", expiresIn = 5184000)
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "linkedin-oauth-token",
-                    payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                    tags = emptyList(),
-                )
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val config = LinkedInConfig(clientId = "test-client-id", clientSecret = "test-secret")
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val hasAuth =
-                module.hasLinkedInAuth(
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-                )
-
-            assertTrue(hasAuth)
-
-            linkedInClient.close()
-        }
-    }
-
-    @Test
-    fun `hasLinkedInAuth returns false when no token exists`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val config = LinkedInConfig(clientId = "test-client-id", clientSecret = "test-secret")
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val hasAuth =
-                module.hasLinkedInAuth(
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-                )
-
-            assertFalse(hasAuth)
-
-            linkedInClient.close()
-        }
-    }
-
-    @Test
-    fun `getUserProfile retrieves person URN`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-
-            application {
-                routing {
-                    get("/v2/userinfo") {
-                        call.respondText(
-                            """{"sub":"testperson123"}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                }
-            }
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val config =
                 LinkedInConfig(
                     clientId = "test-client-id",
                     clientSecret = "test-client-secret",
-                    apiBase = "http://localhost/v2",
-                )
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val result = module.getUserProfile(config, "test-access-token")
-
-            assertTrue(result is Either.Right)
-            val profile = (result as Either.Right).value
-            // OIDC /userinfo returns plain ID in "sub" field
-            assertEquals("testperson123", profile.sub)
-
-            linkedInClient.close()
-        }
-    }
-
-    @Test
-    fun `creates post with multiple images`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-            var uploadCount = 0
-            var postCreated = false
-
-            // Save a mock OAuth token to DB
-            val token =
-                LinkedInOAuthToken(
-                    accessToken = "test-access-token",
-                    expiresIn = 5184000,
-                    refreshToken = "test-refresh-token",
-                    refreshTokenExpiresIn = 31536000,
-                )
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "linkedin-oauth-token",
-                    payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                    tags = emptyList(),
-                )
-
-            application {
-                routing {
-                    post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
-                    }
-                    get("/v2/userinfo") {
-                        call.respondText(
-                            """{"sub":"urn:li:person:test123"}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                    post("/v2/assets") {
-                        uploadCount++
-                        call.respondText(
-                            """{"value":{"asset":"urn:li:digitalmediaAsset:test$uploadCount","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-$uploadCount"}}}}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                    put("/upload-test-1") { call.respondText("", status = HttpStatusCode.Created) }
-                    put("/upload-test-2") { call.respondText("", status = HttpStatusCode.Created) }
-                    put("/upload-test-3") { call.respondText("", status = HttpStatusCode.Created) }
-                    post("/v2/ugcPosts") {
-                        postCreated = true
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
-                        call.respondText(
-                            """{"id":"urn:li:ugcPost:12345"}""",
-                            ContentType.Application.Json,
-                            HttpStatusCode.Created,
-                        )
-                    }
-                }
-            }
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
-                }
-            }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val uploads = coroutineScope {
-                listOf(
-                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test1") },
-                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test2") },
-                        async { uploadTestImage(linkedInClient, "flower1.jpeg", "test3") },
-                    )
-                    .awaitAll()
-            }
-
-            val config =
-                LinkedInConfig(
-                    clientId = "test-client-id",
-                    clientSecret = "test-client-secret",
-                    apiBase = "http://localhost/v2",
                 )
 
             val module =
@@ -1094,108 +945,138 @@ class LinkedInApiTest {
                 )
 
             val request =
-                NewPostRequest(
-                    content = "Post with multiple images",
-                    targets = listOf("linkedin"),
-                    images = uploads.map { it.uuid },
-                )
+                NewPostRequest(content = "", targets = listOf("linkedin"))
 
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
 
-            assertTrue(result is Either.Right)
-            assertEquals(3, uploadCount, "Should have uploaded 3 images")
-            assertTrue(postCreated, "Post should have been created")
+            assertTrue(result is Either.Left)
+            val error = (result as Either.Left).value
+            assertEquals(400, error.status)
 
             linkedInClient.close()
         }
     }
 
     @Test
-    fun `creates post with link preview and downloads thumbnail as URN`(@TempDir tempDir: Path) =
+    fun `hasLinkedInAuth returns true when token exists`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val hasAuth =
+                module.hasLinkedInAuth(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+
+            assertTrue(hasAuth)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `hasLinkedInAuth returns false when no token exists`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val hasAuth =
+                module.hasLinkedInAuth(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+
+            assertFalse(hasAuth)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `getUserProfile retrieves person URN`(@TempDir tempDir: Path) =
         runTest {
             testApplication {
                 val jdbi = createTestDatabase(tempDir)
                 val filesModule = createFilesModule(tempDir, jdbi)
                 val documentsDb = DocumentsDatabase(jdbi)
 
-                var postCreated = false
-                var postBody: String? = null
-
-                // Save a mock OAuth token to DB
-                val token =
-                    LinkedInOAuthToken(
-                        accessToken = "test-access-token",
-                        expiresIn = 5184000,
-                        refreshToken = "test-refresh-token",
-                        refreshTokenExpiresIn = 31536000,
-                    )
-                val _ =
-                    documentsDb.createOrUpdate(
-                        kind = "linkedin-oauth-token",
-                        payload = Json.encodeToString(token),
-                        userUuid =
-                            java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                        searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                        tags = emptyList(),
-                    )
-
                 application {
                     routing {
                         get("/v2/userinfo") {
                             call.respondText(
-                                """{"sub":"urn:li:person:test123"}""",
+                                """{"sub":"testperson123"}""",
                                 ContentType.Application.Json,
-                            )
-                        }
-                        // Mock link preview endpoint
-                        get("/preview-page") {
-                            call.respondText(
-                                """
-                                <html>
-                                <head>
-                                    <meta property="og:title" content="Preview Title">
-                                    <meta property="og:image" content="http://localhost/preview-image.jpg">
-                                </head>
-                                <body>Test page</body>
-                                </html>
-                                """
-                                    .trimIndent(),
-                                ContentType.Text.Html,
-                            )
-                        }
-                        // Mock preview image download
-                        get("/preview-image.jpg") {
-
-                            // Return a minimal JPEG byte array
-                            call.respondBytes(
-                                byteArrayOf(
-                                    0xFF.toByte(),
-                                    0xD8.toByte(),
-                                    0xFF.toByte(),
-                                    0xE0.toByte(),
-                                ),
-                                ContentType.Image.JPEG,
-                            )
-                        }
-                        // Mock asset registration for thumbnail
-                        post("/v2/assets") {
-                            call.respondText(
-                                """{"value":{"asset":"urn:li:digitalmediaAsset:thumbnail123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-thumbnail"}}}}""",
-                                ContentType.Application.Json,
-                            )
-                        }
-                        put("/upload-thumbnail") {
-                            call.respondText("", status = HttpStatusCode.Created)
-                        }
-                        post("/v2/ugcPosts") {
-                            postCreated = true
-                            postBody = call.receiveStream().readBytes().decodeToString()
-                            call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
-                            call.respondText(
-                                """{"id":"urn:li:ugcPost:12345"}""",
-                                ContentType.Application.Json,
-                                HttpStatusCode.Created,
                             )
                         }
                     }
@@ -1229,45 +1110,25 @@ class LinkedInApiTest {
                         linkPreview,
                     )
 
-                val request =
-                    NewPostRequest(
-                        content = "Check out this link!",
-                        targets = listOf("linkedin"),
-                        link = "http://localhost/preview-page",
-                    )
-
-                val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-                val result = module.createPost(config, request, testUserUuid)
+                val result = module.getUserProfile(config, "test-access-token")
 
                 assertTrue(result is Either.Right)
-                // Thumbnail download/upload removed: ensure post was created
-                assertTrue(postCreated, "Post should have been created")
-
-                // Verify the post body contains the originalUrl for ARTICLE shares and does NOT
-                // include the asset URN
-                assertNotNull(postBody)
-                assertFalse(
-                    postBody!!.contains("urn:li:digitalmediaAsset:thumbnail123"),
-                    "Post should NOT contain LinkedIn asset URN for thumbnail",
-                )
-                assertTrue(
-                    postBody.contains("\"originalUrl\"") ||
-                        postBody.contains("http://localhost/preview-image.jpg"),
-                    "Post should contain the originalUrl/public image URL for ARTICLE shares",
-                )
+                val profile = (result as Either.Right).value
+                // OIDC /userinfo returns plain ID in "sub" field
+                assertEquals("testperson123", profile.sub)
 
                 linkedInClient.close()
             }
         }
 
     @Test
-    fun `creates post with image and highlighted URL`(@TempDir tempDir: Path) = runTest {
+    fun `creates post with multiple images`(@TempDir tempDir: Path) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
             val documentsDb = DocumentsDatabase(jdbi)
+            var uploadCount = 0
             var postCreated = false
-            var postBody: String? = null
 
             // Save a mock OAuth token to DB
             val token =
@@ -1281,15 +1142,21 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
             application {
                 routing {
                     post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
                     }
                     get("/v2/userinfo") {
                         call.respondText(
@@ -1298,20 +1165,29 @@ class LinkedInApiTest {
                         )
                     }
                     post("/v2/assets") {
+                        uploadCount++
                         call.respondText(
-                            """{"value":{"asset":"urn:li:digitalmediaAsset:testImgAndLink","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-img-link"}}}}""",
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:test$uploadCount","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-$uploadCount"}}}}""",
                             ContentType.Application.Json,
                         )
                     }
-                    put("/upload-test-img-link") {
+                    put("/upload-test-1") {
+                        call.respondText("", status = HttpStatusCode.Created)
+                    }
+                    put("/upload-test-2") {
+                        call.respondText("", status = HttpStatusCode.Created)
+                    }
+                    put("/upload-test-3") {
                         call.respondText("", status = HttpStatusCode.Created)
                     }
                     post("/v2/ugcPosts") {
                         postCreated = true
-                        postBody = call.receiveStream().readBytes().decodeToString()
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:67890")
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
                         call.respondText(
-                            """{"id":"urn:li:ugcPost:67890"}""",
+                            """{"id":"urn:li:ugcPost:12345"}""",
                             ContentType.Application.Json,
                             HttpStatusCode.Created,
                         )
@@ -1331,7 +1207,32 @@ class LinkedInApiTest {
             }
             val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
 
-            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+            val uploads = coroutineScope {
+                listOf(
+                        async {
+                            uploadTestImage(
+                                linkedInClient,
+                                "flower1.jpeg",
+                                "test1",
+                            )
+                        },
+                        async {
+                            uploadTestImage(
+                                linkedInClient,
+                                "flower1.jpeg",
+                                "test2",
+                            )
+                        },
+                        async {
+                            uploadTestImage(
+                                linkedInClient,
+                                "flower1.jpeg",
+                                "test3",
+                            )
+                        },
+                    )
+                    .awaitAll()
+            }
 
             val config =
                 LinkedInConfig(
@@ -1351,38 +1252,336 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Check out this link with image",
+                    content = "Post with multiple images",
                     targets = listOf("linkedin"),
-                    images = listOf(upload.uuid),
-                    link = "https://example.com/my-article",
+                    images = uploads.map { it.uuid },
                 )
 
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
 
             assertTrue(result is Either.Right)
+            assertEquals(3, uploadCount, "Should have uploaded 3 images")
             assertTrue(postCreated, "Post should have been created")
-            assertNotNull(postBody)
 
-            // The link should be present in the post body (appended to content text)
-            assertTrue(
-                postBody!!.contains("https://example.com/my-article"),
-                "Post body should contain the highlighted URL when combined with an image",
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `creates post with link preview and downloads thumbnail as URN`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            var postCreated = false
+            var postBody: String? = null
+
+            // Save a mock OAuth token to DB
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    // Mock link preview endpoint
+                    get("/preview-page") {
+                        call.respondText(
+                            """
+                            <html>
+                            <head>
+                                <meta property="og:title" content="Preview Title">
+                                <meta property="og:image" content="http://localhost/preview-image.jpg">
+                            </head>
+                            <body>Test page</body>
+                            </html>
+                            """
+                                .trimIndent(),
+                            ContentType.Text.Html,
+                        )
+                    }
+                    // Mock preview image download
+                    get("/preview-image.jpg") {
+
+                        // Return a minimal JPEG byte array
+                        call.respondBytes(
+                            byteArrayOf(
+                                0xFF.toByte(),
+                                0xD8.toByte(),
+                                0xFF.toByte(),
+                                0xE0.toByte(),
+                            ),
+                            ContentType.Image.JPEG,
+                        )
+                    }
+                    // Mock asset registration for thumbnail
+                    post("/v2/assets") {
+                        call.respondText(
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:thumbnail123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-thumbnail"}}}}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    put("/upload-thumbnail") {
+                        call.respondText("", status = HttpStatusCode.Created)
+                    }
+                    post("/v2/ugcPosts") {
+                        postCreated = true
+                        postBody =
+                            call.receiveStream().readBytes().decodeToString()
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    content = "Check out this link!",
+                    targets = listOf("linkedin"),
+                    link = "http://localhost/preview-page",
+                )
+
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
+
+            assertTrue(result is Either.Right)
+            // Thumbnail download/upload removed: ensure post was created
+            assertTrue(postCreated, "Post should have been created")
+
+            // Verify the post body contains the originalUrl for ARTICLE shares
+            // and does NOT
+            // include the asset URN
+            assertNotNull(postBody)
+            assertFalse(
+                postBody!!.contains("urn:li:digitalmediaAsset:thumbnail123"),
+                "Post should NOT contain LinkedIn asset URN for thumbnail",
             )
-            // The content text should also be present
             assertTrue(
-                postBody.contains("Check out this link with image"),
-                "Post body should contain the content text",
+                postBody.contains("\"originalUrl\"") ||
+                    postBody.contains("http://localhost/preview-image.jpg"),
+                "Post should contain the originalUrl/public image URL for ARTICLE shares",
             )
 
             linkedInClient.close()
         }
     }
 
+    @Test
+    fun `creates post with image and highlighted URL`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+                val documentsDb = DocumentsDatabase(jdbi)
+                var postCreated = false
+                var postBody: String? = null
+
+                // Save a mock OAuth token to DB
+                val token =
+                    LinkedInOAuthToken(
+                        accessToken = "test-access-token",
+                        expiresIn = 5184000,
+                        refreshToken = "test-refresh-token",
+                        refreshTokenExpiresIn = 31536000,
+                    )
+                val _ =
+                    documentsDb.createOrUpdate(
+                        kind = "linkedin-oauth-token",
+                        payload = Json.encodeToString(token),
+                        userUuid =
+                            UUIDv7.fromString(
+                                "00000000-0000-0000-0000-000000000001"
+                            ),
+                        searchKey =
+                            "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                        tags = emptyList(),
+                    )
+
+                application {
+                    routing {
+                        post("/api/files/upload") {
+                            context(createTestSession(testUserUuid)) {
+                                FilesRoutes(filesModule).uploadFileRoute(call)
+                            }
+                        }
+                        get("/v2/userinfo") {
+                            call.respondText(
+                                """{"sub":"urn:li:person:test123"}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        post("/v2/assets") {
+                            call.respondText(
+                                """{"value":{"asset":"urn:li:digitalmediaAsset:testImgAndLink","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-test-img-link"}}}}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        put("/upload-test-img-link") {
+                            call.respondText(
+                                "",
+                                status = HttpStatusCode.Created,
+                            )
+                        }
+                        post("/v2/ugcPosts") {
+                            postCreated = true
+                            postBody =
+                                call
+                                    .receiveStream()
+                                    .readBytes()
+                                    .decodeToString()
+                            call.response.header(
+                                "X-RestLi-Id",
+                                "urn:li:ugcPost:67890",
+                            )
+                            call.respondText(
+                                """{"id":"urn:li:ugcPost:67890"}""",
+                                ContentType.Application.Json,
+                                HttpStatusCode.Created,
+                            )
+                        }
+                    }
+                }
+
+                val linkedInClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+                val upload =
+                    uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+                val config =
+                    LinkedInConfig(
+                        clientId = "test-client-id",
+                        clientSecret = "test-client-secret",
+                        apiBase = "http://localhost/v2",
+                    )
+
+                val module =
+                    LinkedInApiModule(
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        linkedInClient.engine,
+                        linkPreview,
+                    )
+
+                val request =
+                    NewPostRequest(
+                        content = "Check out this link with image",
+                        targets = listOf("linkedin"),
+                        images = listOf(upload.uuid),
+                        link = "https://example.com/my-article",
+                    )
+
+                val testUserUuid =
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                val result =
+                    context(createTestSession(testUserUuid)) {
+                        module.createPost(config, request)
+                    }
+
+                assertTrue(result is Either.Right)
+                assertTrue(postCreated, "Post should have been created")
+                assertNotNull(postBody)
+
+                // The link should be present in the post body (appended to
+                // content text)
+                assertTrue(
+                    postBody!!.contains("https://example.com/my-article"),
+                    "Post body should contain the highlighted URL when combined with an image",
+                )
+                // The content text should also be present
+                assertTrue(
+                    postBody.contains("Check out this link with image"),
+                    "Post body should contain the content text",
+                )
+
+                linkedInClient.close()
+            }
+        }
+
     // TODO: Add automated test for LinkedIn OAuth callback error handling
-    // The implementation correctly handles LinkedIn OAuth errors by redirecting to
+    // The implementation correctly handles LinkedIn OAuth errors by redirecting
+    // to
     // /account?error=...
-    // Manual testing confirmed this works correctly with the user-friendly error message.
+    // Manual testing confirmed this works correctly with the user-friendly
+    // error message.
 
     // ============================================================================
     // UGC Model Serialization Tests
@@ -1413,7 +1612,10 @@ class LinkedInApiTest {
         val serialized = json.encodeToString(request)
 
         // Verify required fields
-        assertTrue(serialized.contains("\"author\""), "author field should be present")
+        assertTrue(
+            serialized.contains("\"author\""),
+            "author field should be present",
+        )
         assertTrue(
             serialized.contains("\"urn:li:person:test123\""),
             "author value should be present",
@@ -1422,7 +1624,10 @@ class LinkedInApiTest {
             serialized.contains("\"lifecycleState\""),
             "lifecycleState field should be present",
         )
-        assertTrue(serialized.contains("\"PUBLISHED\""), "lifecycleState should be PUBLISHED")
+        assertTrue(
+            serialized.contains("\"PUBLISHED\""),
+            "lifecycleState should be PUBLISHED",
+        )
         assertTrue(
             serialized.contains("\"com.linkedin.ugc.ShareContent\""),
             "specificContent discriminator should be present",
@@ -1439,12 +1644,18 @@ class LinkedInApiTest {
             serialized.contains("\"shareMediaCategory\""),
             "shareMediaCategory field should be present",
         )
-        assertTrue(serialized.contains("\"NONE\""), "shareMediaCategory should be NONE")
+        assertTrue(
+            serialized.contains("\"NONE\""),
+            "shareMediaCategory should be NONE",
+        )
         assertTrue(
             serialized.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
             "visibility discriminator should be present",
         )
-        assertTrue(serialized.contains("\"PUBLIC\""), "visibility should be PUBLIC")
+        assertTrue(
+            serialized.contains("\"PUBLIC\""),
+            "visibility should be PUBLIC",
+        )
     }
 
     @Test
@@ -1463,15 +1674,21 @@ class LinkedInApiTest {
                     UgcSpecificContent(
                         shareContent =
                             UgcShareContent(
-                                shareCommentary = UgcText("Check out this blog!"),
+                                shareCommentary =
+                                    UgcText("Check out this blog!"),
                                 shareMediaCategory = UgcMediaCategory.ARTICLE,
                                 media =
                                     listOf(
                                         UgcMedia(
                                             status = "READY",
-                                            originalUrl = "https://blog.linkedin.com/",
-                                            title = UgcText("Official LinkedIn Blog"),
-                                            description = UgcText("Blog description"),
+                                            originalUrl =
+                                                "https://blog.linkedin.com/",
+                                            title =
+                                                UgcText(
+                                                    "Official LinkedIn Blog"
+                                                ),
+                                            description =
+                                                UgcText("Blog description"),
                                         )
                                     ),
                             )
@@ -1481,13 +1698,22 @@ class LinkedInApiTest {
 
         val serialized = json.encodeToString(request)
 
-        assertTrue(serialized.contains("\"ARTICLE\""), "shareMediaCategory should be ARTICLE")
-        assertTrue(serialized.contains("\"originalUrl\""), "originalUrl field should be present")
+        assertTrue(
+            serialized.contains("\"ARTICLE\""),
+            "shareMediaCategory should be ARTICLE",
+        )
+        assertTrue(
+            serialized.contains("\"originalUrl\""),
+            "originalUrl field should be present",
+        )
         assertTrue(
             serialized.contains("\"https://blog.linkedin.com/\""),
             "originalUrl value should be present",
         )
-        assertTrue(serialized.contains("\"READY\""), "media status should be READY")
+        assertTrue(
+            serialized.contains("\"READY\""),
+            "media status should be READY",
+        )
         assertTrue(
             serialized.contains("\"Official LinkedIn Blog\""),
             "title text should be present",
@@ -1516,7 +1742,8 @@ class LinkedInApiTest {
                                     listOf(
                                         UgcMedia(
                                             status = "READY",
-                                            media = "urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg",
+                                            media =
+                                                "urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg",
                                             title = UgcText("Photo title"),
                                         )
                                     ),
@@ -1527,13 +1754,24 @@ class LinkedInApiTest {
 
         val serialized = json.encodeToString(request)
 
-        assertTrue(serialized.contains("\"IMAGE\""), "shareMediaCategory should be IMAGE")
-        assertTrue(serialized.contains("\"media\""), "media field should be present")
         assertTrue(
-            serialized.contains("\"urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg\""),
+            serialized.contains("\"IMAGE\""),
+            "shareMediaCategory should be IMAGE",
+        )
+        assertTrue(
+            serialized.contains("\"media\""),
+            "media field should be present",
+        )
+        assertTrue(
+            serialized.contains(
+                "\"urn:li:digitalmediaAsset:C5422AQEbc381YmIuvg\""
+            ),
             "media asset URN should be present",
         )
-        assertTrue(serialized.contains("\"READY\""), "media status should be READY")
+        assertTrue(
+            serialized.contains("\"READY\""),
+            "media status should be READY",
+        )
     }
 
     @Test
@@ -1558,15 +1796,18 @@ class LinkedInApiTest {
                                     listOf(
                                         UgcMedia(
                                             status = "READY",
-                                            media = "urn:li:digitalmediaAsset:image1",
+                                            media =
+                                                "urn:li:digitalmediaAsset:image1",
                                         ),
                                         UgcMedia(
                                             status = "READY",
-                                            media = "urn:li:digitalmediaAsset:image2",
+                                            media =
+                                                "urn:li:digitalmediaAsset:image2",
                                         ),
                                         UgcMedia(
                                             status = "READY",
-                                            media = "urn:li:digitalmediaAsset:image3",
+                                            media =
+                                                "urn:li:digitalmediaAsset:image3",
                                         ),
                                     ),
                             )
@@ -1604,7 +1845,10 @@ class LinkedInApiTest {
             serialized.contains("\"com.linkedin.ugc.MemberNetworkVisibility\""),
             "visibility discriminator should be present",
         )
-        assertTrue(serialized.contains("\"CONNECTIONS\""), "visibility should be CONNECTIONS")
+        assertTrue(
+            serialized.contains("\"CONNECTIONS\""),
+            "visibility should be CONNECTIONS",
+        )
     }
 
     // ============================================================================
@@ -1629,7 +1873,9 @@ class LinkedInApiTest {
             LinkedInOAuthToken(
                 accessToken = "test-token",
                 expiresIn = 5184000L, // 60 days
-                obtainedAt = java.time.Instant.now().epochSecond - 5184000L, // 60 days ago
+                obtainedAt =
+                    java.time.Instant.now().epochSecond -
+                        5184000L, // 60 days ago
             )
 
         assertTrue(token.isExpired(), "Old token should be expired")
@@ -1642,7 +1888,8 @@ class LinkedInApiTest {
         val responseJson =
             """{"access_token":"AQUvlL_DYEzvT2wz1QJiEPeLioeA","expires_in":5184000,"refresh_token":"AQWAft_WjYZKwuWXLC5hQlghgTam","refresh_token_expires_in":31536000,"scope":"r_basicprofile w_member_social"}"""
 
-        val response = json.decodeFromString<LinkedInTokenResponse>(responseJson)
+        val response =
+            json.decodeFromString<LinkedInTokenResponse>(responseJson)
 
         assertEquals("AQUvlL_DYEzvT2wz1QJiEPeLioeA", response.accessToken)
         assertEquals(5184000L, response.expiresIn)
@@ -1684,12 +1931,20 @@ class LinkedInApiTest {
             serialized.contains("\"registerUploadRequest\""),
             "registerUploadRequest field should be present",
         )
-        assertTrue(serialized.contains("\"urn:li:person:8675309\""), "owner should be present")
         assertTrue(
-            serialized.contains("\"urn:li:digitalmediaRecipe:feedshare-image\""),
+            serialized.contains("\"urn:li:person:8675309\""),
+            "owner should be present",
+        )
+        assertTrue(
+            serialized.contains(
+                "\"urn:li:digitalmediaRecipe:feedshare-image\""
+            ),
             "recipe should be present",
         )
-        assertTrue(serialized.contains("\"OWNER\""), "relationshipType should be OWNER")
+        assertTrue(
+            serialized.contains("\"OWNER\""),
+            "relationshipType should be OWNER",
+        )
         assertTrue(
             serialized.contains("\"urn:li:userGeneratedContent\""),
             "identifier should be present",
@@ -1703,9 +1958,13 @@ class LinkedInApiTest {
         val responseJson =
             """{"value":{"uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"headers":{},"uploadUrl":"https://api.linkedin.com/mediaUpload/test"}},"mediaArtifact":"urn:li:digitalmediaMediaArtifact:(...)","asset":"urn:li:digitalmediaAsset:C5522AQGTYER3k3ByHQ"}}"""
 
-        val response = json.decodeFromString<LinkedInRegisterUploadResponse>(responseJson)
+        val response =
+            json.decodeFromString<LinkedInRegisterUploadResponse>(responseJson)
 
-        assertEquals("urn:li:digitalmediaAsset:C5522AQGTYER3k3ByHQ", response.value.asset)
+        assertEquals(
+            "urn:li:digitalmediaAsset:C5522AQGTYER3k3ByHQ",
+            response.value.asset,
+        )
         assertEquals(
             "https://api.linkedin.com/mediaUpload/test",
             response.value.uploadMechanism.uploadRequest.uploadUrl,
@@ -1720,7 +1979,8 @@ class LinkedInApiTest {
     fun `LinkedInUserProfile deserializes with full URN`() {
         val json = Json { ignoreUnknownKeys = true }
 
-        val responseJson = """{"sub":"urn:li:person:abc123","name":"Test User"}"""
+        val responseJson =
+            """{"sub":"urn:li:person:abc123","name":"Test User"}"""
 
         val profile = json.decodeFromString<LinkedInUserProfile>(responseJson)
 
@@ -1744,7 +2004,9 @@ class LinkedInApiTest {
     // ============================================================================
 
     @Test
-    fun `exchangeCodeForToken handles invalid code error`(@TempDir tempDir: Path) = runTest {
+    fun `exchangeCodeForToken handles invalid code error`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -1791,9 +2053,16 @@ class LinkedInApiTest {
                 )
 
             val result =
-                module.exchangeCodeForToken(config, "invalid-code", "http://localhost/callback")
+                module.exchangeCodeForToken(
+                    config,
+                    "invalid-code",
+                    "http://localhost/callback",
+                )
 
-            assertTrue(result is Either.Left, "Should return error for invalid code")
+            assertTrue(
+                result is Either.Left,
+                "Should return error for invalid code",
+            )
             val error = (result as Either.Left).value
             assertEquals(400, error.status)
 
@@ -1802,7 +2071,9 @@ class LinkedInApiTest {
     }
 
     @Test
-    fun `refreshAccessToken handles expired refresh token error`(@TempDir tempDir: Path) = runTest {
+    fun `refreshAccessToken handles expired refresh token error`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -1848,9 +2119,13 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result = module.refreshAccessToken(config, "expired-refresh-token")
+            val result =
+                module.refreshAccessToken(config, "expired-refresh-token")
 
-            assertTrue(result is Either.Left, "Should return error for expired refresh token")
+            assertTrue(
+                result is Either.Left,
+                "Should return error for expired refresh token",
+            )
             val error = (result as Either.Left).value
             assertEquals(400, error.status)
 
@@ -1863,216 +2138,260 @@ class LinkedInApiTest {
     // ============================================================================
 
     @Test
-    fun `image upload registration returns asset URN`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
-            var registrationReceived = false
-            var registrationBody: String? = null
+    fun `image upload registration returns asset URN`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+                val documentsDb = DocumentsDatabase(jdbi)
+                var registrationReceived = false
+                var registrationBody: String? = null
 
-            // Save a mock OAuth token to DB
-            val token =
-                LinkedInOAuthToken(
-                    accessToken = "test-access-token",
-                    expiresIn = 5184000,
-                    refreshToken = "test-refresh-token",
-                    refreshTokenExpiresIn = 31536000,
-                )
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "linkedin-oauth-token",
-                    payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                    tags = emptyList(),
-                )
-
-            application {
-                routing {
-                    post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
-                    }
-                    get("/v2/userinfo") {
-                        call.respondText(
-                            """{"sub":"urn:li:person:test123"}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                    post("/v2/assets") {
-                        registrationReceived = true
-                        registrationBody = call.receiveStream().readBytes().decodeToString()
-                        call.respondText(
-                            """{"value":{"asset":"urn:li:digitalmediaAsset:uploaded123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-binary"}}}}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                    put("/upload-binary") { call.respondText("", status = HttpStatusCode.Created) }
-                    post("/v2/ugcPosts") {
-                        call.response.header("X-RestLi-Id", "urn:li:ugcPost:12345")
-                        call.respondText(
-                            """{"id":"urn:li:ugcPost:12345"}""",
-                            ContentType.Application.Json,
-                            HttpStatusCode.Created,
-                        )
-                    }
-                }
-            }
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
+                // Save a mock OAuth token to DB
+                val token =
+                    LinkedInOAuthToken(
+                        accessToken = "test-access-token",
+                        expiresIn = 5184000,
+                        refreshToken = "test-refresh-token",
+                        refreshTokenExpiresIn = 31536000,
                     )
+                val _ =
+                    documentsDb.createOrUpdate(
+                        kind = "linkedin-oauth-token",
+                        payload = Json.encodeToString(token),
+                        userUuid =
+                            UUIDv7.fromString(
+                                "00000000-0000-0000-0000-000000000001"
+                            ),
+                        searchKey =
+                            "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                        tags = emptyList(),
+                    )
+
+                application {
+                    routing {
+                        post("/api/files/upload") {
+                            context(createTestSession(testUserUuid)) {
+                                FilesRoutes(filesModule).uploadFileRoute(call)
+                            }
+                        }
+                        get("/v2/userinfo") {
+                            call.respondText(
+                                """{"sub":"urn:li:person:test123"}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        post("/v2/assets") {
+                            registrationReceived = true
+                            registrationBody =
+                                call
+                                    .receiveStream()
+                                    .readBytes()
+                                    .decodeToString()
+                            call.respondText(
+                                """{"value":{"asset":"urn:li:digitalmediaAsset:uploaded123","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-binary"}}}}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        put("/upload-binary") {
+                            call.respondText(
+                                "",
+                                status = HttpStatusCode.Created,
+                            )
+                        }
+                        post("/v2/ugcPosts") {
+                            call.response.header(
+                                "X-RestLi-Id",
+                                "urn:li:ugcPost:12345",
+                            )
+                            call.respondText(
+                                """{"id":"urn:li:ugcPost:12345"}""",
+                                ContentType.Application.Json,
+                                HttpStatusCode.Created,
+                            )
+                        }
+                    }
                 }
+
+                val linkedInClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+                val upload =
+                    uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+                val config =
+                    LinkedInConfig(
+                        clientId = "test-client-id",
+                        clientSecret = "test-client-secret",
+                        apiBase = "http://localhost/v2",
+                    )
+
+                val module =
+                    LinkedInApiModule(
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        linkedInClient.engine,
+                        linkPreview,
+                    )
+
+                val request =
+                    NewPostRequest(
+                        content = "Post with image",
+                        targets = listOf("linkedin"),
+                        images = listOf(upload.uuid),
+                    )
+
+                val testUserUuid =
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                val result =
+                    context(createTestSession(testUserUuid)) {
+                        module.createPost(config, request)
+                    }
+
+                assertTrue(result is Either.Right)
+                assertTrue(
+                    registrationReceived,
+                    "Upload registration should have been called",
+                )
+
+                // Verify registration request body
+                assertNotNull(registrationBody)
+                assertTrue(
+                    registrationBody!!.contains("\"registerUploadRequest\""),
+                    "Request should contain registerUploadRequest",
+                )
+                assertTrue(
+                    registrationBody.contains("\"urn:li:person:test123\""),
+                    "Request should contain owner URN",
+                )
+                assertTrue(
+                    registrationBody.contains(
+                        "\"urn:li:digitalmediaRecipe:feedshare-image\""
+                    ),
+                    "Request should contain feedshare-image recipe",
+                )
+
+                linkedInClient.close()
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
-
-            val config =
-                LinkedInConfig(
-                    clientId = "test-client-id",
-                    clientSecret = "test-client-secret",
-                    apiBase = "http://localhost/v2",
-                )
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val request =
-                NewPostRequest(
-                    content = "Post with image",
-                    targets = listOf("linkedin"),
-                    images = listOf(upload.uuid),
-                )
-
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
-
-            assertTrue(result is Either.Right)
-            assertTrue(registrationReceived, "Upload registration should have been called")
-
-            // Verify registration request body
-            assertNotNull(registrationBody)
-            assertTrue(
-                registrationBody!!.contains("\"registerUploadRequest\""),
-                "Request should contain registerUploadRequest",
-            )
-            assertTrue(
-                registrationBody.contains("\"urn:li:person:test123\""),
-                "Request should contain owner URN",
-            )
-            assertTrue(
-                registrationBody.contains("\"urn:li:digitalmediaRecipe:feedshare-image\""),
-                "Request should contain feedshare-image recipe",
-            )
-
-            linkedInClient.close()
         }
-    }
 
     @Test
-    fun `image upload handles registration failure`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
-            val documentsDb = DocumentsDatabase(jdbi)
+    fun `image upload handles registration failure`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
+                val documentsDb = DocumentsDatabase(jdbi)
 
-            // Save a mock OAuth token to DB
-            val token =
-                LinkedInOAuthToken(
-                    accessToken = "test-access-token",
-                    expiresIn = 5184000,
-                    refreshToken = "test-refresh-token",
-                    refreshTokenExpiresIn = 31536000,
-                )
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "linkedin-oauth-token",
-                    payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
-                    tags = emptyList(),
-                )
-
-            application {
-                routing {
-                    post("/api/files/upload") {
-                        FilesRoutes(filesModule).uploadFileRoute(testUserUuid, call)
-                    }
-                    get("/v2/userinfo") {
-                        call.respondText(
-                            """{"sub":"urn:li:person:test123"}""",
-                            ContentType.Application.Json,
-                        )
-                    }
-                    post("/v2/assets") {
-                        call.respondText(
-                            """{"serviceErrorCode":100,"message":"Upload not authorized"}""",
-                            ContentType.Application.Json,
-                            HttpStatusCode.Forbidden,
-                        )
-                    }
-                }
-            }
-
-            val linkedInClient = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
+                // Save a mock OAuth token to DB
+                val token =
+                    LinkedInOAuthToken(
+                        accessToken = "test-access-token",
+                        expiresIn = 5184000,
+                        refreshToken = "test-refresh-token",
+                        refreshTokenExpiresIn = 31536000,
                     )
+                val _ =
+                    documentsDb.createOrUpdate(
+                        kind = "linkedin-oauth-token",
+                        payload = Json.encodeToString(token),
+                        userUuid =
+                            UUIDv7.fromString(
+                                "00000000-0000-0000-0000-000000000001"
+                            ),
+                        searchKey =
+                            "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                        tags = emptyList(),
+                    )
+
+                application {
+                    routing {
+                        post("/api/files/upload") {
+                            context(createTestSession(testUserUuid)) {
+                                FilesRoutes(filesModule).uploadFileRoute(call)
+                            }
+                        }
+                        get("/v2/userinfo") {
+                            call.respondText(
+                                """{"sub":"urn:li:person:test123"}""",
+                                ContentType.Application.Json,
+                            )
+                        }
+                        post("/v2/assets") {
+                            call.respondText(
+                                """{"serviceErrorCode":100,"message":"Upload not authorized"}""",
+                                ContentType.Application.Json,
+                                HttpStatusCode.Forbidden,
+                            )
+                        }
+                    }
                 }
+
+                val linkedInClient = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+
+                val upload =
+                    uploadTestImage(linkedInClient, "flower1.jpeg", "test")
+
+                val config =
+                    LinkedInConfig(
+                        clientId = "test-client-id",
+                        clientSecret = "test-client-secret",
+                        apiBase = "http://localhost/v2",
+                    )
+
+                val module =
+                    LinkedInApiModule(
+                        "http://localhost",
+                        documentsDb,
+                        filesModule,
+                        linkedInClient.engine,
+                        linkPreview,
+                    )
+
+                val request =
+                    NewPostRequest(
+                        content = "Post with image",
+                        targets = listOf("linkedin"),
+                        images = listOf(upload.uuid),
+                    )
+
+                val testUserUuid =
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                val result =
+                    context(createTestSession(testUserUuid)) {
+                        module.createPost(config, request)
+                    }
+
+                assertTrue(
+                    result is Either.Left,
+                    "Should fail when upload registration fails",
+                )
+                val error = (result as Either.Left).value
+                assertEquals(403, error.status)
+
+                linkedInClient.close()
             }
-            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
-
-            val upload = uploadTestImage(linkedInClient, "flower1.jpeg", "test")
-
-            val config =
-                LinkedInConfig(
-                    clientId = "test-client-id",
-                    clientSecret = "test-client-secret",
-                    apiBase = "http://localhost/v2",
-                )
-
-            val module =
-                LinkedInApiModule(
-                    "http://localhost",
-                    documentsDb,
-                    filesModule,
-                    linkedInClient.engine,
-                    linkPreview,
-                )
-
-            val request =
-                NewPostRequest(
-                    content = "Post with image",
-                    targets = listOf("linkedin"),
-                    images = listOf(upload.uuid),
-                )
-
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
-
-            assertTrue(result is Either.Left, "Should fail when upload registration fails")
-            val error = (result as Either.Left).value
-            assertEquals(403, error.status)
-
-            linkedInClient.close()
         }
-    }
 
     @Test
     fun `post creation handles API error`(@TempDir tempDir: Path) = runTest {
@@ -2093,8 +2412,12 @@ class LinkedInApiTest {
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
                     payload = Json.encodeToString(token),
-                    userUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                    searchKey = "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    userUuid =
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        ),
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
                     tags = emptyList(),
                 )
 
@@ -2144,12 +2467,23 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val request = NewPostRequest(content = "Test post", targets = listOf("linkedin"))
+            val request =
+                NewPostRequest(
+                    content = "Test post",
+                    targets = listOf("linkedin"),
+                )
 
-            val testUserUuid = java.util.UUID.fromString("00000000-0000-0000-0000-000000000001")
-            val result = module.createPost(config, request, testUserUuid)
+            val testUserUuid =
+                UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createPost(config, request)
+                }
 
-            assertTrue(result is Either.Left, "Should fail when API returns error")
+            assertTrue(
+                result is Either.Left,
+                "Should fail when API returns error",
+            )
             val error = (result as Either.Left).value
             assertEquals(403, error.status)
 
@@ -2171,7 +2505,10 @@ class LinkedInApiTest {
         val error = json.decodeFromString<LinkedInOAuthError>(errorJson)
 
         assertEquals("user_cancelled_authorize", error.error)
-        assertEquals("The user cancelled the authorization request", error.errorDescription)
+        assertEquals(
+            "The user cancelled the authorization request",
+            error.errorDescription,
+        )
     }
 
     @Test

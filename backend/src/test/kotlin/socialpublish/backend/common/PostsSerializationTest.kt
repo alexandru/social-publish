@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test
 /**
  * Tests to ensure JSON serialization matches the legacy backend format.
  *
- * The legacy backend (./backend/) returns plain JSON objects without type discriminators. This test
- * ensures backward compatibility.
+ * The legacy backend (./backend/) returns plain JSON objects without type
+ * discriminators. This test ensures backward compatibility.
  */
 @OptIn(ExperimentalSerializationApi::class)
 class PostsSerializationTest {
@@ -35,7 +35,8 @@ class PostsSerializationTest {
     fun `NewFeedPostResponse should serialize without type discriminator`() {
         val response =
             NewFeedPostResponse(
-                uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
+                uri =
+                    "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
             )
 
         val jsonString = json.encodeToString<NewFeedPostResponse>(response)
@@ -56,12 +57,19 @@ class PostsSerializationTest {
 
     @Test
     fun `NewMastodonPostResponse should serialize without type discriminator`() {
-        val response = NewMastodonPostResponse(uri = "https://mastodon.social/@user/123456789")
+        val response =
+            NewMastodonPostResponse(
+                uri = "https://mastodon.social/@user/123456789"
+            )
 
         val jsonString = json.encodeToString<NewMastodonPostResponse>(response)
 
         assert(jsonString.contains("\"module\":\"mastodon\""))
-        assert(jsonString.contains("\"uri\":\"https://mastodon.social/@user/123456789\""))
+        assert(
+            jsonString.contains(
+                "\"uri\":\"https://mastodon.social/@user/123456789\""
+            )
+        )
         assert(!jsonString.contains("\"type\""))
     }
 
@@ -76,7 +84,11 @@ class PostsSerializationTest {
         val jsonString = json.encodeToString<NewBlueSkyPostResponse>(response)
 
         assert(jsonString.contains("\"module\":\"bluesky\""))
-        assert(jsonString.contains("\"uri\":\"at://did:plc:abc123/app.bsky.feed.post/xyz789\""))
+        assert(
+            jsonString.contains(
+                "\"uri\":\"at://did:plc:abc123/app.bsky.feed.post/xyz789\""
+            )
+        )
         assert(jsonString.contains("\"cid\":\"bafyreiabc123\""))
         assert(!jsonString.contains("\"type\""))
     }
@@ -98,11 +110,13 @@ class PostsSerializationTest {
             mapOf(
                 "feed" to
                     NewFeedPostResponse(
-                        uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
+                        uri =
+                            "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
                     )
             )
 
-        val jsonString = json.encodeToString<Map<String, NewPostResponse>>(response)
+        val jsonString =
+            json.encodeToString<Map<String, NewPostResponse>>(response)
 
         assert(jsonString.contains("\"feed\""))
         assert(jsonString.contains("\"module\":\"feed\""))
@@ -120,10 +134,13 @@ class PostsSerializationTest {
             mapOf(
                 "feed" to
                     NewFeedPostResponse(
-                        uri = "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
+                        uri =
+                            "http://localhost:3000/feed/123e4567-e89b-12d3-a456-426614174000"
                     ),
                 "mastodon" to
-                    NewMastodonPostResponse(uri = "https://mastodon.social/@user/123456789"),
+                    NewMastodonPostResponse(
+                        uri = "https://mastodon.social/@user/123456789"
+                    ),
                 "bluesky" to
                     NewBlueSkyPostResponse(
                         uri = "at://did:plc:abc123/app.bsky.feed.post/xyz789",
@@ -131,7 +148,8 @@ class PostsSerializationTest {
                     ),
             )
 
-        val jsonString = json.encodeToString<Map<String, NewPostResponse>>(response)
+        val jsonString =
+            json.encodeToString<Map<String, NewPostResponse>>(response)
 
         // Check that all expected keys are present
         assert(jsonString.contains("\"feed\""))
@@ -155,8 +173,13 @@ class PostsSerializationTest {
         val responses: List<NewPostResponse> =
             listOf(
                 NewFeedPostResponse(uri = "http://localhost:3000/feed/123"),
-                NewMastodonPostResponse(uri = "https://mastodon.social/@user/456"),
-                NewBlueSkyPostResponse(uri = "at://did:plc:abc/post/789", cid = "bafyabc"),
+                NewMastodonPostResponse(
+                    uri = "https://mastodon.social/@user/456"
+                ),
+                NewBlueSkyPostResponse(
+                    uri = "at://did:plc:abc/post/789",
+                    cid = "bafyabc",
+                ),
             )
 
         val jsonString = json.encodeToString<List<NewPostResponse>>(responses)

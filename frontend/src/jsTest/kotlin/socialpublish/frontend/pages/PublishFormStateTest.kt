@@ -67,7 +67,8 @@ class PublishFormStateTest {
         val image1 = SelectedImage(id = 1, file = null, altText = "Original")
         val state = PublishFormState().addImage(image1)
 
-        val image1Updated = SelectedImage(id = 1, file = null, altText = "Updated")
+        val image1Updated =
+            SelectedImage(id = 1, file = null, altText = "Updated")
         val updated = state.updateImage(image1Updated)
         assertEquals("Updated", updated.images[1]?.altText)
     }
@@ -155,7 +156,10 @@ class PublishFormStateTest {
 
     @Test
     fun testPostTextCombinesContentAndLink() {
-        val state = PublishFormState().updateContent("Hello").updateLink("https://example.com")
+        val state =
+            PublishFormState()
+                .updateContent("Hello")
+                .updateLink("https://example.com")
         assertEquals("Hello\n\nhttps://example.com", state.postText)
     }
 
@@ -179,7 +183,8 @@ class PublishFormStateTest {
 
     @Test
     fun testMaxCharactersWithMastodonAndBluesky() {
-        val state = PublishFormState().toggleTarget("mastodon").toggleTarget("bluesky")
+        val state =
+            PublishFormState().toggleTarget("mastodon").toggleTarget("bluesky")
         assertEquals(300, state.maxCharacters) // Minimum of 500 and 300
     }
 
@@ -196,7 +201,10 @@ class PublishFormStateTest {
 
     @Test
     fun testCharactersRemainingBasedOnMaxCharacters() {
-        val state = PublishFormState().updateContent("Hello, World!").toggleTarget("mastodon")
+        val state =
+            PublishFormState()
+                .updateContent("Hello, World!")
+                .toggleTarget("mastodon")
         assertEquals(500, state.maxCharacters)
         assertEquals(487, state.charactersRemaining) // 500 - 13
     }

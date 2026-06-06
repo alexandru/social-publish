@@ -7,7 +7,4 @@ data class ServerConfig(
     val httpPort: Int,
     val baseUrl: String,
     val staticContentPaths: List<File>,
-    val auth: ServerAuthConfig,
 )
-
-data class ServerAuthConfig(val jwtSecret: String)

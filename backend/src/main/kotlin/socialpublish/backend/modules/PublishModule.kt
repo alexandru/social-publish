@@ -3,7 +3,6 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import java.util.UUID
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -22,11 +21,13 @@ import socialpublish.backend.common.CompositeErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.ValidationError
+import socialpublish.backend.db.UUIDv7
 
 /**
  * Module for broadcasting posts to multiple social media platforms.
  *
- * Each social module is shared at the server level; per-user config is passed per call.
+ * Each social module is shared at the server level; per-user config is passed
+ * per call.
  */
 class PublishModule(
     private val mastodonModule: MastodonApiModule?,
@@ -38,10 +39,12 @@ class PublishModule(
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
     private val feedModule: FeedModule,
-    private val userUuid: UUID,
+    private val userUuid: UUIDv7,
 ) {
     /** Broadcast post to multiple platforms */
-    suspend fun broadcastPost(request: NewPostRequest): ApiResult<Map<String, NewPostResponse>> {
+    suspend fun broadcastPost(
+        request: NewPostRequest
+    ): ApiResult<Map<String, NewPostResponse>> {
         val targets = request.targets.orEmpty().map { it.lowercase() }
         if (targets.contains("linkedin") && request.messages.size > 2) {
             return ValidationError(
@@ -100,7 +103,8 @@ class PublishModule(
                 } else {
                     ValidationError(
                             status = 503,
-                            errorMessage = "Mastodon integration not configured",
+                            errorMessage =
+                                "Mastodon integration not configured",
                             module = "publish",
                         )
                         .left()
@@ -154,7 +158,8 @@ class PublishModule(
                 } else {
                     ValidationError(
                             status = 503,
-                            errorMessage = "LinkedIn integration not configured",
+                            errorMessage =
+                                "LinkedIn integration not configured",
                             module = "publish",
                         )
                         .left()
@@ -163,7 +168,9 @@ class PublishModule(
             taskTargets.add("linkedin")
         }
 
-        val results = coroutineScope { tasks.map { task -> async { task() } }.awaitAll() }
+        val results = coroutineScope {
+            tasks.map { task -> async { task() } }.awaitAll()
+        }
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {
@@ -171,7 +178,10 @@ class PublishModule(
             val responsePayloads = results.map { result ->
                 when (result) {
                     is Either.Right ->
-                        CompositeErrorResponse(type = "success", result = result.value)
+                        CompositeErrorResponse(
+                            type = "success",
+                            result = result.value,
+                        )
                     is Either.Left ->
                         CompositeErrorResponse(
                             type = "error",
@@ -189,9 +199,12 @@ class PublishModule(
                 .left()
         } else {
             val successResults =
-                results.filterIsInstance<Either.Right<NewPostResponse>>().map { it.value }
+                results.filterIsInstance<Either.Right<NewPostResponse>>().map {
+                    it.value
+                }
             return buildMap {
-                    taskTargets.zip(successResults).forEach { (target, result) ->
+                    taskTargets.zip(successResults).forEach { (target, result)
+                        ->
                         put(target, result)
                     }
                 }

@@ -1,38 +1,42 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.getOrElse
-import arrow.core.nonEmptyListOf
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
-import java.util.UUID
 import kotlinx.serialization.Serializable
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
-import socialpublish.backend.common.NewPostRequest
-import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.respondWithInternalServerError
 
 @Serializable
-data class TwitterStatusResponse(val hasAuthorization: Boolean, val createdAt: Long? = null)
+data class TwitterStatusResponse(
+    val hasAuthorization: Boolean,
+    val createdAt: Long? = null,
+)
 
 class TwitterRoutes(
     private val twitterModule: TwitterApiModule,
     private val documentsDb: DocumentsDatabase,
 ) {
     suspend fun authorizeRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         callbackJwtToken: String,
         call: ApplicationCall,
     ) {
-        when (val result = twitterModule.buildAuthorizeURL(twitterConfig, callbackJwtToken)) {
+        when (
+            val result =
+                twitterModule.buildAuthorizeURL(
+                    twitterConfig,
+                    callbackJwtToken,
+                    userUuid,
+                )
+        ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value
@@ -44,23 +48,33 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun callbackRoute(userUuid: UUID, twitterConfig: TwitterConfig, call: ApplicationCall) {
+    suspend fun callbackRoute(
+        userUuid: UUIDv7,
+        twitterConfig: TwitterConfig,
+        call: ApplicationCall,
+    ) {
         val token = call.request.queryParameters["oauth_token"]
         val verifier = call.request.queryParameters["oauth_verifier"]
 
         if (token == null || verifier == null) {
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse(error = "Invalid request"))
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(error = "Invalid request"),
+            )
             return
         }
 
-        when (val result = twitterModule.saveOauthToken(twitterConfig, token, verifier, userUuid)) {
-            is arrow.core.Either.Right -> {
-                call.response.header(
-                    "Cache-Control",
-                    "no-store, no-cache, must-revalidate, private",
+        when (
+            val result =
+                twitterModule.saveOauthToken(
+                    twitterConfig,
+                    token,
+                    verifier,
+                    userUuid,
                 )
-                call.response.header("Pragma", "no-cache")
-                call.response.header("Expires", "0")
+        ) {
+            is arrow.core.Either.Right -> {
+                call.preventOAuthRedirectCaching()
                 call.respondRedirect("/account")
             }
             is arrow.core.Either.Left -> {
@@ -73,44 +87,35 @@ class TwitterRoutes(
         }
     }
 
-    suspend fun statusRoute(userUuid: UUID, call: ApplicationCall) {
+    suspend fun statusRoute(userUuid: UUIDv7, call: ApplicationCall) {
         val row =
-            documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse { error ->
-                call.respondWithInternalServerError(error)
-                return
-            }
+            documentsDb
+                .searchByKey("twitter-oauth-token:$userUuid", userUuid)
+                .getOrElse { error ->
+                    call.respondWithInternalServerError(error)
+                    return
+                }
         call.respond(
             TwitterStatusResponse(
-                hasAuthorization = row != null,
+                hasAuthorization =
+                    row != null &&
+                        twitterModule.hasValidAccessToken(row.payload),
                 createdAt = row?.createdAt?.toEpochMilli(),
             )
         )
     }
 
     suspend fun createPostRoute(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        targets = params.getAll("targets"),
-                        language = params["language"],
-                        messages =
-                            nonEmptyListOf(
-                                NewPostRequestMessage(
-                                    content = params["content"] ?: "",
-                                    link = params["link"],
-                                    images = params.getAll("images"),
-                                )
-                            ),
-                    )
-                }
+        val request = call.receiveNewPostRequest()
 
-        when (val result = twitterModule.createThread(twitterConfig, request, userUuid)) {
+        when (
+            val result =
+                twitterModule.createThread(twitterConfig, request, userUuid)
+        ) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

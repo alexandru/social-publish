@@ -1,49 +1,26 @@
+@file:MustUseReturnValues
+
 package socialpublish.backend.db
 
 import arrow.core.Either
+import arrow.core.getOrElse
+import arrow.core.left
+import arrow.core.raise.Raise
 import arrow.core.raise.either
+import arrow.core.right
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import io.github.oshai.kotlinlogging.KotlinLogging
-import java.sql.Types
+import java.sql.PreparedStatement
 import java.time.Instant
-import java.util.UUID
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid as KotlinUuid
-import kotlinx.serialization.json.Json
+import socialpublish.backend.common.jsonCommon
 import socialpublish.backend.modules.AuthModule
 
-private val logger = KotlinLogging.logger {}
-
 /**
- * Generate a UUID v7 (time-based) for better sorting.
+ * Database access layer for users.
  *
- * Uses Kotlin's experimental UUID v7 generator but returns java.util.UUID for compatibility.
- */
-@OptIn(ExperimentalUuidApi::class)
-private fun generateUuidV7(): UUID = UUID.fromString(KotlinUuid.generateV7().toString())
-
-private val settingsJson = Json { ignoreUnknownKeys = true }
-
-/**
- * Database access layer for users and user sessions.
- *
- * Handles user authentication data and JWT session management. Note: Future support for refresh
- * tokens is planned.
+ * Handles user authentication data.
  */
 class UsersDatabase(private val db: Database) {
-
-    private fun parseSettings(raw: String?): UserSettings? =
-        if (raw != null) {
-            try {
-                settingsJson.decodeFromString<UserSettings>(raw)
-            } catch (e: Exception) {
-                logger.error(e) { "Failed to parse user settings" }
-                null
-            }
-        } else {
-            null
-        }
-
     /**
      * Create a new user with the given username and password.
      *
@@ -54,48 +31,47 @@ class UsersDatabase(private val db: Database) {
     suspend fun createUser(
         username: String,
         password: String,
-    ): Either<DBException, CreateResult<User>> = either {
-        db.transaction {
-            // Check if user already exists
-            val existing =
-                query("SELECT uuid FROM users WHERE username = ?") {
-                    setString(1, username)
-                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
-                }
-
-            if (existing != null) {
-                CreateResult.Duplicate
-            } else {
-                val uuid = generateUuidV7()
-                val passwordHash = AuthModule.hashPassword(password)
-                val now = db.clock.instant()
-
-                query(
-                    "INSERT INTO users (uuid, username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-                ) {
-                    setString(1, uuid.toString())
-                    setString(2, username)
-                    setString(3, passwordHash)
-                    setLong(4, now.toEpochMilli())
-                    setLong(5, now.toEpochMilli())
-                    execute()
-                    Unit
-                }
-
-                logger.info { "Created user: $username (uuid: $uuid)" }
-
-                val user =
-                    User(
-                        uuid = uuid,
-                        username = username,
-                        passwordHash = passwordHash,
-                        settings = null,
-                        createdAt = now,
-                        updatedAt = now,
-                    )
-                CreateResult.Created(user)
+    ): Either<DBException, CreateResult<User>> = db.transaction {
+        // Check if user already exists
+        val existing =
+            query("SELECT uuid FROM users WHERE username = ?") {
+                setString(1, username)
+                executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
             }
+        if (existing != null) return@transaction CreateResult.Duplicate
+
+        val uuid = UUIDv7.generate()
+        val passwordHash = AuthModule.hashPassword(password)
+        val now = db.clock.instant()
+
+        query(
+            """
+                    INSERT INTO users
+                      (uuid, username, password_hash, created_at, updated_at) 
+                    VALUES 
+                      (?, ?, ?, ?, ?)
+                    """
+        ) {
+            setString(1, uuid.toString())
+            setString(2, username)
+            setString(3, passwordHash)
+            setLong(4, now.toEpochMilli())
+            setLong(5, now.toEpochMilli())
+            execute()
+            Unit
         }
+
+        logger.info { "Created user: $username (uuid: $uuid)" }
+        val user =
+            User(
+                uuid = uuid,
+                username = username,
+                passwordHash = passwordHash,
+                settings = null,
+                createdAt = now,
+                updatedAt = now,
+            )
+        CreateResult.Created(user)
     }
 
     /**
@@ -104,23 +80,13 @@ class UsersDatabase(private val db: Database) {
      * @param username Username to search for
      * @return Either a DBException or the User (null if not found)
      */
-    suspend fun findByUsername(username: String): Either<DBException, User?> = either {
+    suspend fun findByUsername(username: String): Either<DBException, User?> =
         db.transaction {
             query("SELECT * FROM users WHERE username = ?") {
                 setString(1, username)
-                executeQuery().safe().firstOrNull { rs ->
-                    User(
-                        uuid = UUID.fromString(rs.getString("uuid")),
-                        username = rs.getString("username"),
-                        passwordHash = rs.getString("password_hash"),
-                        settings = parseSettings(rs.getString("settings")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
-                    )
-                }
+                executeQueryGetUserOrNull()
             }
         }
-    }
 
     /**
      * Find a user by UUID.
@@ -128,23 +94,37 @@ class UsersDatabase(private val db: Database) {
      * @param uuid UUID of the user
      * @return Either a DBException or the User (null if not found)
      */
-    suspend fun findByUuid(uuid: UUID): Either<DBException, User?> = either {
+    suspend fun findByUuid(uuid: UUIDv7): Either<DBException, User?> =
         db.transaction {
+            context(this@transaction) { findByUuidInternal(uuid) }
+        }
+
+    context(conn: SafeConnection, _: Raise<DBException>)
+    internal suspend fun findByUuidInternal(uuid: UUIDv7) =
+        with(conn) {
             query("SELECT * FROM users WHERE uuid = ?") {
                 setString(1, uuid.toString())
-                executeQuery().safe().firstOrNull { rs ->
-                    User(
-                        uuid = UUID.fromString(rs.getString("uuid")),
-                        username = rs.getString("username"),
-                        passwordHash = rs.getString("password_hash"),
-                        settings = parseSettings(rs.getString("settings")),
-                        createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
-                    )
-                }
+                executeQueryGetUserOrNull()
             }
         }
-    }
+
+    private fun PreparedStatement.executeQueryGetUserOrNull(): User? =
+        executeQuery().safe().firstOrNull { rs ->
+            User(
+                uuid = UUIDv7.fromString(rs.getString("uuid")),
+                username = rs.getString("username"),
+                passwordHash = rs.getString("password_hash"),
+                createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
+                updatedAt = Instant.ofEpochMilli(rs.getLong("updated_at")),
+                settings =
+                    rs.getString("settings")?.let {
+                        UserSettings.parse(it).getOrElse {
+                            logger.error { "Invalid JSON for user settings" }
+                            null
+                        }
+                    },
+            )
+        }
 
     /**
      * Update a user's settings.
@@ -153,42 +133,44 @@ class UsersDatabase(private val db: Database) {
      * @param settings New settings to store
      * @return Either a DBException or true if updated, false if user not found
      */
-    suspend fun updateSettings(uuid: UUID, settings: UserSettings): Either<DBException, Boolean> =
-        either {
-            db.transaction {
-                val now = db.clock.instant()
-                val settingsJson = settingsJson.encodeToString(settings)
-                val updated =
-                    query("UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?") {
-                        setString(1, settingsJson)
-                        setLong(2, now.toEpochMilli())
-                        setString(3, uuid.toString())
-                        executeUpdate()
-                    }
-                updated > 0
+    suspend fun updateSettings(
+        uuid: UUIDv7,
+        settings: UserSettings,
+    ): Either<DBException, Boolean> = db.transaction {
+        val now = db.clock.instant()
+        val encodedSettings = jsonCommon.encodeToString(settings)
+        val updated =
+            query(
+                "UPDATE users SET settings = ?, updated_at = ? WHERE uuid = ?"
+            ) {
+                setString(1, encodedSettings)
+                setLong(2, now.toEpochMilli())
+                setString(3, uuid.toString())
+                executeUpdate()
             }
-        }
+        updated > 0
+    }
 
     /**
      * Verify a password against a user's stored hash.
      *
      * @param username Username of the user
      * @param password Plain text password to verify
-     * @return Either a DBException or true if password matches, false otherwise
+     * @return Either a DBException, the verified user when credentials match,
+     *   or null otherwise
      */
-    suspend fun verifyPassword(username: String, password: String): Either<DBException, Boolean> =
-        either {
-            val user = findByUsername(username).bind()
-            if (user == null) {
-                return@either false
-            }
-
-            val result =
-                user.passwordHash?.let {
-                    FavreBCrypt.verifyer().verify(password.toCharArray(), it.toCharArray())
-                } ?: return@either false
-            result.verified
-        }
+    suspend fun verifyPassword(
+        username: String,
+        password: String,
+    ): Either<DBException, User?> = either {
+        val user = findByUsername(username).bind() ?: return@either null
+        val result =
+            user.passwordHash?.let {
+                FavreBCrypt.verifyer()
+                    .verify(password.toCharArray(), it.toCharArray())
+            } ?: return@either null
+        if (result.verified) user else null
+    }
 
     /**
      * Update a user's password.
@@ -200,19 +182,33 @@ class UsersDatabase(private val db: Database) {
     suspend fun updatePassword(
         username: String,
         newPassword: String,
-    ): Either<DBException, Boolean> = either {
+    ): Either<DBException, Boolean> = db.transaction {
         val now = db.clock.instant()
         val passwordHash = AuthModule.hashPassword(newPassword)
-        db.transaction {
-            val updated =
-                query("UPDATE users SET password_hash = ?, updated_at = ? WHERE username = ?") {
-                    setString(1, passwordHash)
-                    setLong(2, now.toEpochMilli())
-                    setString(3, username)
+        val userUuid =
+            query("SELECT uuid FROM users WHERE username = ?") {
+                setString(1, username)
+                executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+            }
+
+        val updated =
+            query(
+                "UPDATE users SET password_hash = ?, updated_at = ? WHERE username = ?"
+            ) {
+                setString(1, passwordHash)
+                setLong(2, now.toEpochMilli())
+                setString(3, username)
+                executeUpdate()
+            }
+
+        if (updated > 0) {
+            val _ =
+                query("DELETE FROM user_sessions WHERE user_uuid = ?") {
+                    setString(1, userUuid)
                     executeUpdate()
                 }
-            updated > 0
         }
+        updated > 0
     }
 
     /**
@@ -220,18 +216,21 @@ class UsersDatabase(private val db: Database) {
      *
      * @param currentUsername Current username of the user
      * @param newUsername New username for the user
-     * @return Either a DBException or UpdateUsernameResult indicating the outcome
+     * @return Either a DBException or UpdateUsernameResult indicating the
+     *   outcome
      */
     suspend fun updateUsername(
         currentUsername: String,
         newUsername: String,
-    ): Either<DBException, UpdateUsernameResult> = either {
+    ): Either<DBException, UpdateUsernameResult> =
         when (
             val result = db.transactionForUpdates {
                 val existingUser =
                     query("SELECT uuid FROM users WHERE username = ?") {
                         setString(1, currentUsername)
-                        executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                        executeQuery().safe().firstOrNull { rs ->
+                            rs.getString("uuid")
+                        }
                     }
 
                 if (existingUser == null) {
@@ -240,10 +239,15 @@ class UsersDatabase(private val db: Database) {
                     val conflictingUser =
                         query("SELECT uuid FROM users WHERE username = ?") {
                             setString(1, newUsername)
-                            executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
+                            executeQuery().safe().firstOrNull { rs ->
+                                rs.getString("uuid")
+                            }
                         }
 
-                    if (conflictingUser != null && conflictingUser != existingUser) {
+                    if (
+                        conflictingUser != null &&
+                            conflictingUser != existingUser
+                    ) {
                         UpdateUsernameResult.UsernameAlreadyExists
                     } else {
                         val now = db.clock.instant()
@@ -256,6 +260,7 @@ class UsersDatabase(private val db: Database) {
                                 setString(3, currentUsername)
                                 executeUpdate()
                             }
+
                         if (updated > 0) {
                             UpdateUsernameResult.Success
                         } else {
@@ -268,133 +273,16 @@ class UsersDatabase(private val db: Database) {
             is Either.Left ->
                 when (val error = result.value) {
                     is SqlUpdateException.UniqueViolation ->
-                        UpdateUsernameResult.UsernameAlreadyExists
-                    else -> raise(DBException(error.message ?: "Failed to update username", error))
+                        UpdateUsernameResult.UsernameAlreadyExists.right()
+                    else ->
+                        DBException(
+                                error.message ?: "Failed to update username",
+                                error,
+                            )
+                            .left()
                 }
-            is Either.Right -> result.value
+            is Either.Right -> result.value.right()
         }
-    }
-
-    /**
-     * Create a new user session.
-     *
-     * @param userUuid User UUID for the session
-     * @param tokenHash Hash of the JWT token (for revocation support)
-     * @param expiresAt When the session expires
-     * @param refreshTokenHash Optional hash of refresh token (for future refresh token support)
-     * @return Either a DBException or the CreateResult<UserSession>
-     */
-    suspend fun createSession(
-        userUuid: UUID,
-        tokenHash: String,
-        expiresAt: Instant,
-        refreshTokenHash: String? = null,
-    ): Either<DBException, CreateResult<UserSession>> = either {
-        db.transaction {
-            // Check if session with this token already exists
-            val existing =
-                query("SELECT uuid FROM user_sessions WHERE token_hash = ?") {
-                    setString(1, tokenHash)
-                    executeQuery().safe().firstOrNull { rs -> rs.getString("uuid") }
-                }
-
-            if (existing != null) {
-                CreateResult.Duplicate
-            } else {
-                val uuid = generateUuidV7()
-                val now = db.clock.instant()
-
-                query(
-                    """
-                    INSERT INTO user_sessions 
-                    (uuid, user_uuid, token_hash, refresh_token_hash, expires_at, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """
-                ) {
-                    setString(1, uuid.toString())
-                    setString(2, userUuid.toString())
-                    setString(3, tokenHash)
-                    if (refreshTokenHash != null) {
-                        setString(4, refreshTokenHash)
-                    } else {
-                        setNull(4, Types.VARCHAR)
-                    }
-                    setLong(5, expiresAt.toEpochMilli())
-                    setLong(6, now.toEpochMilli())
-                    execute()
-                    Unit
-                }
-
-                logger.info { "Created session for user: $userUuid (session uuid: $uuid)" }
-
-                val session =
-                    UserSession(
-                        uuid = uuid,
-                        userUuid = userUuid,
-                        tokenHash = tokenHash,
-                        refreshTokenHash = refreshTokenHash,
-                        expiresAt = expiresAt,
-                        createdAt = now,
-                    )
-                CreateResult.Created(session)
-            }
-        }
-    }
-
-    /**
-     * Find a user session by token hash.
-     *
-     * @param tokenHash Hash of the JWT token
-     * @return Either a DBException or the UserSession (null if not found)
-     */
-    suspend fun findSessionByTokenHash(tokenHash: String): Either<DBException, UserSession?> =
-        either {
-            db.transaction {
-                query("SELECT * FROM user_sessions WHERE token_hash = ?") {
-                    setString(1, tokenHash)
-                    executeQuery().safe().firstOrNull { rs ->
-                        UserSession(
-                            uuid = UUID.fromString(rs.getString("uuid")),
-                            userUuid = UUID.fromString(rs.getString("user_uuid")),
-                            tokenHash = rs.getString("token_hash"),
-                            refreshTokenHash = rs.getString("refresh_token_hash"),
-                            expiresAt = Instant.ofEpochMilli(rs.getLong("expires_at")),
-                            createdAt = Instant.ofEpochMilli(rs.getLong("created_at")),
-                        )
-                    }
-                }
-            }
-        }
-
-    /**
-     * Delete a user session (logout).
-     *
-     * @param tokenHash Hash of the JWT token
-     * @return Either a DBException or true if session was deleted, false if not found
-     */
-    suspend fun deleteSession(tokenHash: String): Either<DBException, Boolean> = either {
-        db.transaction {
-            val deleted =
-                query("DELETE FROM user_sessions WHERE token_hash = ?") {
-                    setString(1, tokenHash)
-                    executeUpdate()
-                }
-            deleted > 0
-        }
-    }
-
-    /**
-     * Delete all expired sessions.
-     *
-     * @return Either a DBException or the number of sessions deleted
-     */
-    suspend fun deleteExpiredSessions(): Either<DBException, Int> = either {
-        db.transaction {
-            val now = db.clock.instant()
-            query("DELETE FROM user_sessions WHERE expires_at < ?") {
-                setLong(1, now.toEpochMilli())
-                executeUpdate()
-            }
-        }
-    }
 }
+
+private val logger = KotlinLogging.logger {}

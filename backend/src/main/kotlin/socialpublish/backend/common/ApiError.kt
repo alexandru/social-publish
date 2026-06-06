@@ -5,7 +5,6 @@ import arrow.core.getOrElse
 import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import socialpublish.backend.db.DBException
 
 /** Represents typed errors in the application using Arrow's Either type. */
@@ -15,7 +14,7 @@ sealed class ApiError {
     abstract val module: String?
     abstract val errorMessage: String
 
-    fun toJsonString(): String = prettyJson.encodeToString(ApiError.serializer(), this)
+    fun toJsonString(): String = jsonCommon.encodeToString(serializer(), this)
 }
 
 @Serializable
@@ -35,7 +34,8 @@ data class RequestError(
     val body: ResponseBody? = null,
 ) : ApiError()
 
-@Serializable data class ResponseBody(val asString: String, val asJson: String? = null)
+@Serializable
+data class ResponseBody(val asString: String, val asJson: String? = null)
 
 @Serializable
 @SerialName("exception")
@@ -68,7 +68,10 @@ data class CompositeError(
 
 /** Composite error response with details */
 @Serializable
-data class CompositeErrorWithDetails(val error: String, val responses: List<CompositeErrorResponse>)
+data class CompositeErrorWithDetails(
+    val error: String,
+    val responses: List<CompositeErrorResponse>,
+)
 
 /** Type alias for common Result type pattern */
 typealias ApiResult<T> = Either<ApiError, T>
@@ -77,7 +80,9 @@ context(logger: KLogger)
 fun <T> Either<DBException, T>.toApiResult() =
     this.getOrElse { e ->
         logger.error(e) { "Database exception occurred" }
-        CaughtException(status = 500, module = "database", errorMessage = "Database error")
+        CaughtException(
+            status = 500,
+            module = "database",
+            errorMessage = "Database error",
+        )
     }
-
-private val prettyJson: Json = Json { prettyPrint = true }

@@ -9,8 +9,8 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 /**
- * Serializes Instant to ISO-8601 format (e.g., "2026-01-21T09:51:03.796Z") which is compatible with
- * JavaScript's Date.toISOString() format.
+ * Serializes Instant to ISO-8601 format (e.g., "2026-01-21T09:51:03.796Z")
+ * which is compatible with JavaScript's Date.toISOString() format.
  */
 object InstantSerializer : KSerializer<Instant> {
     override val descriptor: SerialDescriptor =

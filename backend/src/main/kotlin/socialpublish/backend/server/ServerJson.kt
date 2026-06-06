@@ -33,7 +33,13 @@ fun serverJson(): Json = Json {
             subclass(NewLinkedInPostResponse::class)
         }
         // Explicitly register serializers
-        contextual(CompositeErrorResponse::class, CompositeErrorResponse.serializer())
-        contextual(CompositeErrorWithDetails::class, CompositeErrorWithDetails.serializer())
+        contextual(
+            CompositeErrorResponse::class,
+            CompositeErrorResponse.serializer(),
+        )
+        contextual(
+            CompositeErrorWithDetails::class,
+            CompositeErrorWithDetails.serializer(),
+        )
     }
 }

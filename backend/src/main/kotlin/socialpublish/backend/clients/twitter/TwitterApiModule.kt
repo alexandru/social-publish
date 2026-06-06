@@ -30,13 +30,13 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import java.net.URLEncoder
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FilesModule
 
 private val logger = KotlinLogging.logger {}
@@ -75,7 +75,12 @@ class TwitterApiModule(
             documentsDb: DocumentsDatabase,
             filesModule: FilesModule,
         ): Resource<TwitterApiModule> = resource {
-            TwitterApiModule(baseUrl, documentsDb, filesModule, defaultHttpClient().bind())
+            TwitterApiModule(
+                baseUrl,
+                documentsDb,
+                filesModule,
+                defaultHttpClient().bind(),
+            )
         }
     }
 
@@ -90,22 +95,27 @@ class TwitterApiModule(
                 )
             }
             val text =
-                message.content.trim() + if (message.link != null) "\n\n${message.link}" else ""
+                message.content.trim() +
+                    if (message.link != null) "\n\n${message.link}" else ""
             val links = urlRegex.findAll(text).count()
             val withoutLinks = urlRegex.replace(text, "")
-            val length = withoutLinks.codePointCount(0, withoutLinks.length) + (links * LinkLength)
+            val length =
+                withoutLinks.codePointCount(0, withoutLinks.length) +
+                    (links * LinkLength)
             if (length > TwitterCharacterLimit) {
                 return ValidationError(
                     status = 400,
                     module = "twitter",
-                    errorMessage = "Twitter post exceeds $TwitterCharacterLimit characters",
+                    errorMessage =
+                        "Twitter post exceeds $TwitterCharacterLimit characters",
                 )
             }
         }
         return null
     }
 
-    private class TwitterApi(private val config: TwitterConfig) : DefaultApi10a() {
+    private class TwitterApi(private val config: TwitterConfig) :
+        DefaultApi10a() {
         override fun getRequestTokenEndpoint() = config.oauthRequestTokenUrl
 
         override fun getAccessTokenEndpoint() = config.oauthAccessTokenUrl
@@ -118,7 +128,8 @@ class TwitterApiModule(
         callback: String? = null,
     ): OAuth10aService {
         val builder =
-            ServiceBuilder(config.oauth1ConsumerKey).apiSecret(config.oauth1ConsumerSecret)
+            ServiceBuilder(config.oauth1ConsumerKey)
+                .apiSecret(config.oauth1ConsumerSecret)
         if (callback != null) {
             builder.callback(callback)
         }
@@ -131,36 +142,76 @@ class TwitterApiModule(
     }
 
     /** Check if Twitter auth exists for the given user */
-    suspend fun hasTwitterAuth(userUuid: UUID): Boolean {
+    suspend fun hasTwitterAuth(userUuid: UUIDv7): Boolean {
         val token = restoreOauthTokenFromDb(userUuid)
         return token != null
     }
 
+    fun hasValidAccessToken(payload: String): Boolean =
+        TwitterOAuthDocument.parse(payload).fold({ false }) {
+            it.accessToken != null
+        }
+
     /** Restore OAuth token from database (scoped to the user) */
-    private suspend fun restoreOauthTokenFromDb(userUuid: UUID): TwitterOAuthToken? {
+    private suspend fun restoreOauthTokenFromDb(
+        userUuid: UUIDv7
+    ): TwitterOAuthToken? {
+        return loadTwitterOAuthDocument(userUuid)?.accessToken
+    }
+
+    private suspend fun loadTwitterOAuthDocument(
+        userUuid: UUIDv7
+    ): TwitterOAuthDocument? {
         val doc =
-            documentsDb.searchByKey("twitter-oauth-token:$userUuid", userUuid).getOrElse {
-                throw it
-            }
-        return if (doc != null) {
-            try {
-                Json.decodeFromString<TwitterOAuthToken>(doc.payload)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to parse Twitter OAuth token from DB" }
+            documentsDb
+                .searchByKey("twitter-oauth-token:$userUuid", userUuid)
+                .getOrElse { throw it }
+        return if (doc == null) {
+            TwitterOAuthDocument()
+        } else {
+            TwitterOAuthDocument.parse(doc.payload).getOrElse { error ->
+                logger.warn(error) {
+                    "Failed to parse Twitter OAuth token from DB"
+                }
                 null
             }
-        } else {
-            null
         }
     }
 
+    private suspend fun saveTwitterOAuthDocument(
+        userUuid: UUIDv7,
+        document: TwitterOAuthDocument,
+    ) {
+        val _ =
+            documentsDb.createOrUpdate(
+                kind = "twitter-oauth-token",
+                payload = document.toJson(),
+                userUuid = userUuid,
+                searchKey = "twitter-oauth-token:$userUuid",
+                tags = emptyList(),
+            )
+    }
+
     /** Build authorization URL for OAuth flow */
-    suspend fun buildAuthorizeURL(config: TwitterConfig, jwtToken: String): ApiResult<String> {
+    suspend fun buildAuthorizeURL(
+        config: TwitterConfig,
+        jwtToken: String,
+        userUuid: UUIDv7,
+    ): ApiResult<String> {
         return try {
             val callbackUrl = getCallbackUrl(jwtToken)
             val service = createOAuthService(config, callbackUrl)
             val token = withContext(Dispatchers.LoomIO) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
+            val existingDocument =
+                loadTwitterOAuthDocument(userUuid) ?: TwitterOAuthDocument()
+            saveTwitterOAuthDocument(
+                userUuid,
+                existingDocument.copy(
+                    pendingRequest =
+                        TwitterOAuthRequestToken(token.token, token.tokenSecret)
+                ),
+            )
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to get Twitter request token" }
@@ -178,27 +229,42 @@ class TwitterApiModule(
         config: TwitterConfig,
         token: String,
         verifier: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<Unit> {
         return try {
-            // Twitter's access token endpoint doesn't require the request token secret
-            // in the OAuth signature, only the oauth_token and oauth_verifier parameters
-            val reqToken = OAuth1RequestToken(token, "")
+            val existingDocument =
+                loadTwitterOAuthDocument(userUuid) ?: TwitterOAuthDocument()
+            val pendingRequest = existingDocument.pendingRequest
+            if (pendingRequest == null || pendingRequest.token != token) {
+                return RequestError(
+                        status = 400,
+                        module = "twitter",
+                        errorMessage =
+                            "Authorization could not be verified. Please try again.",
+                    )
+                    .left()
+            }
+
+            val reqToken = OAuth1RequestToken(token, pendingRequest.secret)
             val service = createOAuthService(config)
             val accessToken =
-                withContext(Dispatchers.LoomIO) { service.getAccessToken(reqToken, verifier) }
+                withContext(Dispatchers.LoomIO) {
+                    service.getAccessToken(reqToken, verifier)
+                }
 
             val authorizedToken =
-                TwitterOAuthToken(key = accessToken.token, secret = accessToken.tokenSecret)
-
-            val _ =
-                documentsDb.createOrUpdate(
-                    kind = "twitter-oauth-token",
-                    payload = Json.encodeToString(TwitterOAuthToken.serializer(), authorizedToken),
-                    userUuid = userUuid,
-                    searchKey = "twitter-oauth-token:$userUuid",
-                    tags = emptyList(),
+                TwitterOAuthToken(
+                    key = accessToken.token,
+                    secret = accessToken.tokenSecret,
                 )
+
+            saveTwitterOAuthDocument(
+                userUuid,
+                existingDocument.copy(
+                    accessToken = authorizedToken,
+                    pendingRequest = null,
+                ),
+            )
 
             Unit.right()
         } catch (e: Exception) {
@@ -233,14 +299,15 @@ class TwitterApiModule(
         config: TwitterConfig,
         token: TwitterOAuthToken,
         uuid: String,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<String> = resourceScope {
         try {
             val file =
                 filesModule.readImageFile(uuid, userUuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
-                            errorMessage = "Failed to read image file — uuid: $uuid",
+                            errorMessage =
+                                "Failed to read image file — uuid: $uuid",
                             module = "twitter",
                         )
                         .left()
@@ -259,7 +326,10 @@ class TwitterApiModule(
                                 "media",
                                 file.source.asKotlinSource().bind(),
                                 Headers.build {
-                                    append(HttpHeaders.ContentType, file.mimetype)
+                                    append(
+                                        HttpHeaders.ContentType,
+                                        file.mimetype,
+                                    )
                                     append(
                                         HttpHeaders.ContentDisposition,
                                         "filename=\"${file.originalname}\"",
@@ -278,13 +348,16 @@ class TwitterApiModule(
 
                 // Add alt text if present
                 if (!file.altText.isNullOrEmpty()) {
-                    val altTextUrl = "${config.apiBase}/1.1/media/metadata/create.json"
+                    val altTextUrl =
+                        "${config.apiBase}/1.1/media/metadata/create.json"
                     val altAuthHeader = signRequest(config, altTextUrl, token)
 
                     httpClient.post(altTextUrl) {
                         header("Authorization", altAuthHeader)
                         contentType(ContentType.Application.Json)
-                        setBody("""{"media_id":"$mediaId","alt_text":{"text":"${file.altText}"}}""")
+                        setBody(
+                            """{"media_id":"$mediaId","alt_text":{"text":"${file.altText}"}}"""
+                        )
                     }
                 }
 
@@ -317,7 +390,7 @@ class TwitterApiModule(
     suspend fun createPost(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: UUID,
+        userUuid: UUIDv7,
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
@@ -332,7 +405,8 @@ class TwitterApiModule(
                 restoreOauthTokenFromDb(userUuid)
                     ?: return ValidationError(
                             status = 401,
-                            errorMessage = "Unauthorized: Missing Twitter OAuth token!",
+                            errorMessage =
+                                "Unauthorized: Missing Twitter OAuth token!",
                             module = "twitter",
                         )
                         .left()
@@ -341,7 +415,10 @@ class TwitterApiModule(
             val mediaIds = mutableListOf<String>()
             if (!message.images.isNullOrEmpty()) {
                 for (imageUuid in message.images) {
-                    when (val result = uploadMedia(config, token, imageUuid, userUuid)) {
+                    when (
+                        val result =
+                            uploadMedia(config, token, imageUuid, userUuid)
+                    ) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
                     }
@@ -350,9 +427,12 @@ class TwitterApiModule(
 
             // Prepare text
             val text =
-                message.content.trim() + if (message.link != null) "\n\n${message.link}" else ""
+                message.content.trim() +
+                    if (message.link != null) "\n\n${message.link}" else ""
 
-            logger.info { "Posting to Twitter:\n${text.trim().prependIndent("  |")}" }
+            logger.info {
+                "Posting to Twitter:\n${text.trim().prependIndent("  |")}"
+            }
 
             // Create the tweet
             val createPostURL = "${config.apiBase}/2/tweets"
@@ -361,8 +441,12 @@ class TwitterApiModule(
             val tweetData =
                 TwitterCreateRequest(
                     text = text,
-                    media = if (mediaIds.isNotEmpty()) TwitterMedia(mediaIds = mediaIds) else null,
-                    reply = replyToId?.let { TwitterReply(inReplyToTweetId = it) },
+                    media =
+                        if (mediaIds.isNotEmpty())
+                            TwitterMedia(mediaIds = mediaIds)
+                        else null,
+                    reply =
+                        replyToId?.let { TwitterReply(inReplyToTweetId = it) },
                 )
 
             val response =
@@ -370,7 +454,12 @@ class TwitterApiModule(
                     header("Authorization", authHeader)
                     contentType(ContentType.Application.Json)
                     accept(ContentType.Application.Json)
-                    setBody(Json.encodeToString(TwitterCreateRequest.serializer(), tweetData))
+                    setBody(
+                        Json.encodeToString(
+                            TwitterCreateRequest.serializer(),
+                            tweetData,
+                        )
+                    )
                 }
 
             if (response.status.value == 201) {
@@ -379,13 +468,18 @@ class TwitterApiModule(
                         id = data.data.id,
                         messages =
                             listOf(
-                                PublishedMessageResponse(id = data.data.id, replyToId = replyToId)
+                                PublishedMessageResponse(
+                                    id = data.data.id,
+                                    replyToId = replyToId,
+                                )
                             ),
                     )
                     .right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn { "Failed to post to Twitter: ${response.status}, body: $errorBody" }
+                logger.warn {
+                    "Failed to post to Twitter: ${response.status}, body: $errorBody"
+                }
                 RequestError(
                         status = response.status.value,
                         module = "twitter",
@@ -408,7 +502,7 @@ class TwitterApiModule(
     override suspend fun createThread(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: java.util.UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateRequest(request)?.let {
             return it.left()

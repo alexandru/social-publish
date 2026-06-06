@@ -75,7 +75,8 @@ kotlin {
 }
 
 java {
-    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid inconsistent JVM target
+    // Ensure Java compilation target matches Kotlin `jvmTarget` to avoid
+    // inconsistent JVM target
     // errors
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
@@ -90,7 +91,8 @@ tasks.withType<JavaCompile> {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         freeCompilerArgs.add("-Xjsr305=strict")
-        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain — use the JVM
+        // Target JVM bytecode 21 (minimum). Do not require a specific toolchain
+        // — use the JVM
         // available in the environment.
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
@@ -99,7 +101,11 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
     // Ensure tests run with Java 21
-    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) })
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
+    )
     ignoreFailures = false
 }
 
@@ -113,10 +119,20 @@ application { mainClass.set("socialpublish.backend.MainKt") }
 tasks {
     jar {
         manifest { attributes("Main-Class" to "socialpublish.backend.MainKt") }
-        from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+        from(
+            configurations.runtimeClasspath.get().map {
+                if (it.isDirectory) it else zipTree(it)
+            }
+        )
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        // Exclude signature files from signed JARs to prevent security exceptions
-        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/INDEX.LIST")
+        // Exclude signature files from signed JARs to prevent security
+        // exceptions
+        exclude(
+            "META-INF/*.SF",
+            "META-INF/*.DSA",
+            "META-INF/*.RSA",
+            "META-INF/INDEX.LIST",
+        )
         // Exclude module-info to avoid conflicts in fat JAR
         exclude("**/module-info.class")
     }

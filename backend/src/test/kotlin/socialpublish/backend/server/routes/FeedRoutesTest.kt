@@ -17,108 +17,193 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.testutils.createTestDatabase
 
 @Serializable data class FeedPostResponse(val uri: String, val module: String)
 
-private val testUserUuid = UUID.fromString("00000000-0000-0000-0000-000000000001")
+private val testUserUuid =
+    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 private val testUserUuidPath = testUserUuid.toString()
 
 class FeedRoutesTest {
     @Test
-    fun `createPostRoute accepts JSON request`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val feedRoutes = FeedRoutes(feedModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing { post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) } }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
+    fun `createPostRoute accepts JSON request`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedRoutes = FeedRoutes(feedModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/feed/post") {
+                        feedRoutes.createPostRoute(testUserUuid, call)
+                    }
+                }
             }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            val request =
+                NewPostRequest(
+                    content = "Test post via JSON",
+                    targets = listOf("feed"),
+                )
+
+            val response =
+                client.post("/api/feed/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("http://localhost:3000/feed/"))
+            assertTrue(body.contains("\"module\":\"feed\""))
+
+            client.close()
         }
-
-        val request = NewPostRequest(content = "Test post via JSON", targets = listOf("feed"))
-
-        val response =
-            client.post("/api/feed/post") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("http://localhost:3000/feed/"))
-        assertTrue(body.contains("\"module\":\"feed\""))
-
-        client.close()
-    }
 
     @Test
-    fun `createPostRoute validates empty content`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val feedRoutes = FeedRoutes(feedModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing { post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) } }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
+    fun `createPostRoute validates empty content`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedRoutes = FeedRoutes(feedModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/feed/post") {
+                        feedRoutes.createPostRoute(testUserUuid, call)
+                    }
+                }
             }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            val request = NewPostRequest(content = "", targets = listOf("feed"))
+
+            val response =
+                client.post("/api/feed/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(request)
+                }
+
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("between 1 and 1000 characters"))
+
+            client.close()
         }
-
-        val request = NewPostRequest(content = "", targets = listOf("feed"))
-
-        val response =
-            client.post("/api/feed/post") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("between 1 and 1000 characters"))
-
-        client.close()
-    }
 
     @Test
-    fun `generateFeedRoute returns Atom feed`(@TempDir tempDir: Path) = testApplication {
+    fun `generateFeedRoute returns Atom feed`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedRoutes = FeedRoutes(feedModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/feed/post") {
+                        feedRoutes.createPostRoute(testUserUuid, call)
+                    }
+                    get("/feed/{userUuid}") {
+                        feedRoutes.generateFeedRoute(call)
+                    }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            // Create a post first
+            client.post("/api/feed/post") {
+                contentType(ContentType.Application.Json)
+                setBody(NewPostRequest(content = "Test feed content"))
+            }
+
+            // Get the feed
+            val response = client.get("/feed/$testUserUuidPath")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(
+                response
+                    .contentType()
+                    .toString()
+                    .startsWith("application/atom+xml")
+            )
+            val body = response.bodyAsText()
+            assertTrue(body.contains("<?xml"))
+            assertTrue(body.contains("<feed"))
+            assertTrue(body.contains("Test feed content"))
+
+            client.close()
+        }
+
+    @Test
+    fun `generateFeedRoute with filterByLinks parameter`(
+        @TempDir tempDir: Path
+    ) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
         val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
         val feedRoutes = FeedRoutes(feedModule)
@@ -126,54 +211,9 @@ class FeedRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) }
-                get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        // Create a post first
-        client.post("/api/feed/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Test feed content"))
-        }
-
-        // Get the feed
-        val response = client.get("/feed/$testUserUuidPath")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.contentType().toString().startsWith("application/atom+xml"))
-        val body = response.bodyAsText()
-        assertTrue(body.contains("<?xml"))
-        assertTrue(body.contains("<feed"))
-        assertTrue(body.contains("Test feed content"))
-
-        client.close()
-    }
-
-    @Test
-    fun `generateFeedRoute with filterByLinks parameter`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val feedRoutes = FeedRoutes(feedModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) }
+                post("/api/feed/post") {
+                    feedRoutes.createPostRoute(testUserUuid, call)
+                }
                 get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
             }
         }
@@ -192,7 +232,12 @@ class FeedRoutesTest {
         // Create posts
         client.post("/api/feed/post") {
             contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Post with link", link = "https://example.com"))
+            setBody(
+                NewPostRequest(
+                    content = "Post with link",
+                    link = "https://example.com",
+                )
+            )
         }
         client.post("/api/feed/post") {
             contentType(ContentType.Application.Json)
@@ -201,7 +246,9 @@ class FeedRoutesTest {
 
         // Get feed with filterByLinks=include
         val response =
-            client.get("/feed/$testUserUuidPath") { parameter("filterByLinks", "include") }
+            client.get("/feed/$testUserUuidPath") {
+                parameter("filterByLinks", "include")
+            }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
@@ -212,117 +259,150 @@ class FeedRoutesTest {
     }
 
     @Test
-    fun `generateFeedRoute with target parameter`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val feedRoutes = FeedRoutes(feedModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) }
-                get("/feed/{userUuid}/target/{target}") { feedRoutes.generateFeedRoute(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
+    fun `generateFeedRoute with target parameter`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
-            }
-        }
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedRoutes = FeedRoutes(feedModule)
 
-        // Create posts with different targets
-        client.post("/api/feed/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Twitter post", targets = listOf("twitter")))
-        }
-        client.post("/api/feed/post") {
-            contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Mastodon post", targets = listOf("mastodon")))
-        }
-
-        // Get feed for twitter target
-        val response = client.get("/feed/$testUserUuidPath/target/twitter")
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("Twitter post"))
-        assertFalse(body.contains("Mastodon post"))
-
-        client.close()
-    }
-
-    @Test
-    fun `getFeedItem returns post when found`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val feedRoutes = FeedRoutes(feedModule)
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/feed/post") { feedRoutes.createPostRoute(testUserUuid, call) }
-                get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/feed/post") {
+                        feedRoutes.createPostRoute(testUserUuid, call)
                     }
-                )
+                    get("/feed/{userUuid}/target/{target}") {
+                        feedRoutes.generateFeedRoute(call)
+                    }
+                }
             }
-        }
 
-        // Create a post
-        val createResponse =
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            // Create posts with different targets
             client.post("/api/feed/post") {
                 contentType(ContentType.Application.Json)
-                setBody(NewPostRequest(content = "Test post for retrieval"))
+                setBody(
+                    NewPostRequest(
+                        content = "Twitter post",
+                        targets = listOf("twitter"),
+                    )
+                )
             }
-        val createBody = createResponse.bodyAsText()
-        // Extract UUID from the response URI
-        val uuidMatch = Regex("""/feed/[a-f0-9-]+/([a-f0-9-]+)""").find(createBody)
-        assertNotNull(uuidMatch)
-        val uuid = uuidMatch!!.groupValues[1]
+            client.post("/api/feed/post") {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    NewPostRequest(
+                        content = "Mastodon post",
+                        targets = listOf("mastodon"),
+                    )
+                )
+            }
 
-        // Get the post by UUID
-        val response = client.get("/feed/$testUserUuidPath/$uuid")
+            // Get feed for twitter target
+            val response = client.get("/feed/$testUserUuidPath/target/twitter")
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("Test post for retrieval"))
-        assertTrue(body.contains(uuid))
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("Twitter post"))
+            assertFalse(body.contains("Mastodon post"))
 
-        client.close()
-    }
+            client.close()
+        }
 
     @Test
-    fun `getFeedItem returns not found for invalid UUID`(@TempDir tempDir: Path) = testApplication {
+    fun `getFeedItem returns post when found`(@TempDir tempDir: Path) =
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val postsDb =
+                socialpublish.backend.db.PostsDatabase(
+                    socialpublish.backend.db.DocumentsDatabase(jdbi)
+                )
+            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedRoutes = FeedRoutes(feedModule)
+
+            application {
+                install(ContentNegotiation) { json() }
+                routing {
+                    post("/api/feed/post") {
+                        feedRoutes.createPostRoute(testUserUuid, call)
+                    }
+                    get("/feed/{userUuid}/{uuid}") {
+                        feedRoutes.getFeedItem(call)
+                    }
+                }
+            }
+
+            val client = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+
+            // Create a post
+            val createResponse =
+                client.post("/api/feed/post") {
+                    contentType(ContentType.Application.Json)
+                    setBody(NewPostRequest(content = "Test post for retrieval"))
+                }
+            val createBody = createResponse.bodyAsText()
+            // Extract UUID from the response URI
+            val uuidMatch =
+                Regex("""/feed/[a-f0-9-]+/([a-f0-9-]+)""").find(createBody)
+            assertNotNull(uuidMatch)
+            val uuid = uuidMatch!!.groupValues[1]
+
+            // Get the post by UUID
+            val response = client.get("/feed/$testUserUuidPath/$uuid")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.bodyAsText()
+            assertTrue(body.contains("Test post for retrieval"))
+            assertTrue(body.contains(uuid))
+
+            client.close()
+        }
+
+    @Test
+    fun `getFeedItem returns not found for invalid UUID`(
+        @TempDir tempDir: Path
+    ) = testApplication {
         val jdbi = createTestDatabase(tempDir)
         val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
         val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
         val feedRoutes = FeedRoutes(feedModule)
 
         application {
             install(ContentNegotiation) { json() }
-            routing { get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) } }
+            routing {
+                get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
+            }
         }
 
         val response = client.get("/feed/$testUserUuidPath/nonexistent-uuid")
@@ -333,29 +413,30 @@ class FeedRoutesTest {
     }
 
     @Test
-    fun `getFeedItem returns bad request when UUID is missing`(@TempDir tempDir: Path) =
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val postsDb =
-                socialpublish.backend.db.PostsDatabase(
-                    socialpublish.backend.db.DocumentsDatabase(jdbi)
-                )
-            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-            val feedRoutes = FeedRoutes(feedModule)
+    fun `getFeedItem returns bad request when UUID is missing`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+        val feedRoutes = FeedRoutes(feedModule)
 
-            application {
-                install(ContentNegotiation) { json() }
-                routing {
-                    // This simulates a route without the uuid parameter
-                    get("/feed/{userUuid}/") { feedRoutes.getFeedItem(call) }
-                }
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                // This simulates a route without the uuid parameter
+                get("/feed/{userUuid}/") { feedRoutes.getFeedItem(call) }
             }
-
-            val response = client.get("/feed/$testUserUuidPath/")
-
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            val body = response.bodyAsText()
-            assertTrue(body.contains("Missing UUID"))
         }
+
+        val response = client.get("/feed/$testUserUuidPath/")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("Missing UUID"))
+    }
 }

@@ -94,9 +94,15 @@ class AccountPageStateTest {
 
         assertEquals(
             "new-secret",
-            patch["twitter"]!!.jsonObject["oauth1ConsumerSecret"]?.jsonPrimitive?.content,
+            patch["twitter"]!!
+                .jsonObject["oauth1ConsumerSecret"]
+                ?.jsonPrimitive
+                ?.content,
         )
-        assertEquals("sk-new", patch["llm"]!!.jsonObject["apiKey"]?.jsonPrimitive?.content)
+        assertEquals(
+            "sk-new",
+            patch["llm"]!!.jsonObject["apiKey"]?.jsonPrimitive?.content,
+        )
     }
 
     @Test
@@ -170,11 +176,20 @@ class AccountPageStateTest {
 
     @Test
     fun `oauth status handlers set readiness directly from authorization status`() {
-        val initial = ConfiguredServices(twitter = false, linkedin = false, mastodon = true)
+        val initial =
+            ConfiguredServices(
+                twitter = false,
+                linkedin = false,
+                mastodon = true,
+            )
 
-        val twitterConnected = applyTwitterAuthorizationStatus(initial, hasAuthorization = true)
+        val twitterConnected =
+            applyTwitterAuthorizationStatus(initial, hasAuthorization = true)
         val linkedInConnected =
-            applyLinkedInAuthorizationStatus(twitterConnected, hasAuthorization = true)
+            applyLinkedInAuthorizationStatus(
+                twitterConnected,
+                hasAuthorization = true,
+            )
 
         assertTrue(twitterConnected.twitter)
         assertTrue(linkedInConnected.linkedin)

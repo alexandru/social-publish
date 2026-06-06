@@ -18,18 +18,19 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
-import java.util.UUID
 import socialpublish.backend.common.*
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
 import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
-    suspend fun uploadFileRoute(userUuid: UUID, call: ApplicationCall) = resourceScope {
+    context(_: UserSession)
+    suspend fun uploadFileRoute(call: ApplicationCall) = resourceScope {
         val result =
             when (val upload = receiveUpload(call).bind()) {
-                is Either.Right -> filesModule.uploadFile(upload.value, userUuid)
+                is Either.Right -> filesModule.uploadFile(upload.value)
                 is Either.Left -> upload
             }
 
@@ -71,7 +72,9 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
     }
 
-    private fun receiveUpload(call: ApplicationCall): Resource<ApiResult<UploadedFile>> = resource {
+    private fun receiveUpload(
+        call: ApplicationCall
+    ): Resource<ApiResult<UploadedFile>> = resource {
         val multipart = call.receiveMultipart()
         var altText: String? = null
         var fileName: String? = null
@@ -89,7 +92,10 @@ class FilesRoutes(private val filesModule: FilesModule) {
                 is PartData.FileItem -> {
                     if (part.name == "file") {
                         fileName = part.originalFileName ?: "unknown"
-                        fileSource = UploadSource.FromSource(part.provider().readRemaining())
+                        fileSource =
+                            UploadSource.FromSource(
+                                part.provider().readRemaining()
+                            )
                     }
                 }
                 else -> {}
@@ -97,14 +103,26 @@ class FilesRoutes(private val filesModule: FilesModule) {
         }
 
         if (fileSource == null || fileName == null) {
-            ValidationError(status = 400, errorMessage = "Missing file in upload", module = "files")
+            ValidationError(
+                    status = 400,
+                    errorMessage = "Missing file in upload",
+                    module = "files",
+                )
                 .left()
         } else {
-            UploadedFile(fileName = fileName, altText = altText, source = fileSource).right()
+            UploadedFile(
+                    fileName = fileName,
+                    altText = altText,
+                    source = fileSource,
+                )
+                .right()
         }
     }
 
-    private suspend fun respondFile(call: ApplicationCall, storedFile: StoredFile) {
+    private suspend fun respondFile(
+        call: ApplicationCall,
+        storedFile: StoredFile,
+    ) {
         call.response.header(HttpHeaders.ContentType, storedFile.mimeType)
         call.response.header(
             HttpHeaders.ContentDisposition,
