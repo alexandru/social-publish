@@ -250,12 +250,6 @@ class LinkedInApiModule(
         return "$baseUrl/api/linkedin/callback?access_token=${URLEncoder.encode(jwtToken, "UTF-8")}"
     }
 
-    suspend fun buildAuthorizeURL(
-        config: LinkedInConfig,
-        jwtToken: String,
-    ): ApiResult<String> =
-        buildAuthorizeURL(config, jwtToken, UUIDv7.generate())
-
     /**
      * Generate a cryptographically secure random state string for CSRF
      * protection.
@@ -439,7 +433,7 @@ class LinkedInApiModule(
                     "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
                     "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
                     "&state=${URLEncoder.encode(state, "UTF-8")}" +
-                    "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8")}"
+                    "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8").replace("+", "%20")}"
             authUrl.right()
         } catch (e: Exception) {
             logger.error(e) { "Failed to build LinkedIn authorization URL" }
@@ -1164,85 +1158,99 @@ class LinkedInApiModule(
         message: NewPostRequestMessage,
         userUuid: UUIDv7,
     ): ApiResult<PublishedMessageResponse> {
-        val (accessToken, personUrn) =
-            when (val result = getValidToken(config, userUuid)) {
-                is Either.Right -> result.value
-                is Either.Left -> return result.value.left()
-            }
-
-        val uploadedAsset =
-            message.images?.firstOrNull()?.let { imageUuid ->
-                when (
-                    val result =
-                        uploadMedia(
-                            config,
-                            accessToken,
-                            personUrn,
-                            imageUuid,
-                            userUuid,
-                        )
-                ) {
-                    is Either.Left -> return result.value.left()
+        return try {
+            val (accessToken, personUrn) =
+                when (val result = getValidToken(config, userUuid)) {
                     is Either.Right -> result.value
+                    is Either.Left -> return result.value.left()
                 }
+
+            // Check alt-text BEFORE uploading — comments don't support it
+            val imageUuid = message.images?.firstOrNull()
+            val file = imageUuid?.let { filesModule.readImageFile(it, userUuid) }
+            if (!file?.altText.isNullOrBlank()) {
+                return ValidationError(
+                        status = 400,
+                        module = "linkedin",
+                        errorMessage =
+                            "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
+                    )
+                    .left()
             }
 
-        val encodedRootPostId = rootPostId.encodeURLPathPart()
-        if (!uploadedAsset?.description.isNullOrBlank()) {
-            return ValidationError(
-                    status = 400,
-                    module = "linkedin",
-                    errorMessage =
-                        "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
+            val uploadedAsset =
+                imageUuid?.let { uuid ->
+                    when (
+                        val result =
+                            uploadMedia(
+                                config,
+                                accessToken,
+                                personUrn,
+                                uuid,
+                                userUuid,
+                            )
+                    ) {
+                        is Either.Left -> return result.value.left()
+                        is Either.Right -> result.value
+                    }
+                }
+
+            val encodedRootPostId = rootPostId.encodeURLPathPart()
+            val commentText =
+                message.content +
+                    if (message.link != null) "\n\n${message.link}" else ""
+            val requestBody =
+                LinkedInCommentRequest(
+                    actor = personUrn,
+                    `object` = rootPostId,
+                    message = LinkedInCommentMessage(text = commentText),
+                    content =
+                        uploadedAsset?.let {
+                            listOf(LinkedInCommentContent(entity = it.asset))
+                        },
                 )
-                .left()
-        }
 
-        val commentText =
-            message.content +
-                if (message.link != null) "\n\n${message.link}" else ""
-        val requestBody =
-            LinkedInCommentRequest(
-                actor = personUrn,
-                `object` = rootPostId,
-                message = LinkedInCommentMessage(text = commentText),
-                content =
-                    uploadedAsset?.let {
-                        listOf(LinkedInCommentContent(entity = it.asset))
-                    },
-            )
+            val response =
+                httpClient.post(
+                    "${config.apiBase}/socialActions/$encodedRootPostId/comments"
+                ) {
+                    header("Authorization", "Bearer $accessToken")
+                    header("X-Restli-Protocol-Version", "2.0.0")
+                    contentType(ContentType.Application.Json)
+                    setBody(requestBody)
+                }
 
-        val response =
-            httpClient.post(
-                "${config.apiBase}/socialActions/$encodedRootPostId/comments"
+            val responseBody = response.bodyAsText()
+            if (
+                response.status !in
+                    listOf(HttpStatusCode.Created, HttpStatusCode.OK)
             ) {
-                header("Authorization", "Bearer $accessToken")
-                header("X-Restli-Protocol-Version", "2.0.0")
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
+                return RequestError(
+                        status = response.status.value,
+                        module = "linkedin",
+                        errorMessage = "Failed to create comment",
+                        body = ResponseBody(asString = responseBody),
+                    )
+                    .left()
             }
 
-        val responseBody = response.bodyAsText()
-        if (
-            response.status !in
-                listOf(HttpStatusCode.Created, HttpStatusCode.OK)
-        ) {
-            return RequestError(
-                    status = response.status.value,
+            val commentId =
+                response.headers["X-RestLi-Id"] ?: "linkedin-comment"
+            PublishedMessageResponse(
+                    id = commentId,
+                    uri = commentId,
+                    commentOnId = rootPostId,
+                )
+                .right()
+        } catch (e: Exception) {
+            logger.error(e) { "Failed to create LinkedIn comment" }
+            CaughtException(
+                    status = 500,
                     module = "linkedin",
-                    errorMessage = "Failed to create comment",
-                    body = ResponseBody(asString = responseBody),
+                    errorMessage = "Failed to create comment: ${e.message}",
                 )
                 .left()
         }
-
-        val commentId = response.headers["X-RestLi-Id"] ?: "linkedin-comment"
-        return PublishedMessageResponse(
-                id = commentId,
-                uri = commentId,
-                commentOnId = rootPostId,
-            )
-            .right()
     }
 
     override suspend fun createThread(

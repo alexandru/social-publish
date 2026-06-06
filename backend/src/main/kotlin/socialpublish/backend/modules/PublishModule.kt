@@ -49,9 +49,9 @@ class PublishModule(
         if (targets.contains("linkedin") && request.messages.size > 2) {
             return ValidationError(
                     status = 400,
-                    module = "publish",
+                    module = "linkedin",
                     errorMessage =
-                        "LinkedIn allows at most two messages (one post and one follow-up comment)",
+                        "LinkedIn supports at most one follow-up message",
                 )
                 .left()
         }

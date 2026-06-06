@@ -12,7 +12,6 @@ import kotlinx.serialization.UseSerializers
 data class NewPostRequest(
     val targets: List<String>? = null,
     val language: String? = null,
-    val cleanupHtml: Boolean? = null,
     val messages: NonEmptyList<NewPostRequestMessage>,
 ) {
     constructor(
@@ -20,12 +19,10 @@ data class NewPostRequest(
         targets: List<String>? = null,
         link: String? = null,
         language: String? = null,
-        cleanupHtml: Boolean? = null,
         images: List<String>? = null,
     ) : this(
         targets = targets,
         language = language,
-        cleanupHtml = cleanupHtml,
         messages =
             nonEmptyListOf(
                 NewPostRequestMessage(

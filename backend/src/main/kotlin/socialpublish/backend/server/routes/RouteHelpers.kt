@@ -16,7 +16,6 @@ suspend fun ApplicationCall.receiveNewPostRequest(): NewPostRequest =
                 targets = params.getAll("targets"),
                 link = params["link"],
                 language = params["language"],
-                cleanupHtml = params["cleanupHtml"]?.toBoolean(),
                 images = params.getAll("images"),
             )
         }

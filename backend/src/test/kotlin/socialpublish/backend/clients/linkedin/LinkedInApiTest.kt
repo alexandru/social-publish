@@ -100,14 +100,8 @@ class LinkedInApiTest {
                 "URL should contain response_type=code",
             )
             assertTrue(
-                url.contains("scope="),
-                "URL should contain a scope parameter",
-            )
-            assertTrue(
-                url.contains("openid") &&
-                    url.contains("profile") &&
-                    url.contains("w_member_social"),
-                "URL should contain the LinkedIn OAuth scopes",
+                url.contains("scope=openid%20profile%20w_member_social"),
+                "URL should contain space-delimited scope encoded with %20, not +",
             )
             assertTrue(
                 url.contains("redirect_uri="),
