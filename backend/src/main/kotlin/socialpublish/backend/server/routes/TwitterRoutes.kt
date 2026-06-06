@@ -35,13 +35,8 @@ class TwitterRoutes(
                 twitterModule.buildAuthorizeURL(twitterConfig, userUuid)
         ) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
-            is arrow.core.Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
+            is arrow.core.Either.Left ->
+                call.redirectToAccountError(result.value.errorMessage)
         }
     }
 
