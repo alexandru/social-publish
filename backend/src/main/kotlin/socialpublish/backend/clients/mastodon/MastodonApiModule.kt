@@ -35,10 +35,8 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
-import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
-import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 

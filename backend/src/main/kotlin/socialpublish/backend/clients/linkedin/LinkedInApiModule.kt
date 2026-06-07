@@ -112,8 +112,8 @@ private val logger = KotlinLogging.logger {}
  * 1. Call [buildAuthorizeURL] to get the authorization URL with state parameter
  * 2. Redirect user to LinkedIn for consent
  * 3. LinkedIn redirects back to callback URL with auth code and state
- * 4. Call [callbackRoute] to verify state and exchange code for access token
- * 5. Token is stored in database and automatically refreshed when needed
+ * 4. Call `callbackRoute` to verify state and exchange code for access token
+ * 5. Token is stored in the database and automatically refreshed when needed
  *
  * ## Creating Posts via UGC API
  *
@@ -122,7 +122,6 @@ private val logger = KotlinLogging.logger {}
  * - Posts with article/link previews (shareMediaCategory: ARTICLE)
  * - Posts with single or multiple images (shareMediaCategory: IMAGE)
  *
- * @property config LinkedIn OAuth2 client credentials and API endpoints
  * @property baseUrl Base URL of this application (for OAuth callbacks)
  * @property documentsDb Database for storing OAuth tokens
  * @property filesModule Module for handling file uploads
@@ -147,7 +146,7 @@ class LinkedInApiModule(
     companion object Factory {
         const val LINKEDIN_COMMENT_MAX_LENGTH = 1250
         private const val LINKEDIN_POST_MAX_LENGTH = 2000
-        private const val LinkLength = 25
+        private const val LINKEDIN_LINK_LENGTH = 25
 
         // Shared JSON instance for serialization/deserialization
         private val jsonConfig = Json {
@@ -207,7 +206,7 @@ class LinkedInApiModule(
             val withoutLinks = urlRegex.replace(text, "")
             val effectiveLength =
                 withoutLinks.codePointCount(0, withoutLinks.length) +
-                    (links * LinkLength)
+                    (links * LINKEDIN_LINK_LENGTH)
             val limit =
                 if (index == 0) LINKEDIN_POST_MAX_LENGTH
                 else LINKEDIN_COMMENT_MAX_LENGTH
@@ -384,10 +383,7 @@ class LinkedInApiModule(
             "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
             "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
             "&state=${URLEncoder.encode(state, "UTF-8")}" +
-            "&scope=${encodeQueryParameter("openid profile w_member_social")}"
-
-    private fun encodeQueryParameter(value: String): String =
-        URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+            "&scope=${URLEncoder.encode("openid profile w_member_social", "UTF-8")}"
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
@@ -838,7 +834,6 @@ class LinkedInApiModule(
         request: NewPostRequest,
     ): ApiResult<NewPostResponse> {
         return try {
-            val userUuid = userUuid()
             validateRequest(request)?.let { error ->
                 return error.left()
             }
@@ -1101,7 +1096,6 @@ class LinkedInApiModule(
         rootPostId: String,
         message: NewPostRequestMessage,
     ): ApiResult<PublishedMessageResponse> {
-        val userUuid = userUuid()
         return try {
             val (accessToken, personUrn) =
                 when (val result = getValidToken(config)) {
@@ -1125,12 +1119,7 @@ class LinkedInApiModule(
             val uploadedAsset = imageUuid?.let { uuid ->
                 when (
                     val result =
-                        uploadMedia(
-                            config,
-                            accessToken,
-                            personUrn,
-                            uuid,
-                        )
+                        uploadMedia(config, accessToken, personUrn, uuid)
                 ) {
                     is Either.Left -> return result.value.left()
                     is Either.Right -> result.value

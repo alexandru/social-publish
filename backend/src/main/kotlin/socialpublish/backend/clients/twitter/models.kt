@@ -92,3 +92,8 @@ data class TwitterMedia(@SerialName("media_ids") val mediaIds: List<String>)
 data class TwitterReply(
     @SerialName("in_reply_to_tweet_id") val inReplyToTweetId: String
 )
+
+/** Twitter API error response (v1.1 and v2 share this shape). */
+@Serializable data class TwitterErrorResponse(val errors: List<TwitterError>)
+
+@Serializable data class TwitterError(val code: Int, val message: String)
