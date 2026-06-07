@@ -22,6 +22,7 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import socialpublish.backend.clients.common.SocialMediaApi
@@ -196,7 +197,7 @@ class MastodonApiModule(
     ): ApiResult<MastodonMediaResponse> {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
-            delay(200)
+            delay(200.milliseconds)
 
             val response =
                 httpClient.get("${mediaUrlV1(config)}/$mediaId") {
