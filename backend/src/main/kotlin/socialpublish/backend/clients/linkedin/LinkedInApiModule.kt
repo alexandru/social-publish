@@ -52,7 +52,6 @@ import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
@@ -77,14 +76,13 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.LoomIO
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.server.userUuid
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * LinkedIn API integration for OAuth2 authentication and posting to LinkedIn.
@@ -213,7 +211,7 @@ class LinkedInApiModule(
             )
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Failed to pretty print JSON for logging" }
+            logger.warn("Failed to pretty print JSON for logging", e)
             json
         }
     }
@@ -289,9 +287,7 @@ class LinkedInApiModule(
                 Json.decodeFromString<LinkedInOAuthToken>(doc.payload)
             } catch (e: Throwable) {
                 rethrowIfFatalOrCancelled(e)
-                logger.warn(e) {
-                    "Failed to parse LinkedIn OAuth token from DB"
-                }
+                logger.warn("Failed to parse LinkedIn OAuth token from DB", e)
                 null
             }
         } else {
@@ -358,9 +354,9 @@ class LinkedInApiModule(
                     .right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to exchange code for token: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -371,7 +367,7 @@ class LinkedInApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to exchange code for token" }
+            logger.error("Failed to exchange code for token", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -412,9 +408,9 @@ class LinkedInApiModule(
                     .right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to refresh access token: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -425,7 +421,7 @@ class LinkedInApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to refresh access token" }
+            logger.error("Failed to refresh access token", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -457,7 +453,7 @@ class LinkedInApiModule(
             Unit.right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to save LinkedIn OAuth token" }
+            logger.error("Failed to save LinkedIn OAuth token", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -501,9 +497,9 @@ class LinkedInApiModule(
                 profile.right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to get user profile: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -514,7 +510,7 @@ class LinkedInApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to get user profile" }
+            logger.error("Failed to get user profile", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -554,7 +550,7 @@ class LinkedInApiModule(
                         .left()
                 }
 
-                logger.info { "LinkedIn token expired, refreshing..." }
+                logger.info("LinkedIn token expired, refreshing...")
                 when (
                     val result = refreshAccessToken(config, token.refreshToken)
                 ) {
@@ -623,9 +619,7 @@ class LinkedInApiModule(
             )
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) {
-                "Failed to upload media to LinkedIn — uuid $uuid"
-            }
+            logger.error("Failed to upload media to LinkedIn — uuid $uuid", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -677,9 +671,9 @@ class LinkedInApiModule(
 
             if (registerResponse.status != HttpStatusCode.OK) {
                 val errorBody = registerResponse.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to register upload on LinkedIn: ${registerResponse.status}, body: $errorBody"
-                }
+                )
                 return RequestError(
                         status = registerResponse.status.value,
                         module = "linkedin",
@@ -708,9 +702,9 @@ class LinkedInApiModule(
                     listOf(HttpStatusCode.OK, HttpStatusCode.Created)
             ) {
                 val errorBody = uploadBinaryResponse.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to upload binary to LinkedIn: ${uploadBinaryResponse.status}, body: $errorBody"
-                }
+                )
                 return RequestError(
                         status = uploadBinaryResponse.status.value,
                         module = "linkedin",
@@ -724,7 +718,7 @@ class LinkedInApiModule(
             UploadedAsset(asset = asset, description = altText).right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to upload media to LinkedIn from bytes" }
+            logger.error("Failed to upload media to LinkedIn from bytes", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -741,7 +735,7 @@ class LinkedInApiModule(
             linkPreviewParser.fetchPreview(url)
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Failed to fetch link preview for $url" }
+            logger.warn("Failed to fetch link preview for $url", e)
             null
         }
 
@@ -798,9 +792,9 @@ class LinkedInApiModule(
                     request.content
                 }
 
-            logger.info {
+            logger.info(
                 "Posting to LinkedIn via UGC API:\n${content.trim().prependIndent("  |")}"
-            }
+            )
 
             // Upload images if present
             val uploadedAssets = mutableListOf<UploadedAsset>()
@@ -946,14 +940,14 @@ class LinkedInApiModule(
                 )
 
             // Log the HTTP request
-            logger.info {
+            logger.info(
                 formatHttpRequest(
                     "POST",
                     requestUrl,
                     requestHeaders,
                     requestBody,
                 )
-            }
+            )
 
             val response =
                 httpClient.post(requestUrl) {
@@ -972,14 +966,14 @@ class LinkedInApiModule(
                     .entries()
                     .groupBy({ it.key }, { it.value })
                     .mapValues { it.value.flatten() }
-            logger.info {
+            logger.info(
                 formatHttpResponse(
                     response.status.value,
                     response.status.description,
                     responseHeaders,
                     responseBody,
                 )
-            }
+            )
 
             if (response.status == HttpStatusCode.Created) {
                 // The post ID is returned in the X-RestLi-Id response header
@@ -997,17 +991,18 @@ class LinkedInApiModule(
                                 data.id ?: "unknown"
                             } catch (e: Throwable) {
                                 rethrowIfFatalOrCancelled(e)
-                                logger.error(e) {
-                                    "Could not parse postId: $responseBody"
-                                }
+                                logger.error(
+                                    "Could not parse postId: $responseBody",
+                                    e,
+                                )
                                 "unknown"
                             }
                         }
                 NewLinkedInPostResponse(postId = postId).right()
             } else {
-                logger.warn {
+                logger.warn(
                     "Failed to post to LinkedIn via UGC API: ${response.status}"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "linkedin",
@@ -1018,7 +1013,7 @@ class LinkedInApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to post to LinkedIn via UGC API" }
+            logger.error("Failed to post to LinkedIn via UGC API", e)
             CaughtException(
                     status = 500,
                     module = "linkedin",
@@ -1038,3 +1033,5 @@ class LinkedInApiModule(
             .trim()
     }
 }
+
+private val logger by loggerFactory()

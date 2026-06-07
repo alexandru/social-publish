@@ -12,7 +12,6 @@ import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.sql.Connection
 import java.sql.PreparedStatement
@@ -28,6 +27,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
 import socialpublish.backend.common.LoomIO
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatal
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.Database.Companion.connect
@@ -53,7 +53,7 @@ data class Database(
          * Runs all pending migrations before returning.
          */
         fun connect(dbPath: String): Resource<Database> = resource {
-            logger.info { "Connecting to database at $dbPath" }
+            logger.info("Connecting to database at $dbPath")
             val dbFile = File(dbPath)
             dbFile.parentFile?.mkdirs()
 
@@ -67,7 +67,7 @@ data class Database(
 
             // Run migrations
             migrate(db).getOrElse { throw it }
-            logger.info { "Database connected and migrated" }
+            logger.info("Database connected and migrated")
             db
         }
 
@@ -83,7 +83,7 @@ data class Database(
          * outlive a single scope.
          */
         suspend fun connectUnmanaged(dbPath: String): Database {
-            logger.info { "Connecting to database (unmanaged) at $dbPath" }
+            logger.info("Connecting to database (unmanaged) at $dbPath")
             val dbFile = File(dbPath)
             dbFile.parentFile?.mkdirs()
 
@@ -99,7 +99,7 @@ data class Database(
 
             // Run migrations
             migrate(db).getOrElse { throw it }
-            logger.info { "Database connected and migrated (unmanaged)" }
+            logger.info("Database connected and migrated (unmanaged)")
             return db
         }
     }
@@ -421,19 +421,19 @@ suspend fun migrate(db: Database): Either<DBException, Unit> = db.transaction {
 
 context(_: Raise<DBException>)
 private suspend fun SafeConnection.runMigrations() {
-    logger.info { "Running database migrations..." }
+    logger.info("Running database migrations...")
 
     // Apply all migrations in order
     migrations.forEachIndexed { index, migration ->
         if (!migration.testIfApplied(this)) {
-            logger.info { "Applying migration $index" }
+            logger.info("Applying migration $index")
             migration.execute(this)
         } else {
-            logger.debug { "Migration $index already applied, skipping" }
+            logger.debug("Migration $index already applied, skipping")
         }
     }
 
-    logger.info { "Database migrations completed" }
+    logger.info("Database migrations completed")
 }
 
-private val logger = KotlinLogging.logger {}
+private val logger by loggerFactory()

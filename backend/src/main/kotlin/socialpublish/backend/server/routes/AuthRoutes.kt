@@ -1,7 +1,6 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.getOrElse
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -15,14 +14,13 @@ import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.AuthService
 import socialpublish.backend.server.putUserSession
 import socialpublish.backend.server.respondApiError
 import socialpublish.backend.server.respondWithUnauthorized
-
-private val logger = KotlinLogging.logger {}
 
 const val AUTH_SESSION = "auth-session"
 
@@ -169,9 +167,9 @@ class AuthRoutes(
                 }
             }
             else -> {
-                logger.warn {
+                logger.warn(
                     "Unsupported content type: ${call.request.contentType()}"
-                }
+                )
                 null
             }
         }
@@ -231,7 +229,7 @@ class AuthRoutes(
             ) {
                 return parts[1]
             } else {
-                logger.warn { "Malformed Authorization header: $authHeader" }
+                logger.warn("Malformed Authorization header: $authHeader")
             }
         }
         call.request.cookies["access_token"]?.let {
@@ -253,3 +251,5 @@ fun Application.configureAuth(authRoutes: AuthRoutes) {
         )
     }
 }
+
+private val logger by loggerFactory()

@@ -6,8 +6,8 @@ import arrow.core.Either
 import arrow.core.raise.Raise
 import arrow.core.raise.context.bind
 import arrow.core.raise.either
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
+import socialpublish.backend.common.loggerFactory
 
 class DocumentsDatabase(private val db: Database) {
     private suspend fun SafeConnection.setDocumentTags(
@@ -33,9 +33,9 @@ class DocumentsDatabase(private val db: Database) {
         }
 
         if (tags.isNotEmpty()) {
-            logger.info {
+            logger.info(
                 "Tags for document $documentUuid: ${tags.joinToString(", ") { it.name }}"
-            }
+            )
         }
     }
 
@@ -118,14 +118,12 @@ class DocumentsDatabase(private val db: Database) {
                     executeUpdate()
                 }
 
-            logger.info { "Updated document: $updated" }
+            logger.info("Updated document: $updated")
             setDocumentTags(existing.uuid, tags).bind()
             if (updated > 0) {
                 return@transaction existing.copy(payload = payload, tags = tags)
             }
-            logger.warn {
-                "Failed to update document with search key $searchKey"
-            }
+            logger.warn("Failed to update document with search key $searchKey")
         }
 
         val uuid = UUIDv7.generate().toString()
@@ -299,4 +297,4 @@ class DocumentsDatabase(private val db: Database) {
     }
 }
 
-private val logger = KotlinLogging.logger {}
+private val logger by loggerFactory()

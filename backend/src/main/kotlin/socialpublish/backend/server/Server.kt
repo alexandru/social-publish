@@ -4,7 +4,6 @@ package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
 import arrow.fx.coroutines.resource
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.*
@@ -42,6 +41,7 @@ import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.*
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
@@ -67,8 +67,6 @@ import socialpublish.backend.server.routes.UserSettingsPatch
 import socialpublish.backend.server.routes.configureAuth
 import socialpublish.backend.server.routes.withSession
 
-private val logger = KotlinLogging.logger {}
-
 fun startServer(
     config: AppConfig,
     documentsDb: DocumentsDatabase,
@@ -78,7 +76,7 @@ fun startServer(
     userSessionsDb: UserSessionsDatabase,
     engine: ApplicationEngineFactory<*, *> = CIO,
 ) = resource {
-    logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
+    logger.info("Starting HTTP server on port ${config.server.httpPort}...")
 
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
     val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
@@ -145,7 +143,7 @@ fun startServer(
 
         install(StatusPages) {
             exception<Throwable> { call, cause ->
-                logger.error(cause) { "Unhandled exception" }
+                logger.error("Unhandled exception", cause)
                 // Don't expose internal error details to clients for security
                 call.respondText(
                     text = "500: Internal Server Error",
@@ -866,3 +864,5 @@ fun startServer(
         }
     }
 }
+
+private val logger by loggerFactory()

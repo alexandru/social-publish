@@ -15,11 +15,11 @@ import com.github.ajalt.clikt.parameters.options.prompt
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.cio.CIO
 import java.io.File
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.CreateResult
 import socialpublish.backend.db.Database
@@ -30,8 +30,6 @@ import socialpublish.backend.modules.AuthModule
 import socialpublish.backend.modules.FilesConfig
 import socialpublish.backend.server.ServerConfig
 import socialpublish.backend.server.startServer
-
-private val logger = KotlinLogging.logger {}
 
 /** Main CLI command that delegates to subcommands. */
 class SocialPublishCli : NoOpCliktCommand(name = "social-publish") {
@@ -120,16 +118,16 @@ class StartServerCommand : CliktCommand(name = "start-server") {
 
         SuspendApp {
             resourceScope {
-                logger.info { "Starting the Social Publish backend..." }
-                logger.info { "Using database path: ${config.server.dbPath}" }
-                logger.info {
+                logger.info("Starting the Social Publish backend...")
+                logger.info("Using database path: ${config.server.dbPath}")
+                logger.info(
                     "Serving static content from: ${config.server.staticContentPaths.joinToString(", ")}"
-                }
+                )
                 try {
                     val resources =
                         DatabaseBundle.resource(config.server.dbPath).bind()
 
-                    logger.info { "Database initialized successfully" }
+                    logger.info("Database initialized successfully")
                     val _ =
                         startServer(
                                 config,
@@ -142,13 +140,13 @@ class StartServerCommand : CliktCommand(name = "start-server") {
                             )
                             .bind()
 
-                    logger.info {
+                    logger.info(
                         "Server running on port ${config.server.httpPort}"
-                    }
+                    )
                     awaitCancellation()
                 } catch (e: Throwable) {
                     rethrowIfFatalOrCancelled(e)
-                    logger.error(e) { "Application failed to start" }
+                    logger.error("Application failed to start", e)
                     throw e
                 }
             }
@@ -443,3 +441,5 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
 fun main(args: Array<String>) {
     SocialPublishCli().main(args)
 }
+
+private val logger by loggerFactory()

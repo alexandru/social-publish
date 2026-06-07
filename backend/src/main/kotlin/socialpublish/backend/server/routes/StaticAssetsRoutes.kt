@@ -1,6 +1,5 @@
 package socialpublish.backend.server.routes
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -8,9 +7,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import java.io.File
 import socialpublish.backend.common.isPathWithinBase
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.server.ServerConfig
-
-private val logger = KotlinLogging.logger {}
 
 class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
     suspend fun serveStaticFile(call: ApplicationCall) {
@@ -82,13 +80,15 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
             triedPaths.add(file.canonicalPath)
         }
 
-        logger.warn {
+        logger.warn(
             "Static file not found. Tried paths:\n${
                 triedPaths.joinToString(
                     ",\n"
                 )
             }"
-        }
+        )
         call.respond(HttpStatusCode.NotFound)
     }
 }
+
+private val logger by loggerFactory()

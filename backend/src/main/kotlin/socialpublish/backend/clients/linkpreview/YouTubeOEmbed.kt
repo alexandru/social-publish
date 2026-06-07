@@ -1,13 +1,11 @@
 package socialpublish.backend.clients.linkpreview
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URI
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * YouTube OEmbed API response.
@@ -76,7 +74,9 @@ fun parseYouTubeOEmbedResponse(jsonResponse: String): LinkPreview? {
         LinkPreview(title = title, description = description, image = image)
     } catch (e: Throwable) {
         rethrowIfFatalOrCancelled(e)
-        logger.warn(e) { "Failed to parse YouTube OEmbed response" }
+        logger.warn("Failed to parse YouTube OEmbed response", e)
         null
     }
 }
+
+private val logger by loggerFactory()

@@ -7,7 +7,6 @@ import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
@@ -18,13 +17,12 @@ import kotlinx.serialization.Serializable
 import org.apache.tika.Tika
 import socialpublish.backend.clients.imagemagick.ImageMagick
 import socialpublish.backend.common.*
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.UploadPayload
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.userUuid
-
-private val logger = KotlinLogging.logger {}
 
 @Serializable
 data class FileUploadResponse(
@@ -82,9 +80,9 @@ private constructor(
                 ref.originalPath.mkdirs()
                 ref.processedPath.mkdirs()
             }
-            logger.info {
+            logger.info(
                 "Files module initialized at ${config.uploadedFilesPath}"
-            }
+            )
             return ref
         }
     }
@@ -148,9 +146,9 @@ private constructor(
                     originalFileTmp.copyTo(originalFilePath, overwrite = true)
                 }
 
-                logger.info {
+                logger.info(
                     "File uploaded: ${storedUpload.uuid} (${storedUpload.originalname})"
-                }
+                )
                 FileUploadResponse(
                         uuid = storedUpload.uuid,
                         url = "${config.baseUrl}/files/${storedUpload.uuid}",
@@ -160,7 +158,7 @@ private constructor(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to upload file" }
+            logger.error("Failed to upload file", e)
             CaughtException(
                     status = 500,
                     module = "files",
@@ -211,7 +209,7 @@ private constructor(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to process uploaded file" }
+            logger.error("Failed to process uploaded file", e)
             CaughtException(
                     status = 500,
                     module = "files",
@@ -252,7 +250,7 @@ private constructor(
                 .right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to get file" }
+            logger.error("Failed to get file", e)
             CaughtException(
                     status = 500,
                     module = "files",
@@ -305,7 +303,7 @@ private constructor(
                 }
             } catch (e: Throwable) {
                 rethrowIfFatalOrCancelled(e)
-                logger.warn(e) { "Failed to detect image format" }
+                logger.warn("Failed to detect image format", e)
                 null
             }
         }
@@ -349,7 +347,7 @@ private constructor(
             withContext(Dispatchers.LoomIO) { optimizedFile.length() }
         val imageSize =
             imageMagick.identifyImageSize(optimizedFile).getOrElse {
-                logger.warn(it) { "Failed to identify optimized image size" }
+                logger.warn("Failed to identify optimized image size", it)
                 null
             }
         val newMimeType =
@@ -366,3 +364,5 @@ private constructor(
         )
     }
 }
+
+private val logger by loggerFactory()

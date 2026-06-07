@@ -6,7 +6,6 @@ import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -38,11 +37,10 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
-
-private val logger = KotlinLogging.logger {}
 
 class MastodonApiModule(
     private val filesModule: FilesModule,
@@ -129,9 +127,9 @@ class MastodonApiModule(
                 }
                 else -> {
                     val errorBody = response.bodyAsText()
-                    logger.warn {
+                    logger.warn(
                         "Failed to upload media to Mastodon: ${response.status}, body: $errorBody"
-                    }
+                    )
                     RequestError(
                             status = response.status.value,
                             module = "mastodon",
@@ -143,7 +141,7 @@ class MastodonApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to upload media (mastodon) — uuid $uuid" }
+            logger.error("Failed to upload media (mastodon) — uuid $uuid", e)
             CaughtException(
                     status = 500,
                     module = "mastodon",
@@ -230,9 +228,9 @@ class MastodonApiModule(
                     request.content
                 } + if (request.link != null) "\n\n${request.link}" else ""
 
-            logger.info {
+            logger.info(
                 "Posting to Mastodon:\n${content.trim().prependIndent("  |")}"
-            }
+            )
 
             // Create status
             val response =
@@ -255,9 +253,9 @@ class MastodonApiModule(
                 NewMastodonPostResponse(uri = data.url).right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to post to Mastodon: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "mastodon",
@@ -268,7 +266,7 @@ class MastodonApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to post to Mastodon" }
+            logger.error("Failed to post to Mastodon", e)
             CaughtException(
                     status = 500,
                     module = "mastodon",
@@ -317,3 +315,5 @@ class MastodonApiModule(
             .trim()
     }
 }
+
+private val logger by loggerFactory()

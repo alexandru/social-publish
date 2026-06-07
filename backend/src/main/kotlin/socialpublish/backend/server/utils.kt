@@ -1,17 +1,16 @@
 package socialpublish.backend.server
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import io.ktor.util.AttributeKey
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSettings
 
-private val logger = KotlinLogging.logger {}
 internal val UserUuidKey = AttributeKey<UUIDv7>("userUuid")
 internal val UserSettingsKey = AttributeKey<UserSettings>("userSettings")
 internal val UserSessionKey = AttributeKey<UserSession>("userSession")
@@ -38,7 +37,7 @@ suspend fun ApplicationCall.respondWithInternalServerError(
     context: String = "",
 ) {
     val msg = if (context.isNotBlank()) context else "Server error"
-    logger.error(cause) { msg }
+    logger.error(msg, cause)
     respond(
         HttpStatusCode.InternalServerError,
         ErrorResponse(error = "Server error"),
@@ -76,3 +75,5 @@ suspend fun ApplicationCall.respondApiError(error: ApiError) {
         ErrorResponse(error = error.errorMessage),
     )
 }
+
+private val logger by loggerFactory()

@@ -15,7 +15,7 @@ dependencyResolutionManagement {
             version("clikt", "5.1.0")
             version("kotlinx-serialization", "1.11.0")
             version("sqlite-jdbc", "3.53.0.0")
-            version("kotlin-logging", "8.0.01")
+
             version("rome", "2.1.0")
             version("scribejava", "8.3.3")
             version("jsoup", "1.22.2")
@@ -78,7 +78,6 @@ dependencyResolutionManagement {
 
             // Logging
             library("logback-classic", "ch.qos.logback", "logback-classic").versionRef("logback")
-            library("kotlin-logging", "io.github.oshai", "kotlin-logging-jvm").versionRef("kotlin-logging")
 
             // RSS generation
             library("rome", "com.rometools", "rome").versionRef("rome")
@@ -154,7 +153,7 @@ dependencyResolutionManagement {
                 ),
             )
             bundle("jdbi", listOf("jdbi-core", "jdbi-kotlin", "jdbi-kotlin-sqlobject"))
-            bundle("logging", listOf("logback-classic", "kotlin-logging"))
+            bundle("logging", listOf("logback-classic"))
         }
     }
 }
