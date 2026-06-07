@@ -31,21 +31,10 @@ class LinkedInRoutes(
         call: ApplicationCall,
     ) {
         val state = linkedInModule.generateOAuthState()
-
         call.setOAuthStateCookie(state, maxAge = 600)
 
-        when (
-            val result = linkedInModule.buildAuthorizeURL(linkedInConfig, state)
-        ) {
-            is arrow.core.Either.Right -> call.respondRedirect(result.value)
-            is arrow.core.Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
-        }
+        val result = linkedInModule.buildAuthorizeURL(linkedInConfig, state)
+        call.respondRedirect(result)
     }
 
     context(_: UserSession)
@@ -110,7 +99,9 @@ class LinkedInRoutes(
                 ) {
                     is arrow.core.Either.Right -> {
                         call.preventOAuthRedirectCaching()
-                        call.respondRedirect("/account")
+                        call.redirectToAccountInfo(
+                            "LinkedIn connected successfully."
+                        )
                     }
                     is arrow.core.Either.Left ->
                         call.redirectToLinkedInAuthorizationFailed()

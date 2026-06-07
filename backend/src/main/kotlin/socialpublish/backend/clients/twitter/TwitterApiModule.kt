@@ -169,6 +169,28 @@ class TwitterApiModule(
         )
     }
 
+    /**
+     * Attempt to extract a human-readable error message from a ScribeJava
+     * OAuthException that wraps a Twitter JSON error body.
+     *
+     * ScribeJava embeds the raw response in the exception message like:
+     * "Response body is incorrect. Can't extract token and secret from this:
+     * '{"errors":[{"code":32,"message":"Could not authenticate you."}]}'"
+     */
+    private fun extractTwitterErrorMessage(throwable: Throwable): String? {
+        val message = throwable.message ?: return null
+        val jsonStart = message.indexOf("this: '")
+        if (jsonStart == -1) return null
+        val json = message.substring(jsonStart + 7).trimEnd('\'')
+        return try {
+            val errorResponse =
+                Json.decodeFromString<TwitterErrorResponse>(json)
+            errorResponse.errors.joinToString(", ") { it.message }
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
     /** Build authorization URL for OAuth flow */
     suspend fun buildAuthorizeURL(
         config: TwitterConfig,
@@ -202,10 +224,17 @@ class TwitterApiModule(
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error(e) { "Failed to get Twitter request token" }
+            val twitterMessage = extractTwitterErrorMessage(e)
+            val userMessage =
+                if (twitterMessage != null) {
+                    "Twitter authorization failed: $twitterMessage"
+                } else {
+                    "Twitter authorization failed!"
+                }
             CaughtException(
                     status = 500,
                     module = "twitter",
-                    errorMessage = "Failed to get request token: ${e.message}",
+                    errorMessage = userMessage,
                 )
                 .left()
         }

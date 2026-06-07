@@ -81,3 +81,8 @@ data class TwitterCreateRequest(
 )
 
 @Serializable data class TwitterMedia(val media_ids: List<String>)
+
+/** Twitter API error response (v1.1 and v2 share this shape). */
+@Serializable data class TwitterErrorResponse(val errors: List<TwitterError>)
+
+@Serializable data class TwitterError(val code: Int, val message: String)

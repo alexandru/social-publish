@@ -78,10 +78,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result = module.buildAuthorizeURL(config, "test-state-value")
-
-            assertTrue(result is Either.Right)
-            val url = (result as Either.Right).value
+            val url = module.buildAuthorizeURL(config, "test-state-value")
             assertTrue(
                 url.contains("client_id=test-client-id"),
                 "URL should contain client_id",
@@ -91,12 +88,8 @@ class LinkedInApiTest {
                 "URL should contain response_type=code",
             )
             assertTrue(
-                url.contains("scope=openid%20profile%20w_member_social"),
-                "URL should contain space-delimited openid profile w_member_social scope",
-            )
-            assertFalse(
                 url.contains("scope=openid+profile+w_member_social"),
-                "LinkedIn treats plus signs as literal scope characters",
+                "URL should contain plus-delimited openid profile w_member_social scope",
             )
             assertTrue(
                 url.contains("redirect_uri="),

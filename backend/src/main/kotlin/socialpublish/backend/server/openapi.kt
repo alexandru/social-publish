@@ -59,7 +59,7 @@ inline fun <reified T : Any> Responses.Builder.documentNewPostResponses() {
 fun Responses.Builder.documentOAuthCallbackResponses() {
     HttpStatusCode.Found {
         description =
-            "Redirects to /account on success, or /account?error=... on failure"
+            "Redirects to /account?info=... on success, or /account?error=... on failure"
     }
 }
 
