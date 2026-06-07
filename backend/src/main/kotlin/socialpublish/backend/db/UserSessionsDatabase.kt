@@ -6,12 +6,12 @@ import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.raise.context.raise
 import arrow.core.raise.either
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlinx.coroutines.withContext
+import socialpublish.backend.common.loggerFactory
 
 /** Database access layer for the user_sessions table. */
 class UserSessionsDatabase(
@@ -109,9 +109,7 @@ class UserSessionsDatabase(
             Unit
         }
 
-        logger.info {
-            "Created session for user: $userUuid (session uuid: $uuid)"
-        }
+        logger.info("Created session for user: $userUuid (session uuid: $uuid)")
         CreateResult.Created(
             UserSession(
                 uuid = uuid,
@@ -176,9 +174,9 @@ class UserSessionsDatabase(
                             settings =
                                 rs.getString("user_settings")?.let {
                                     UserSettings.parse(it).getOrElse {
-                                        logger.error {
+                                        logger.error(
                                             "Invalid JSON for user settings"
-                                        }
+                                        )
                                         null
                                     }
                                 },
@@ -217,4 +215,4 @@ class UserSessionsDatabase(
     }
 }
 
-private val logger = KotlinLogging.logger {}
+private val logger by loggerFactory()

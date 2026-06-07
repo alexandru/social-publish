@@ -2,9 +2,9 @@ package socialpublish.backend.common
 
 import arrow.core.Either
 import arrow.core.getOrElse
-import io.github.oshai.kotlinlogging.KLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.slf4j.Logger
 import socialpublish.backend.db.DBException
 
 /** Represents typed errors in the application using Arrow's Either type. */
@@ -76,10 +76,10 @@ data class CompositeErrorWithDetails(
 /** Type alias for common Result type pattern */
 typealias ApiResult<T> = Either<ApiError, T>
 
-context(logger: KLogger)
+context(logger: Logger)
 fun <T> Either<DBException, T>.toApiResult() =
     this.getOrElse { e ->
-        logger.error(e) { "Database exception occurred" }
+        logger.error("Database exception occurred", e)
         CaughtException(
             status = 500,
             module = "database",

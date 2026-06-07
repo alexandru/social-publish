@@ -1,9 +1,9 @@
 package socialpublish.backend.db
 
 import arrow.core.raise.context.Raise
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.Types
 import java.time.Instant
+import socialpublish.backend.common.loggerFactory
 
 /**
  * A database migration with an idempotency check and an execution function.
@@ -229,10 +229,10 @@ val migrations: List<Migration> =
                     execute()
                     Unit
                 }
-                logger.info {
+                logger.info(
                     "Created default admin user (uuid: $uuid) with password authentication disabled. " +
                         "Set a password via the change-password CLI command."
-                }
+                )
             },
         ),
         // Migration 8: Add user_uuid (NOT NULL) to documents and uploads.
@@ -451,4 +451,4 @@ private suspend fun SafeConnection.columnExists(
         rs.safe().toList { it.getString("name") }.contains(columnName)
     }
 
-private val logger = KotlinLogging.logger {}
+private val logger by loggerFactory()

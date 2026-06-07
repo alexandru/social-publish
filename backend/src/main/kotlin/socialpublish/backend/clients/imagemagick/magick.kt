@@ -2,14 +2,12 @@ package socialpublish.backend.clients.imagemagick
 
 import arrow.core.Either
 import arrow.core.raise.either
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.apache.tika.Tika
 import socialpublish.backend.common.LoomIO
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.common.loggerFactory
 
 enum class ImageMagickVersion {
     V6, // Uses separate 'convert' and 'identify' commands
@@ -115,9 +113,9 @@ private constructor(
                 val fileLength = dest.length()
                 hasDestination = fileLength <= options.maxSizeBytes
                 if (!hasDestination) {
-                    logger.warn {
+                    logger.warn(
                         "Optimized image still too large (${fileLength} bytes), re-optimizing: ${source.absolutePath}"
-                    }
+                    )
                     // Aiming for a smaller size, adjusting parameters
                     // First, if PNG, convert to JPEG
                     if (mimeType == MimeType.PNG) {
@@ -153,9 +151,9 @@ private constructor(
                         else MimeType.OTHER
                 }
             } catch (_: Exception) {
-                logger.warn {
+                logger.warn(
                     "Failed to detect MIME type for file: ${file.absolutePath}"
-                }
+                )
                 MimeType.OTHER
             }
         }
@@ -278,9 +276,7 @@ private constructor(
             if (magickV7 != null) {
                 val path = File(magickV7)
                 if (path.exists() && path.canExecute()) {
-                    logger.info {
-                        "Found ImageMagick 7 at: ${path.absolutePath}"
-                    }
+                    logger.info("Found ImageMagick 7 at: ${path.absolutePath}")
                     return@either ImageMagick(
                         path,
                         ImageMagickVersion.V7,
@@ -292,9 +288,9 @@ private constructor(
 
             // Fall back to ImageMagick 6 (separate convert and identify
             // commands)
-            logger.info {
+            logger.info(
                 "ImageMagick 7 'magick' command not found, trying ImageMagick 6..."
-            }
+            )
 
             val convertResult = executeShellCommand("which", "convert")
             val convertPath = convertResult.orError().getOrNull()?.trim()
@@ -312,9 +308,9 @@ private constructor(
                         identify.exists() &&
                         identify.canExecute()
                 ) {
-                    logger.info {
+                    logger.info(
                         "Found ImageMagick 6 - convert: ${convert.absolutePath}, identify: ${identify.absolutePath}"
-                    }
+                    )
                     return@either ImageMagick(
                         convert,
                         ImageMagickVersion.V6,
@@ -355,3 +351,5 @@ enum class MimeType {
 }
 
 data class MagickImageSize(val width: Int, val height: Int)
+
+private val logger by loggerFactory()

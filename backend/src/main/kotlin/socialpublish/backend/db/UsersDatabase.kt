@@ -9,10 +9,10 @@ import arrow.core.raise.Raise
 import arrow.core.raise.either
 import arrow.core.right
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.sql.PreparedStatement
 import java.time.Instant
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.modules.AuthModule
 
 /**
@@ -61,7 +61,7 @@ class UsersDatabase(private val db: Database) {
             Unit
         }
 
-        logger.info { "Created user: $username (uuid: $uuid)" }
+        logger.info("Created user: $username (uuid: $uuid)")
         val user =
             User(
                 uuid = uuid,
@@ -119,7 +119,7 @@ class UsersDatabase(private val db: Database) {
                 settings =
                     rs.getString("settings")?.let {
                         UserSettings.parse(it).getOrElse {
-                            logger.error { "Invalid JSON for user settings" }
+                            logger.error("Invalid JSON for user settings")
                             null
                         }
                     },
@@ -285,4 +285,4 @@ class UsersDatabase(private val db: Database) {
         }
 }
 
-private val logger = KotlinLogging.logger {}
+private val logger by loggerFactory()

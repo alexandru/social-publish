@@ -8,7 +8,6 @@ import com.rometools.rome.feed.synd.SyndContentImpl
 import com.rometools.rome.feed.synd.SyndEntryImpl
 import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
 import org.jdom2.Element
 import org.jdom2.Namespace
@@ -17,6 +16,7 @@ import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.NewRssPostResponse
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
@@ -25,8 +25,6 @@ import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.userUuid
-
-private val logger = KotlinLogging.logger {}
 
 class RssModule(
     private val baseUrl: String,
@@ -77,7 +75,7 @@ class RssModule(
                 .right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to save RSS item" }
+            logger.error("Failed to save RSS item", e)
             CaughtException(
                     status = 500,
                     module = "rss",
@@ -207,3 +205,5 @@ class RssModule(
             .trim()
     }
 }
+
+private val logger by loggerFactory()

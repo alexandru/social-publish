@@ -1,9 +1,6 @@
 package socialpublish.backend.common
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.URI
-
-private val logger = KotlinLogging.logger {}
 
 data class ParsedUrl(val scheme: String, val host: String, val port: Int?) {
     fun isLocal(): Boolean {
@@ -31,6 +28,8 @@ fun parseUrl(url: String): ParsedUrl? =
         return ParsedUrl(scheme, host, port)
     } catch (e: Throwable) {
         rethrowIfFatalOrCancelled(e)
-        logger.error(e) { "Failed to parse URL: $url" }
+        logger.error("Failed to parse URL: $url", e)
         null
     }
+
+private val logger by loggerFactory()

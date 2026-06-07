@@ -7,7 +7,6 @@ import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -35,12 +34,11 @@ import kotlinx.serialization.json.*
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
-
-private val logger = KotlinLogging.logger {}
 
 private const val BlueskyLinkDisplayLength = 24
 
@@ -91,13 +89,13 @@ class BlueskyApiModule(
 
             if (response.status.value == 200) {
                 val session = response.body<BlueskySessionResponse>()
-                logger.info { "Authenticated to Bluesky as ${session.handle}" }
+                logger.info("Authenticated to Bluesky as ${session.handle}")
                 session.right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to authenticate to Bluesky: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "bluesky",
@@ -108,7 +106,7 @@ class BlueskyApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to authenticate to Bluesky" }
+            logger.error("Failed to authenticate to Bluesky", e)
             CaughtException(
                     status = 500,
                     module = "bluesky",
@@ -184,9 +182,9 @@ class BlueskyApiModule(
             }
 
             val errorBody = response.bodyAsText()
-            logger.warn {
+            logger.warn(
                 "Failed to upload blob to Bluesky: ${response.status}, body: $errorBody"
-            }
+            )
             RequestError(
                     status = response.status.value,
                     module = "bluesky",
@@ -196,7 +194,7 @@ class BlueskyApiModule(
                 .left()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to upload blob (bluesky) — uuid $uuid" }
+            logger.error("Failed to upload blob (bluesky) — uuid $uuid", e)
             CaughtException(
                     status = 500,
                     module = "bluesky",
@@ -216,9 +214,9 @@ class BlueskyApiModule(
             // Fetch the image
             val response = httpClient.get(imageUrl)
             if (response.status.value != 200) {
-                logger.warn {
+                logger.warn(
                     "Failed to fetch image from $imageUrl: ${response.status}"
-                }
+                )
                 return@resourceScope null
             }
 
@@ -240,15 +238,15 @@ class BlueskyApiModule(
                     )
                     .bind()
                     .getOrElse { error ->
-                        logger.warn {
+                        logger.warn(
                             "Failed to upload image from URL $imageUrl to temp storage: ${error.toJsonString()}"
-                        }
+                        )
                         return@resourceScope null
                     }
 
-            logger.info {
+            logger.info(
                 "Fetched image from $imageUrl: ${uploadedFile.mimetype}, ${uploadedFile.size} bytes"
-            }
+            )
 
             // Upload to Bluesky
             val uploadResponse =
@@ -276,13 +274,13 @@ class BlueskyApiModule(
                 )
             }
 
-            logger.warn {
+            logger.warn(
                 "Failed to upload blob from URL to Bluesky: ${uploadResponse.status}"
-            }
+            )
             null
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Failed to upload blob from URL $imageUrl" }
+            logger.warn("Failed to upload blob from URL $imageUrl", e)
             null
         }
     }
@@ -308,14 +306,14 @@ class BlueskyApiModule(
                 val data = response.body<DidResolutionResponse>()
                 data.did
             } else {
-                logger.warn {
+                logger.warn(
                     "Failed to resolve handle $handle: ${response.status}"
-                }
+                )
                 null
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Error resolving handle $handle" }
+            logger.error("Error resolving handle $handle", e)
             null
         }
     }
@@ -541,9 +539,9 @@ class BlueskyApiModule(
             // display text
             val richText = buildRichText(config, text)
 
-            logger.info {
+            logger.info(
                 "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}"
-            }
+            )
 
             // Build post record
             val record = buildJsonObject {
@@ -634,9 +632,9 @@ class BlueskyApiModule(
                 NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to post to Bluesky: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "bluesky",
@@ -647,7 +645,7 @@ class BlueskyApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to post to Bluesky" }
+            logger.error("Failed to post to Bluesky", e)
             CaughtException(
                     status = 500,
                     module = "bluesky",
@@ -696,3 +694,5 @@ class BlueskyApiModule(
             .trim()
     }
 }
+
+private val logger by loggerFactory()

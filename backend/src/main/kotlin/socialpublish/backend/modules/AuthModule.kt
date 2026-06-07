@@ -4,20 +4,18 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
-import io.github.oshai.kotlinlogging.KotlinLogging
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.RequestError
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.db.UserSessionsDatabase
 
-private val logger = KotlinLogging.logger {}
-
 class AuthService(private val userSessionsDb: UserSessionsDatabase) {
     suspend fun login(username: String, password: String) =
         userSessionsDb.login(username, password).mapLeft { dbError ->
-            logger.error(dbError) { "DB error during login for $username" }
+            logger.error("DB error during login for $username", dbError)
             CaughtException(
                 status = 500,
                 module = "auth",
@@ -27,7 +25,7 @@ class AuthService(private val userSessionsDb: UserSessionsDatabase) {
 
     suspend fun logout(token: String): Either<ApiError, Boolean> =
         userSessionsDb.logout(token).mapLeft { dbError ->
-            logger.error(dbError) { "DB error during logout" }
+            logger.error("DB error during logout", dbError)
             CaughtException(
                 status = 500,
                 module = "auth",
@@ -38,7 +36,7 @@ class AuthService(private val userSessionsDb: UserSessionsDatabase) {
     suspend fun authorize(token: String): Either<ApiError, UserSession> =
         when (val result = userSessionsDb.authorize(token)) {
             is Either.Left -> {
-                logger.error(result.value) { "DB error during authorization" }
+                logger.error("DB error during authorization", result.value)
                 CaughtException(
                         status = 500,
                         module = "auth",
@@ -75,7 +73,7 @@ object AuthModule {
             result.verified
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Failed to verify BCrypt password" }
+            logger.warn("Failed to verify BCrypt password", e)
             false
         }
     }
@@ -87,3 +85,5 @@ object AuthModule {
         )
     }
 }
+
+private val logger by loggerFactory()

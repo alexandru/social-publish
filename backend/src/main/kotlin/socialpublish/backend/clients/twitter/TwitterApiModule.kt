@@ -18,7 +18,6 @@ import com.github.scribejava.core.model.OAuth1RequestToken
 import com.github.scribejava.core.model.OAuthRequest
 import com.github.scribejava.core.model.Verb
 import com.github.scribejava.core.oauth.OAuth10aService
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -38,6 +37,7 @@ import kotlinx.serialization.json.Json
 import org.jsoup.Jsoup
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.DBException
 import socialpublish.backend.db.DocumentsDatabase
@@ -45,8 +45,6 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.server.userUuid
-
-private val logger = KotlinLogging.logger {}
 
 /** Twitter API module with OAuth 1.0a implementation */
 class TwitterApiModule(
@@ -161,7 +159,7 @@ class TwitterApiModule(
     }
 
     private fun DBException.toTwitterApiError(): ApiError {
-        logger.error(this) { "Twitter OAuth database error" }
+        logger.error("Twitter OAuth database error", this)
         return CaughtException(
             status = 500,
             module = "twitter",
@@ -223,7 +221,7 @@ class TwitterApiModule(
             authUrl.right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to get Twitter request token" }
+            logger.error("Failed to get Twitter request token", e)
             val twitterMessage = extractTwitterErrorMessage(e)
             val userMessage =
                 if (twitterMessage != null) {
@@ -255,9 +253,7 @@ class TwitterApiModule(
             val pending = existingDoc.pendingRequest
 
             if (pending == null) {
-                logger.warn {
-                    "No pending request token found for user $userUuid"
-                }
+                logger.warn("No pending request token found for user $userUuid")
                 return RequestError(
                         status = 400,
                         module = "twitter",
@@ -268,9 +264,9 @@ class TwitterApiModule(
             }
 
             if (pending.token != token) {
-                logger.warn {
+                logger.warn(
                     "Callback token mismatch: expected ${pending.token}, got $token"
-                }
+                )
                 return RequestError(
                         status = 400,
                         module = "twitter",
@@ -307,7 +303,7 @@ class TwitterApiModule(
             Unit.right()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to save Twitter OAuth token" }
+            logger.error("Failed to save Twitter OAuth token", e)
             CaughtException(
                     status = 500,
                     module = "twitter",
@@ -403,9 +399,9 @@ class TwitterApiModule(
                 mediaId.right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to upload media to Twitter: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "twitter",
@@ -416,7 +412,7 @@ class TwitterApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to upload media (twitter) — uuid $uuid" }
+            logger.error("Failed to upload media (twitter) — uuid $uuid", e)
             CaughtException(
                     status = 500,
                     module = "twitter",
@@ -472,9 +468,9 @@ class TwitterApiModule(
                     request.content.trim()
                 } + if (request.link != null) "\n\n${request.link}" else ""
 
-            logger.info {
+            logger.info(
                 "Posting to Twitter:\n${text.trim().prependIndent("  |")}"
-            }
+            )
 
             // Create the tweet
             val createPostURL = "${config.apiBase}/2/tweets"
@@ -508,9 +504,9 @@ class TwitterApiModule(
                 NewTwitterPostResponse(id = data.data.id).right()
             } else {
                 val errorBody = response.bodyAsText()
-                logger.warn {
+                logger.warn(
                     "Failed to post to Twitter: ${response.status}, body: $errorBody"
-                }
+                )
                 RequestError(
                         status = response.status.value,
                         module = "twitter",
@@ -521,7 +517,7 @@ class TwitterApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to post to Twitter" }
+            logger.error("Failed to post to Twitter", e)
             CaughtException(
                     status = 500,
                     module = "twitter",
@@ -536,3 +532,5 @@ class TwitterApiModule(
         return text.replace(Regex("\\s+"), " ").trim()
     }
 }
+
+private val logger by loggerFactory()

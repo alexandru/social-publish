@@ -3,7 +3,6 @@ package socialpublish.backend.clients.linkpreview
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
@@ -14,9 +13,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
-
-private val logger = KotlinLogging.logger {}
 
 /**
  * Configuration for LinkPreviewParser HTTP client timeouts.
@@ -121,7 +119,7 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val response = httpClient.get(url)
 
             if (!response.status.isSuccess()) {
-                logger.warn { "Failed to fetch URL $url: ${response.status}" }
+                logger.warn("Failed to fetch URL $url: ${response.status}")
                 return null
             }
 
@@ -129,7 +127,7 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             parseHtml(html, url)
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Error fetching link preview for $url" }
+            logger.warn("Error fetching link preview for $url", e)
             null
         }
     }
@@ -166,9 +164,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val response = httpClient.get(oembedUrl)
 
             if (!response.status.isSuccess()) {
-                logger.warn {
+                logger.warn(
                     "Failed to fetch YouTube OEmbed for $url: ${response.status}"
-                }
+                )
                 return null
             }
 
@@ -176,7 +174,7 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             parseYouTubeOEmbedResponse(json)
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
+            logger.warn("Error fetching YouTube OEmbed for $url", e)
             null
         }
     }
@@ -252,9 +250,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -267,9 +265,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -282,9 +280,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -292,3 +290,5 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
         return null
     }
 }
+
+private val logger by loggerFactory()

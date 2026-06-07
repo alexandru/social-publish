@@ -4,7 +4,6 @@ import arrow.core.left
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -26,11 +25,10 @@ import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.common.jsonCommon
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
-
-private val logger = KotlinLogging.logger {}
 
 class LlmApiModule(
     private val filesModule: FilesModule,
@@ -89,7 +87,7 @@ class LlmApiModule(
             // Generate alt-text using the LLM API
             generateAltTextFromApi(config, dataUrl, userContext, language)
         } catch (e: HttpRequestTimeoutException) {
-            logger.warn(e) { "LLM request timed out for image $imageUuid" }
+            logger.warn("LLM request timed out for image $imageUuid", e)
             CaughtException(
                     status = 504,
                     module = "llm",
@@ -99,9 +97,7 @@ class LlmApiModule(
                 .left()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) {
-                "Failed to generate alt-text for image $imageUuid"
-            }
+            logger.error("Failed to generate alt-text for image $imageUuid", e)
             CaughtException(
                     status = 500,
                     module = "llm",
@@ -147,7 +143,7 @@ class LlmApiModule(
                 }
             }
 
-            logger.info { "Prompt for alt-text generation:\n$promptText" }
+            logger.info("Prompt for alt-text generation:\n$promptText")
             val request =
                 OpenAiChatRequest(
                     model = config.model,
@@ -172,9 +168,9 @@ class LlmApiModule(
                     maxTokens = 300,
                 )
 
-            logger.info {
+            logger.info(
                 "Calling LLM API to generate alt-text (model: ${config.model}, url: ${config.apiUrl})"
-            }
+            )
 
             val response =
                 httpClient.post(config.apiUrl) {
@@ -196,16 +192,16 @@ class LlmApiModule(
                                 )
                                 .left()
 
-                    logger.debug {
+                    logger.debug(
                         "Generated alt-text (length: ${altText.length})"
-                    }
+                    )
                     altText.right()
                 }
                 else -> {
                     val errorBody = response.bodyAsText()
-                    logger.warn {
+                    logger.warn(
                         "LLM API error: ${response.status}, body: $errorBody"
-                    }
+                    )
 
                     // Remap LLM HTTP errors to 502/503 so the client doesn't
                     // treat as
@@ -236,7 +232,7 @@ class LlmApiModule(
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to call LLM API" }
+            logger.error("Failed to call LLM API", e)
             CaughtException(
                     status = 500,
                     module = "llm",
@@ -246,3 +242,5 @@ class LlmApiModule(
         }
     }
 }
+
+private val logger by loggerFactory()
