@@ -32,11 +32,9 @@ import kotlinx.serialization.json.*
 import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
-import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
-import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -701,7 +699,6 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         request: NewPostRequest,
     ): ApiResult<NewPostResponse> {
-        val userUuid = userUuid()
         validateRequest(request)?.let {
             return it.left()
         }
