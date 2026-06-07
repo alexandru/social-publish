@@ -1,6 +1,5 @@
 package socialpublish.backend.clients
 
-import arrow.core.Either
 import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -108,12 +107,11 @@ class MastodonApiTest {
                 MastodonConfig(host = "http://localhost", accessToken = "token")
             val result =
                 context(createTestSession(testUserUuid)) {
-                    mastodonModule.createPost(mastodonConfig, req, testUserUuid)
+                    mastodonModule.createPost(mastodonConfig, req)
                 }
 
-            assertTrue(result.isRight())
             val response =
-                (result as Either.Right).value as NewMastodonPostResponse
+                requireNotNull(result.getOrNull()) as NewMastodonPostResponse
             assertNotNull(response.uri)
 
             assertEquals(listOf("rose", "tulip"), descriptions)
@@ -190,15 +188,12 @@ class MastodonApiTest {
                         )
 
                     val result =
-                        mastodonModule.createThread(
-                            config,
-                            request,
-                            testUserUuid,
-                        )
+                        context(createTestSession(testUserUuid)) {
+                            mastodonModule.createThread(config, request)
+                        }
 
-                    assertTrue(result is Either.Right)
                     val response =
-                        (result as Either.Right).value
+                        requireNotNull(result.getOrNull())
                             as NewMastodonPostResponse
                     assertEquals("status-1", response.id)
                     assertEquals(2, response.messages.size)

@@ -36,7 +36,9 @@ import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.common.*
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -138,7 +140,9 @@ class TwitterApiModule(
     private val callbackUrl = "$baseUrl/api/twitter/callback"
 
     /** Check if Twitter auth exists for the given user */
-    suspend fun hasTwitterAuth(userUuid: UUIDv7): Boolean {
+    context(_: UserSession)
+    suspend fun hasTwitterAuth(): Boolean {
+        val userUuid = userUuid()
         val token = restoreOauthTokenFromDb(userUuid)
         return token != null
     }
@@ -189,11 +193,10 @@ class TwitterApiModule(
     }
 
     /** Build authorization URL for OAuth flow */
-    suspend fun buildAuthorizeURL(
-        config: TwitterConfig,
-        userUuid: UUIDv7,
-    ): ApiResult<String> {
+    context(_: UserSession)
+    suspend fun buildAuthorizeURL(config: TwitterConfig): ApiResult<String> {
         return try {
+            val userUuid = userUuid()
             val service = createOAuthService(config, callbackUrl)
             val token = withContext(Dispatchers.LoomIO) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
@@ -220,13 +223,14 @@ class TwitterApiModule(
     }
 
     /** Save OAuth token after callback (scoped to the user) */
+    context(_: UserSession)
     suspend fun saveOauthToken(
         config: TwitterConfig,
         token: String,
         verifier: String,
-        userUuid: UUIDv7,
     ): ApiResult<Unit> {
         return try {
+            val userUuid = userUuid()
             val existingDocument =
                 loadTwitterOAuthDocument(userUuid) ?: TwitterOAuthDocument()
             val pendingRequest = existingDocument.pendingRequest
@@ -291,15 +295,15 @@ class TwitterApiModule(
         }
 
     /** Upload media to Twitter */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: TwitterConfig,
         token: TwitterOAuthToken,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<String> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage =
@@ -384,13 +388,14 @@ class TwitterApiModule(
     }
 
     /** Create a post on Twitter */
+    context(_: UserSession)
     suspend fun createPost(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             validateRequest(request)?.let { error ->
                 return error.left()
             }
@@ -413,8 +418,7 @@ class TwitterApiModule(
             if (!message.images.isNullOrEmpty()) {
                 for (imageUuid in message.images) {
                     when (
-                        val result =
-                            uploadMedia(config, token, imageUuid, userUuid)
+                        val result = uploadMedia(config, token, imageUuid)
                     ) {
                         is Either.Right -> mediaIds.add(result.value)
                         is Either.Left -> return result.value.left()
@@ -497,10 +501,10 @@ class TwitterApiModule(
         }
     }
 
+    context(_: UserSession)
     override suspend fun createThread(
         config: TwitterConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateRequest(request)?.let {
             return it.left()
@@ -522,7 +526,6 @@ class TwitterApiModule(
                     createPost(
                         config = config,
                         request = singleRequest,
-                        userUuid = userUuid,
                         replyToId = previousId,
                     )
             ) {

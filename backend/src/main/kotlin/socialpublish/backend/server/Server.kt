@@ -161,7 +161,7 @@ fun startServer(
             }
         }
 
-        // Configure JWT authentication
+        // Configure session authentication
         configureAuth(authRoutes)
         // Configure OpenAPI / Swagger documentation
         configureOpenApiSecuritySchemes()
@@ -208,7 +208,8 @@ fun startServer(
                 post("/api/login") { authRoutes.loginRoute(call) }
                     .describe {
                         summary = "User login"
-                        description = "Authenticate user and get JWT token"
+                        description =
+                            "Authenticate user and get a session token"
                         requestBody {
                             required = true
                             ContentType.Application.Json {
@@ -221,7 +222,7 @@ fun startServer(
                         responses {
                             HttpStatusCode.OK {
                                 description =
-                                    "Successful login, returns JWT token"
+                                    "Successful login, returns a session token"
                                 schema = jsonSchema<LoginResponse>()
                             }
                             HttpStatusCode.BadRequest {
@@ -427,9 +428,7 @@ fun startServer(
                     }
 
                 post("/api/feed/post") {
-                        withSession(call) {
-                            feedRoutes.createPostRoute(userUuid(), call)
-                        }
+                        withSession(call) { feedRoutes.createPostRoute(call) }
                     }
                     .describe {
                         summary = "Create feed post"
@@ -457,11 +456,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Bluesky")
                                         return@withSession
                                     }
-                            blueskyRoutes.createPostRoute(
-                                userUuid(),
-                                blueskyConfig,
-                                call,
-                            )
+                            blueskyRoutes.createPostRoute(blueskyConfig, call)
                         }
                     }
                     .describe {
@@ -492,11 +487,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            mastodonRoutes.createPostRoute(
-                                userUuid(),
-                                mastodonConfig,
-                                call,
-                            )
+                            mastodonRoutes.createPostRoute(mastodonConfig, call)
                         }
                     }
                     .describe {
@@ -525,11 +516,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Twitter")
                                         return@withSession
                                     }
-                            twitterRoutes.createPostRoute(
-                                userUuid(),
-                                twitterConfig,
-                                call,
-                            )
+                            twitterRoutes.createPostRoute(twitterConfig, call)
                         }
                     }
                     .describe {
@@ -560,11 +547,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            linkedInRoutes.createPostRoute(
-                                userUuid(),
-                                linkedInConfig,
-                                call,
-                            )
+                            linkedInRoutes.createPostRoute(linkedInConfig, call)
                         }
                     }
                     .describe {
@@ -599,7 +582,6 @@ fun startServer(
                                     linkedInModule = linkedInModule,
                                     linkedInConfig = settings.linkedin,
                                     feedModule = feedModule,
-                                    userUuid = userUuid(),
                                 )
                             publishRoutes.broadcastPostRoute(
                                 call,
@@ -636,11 +618,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Twitter")
                                         return@withSession
                                     }
-                            twitterRoutes.authorizeRoute(
-                                userUuid(),
-                                twitterConfig,
-                                call,
-                            )
+                            twitterRoutes.authorizeRoute(twitterConfig, call)
                         }
                     }
                     .describe {
@@ -656,11 +634,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Twitter")
                                         return@withSession
                                     }
-                            twitterRoutes.callbackRoute(
-                                userUuid(),
-                                twitterConfig,
-                                call,
-                            )
+                            twitterRoutes.callbackRoute(twitterConfig, call)
                         }
                     }
                     .describe {
@@ -669,9 +643,7 @@ fun startServer(
                     }
 
                 get("/api/twitter/status") {
-                        withSession(call) {
-                            twitterRoutes.statusRoute(userUuid(), call)
-                        }
+                        withSession(call) { twitterRoutes.statusRoute(call) }
                     }
                     .describe {
                         summary = "Check Twitter authorization status"
@@ -709,11 +681,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            linkedInRoutes.callbackRoute(
-                                userUuid(),
-                                linkedInConfig,
-                                call,
-                            )
+                            linkedInRoutes.callbackRoute(linkedInConfig, call)
                         }
                     }
                     .describe {
@@ -722,9 +690,7 @@ fun startServer(
                     }
 
                 get("/api/linkedin/status") {
-                        withSession(call) {
-                            linkedInRoutes.statusRoute(userUuid(), call)
-                        }
+                        withSession(call) { linkedInRoutes.statusRoute(call) }
                     }
                     .describe {
                         summary = "Check LinkedIn authorization status"

@@ -14,11 +14,11 @@ import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 
 class MastodonRoutes(private val mastodonModule: MastodonApiModule) {
+    context(_: UserSession)
     suspend fun createPostRoute(
-        userUuid: UUIDv7,
         mastodonConfig: MastodonConfig,
         call: ApplicationCall,
     ) {
@@ -58,8 +58,7 @@ class MastodonRoutes(private val mastodonModule: MastodonApiModule) {
                 }
 
         when (
-            val result =
-                mastodonModule.createThread(mastodonConfig, request, userUuid)
+            val result = mastodonModule.createThread(mastodonConfig, request)
         ) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {

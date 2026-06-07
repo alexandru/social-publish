@@ -7,10 +7,12 @@ import io.ktor.server.response.respond
 import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.CompositeErrorWithDetails
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.PublishModule
 
 class PublishRoutes {
     /** Handle broadcast POST HTTP route */
+    context(_: UserSession)
     suspend fun broadcastPostRoute(
         call: ApplicationCall,
         publishModule: PublishModule,

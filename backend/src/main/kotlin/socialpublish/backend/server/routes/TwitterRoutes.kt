@@ -10,8 +10,9 @@ import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.db.DocumentsDatabase
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.respondWithInternalServerError
+import socialpublish.backend.server.userUuid
 
 @Serializable
 data class TwitterStatusResponse(
@@ -23,28 +24,20 @@ class TwitterRoutes(
     private val twitterModule: TwitterApiModule,
     private val documentsDb: DocumentsDatabase,
 ) {
+    context(_: UserSession)
     suspend fun authorizeRoute(
-        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
-        when (
-            val result =
-                twitterModule.buildAuthorizeURL(twitterConfig, userUuid)
-        ) {
+        when (val result = twitterModule.buildAuthorizeURL(twitterConfig)) {
             is arrow.core.Either.Right -> call.respondRedirect(result.value)
-            is arrow.core.Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
-                )
-            }
+            is arrow.core.Either.Left ->
+                call.redirectToAccountError(result.value.errorMessage)
         }
     }
 
+    context(_: UserSession)
     suspend fun callbackRoute(
-        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
@@ -60,29 +53,25 @@ class TwitterRoutes(
 
         when (
             val result =
-                twitterModule.saveOauthToken(
-                    twitterConfig,
-                    token,
-                    verifier,
-                    userUuid,
-                )
+                twitterModule.saveOauthToken(twitterConfig, token, verifier)
         ) {
             is arrow.core.Either.Right -> {
                 call.preventOAuthRedirectCaching()
-                call.respondRedirect("/account")
+                call.redirectToAccountInfo("Twitter connected successfully.")
             }
-            is arrow.core.Either.Left -> {
+            is arrow.core.Either.Left ->
                 call.redirectToAccountError(
                     "Twitter authorization failed. Please try again."
                 )
-            }
         }
     }
 
-    suspend fun statusRoute(userUuid: UUIDv7, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun statusRoute(call: ApplicationCall) {
+        val userUuid = userUuid()
         val row =
             documentsDb
-                .searchByKey("twitter-oauth-token:$userUuid", userUuid)
+                .searchByKey("twitter-oauth-token:$userUuid")
                 .getOrElse { error ->
                     call.respondWithInternalServerError(error)
                     return
@@ -97,17 +86,14 @@ class TwitterRoutes(
         )
     }
 
+    context(_: UserSession)
     suspend fun createPostRoute(
-        userUuid: UUIDv7,
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
         val request = call.receiveNewPostRequest()
 
-        when (
-            val result =
-                twitterModule.createThread(twitterConfig, request, userUuid)
-        ) {
+        when (val result = twitterModule.createThread(twitterConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

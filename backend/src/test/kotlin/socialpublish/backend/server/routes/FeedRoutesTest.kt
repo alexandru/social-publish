@@ -26,6 +26,7 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 @Serializable data class FeedPostResponse(val uri: String, val module: String)
 
@@ -51,7 +52,9 @@ class FeedRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/feed/post") {
-                        feedRoutes.createPostRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            feedRoutes.createPostRoute(call)
+                        }
                     }
                 }
             }
@@ -104,7 +107,9 @@ class FeedRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/feed/post") {
-                        feedRoutes.createPostRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            feedRoutes.createPostRoute(call)
+                        }
                     }
                 }
             }
@@ -152,7 +157,9 @@ class FeedRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/feed/post") {
-                        feedRoutes.createPostRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            feedRoutes.createPostRoute(call)
+                        }
                     }
                     get("/feed/{userUuid}") {
                         feedRoutes.generateFeedRoute(call)
@@ -212,7 +219,9 @@ class FeedRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/feed/post") {
-                    feedRoutes.createPostRoute(testUserUuid, call)
+                    context(createTestSession(testUserUuid)) {
+                        feedRoutes.createPostRoute(call)
+                    }
                 }
                 get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
             }
@@ -275,7 +284,9 @@ class FeedRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/feed/post") {
-                        feedRoutes.createPostRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            feedRoutes.createPostRoute(call)
+                        }
                     }
                     get("/feed/{userUuid}/target/{target}") {
                         feedRoutes.generateFeedRoute(call)
@@ -342,7 +353,9 @@ class FeedRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/feed/post") {
-                        feedRoutes.createPostRoute(testUserUuid, call)
+                        context(createTestSession(testUserUuid)) {
+                            feedRoutes.createPostRoute(call)
+                        }
                     }
                     get("/feed/{userUuid}/{uuid}") {
                         feedRoutes.getFeedItem(call)

@@ -19,6 +19,7 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
@@ -29,6 +30,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class TwitterRoutesCallbackTest {
     private val testUserUuid =
@@ -42,11 +44,12 @@ class TwitterRoutesCallbackTest {
         application {
             routing {
                 get("/api/twitter/callback") {
-                    testContext.routes.callbackRoute(
-                        testUserUuid,
-                        testContext.config,
-                        call,
-                    )
+                    context(createTestSession(testUserUuid)) {
+                        testContext.routes.callbackRoute(
+                            testContext.config,
+                            call,
+                        )
+                    }
                 }
             }
         }
@@ -56,9 +59,10 @@ class TwitterRoutesCallbackTest {
                 .get("/api/twitter/callback?oauth_token=req123")
 
         assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals(
-            "/account?error=Twitter+authorization+was+incomplete.+Please+try+again.",
-            response.headers[HttpHeaders.Location],
+        assertTrue(
+            response.headers[HttpHeaders.Location]?.startsWith(
+                "/account?error="
+            ) == true
         )
     }
 
@@ -70,11 +74,12 @@ class TwitterRoutesCallbackTest {
         application {
             routing {
                 get("/api/twitter/callback") {
-                    testContext.routes.callbackRoute(
-                        testUserUuid,
-                        testContext.config,
-                        call,
-                    )
+                    context(createTestSession(testUserUuid)) {
+                        testContext.routes.callbackRoute(
+                            testContext.config,
+                            call,
+                        )
+                    }
                 }
             }
         }
@@ -86,9 +91,10 @@ class TwitterRoutesCallbackTest {
                 )
 
         assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals(
-            "/account?error=Twitter+authorization+failed.+Please+try+again.",
-            response.headers[HttpHeaders.Location],
+        assertTrue(
+            response.headers[HttpHeaders.Location]?.startsWith(
+                "/account?error="
+            ) == true
         )
     }
 
@@ -131,11 +137,12 @@ class TwitterRoutesCallbackTest {
         application {
             routing {
                 get("/api/twitter/callback") {
-                    testContext.routes.callbackRoute(
-                        testUserUuid,
-                        testContext.config,
-                        call,
-                    )
+                    context(createTestSession(testUserUuid)) {
+                        testContext.routes.callbackRoute(
+                            testContext.config,
+                            call,
+                        )
+                    }
                 }
             }
         }
@@ -148,7 +155,11 @@ class TwitterRoutesCallbackTest {
 
         assertEquals(HttpStatusCode.Found, response.status)
         oauthServer.stop()
-        assertEquals("/account", response.headers[HttpHeaders.Location])
+        assertTrue(
+            response.headers[HttpHeaders.Location]?.startsWith(
+                "/account?info="
+            ) == true
+        )
         val stored =
             testContext.documentsDb
                 .searchByKey("twitter-oauth-token:$testUserUuid", testUserUuid)

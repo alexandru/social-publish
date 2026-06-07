@@ -22,6 +22,7 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishModuleTest {
     private lateinit var postsDb: PostsDatabase
@@ -50,7 +51,6 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         assertNotNull(publishModule)
     }
@@ -68,7 +68,6 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(
@@ -76,7 +75,14 @@ class PublishModuleTest {
                 targets = listOf("feed"),
             )
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         val successResult =
             assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
@@ -101,12 +107,18 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(content = "Test post", targets = listOf("mastodon"))
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         val errorResult = assertIs<Either.Left<ApiError>>(result)
         val error = errorResult.value
@@ -135,7 +147,6 @@ class PublishModuleTest {
                     null,
                     null,
                     feedModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
             val request =
                 NewPostRequest(
@@ -143,7 +154,16 @@ class PublishModuleTest {
                     targets = listOf("feed", "mastodon", "twitter"),
                 )
 
-            val result = publishModule.broadcastPost(request)
+            val result =
+                context(
+                    createTestSession(
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        )
+                    )
+                ) {
+                    publishModule.broadcastPost(request)
+                }
 
             val errorResult = assertIs<Either.Left<ApiError>>(result)
             val error = errorResult.value
@@ -192,12 +212,18 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(content = "Test post", targets = emptyList())
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         val successResult =
             assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
@@ -218,11 +244,17 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request = NewPostRequest(content = "Test post", targets = null)
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         val successResult =
             assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
@@ -243,7 +275,6 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(
@@ -251,7 +282,14 @@ class PublishModuleTest {
                 targets = listOf("FEED", "Mastodon"),
             )
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         // Should process as lowercase (feed succeeds, mastodon fails)
         val errorResult = assertIs<Either.Left<ApiError>>(result)
@@ -273,7 +311,6 @@ class PublishModuleTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val request =
             NewPostRequest(
@@ -282,7 +319,14 @@ class PublishModuleTest {
                     listOf("feed", "mastodon", "bluesky", "twitter", "linkedin"),
             )
 
-        val result = publishModule.broadcastPost(request)
+        val result =
+            context(
+                createTestSession(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            ) {
+                publishModule.broadcastPost(request)
+            }
 
         // Should return composite error since 4 platforms are not configured
         val errorResult = assertIs<Either.Left<ApiError>>(result)
@@ -316,7 +360,6 @@ class PublishModuleTest {
                     null,
                     null,
                     feedModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val request =
@@ -330,7 +373,16 @@ class PublishModuleTest {
                         ),
                 )
 
-            val result = publishModule.broadcastPost(request)
+            val result =
+                context(
+                    createTestSession(
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        )
+                    )
+                ) {
+                    publishModule.broadcastPost(request)
+                }
 
             val error = assertIs<Either.Left<ApiError>>(result).value
             assertEquals(400, error.status)
@@ -351,7 +403,6 @@ class PublishModuleTest {
                     null,
                     null,
                     feedModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
 
             val request =
@@ -365,14 +416,22 @@ class PublishModuleTest {
                         ),
                 )
 
-            val _ = publishModule.broadcastPost(request)
+            val _ =
+                context(
+                    createTestSession(
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        )
+                    )
+                ) {
+                    publishModule.broadcastPost(request)
+                }
 
             val posts =
                 postsDb.getAllForUser(
                     UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
                 )
-            assertTrue(posts.isRight())
-            val list = (posts as Either.Right).value
+            val list = requireNotNull(posts.getOrNull())
             assertTrue(list.isEmpty())
         }
 }

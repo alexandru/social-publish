@@ -1,6 +1,5 @@
 package socialpublish.backend.clients
 
-import arrow.core.Either
 import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -123,10 +122,12 @@ class BlueskyApiTest {
                     password = "p",
                 )
             val result =
-                blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
-            assertTrue(result.isRight())
-            val _ = (result as Either.Right).value
+            assertNotNull(result.getOrNull())
+            val _ = requireNotNull(result.getOrNull())
 
             blueskyClient.close()
         }
@@ -217,9 +218,11 @@ class BlueskyApiTest {
                         password = "p",
                     )
                 val result =
-                    blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+                    context(createTestSession(testUserUuid)) {
+                        blueskyModule.createPost(blueskyConfig, req)
+                    }
 
-                assertTrue(result.isRight())
+                assertNotNull(result.getOrNull())
                 assertEquals(2, uploadedImages.size)
 
                 // Images are optimized on upload to max 1600x1600
@@ -370,9 +373,11 @@ class BlueskyApiTest {
                     password = "p",
                 )
             val result =
-                blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
-            assertTrue(result.isRight())
+            assertNotNull(result.getOrNull())
 
             val record =
                 requireNotNull(createRecordBody?.get("record")?.jsonObject)
@@ -510,9 +515,11 @@ class BlueskyApiTest {
                         password = "p",
                     )
                 val result =
-                    blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+                    context(createTestSession(testUserUuid)) {
+                        blueskyModule.createPost(blueskyConfig, req)
+                    }
 
-                assertTrue(result.isRight())
+                assertNotNull(result.getOrNull())
 
                 val record =
                     requireNotNull(createRecordBody?.get("record")?.jsonObject)
@@ -615,9 +622,11 @@ class BlueskyApiTest {
                     password = "p",
                 )
             val result =
-                blueskyModule.createPost(blueskyConfig, req, testUserUuid)
+                context(createTestSession(testUserUuid)) {
+                    blueskyModule.createPost(blueskyConfig, req)
+                }
 
-            assertTrue(result.isRight())
+            assertNotNull(result.getOrNull())
 
             val record =
                 requireNotNull(createRecordBody?.get("record")?.jsonObject)
@@ -761,9 +770,11 @@ class BlueskyApiTest {
                         )
 
                     val result =
-                        module.createThread(config, request, testUserUuid)
+                        context(createTestSession(testUserUuid)) {
+                            module.createThread(config, request)
+                        }
 
-                    assertTrue(result.isRight())
+                    assertNotNull(result.getOrNull())
                     assertEquals(2, replyPayloads.size)
                     assertEquals(null, replyPayloads[0])
                     val secondReply = requireNotNull(replyPayloads[1])

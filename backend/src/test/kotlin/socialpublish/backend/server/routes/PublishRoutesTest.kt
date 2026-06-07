@@ -23,6 +23,7 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishRoutesTest {
     @Test
@@ -47,7 +48,6 @@ class PublishRoutesTest {
                     null,
                     null,
                     feedModule,
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
                 )
             val publishRoutes = PublishRoutes()
 
@@ -55,7 +55,18 @@ class PublishRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/multiple/post") {
-                        publishRoutes.broadcastPostRoute(call, publishModule)
+                        context(
+                            createTestSession(
+                                UUIDv7.fromString(
+                                    "00000000-0000-0000-0000-000000000001"
+                                )
+                            )
+                        ) {
+                            publishRoutes.broadcastPostRoute(
+                                call,
+                                publishModule,
+                            )
+                        }
                     }
                 }
             }
@@ -113,7 +124,6 @@ class PublishRoutesTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val publishRoutes = PublishRoutes()
 
@@ -121,7 +131,15 @@ class PublishRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/multiple/post") {
-                    publishRoutes.broadcastPostRoute(call, publishModule)
+                    context(
+                        createTestSession(
+                            UUIDv7.fromString(
+                                "00000000-0000-0000-0000-000000000001"
+                            )
+                        )
+                    ) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
                 }
             }
         }
@@ -175,7 +193,6 @@ class PublishRoutesTest {
                 null,
                 null,
                 feedModule,
-                UUIDv7.fromString("00000000-0000-0000-0000-000000000001"),
             )
         val publishRoutes = PublishRoutes()
 
@@ -183,7 +200,15 @@ class PublishRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/multiple/post") {
-                    publishRoutes.broadcastPostRoute(call, publishModule)
+                    context(
+                        createTestSession(
+                            UUIDv7.fromString(
+                                "00000000-0000-0000-0000-000000000001"
+                            )
+                        )
+                    ) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
                 }
             }
         }

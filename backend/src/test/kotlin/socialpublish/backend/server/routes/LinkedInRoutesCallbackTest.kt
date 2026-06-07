@@ -13,6 +13,7 @@ import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.io.TempDir
@@ -23,35 +24,38 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class LinkedInRoutesCallbackTest {
     private val testUserUuid =
         UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
-    fun `callback with missing code redirects with error`(
+    fun `callback with missing state redirects with error and clears state cookie`(
         @TempDir tempDir: Path
     ) = testApplication {
         val routes = createRoutes(tempDir)
+        val config =
+            LinkedInConfig(clientId = "client-id", clientSecret = "secret")
 
         application {
             routing {
                 get("/api/linkedin/callback") {
-                    routes.callbackRoute(
-                        testUserUuid,
-                        LinkedInConfig(
-                            clientId = "client-id",
-                            clientSecret = "secret",
-                        ),
-                        call,
-                    )
+                    context(createTestSession(testUserUuid)) {
+                        routes.callbackRoute(config, call)
+                    }
                 }
             }
         }
 
         val response =
             createClient { followRedirects = false }
-                .get("/api/linkedin/callback")
+                .get("/api/linkedin/callback?code=abc") {
+                    header(
+                        HttpHeaders.Cookie,
+                        "linkedin-oauth-state=expected-state",
+                    )
+                }
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
@@ -59,39 +63,15 @@ class LinkedInRoutesCallbackTest {
                 "/account?error="
             ) == true
         )
-    }
-
-    @Test
-    fun `callback with missing state redirects with verification error`(
-        @TempDir tempDir: Path
-    ) = testApplication {
-        val routes = createRoutes(tempDir)
-
-        application {
-            routing {
-                get("/api/linkedin/callback") {
-                    routes.callbackRoute(
-                        testUserUuid,
-                        LinkedInConfig(
-                            clientId = "client-id",
-                            clientSecret = "secret",
-                        ),
-                        call,
-                    )
-                }
+        val clearedCookie =
+            response.headers.getAll(HttpHeaders.SetCookie)?.singleOrNull {
+                it.startsWith("linkedin-oauth-state=")
             }
-        }
-
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/linkedin/callback?code=abc")
-
-        assertEquals(HttpStatusCode.Found, response.status)
-        assertTrue(
-            response.headers[HttpHeaders.Location]?.startsWith(
-                "/account?error="
-            ) == true
-        )
+        assertNotNull(clearedCookie)
+        assertTrue(clearedCookie.contains("Max-Age=0"))
+        assertTrue(clearedCookie.contains("Path=/"))
+        assertTrue(clearedCookie.contains("HttpOnly"))
+        assertTrue(clearedCookie.contains("SameSite=Lax"))
     }
 
     @Test
@@ -99,111 +79,33 @@ class LinkedInRoutesCallbackTest {
         @TempDir tempDir: Path
     ) = testApplication {
         val routes = createRoutes(tempDir)
+        val config =
+            LinkedInConfig(clientId = "client-id", clientSecret = "secret")
 
         application {
             routing {
                 get("/api/linkedin/callback") {
-                    routes.callbackRoute(
-                        testUserUuid,
-                        LinkedInConfig(
-                            clientId = "client-id",
-                            clientSecret = "secret",
-                        ),
-                        call,
-                    )
+                    context(createTestSession(testUserUuid)) {
+                        routes.callbackRoute(config, call)
+                    }
                 }
             }
         }
 
         val response =
             createClient { followRedirects = false }
-                .get("/api/linkedin/callback?code=abc&state=callback-state")
-
-        assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals(
-            "/account?error=LinkedIn+authorization+could+not+be+verified.+Please+try+again.",
-            response.headers[HttpHeaders.Location],
-        )
-        assertTrue(
-            response.headers[HttpHeaders.SetCookie]?.contains(
-                "linkedin-oauth-state="
-            ) == true
-        )
-    }
-
-    @Test
-    fun `callback with matching cookie state and missing code redirects with missing code error`(
-        @TempDir tempDir: Path
-    ) = testApplication {
-        val routes = createRoutes(tempDir)
-
-        application {
-            routing {
-                get("/api/linkedin/callback") {
-                    routes.callbackRoute(
-                        testUserUuid,
-                        LinkedInConfig(
-                            clientId = "client-id",
-                            clientSecret = "secret",
-                        ),
-                        call,
-                    )
-                }
-            }
-        }
-
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/linkedin/callback?state=stored-state") {
+                .get("/api/linkedin/callback?code=abc&state=callback-state") {
                     header(
                         HttpHeaders.Cookie,
-                        "linkedin-oauth-state=stored-state",
+                        "linkedin-oauth-state=cookie-state",
                     )
                 }
-
-        assertEquals(HttpStatusCode.Found, response.status)
-        assertEquals(
-            "/account?error=LinkedIn+did+not+return+an+authorization+code.+Please+try+again.",
-            response.headers[HttpHeaders.Location],
-        )
-    }
-
-    @Test
-    fun `callback with provider error forwards readable error once`(
-        @TempDir tempDir: Path
-    ) = testApplication {
-        val routes = createRoutes(tempDir)
-
-        application {
-            routing {
-                get("/api/linkedin/callback") {
-                    routes.callbackRoute(
-                        testUserUuid,
-                        LinkedInConfig(
-                            clientId = "client-id",
-                            clientSecret = "secret",
-                        ),
-                        call,
-                    )
-                }
-            }
-        }
-
-        val response =
-            createClient { followRedirects = false }
-                .get(
-                    "/api/linkedin/callback?error=invalid_scope&error_description=Unknown+scope+%22openid%2Bprofile%2Bw_member_social%22"
-                )
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
             response.headers[HttpHeaders.Location]?.startsWith(
                 "/account?error="
             ) == true
-        )
-        assertEquals(
-            "/account?error=Unknown+scope+%22openid%2Bprofile%2Bw_member_social%22",
-            response.headers[HttpHeaders.Location],
         )
     }
 

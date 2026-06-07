@@ -15,6 +15,8 @@ import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
 import socialpublish.frontend.components.ErrorModal
+import socialpublish.frontend.components.NotificationMessage
+import socialpublish.frontend.components.NotificationType
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.utils.ApiClient
@@ -147,6 +149,8 @@ private data class AccountPageState(
     val formState: SettingsFormState = SettingsFormState(),
     val settingsSaved: Boolean = false,
     val settingsError: String? = null,
+    val oauthError: String? = null,
+    val oauthInfo: String? = null,
 )
 
 internal const val MASKED_SECRET_SENTINEL = "****"
@@ -174,17 +178,19 @@ internal fun applyLinkedInAuthorizationStatus(
 @Composable
 fun AccountPage() {
     Authorize {
-        var state by remember { mutableStateOf(AccountPageState()) }
+        var state by remember {
+            val params = URLSearchParams(window.location.search)
+            mutableStateOf(
+                AccountPageState(
+                    oauthError = params.get("error"),
+                    oauthInfo = params.get("info"),
+                )
+            )
+        }
         val scope = rememberCoroutineScope()
 
-        // Parse OAuth error from URL query parameter
-        var oauthError by remember {
-            mutableStateOf(URLSearchParams(window.location.search).get("error"))
-        }
-
-        // Clean the URL after reading the error to prevent re-show on refresh
-        LaunchedEffect(oauthError) {
-            if (oauthError != null) {
+        LaunchedEffect(state.oauthError, state.oauthInfo) {
+            if (state.oauthError != null || state.oauthInfo != null) {
                 window.history.replaceState(null, "", "/account")
             }
         }
@@ -402,42 +408,36 @@ fun AccountPage() {
             }
         }
 
-        ErrorModal(message = oauthError) { oauthError = null }
+        ErrorModal(message = state.oauthError) {
+            state = state.copy(oauthError = null)
+        }
 
         PageContainer("account") {
             Div(attrs = { classes("block") }) {
                 H1(attrs = { classes("title") }) { Text("Account Settings") }
             }
 
+            state.oauthInfo?.let { info ->
+                NotificationMessage(
+                    message = info,
+                    type = NotificationType.SUCCESS,
+                    onDismiss = { state = state.copy(oauthInfo = null) },
+                )
+            }
+
             if (state.settingsSaved) {
-                Div(
-                    attrs = {
-                        classes("notification", "is-success", "is-light")
-                    }
-                ) {
-                    Button(
-                        attrs = {
-                            classes("delete")
-                            onClick {
-                                state = state.copy(settingsSaved = false)
-                            }
-                        }
-                    )
-                    Text("Settings saved successfully!")
-                }
+                NotificationMessage(
+                    message = "Settings saved successfully!",
+                    type = NotificationType.SUCCESS,
+                    onDismiss = { state = state.copy(settingsSaved = false) },
+                )
             }
             state.settingsError?.let { error ->
-                Div(
-                    attrs = { classes("notification", "is-danger", "is-light") }
-                ) {
-                    Button(
-                        attrs = {
-                            classes("delete")
-                            onClick { state = state.copy(settingsError = null) }
-                        }
-                    )
-                    Text(error)
-                }
+                NotificationMessage(
+                    message = error,
+                    type = NotificationType.ERROR,
+                    onDismiss = { state = state.copy(settingsError = null) },
+                )
             }
 
             SettingsForm(

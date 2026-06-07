@@ -25,6 +25,8 @@ import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -50,9 +52,9 @@ class FeedModule(
         }
     }
 
+    context(_: UserSession)
     suspend fun createPost(
-        request: NewPostRequest,
-        userUuid: UUIDv7,
+        request: NewPostRequest
     ): ApiResult<NewPostResponse> {
         return try {
             validateMessages(request.messages)?.let {
@@ -62,7 +64,6 @@ class FeedModule(
                 targets = request.targets ?: listOf("feed"),
                 language = request.language,
                 messages = request.messages,
-                userUuid = userUuid,
             )
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
@@ -76,15 +77,16 @@ class FeedModule(
         }
     }
 
+    context(_: UserSession)
     suspend fun createPosts(
         targets: List<String>,
         language: String?,
         messages: List<NewPostRequestMessage>,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateMessages(messages)?.let {
             return it.left()
         }
+        val userUuid = userUuid()
         val normalizedTargets = targets.map { it.lowercase() }
         var previousPostUuid: String? = null
         val messageResponses = mutableListOf<PublishedMessageResponse>()

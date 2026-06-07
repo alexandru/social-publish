@@ -7,6 +7,8 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
+import socialpublish.frontend.components.NotificationMessage
+import socialpublish.frontend.components.NotificationType
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.utils.ApiClient
@@ -99,13 +101,15 @@ fun LoginPage() {
 
         // Show info notification if redirected from a protected page
         if (reasonParam == "session_expired") {
-            Div(attrs = { classes("notification", "is-warning", "is-light") }) {
-                Text("Your session expired. Please log in again.")
-            }
+            NotificationMessage(
+                message = "Your session expired. Please log in again.",
+                type = NotificationType.WARNING,
+            )
         } else if (redirectParam != null) {
-            Div(attrs = { classes("notification", "is-info", "is-light") }) {
-                Text("You need to log in to access this page.")
-            }
+            NotificationMessage(
+                message = "You need to log in to access this page.",
+                type = NotificationType.INFO,
+            )
         }
 
         Form(

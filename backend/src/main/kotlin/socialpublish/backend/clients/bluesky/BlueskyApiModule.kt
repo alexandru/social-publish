@@ -33,8 +33,10 @@ import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
+import socialpublish.backend.server.userUuid
 
 private val logger = KotlinLogging.logger {}
 
@@ -127,15 +129,15 @@ class BlueskyApiModule(
     }
 
     /** Upload image blob to Bluesky */
+    context(_: UserSession)
     private suspend fun uploadBlob(
         config: BlueskyConfig,
         uuid: String,
         session: BlueskySessionResponse,
-        userUuid: UUIDv7,
     ): ApiResult<BlueskyImageEmbed> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return ValidationError(
                             status = 404,
                             errorMessage =
@@ -510,18 +512,18 @@ class BlueskyApiModule(
     }
 
     /** Create a post on Bluesky */
+    context(_: UserSession)
     suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
-        return createPost(config, request, userUuid, replyContext = null)
+        return createPost(config, request, replyContext = null)
     }
 
+    context(_: UserSession)
     private suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
         replyContext: BlueskyReplyContext?,
     ): ApiResult<NewPostResponse> {
         return try {
@@ -542,7 +544,7 @@ class BlueskyApiModule(
                     message.images.map { imageUuid ->
                         when (
                             val uploadResult =
-                                uploadBlob(config, imageUuid, session, userUuid)
+                                uploadBlob(config, imageUuid, session)
                         ) {
                             is Either.Left -> return uploadResult.value.left()
                             is Either.Right -> uploadResult.value
@@ -694,11 +696,12 @@ class BlueskyApiModule(
         }
     }
 
+    context(_: UserSession)
     override suspend fun createThread(
         config: BlueskyConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
+        val userUuid = userUuid()
         validateRequest(request)?.let {
             return it.left()
         }
@@ -721,7 +724,6 @@ class BlueskyApiModule(
                     createPost(
                         config = config,
                         request = singleRequest,
-                        userUuid = userUuid,
                         replyContext = replyContext,
                     )
             ) {

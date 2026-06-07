@@ -332,7 +332,9 @@ class LinkedInApiModule(
     }
 
     /** Check if LinkedIn auth exists for the given user */
-    suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean {
+    context(_: UserSession)
+    suspend fun hasLinkedInAuth(): Boolean {
+        val userUuid = userUuid()
         val token = restoreOAuthTokenFromDb(userUuid)
         return token != null
     }
@@ -373,43 +375,19 @@ class LinkedInApiModule(
      * - [Authorization Code
      *   Flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)
      *
-     * @param jwtToken JWT token to include in callback URL for state
-     *   verification
+     * @param state CSRF state value to include in callback URL for verification
      * @return Authorization URL to redirect the user to, or an error
      */
-    suspend fun buildAuthorizeURL(
-        config: LinkedInConfig,
-        state: String,
-    ): ApiResult<String> {
-        return try {
-            val authUrl =
-                "${config.authorizationUrl}?response_type=code" +
-                    "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
-                    "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
-                    "&state=${URLEncoder.encode(state, "UTF-8")}" +
-                    "&scope=${encodeQueryParameter("openid profile w_member_social")}"
-            authUrl.right()
-        } catch (e: Throwable) {
-            rethrowIfFatalOrCancelled(e)
-            logger.error(e) { "Failed to build LinkedIn authorization URL" }
-            CaughtException(
-                    status = 500,
-                    module = "linkedin",
-                    errorMessage =
-                        "Failed to build authorization URL: ${e.message}",
-                )
-                .left()
-        }
-    }
+    fun buildAuthorizeURL(config: LinkedInConfig, state: String): String =
+        config.authorizationUrl +
+            "?response_type=code" +
+            "&client_id=${URLEncoder.encode(config.clientId, "UTF-8")}" +
+            "&redirect_uri=${URLEncoder.encode(callbackUrl, "UTF-8")}" +
+            "&state=${URLEncoder.encode(state, "UTF-8")}" +
+            "&scope=${encodeQueryParameter("openid profile w_member_social")}"
 
     private fun encodeQueryParameter(value: String): String =
         URLEncoder.encode(value, "UTF-8").replace("+", "%20")
-
-    context(session: UserSession)
-    suspend fun createPost(
-        config: LinkedInConfig,
-        request: NewPostRequest,
-    ): ApiResult<NewPostResponse> = createPost(config, request, userUuid())
 
     /** Exchange authorization code for access token */
     suspend fun exchangeCodeForToken(
@@ -522,11 +500,10 @@ class LinkedInApiModule(
     }
 
     /** Save OAuth token to database (scoped to the user) */
-    suspend fun saveOAuthToken(
-        token: LinkedInOAuthToken,
-        userUuid: UUIDv7,
-    ): ApiResult<Unit> {
+    context(_: UserSession)
+    suspend fun saveOAuthToken(token: LinkedInOAuthToken): ApiResult<Unit> {
         return try {
+            val userUuid = userUuid()
             val _ =
                 documentsDb.createOrUpdate(
                     kind = "linkedin-oauth-token",
@@ -613,10 +590,11 @@ class LinkedInApiModule(
      * Get valid access token, refreshing if needed. Returns (accessToken,
      * personUrn)
      */
+    context(_: UserSession)
     suspend fun getValidToken(
-        config: LinkedInConfig,
-        userUuid: UUIDv7,
+        config: LinkedInConfig
     ): ApiResult<Pair<String, String>> {
+        val userUuid = userUuid()
         val token =
             restoreOAuthTokenFromDb(userUuid)
                 ?: return ValidationError(
@@ -645,9 +623,7 @@ class LinkedInApiModule(
                 ) {
                     is Either.Right -> {
                         val newToken = result.value
-                        when (
-                            val saveResult = saveOAuthToken(newToken, userUuid)
-                        ) {
+                        when (val saveResult = saveOAuthToken(newToken)) {
                             is Either.Right -> newToken
                             is Either.Left -> return saveResult.value.left()
                         }
@@ -680,16 +656,16 @@ class LinkedInApiModule(
     }
 
     /** Upload media to LinkedIn */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: LinkedInConfig,
         accessToken: String,
         personUrn: String,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<UploadedAsset> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage =
@@ -856,19 +832,20 @@ class LinkedInApiModule(
      * @param request Post content including text, images, and links
      * @return Post response with created post ID, or an error
      */
+    context(_: UserSession)
     suspend fun createPost(
         config: LinkedInConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             validateRequest(request)?.let { error ->
                 return error.left()
             }
 
             // Get valid OAuth token and person URN
             val (accessToken, personUrn) =
-                when (val result = getValidToken(config, userUuid)) {
+                when (val result = getValidToken(config)) {
                     is Either.Right -> result.value
                     is Either.Left -> return result.value.left()
                 }
@@ -893,7 +870,6 @@ class LinkedInApiModule(
                                 accessToken,
                                 personUrn,
                                 imageUuid,
-                                userUuid,
                             )
                     ) {
                         is Either.Right -> uploadedAssets.add(result.value)
@@ -1119,24 +1095,23 @@ class LinkedInApiModule(
         }
     }
 
+    context(_: UserSession)
     private suspend fun createComment(
         config: LinkedInConfig,
         rootPostId: String,
         message: NewPostRequestMessage,
-        userUuid: UUIDv7,
     ): ApiResult<PublishedMessageResponse> {
+        val userUuid = userUuid()
         return try {
             val (accessToken, personUrn) =
-                when (val result = getValidToken(config, userUuid)) {
+                when (val result = getValidToken(config)) {
                     is Either.Right -> result.value
                     is Either.Left -> return result.value.left()
                 }
 
             // Check alt-text BEFORE uploading — comments don't support it
             val imageUuid = message.images?.firstOrNull()
-            val file = imageUuid?.let {
-                filesModule.readImageFile(it, userUuid)
-            }
+            val file = imageUuid?.let { filesModule.readImageFile(it) }
             if (!file?.altText.isNullOrBlank()) {
                 return ValidationError(
                         status = 400,
@@ -1155,7 +1130,6 @@ class LinkedInApiModule(
                             accessToken,
                             personUrn,
                             uuid,
-                            userUuid,
                         )
                 ) {
                     is Either.Left -> return result.value.left()
@@ -1222,10 +1196,10 @@ class LinkedInApiModule(
         }
     }
 
+    context(_: UserSession)
     override suspend fun createThread(
         config: LinkedInConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateRequest(request)?.let {
             return it.left()
@@ -1238,7 +1212,7 @@ class LinkedInApiModule(
                 messages = nonEmptyListOf(request.messages.first()),
             )
         val root =
-            when (val result = createPost(config, rootRequest, userUuid)) {
+            when (val result = createPost(config, rootRequest)) {
                 is Either.Left -> return result.value.left()
                 is Either.Right -> result.value as NewLinkedInPostResponse
             }
@@ -1248,8 +1222,7 @@ class LinkedInApiModule(
         }
 
         val followUp = request.messages[1]
-        val followUpResult =
-            createComment(config, root.postId, followUp, userUuid)
+        val followUpResult = createComment(config, root.postId, followUp)
         return when (followUpResult) {
             is Either.Left -> followUpResult.value.left()
             is Either.Right ->

@@ -114,14 +114,14 @@ class MastodonApiModule(
         "${config.host}/api/v1/statuses"
 
     /** Upload media to Mastodon */
+    context(_: UserSession)
     private suspend fun uploadMedia(
         config: MastodonConfig,
         uuid: String,
-        userUuid: UUIDv7,
     ): ApiResult<MastodonMediaResponse> = resourceScope {
         try {
             val file =
-                filesModule.readImageFile(uuid, userUuid)
+                filesModule.readImageFile(uuid)
                     ?: return@resourceScope ValidationError(
                             status = 404,
                             errorMessage =
@@ -238,10 +238,10 @@ class MastodonApiModule(
     }
 
     /** Create a post on Mastodon */
+    context(_: UserSession)
     suspend fun createPost(
         config: MastodonConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
@@ -255,9 +255,7 @@ class MastodonApiModule(
             val mediaIds = mutableListOf<String>()
             if (!message.images.isNullOrEmpty()) {
                 for (imageUuid in message.images) {
-                    when (
-                        val result = uploadMedia(config, imageUuid, userUuid)
-                    ) {
+                    when (val result = uploadMedia(config, imageUuid)) {
                         is Either.Right -> mediaIds.add(result.value.id)
                         is Either.Left -> return result.value.left()
                     }
@@ -330,18 +328,10 @@ class MastodonApiModule(
         }
     }
 
-    context(session: UserSession)
-    suspend fun createPost(
-        config: MastodonConfig,
-        request: NewPostRequest,
-        replyToId: String? = null,
-    ): ApiResult<NewPostResponse> =
-        createPost(config, request, userUuid(), replyToId)
-
+    context(_: UserSession)
     override suspend fun createThread(
         config: MastodonConfig,
         request: NewPostRequest,
-        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateRequest(request)?.let {
             return it.left()
@@ -364,7 +354,6 @@ class MastodonApiModule(
                     createPost(
                         config = config,
                         request = singleRequest,
-                        userUuid = userUuid,
                         replyToId = previousId,
                     )
             ) {

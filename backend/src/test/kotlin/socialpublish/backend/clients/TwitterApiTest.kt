@@ -185,8 +185,10 @@ class TwitterApiTest {
             val testUserUuid =
                 UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
             val result =
-                twitterModule.createPost(twitterConfig, req, testUserUuid)
-            assertTrue(result.isRight())
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
+            assertTrue(result.getOrNull() != null)
 
             assertEquals(2, uploadedImages.size)
             assertEquals(listOf("mid1", "mid2"), tweetMediaIds)
@@ -302,8 +304,10 @@ class TwitterApiTest {
             val testUserUuid =
                 UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
             val result =
-                twitterModule.createPost(twitterConfig, req, testUserUuid)
-            assertTrue(result.isRight())
+                context(createTestSession(testUserUuid)) {
+                    twitterModule.createPost(twitterConfig, req)
+                }
+            assertTrue(result.getOrNull() != null)
 
             assertEquals(
                 "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
@@ -385,13 +389,12 @@ class TwitterApiTest {
                 }
                 routing {
                     get("/api/twitter/status") {
-                        TwitterRoutes(twitterModule, documentsDb)
-                            .statusRoute(
-                                UUIDv7.fromString(
-                                    "00000000-0000-0000-0000-000000000001"
-                                ),
-                                call,
-                            )
+                        context(
+                            createTestSession(this@TwitterApiTest.testUserUuid)
+                        ) {
+                            TwitterRoutes(twitterModule, documentsDb)
+                                .statusRoute(call)
+                        }
                     }
                 }
             }
@@ -464,13 +467,10 @@ class TwitterApiTest {
                 }
                 routing {
                     get("/api/twitter/status") {
-                        TwitterRoutes(twitterModule, documentsDb)
-                            .statusRoute(
-                                UUIDv7.fromString(
-                                    "00000000-0000-0000-0000-000000000001"
-                                ),
-                                call,
-                            )
+                        context(createTestSession(testUserUuid)) {
+                            TwitterRoutes(twitterModule, documentsDb)
+                                .statusRoute(call)
+                        }
                     }
                 }
             }
@@ -612,15 +612,12 @@ class TwitterApiTest {
                         )
 
                     val result =
-                        twitterModule.createThread(
-                            twitterConfig,
-                            request,
-                            testUserUuid,
-                        )
+                        context(createTestSession(testUserUuid)) {
+                            twitterModule.createThread(twitterConfig, request)
+                        }
 
-                    assertTrue(result.isRight())
                     val response =
-                        (result as arrow.core.Either.Right).value
+                        requireNotNull(result.getOrNull())
                             as
                             socialpublish.backend.common.NewTwitterPostResponse
                     assertEquals("tweet1", response.id)

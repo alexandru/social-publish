@@ -14,11 +14,13 @@ import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.FeedModule
 
 class FeedRoutes(private val feedModule: FeedModule) {
     /** Handle feed post creation HTTP route */
-    suspend fun createPostRoute(userUuid: UUIDv7, call: ApplicationCall) {
+    context(_: UserSession)
+    suspend fun createPostRoute(call: ApplicationCall) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
@@ -55,7 +57,7 @@ class FeedRoutes(private val feedModule: FeedModule) {
                     )
                 }
 
-        when (val result = feedModule.createPost(request, userUuid)) {
+        when (val result = feedModule.createPost(request)) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

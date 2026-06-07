@@ -82,10 +82,7 @@ class LinkedInApiTest {
                     linkPreview,
                 )
 
-            val result = module.buildAuthorizeURL(config, "test-state-value")
-
-            assertTrue(result is Either.Right)
-            val url = (result as Either.Right).value
+            val url = module.buildAuthorizeURL(config, "test-state-value")
             assertTrue(
                 url.contains("client_id=test-client-id"),
                 "URL should contain client_id",
@@ -180,8 +177,7 @@ class LinkedInApiTest {
                     "http://localhost/callback",
                 )
 
-            assertTrue(result is Either.Right)
-            val token = (result as Either.Right).value
+            val token = requireNotNull(result.getOrNull())
             assertEquals("test-access-token", token.accessToken)
             assertEquals("test-refresh-token", token.refreshToken)
             assertEquals(5184000L, token.expiresIn)
@@ -240,8 +236,7 @@ class LinkedInApiTest {
                 val result =
                     module.refreshAccessToken(config, "old-refresh-token")
 
-                assertTrue(result is Either.Right)
-                val token = (result as Either.Right).value
+                val token = requireNotNull(result.getOrNull())
                 assertEquals("new-access-token", token.accessToken)
                 assertEquals("new-refresh-token", token.refreshToken)
 
@@ -345,10 +340,9 @@ class LinkedInApiTest {
                     module.createPost(config, request)
                 }
 
-            assertTrue(result is Either.Right)
             assertTrue(postCreated, "Post should have been created")
             val response =
-                (result as Either.Right).value as NewLinkedInPostResponse
+                requireNotNull(result.getOrNull()) as NewLinkedInPostResponse
             assertEquals("linkedin", response.module)
             assertNotNull(response.postId)
 
@@ -617,7 +611,10 @@ class LinkedInApiTest {
                         ),
                 )
 
-            val result = module.createThread(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createThread(config, request)
+                }
 
             assertTrue(result is Either.Right)
             assertNotNull(commentBody)
@@ -738,7 +735,10 @@ class LinkedInApiTest {
                         ),
                 )
 
-            val result = module.createThread(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createThread(config, request)
+                }
 
             assertTrue(result is Either.Right)
             assertNotNull(commentBody)
@@ -904,7 +904,10 @@ class LinkedInApiTest {
                         ),
                 )
 
-            val result = module.createThread(config, request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createThread(config, request)
+                }
 
             assertTrue(result is Either.Right)
             assertEquals("urn:li:ugcPost:with space", commentPathPostId)
@@ -1015,9 +1018,15 @@ class LinkedInApiTest {
                 )
 
             val hasAuth =
-                module.hasLinkedInAuth(
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-                )
+                context(
+                    createTestSession(
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        )
+                    )
+                ) {
+                    module.hasLinkedInAuth()
+                }
 
             assertTrue(hasAuth)
 
@@ -1056,9 +1065,15 @@ class LinkedInApiTest {
                 )
 
             val hasAuth =
-                module.hasLinkedInAuth(
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-                )
+                context(
+                    createTestSession(
+                        UUIDv7.fromString(
+                            "00000000-0000-0000-0000-000000000001"
+                        )
+                    )
+                ) {
+                    module.hasLinkedInAuth()
+                }
 
             assertFalse(hasAuth)
 
@@ -1115,8 +1130,7 @@ class LinkedInApiTest {
 
                 val result = module.getUserProfile(config, "test-access-token")
 
-                assertTrue(result is Either.Right)
-                val profile = (result as Either.Right).value
+                val profile = requireNotNull(result.getOrNull())
                 // OIDC /userinfo returns plain ID in "sub" field
                 assertEquals("testperson123", profile.sub)
 

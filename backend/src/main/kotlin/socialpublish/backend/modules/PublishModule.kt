@@ -21,7 +21,7 @@ import socialpublish.backend.common.CompositeErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.ValidationError
-import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
 
 /**
  * Module for broadcasting posts to multiple social media platforms.
@@ -39,9 +39,9 @@ class PublishModule(
     private val linkedInModule: LinkedInApiModule?,
     private val linkedInConfig: LinkedInConfig?,
     private val feedModule: FeedModule,
-    private val userUuid: UUIDv7,
 ) {
     /** Broadcast post to multiple platforms */
+    context(_: UserSession)
     suspend fun broadcastPost(
         request: NewPostRequest
     ): ApiResult<Map<String, NewPostResponse>> {
@@ -88,7 +88,6 @@ class PublishModule(
                     targets = request.targets ?: listOf("feed"),
                     language = request.language,
                     messages = request.messages,
-                    userUuid = userUuid,
                 )
             }
             taskTargets.add("feed")
@@ -99,7 +98,7 @@ class PublishModule(
                 val mod = mastodonModule
                 val cfg = mastodonConfig
                 if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request, userUuid)
+                    mod.createThread(cfg, request)
                 } else {
                     ValidationError(
                             status = 503,
@@ -118,7 +117,7 @@ class PublishModule(
                 val mod = blueskyModule
                 val cfg = blueskyConfig
                 if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request, userUuid)
+                    mod.createThread(cfg, request)
                 } else {
                     ValidationError(
                             status = 503,
@@ -136,7 +135,7 @@ class PublishModule(
                 val mod = twitterModule
                 val cfg = twitterConfig
                 if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request, userUuid)
+                    mod.createThread(cfg, request)
                 } else {
                     ValidationError(
                             status = 503,
@@ -154,7 +153,7 @@ class PublishModule(
                 val mod = linkedInModule
                 val cfg = linkedInConfig
                 if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request, userUuid)
+                    mod.createThread(cfg, request)
                 } else {
                     ValidationError(
                             status = 503,

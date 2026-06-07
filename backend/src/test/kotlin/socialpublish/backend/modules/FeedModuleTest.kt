@@ -16,6 +16,7 @@ import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class FeedModuleTest {
     private lateinit var feedModule: FeedModule
@@ -42,10 +43,13 @@ class FeedModuleTest {
                 link = "https://example.com",
             )
 
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
 
         assertTrue(result is Either.Right)
-        val response = (result as Either.Right).value
+        val response = requireNotNull(result.getOrNull())
         assertTrue(response is NewFeedPostResponse)
         val feedResponse = response as NewFeedPostResponse
         assertTrue(feedResponse.uri.startsWith("http://localhost:3000/feed/"))
@@ -59,14 +63,17 @@ class FeedModuleTest {
                 targets = listOf("feed"),
             )
 
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
 
         assertTrue(result is Either.Right)
 
         // Verify the post was created with tags by retrieving all posts
         val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
-        val postsList = (posts as Either.Right).value
+        val postsList = requireNotNull(posts.getOrNull())
         assertEquals(1, postsList.size)
         assertEquals(3, postsList[0].tags?.size)
         assertTrue(postsList[0].tags?.contains("kotlin") == true)
@@ -78,7 +85,10 @@ class FeedModuleTest {
     fun `createPost with empty content returns validation error`() = runTest {
         val request = NewPostRequest(content = "", targets = listOf("feed"))
 
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -93,7 +103,10 @@ class FeedModuleTest {
             val request =
                 NewPostRequest(content = longContent, targets = listOf("feed"))
 
-            val result = feedModule.createPost(request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(request)
+                }
 
             assertTrue(result is Either.Left)
             val error = (result as Either.Left).value
@@ -109,13 +122,16 @@ class FeedModuleTest {
                 targets = listOf("feed"),
             )
 
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
 
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
-        val postsList = (posts as Either.Right).value
+        val postsList = requireNotNull(posts.getOrNull())
         assertEquals(1, postsList.size)
         assertEquals(
             "<p>Test <strong>content</strong> with &nbsp; HTML</p>",
@@ -132,13 +148,16 @@ class FeedModuleTest {
                 images = listOf("image-uuid-1", "image-uuid-2"),
             )
 
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
 
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
         assertTrue(posts is Either.Right)
-        val postsList = (posts as Either.Right).value
+        val postsList = requireNotNull(posts.getOrNull())
         assertEquals(1, postsList.size)
         assertEquals(2, postsList[0].images?.size)
         assertTrue(postsList[0].images?.contains("image-uuid-1") == true)
@@ -150,7 +169,10 @@ class FeedModuleTest {
         // Create a test post first
         val request =
             NewPostRequest(content = "Test feed post", targets = listOf("feed"))
-        val createResult = feedModule.createPost(request, testUserUuid)
+        val createResult =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
         assertTrue(createResult is Either.Right)
 
         val feedContent = feedModule.generateFeed(testUserUuid)
@@ -165,15 +187,16 @@ class FeedModuleTest {
     fun `generateFeed item link for local posts includes user UUID`() =
         runTest {
             val result =
-                feedModule.createPost(
-                    NewPostRequest(content = "No external link"),
-                    testUserUuid,
-                )
-            assertTrue(result is Either.Right)
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(
+                        NewPostRequest(content = "No external link")
+                    )
+                }
+            assertTrue(result.getOrNull() != null)
 
             val posts = postsDb.getAllForUser(testUserUuid)
             assertTrue(posts is Either.Right)
-            val postUuid = (posts as Either.Right).value.first().uuid
+            val postUuid = requireNotNull(posts.getOrNull()).first().uuid
 
             val feedContent = feedModule.generateFeed(testUserUuid)
             assertTrue(
@@ -195,7 +218,10 @@ class FeedModuleTest {
                             NewPostRequestMessage(content = "Reply post"),
                         ),
                 )
-            val result = feedModule.createPost(request, testUserUuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(request)
+                }
             assertTrue(result is Either.Right)
 
             val feedContent = feedModule.generateFeed(testUserUuid)
@@ -213,7 +239,10 @@ class FeedModuleTest {
                         NewPostRequestMessage(content = "Reply post in order"),
                     ),
             )
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
         assertTrue(result is Either.Right)
 
         val feedContent = feedModule.generateFeed(testUserUuid)
@@ -239,12 +268,14 @@ class FeedModuleTest {
         (db.dataSource as? AutoCloseable)?.close()
 
         val result =
-            module.createPosts(
-                targets = listOf("feed"),
-                language = null,
-                messages = listOf(NewPostRequestMessage(content = "will fail")),
-                userUuid = testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                module.createPosts(
+                    targets = listOf("feed"),
+                    language = null,
+                    messages =
+                        listOf(NewPostRequestMessage(content = "will fail")),
+                )
+            }
 
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
@@ -257,20 +288,22 @@ class FeedModuleTest {
         runTest {
             // Post with link
             val result1 =
-                feedModule.createPost(
-                    NewPostRequest(
-                        content = "Post with link",
-                        link = "https://example.com",
-                    ),
-                    testUserUuid,
-                )
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(
+                        NewPostRequest(
+                            content = "Post with link",
+                            link = "https://example.com",
+                        )
+                    )
+                }
             assertTrue(result1 is Either.Right)
             // Post without link
             val result2 =
-                feedModule.createPost(
-                    NewPostRequest(content = "Post without link"),
-                    testUserUuid,
-                )
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(
+                        NewPostRequest(content = "Post without link")
+                    )
+                }
             assertTrue(result2 is Either.Right)
 
             val feedContent =
@@ -285,20 +318,22 @@ class FeedModuleTest {
         runTest {
             // Post with link
             val result1 =
-                feedModule.createPost(
-                    NewPostRequest(
-                        content = "Post with link",
-                        link = "https://example.com",
-                    ),
-                    testUserUuid,
-                )
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(
+                        NewPostRequest(
+                            content = "Post with link",
+                            link = "https://example.com",
+                        )
+                    )
+                }
             assertTrue(result1 is Either.Right)
             // Post without link
             val result2 =
-                feedModule.createPost(
-                    NewPostRequest(content = "Post without link"),
-                    testUserUuid,
-                )
+                context(createTestSession(testUserUuid)) {
+                    feedModule.createPost(
+                        NewPostRequest(content = "Post without link")
+                    )
+                }
             assertTrue(result2 is Either.Right)
 
             val feedContent =
@@ -311,22 +346,24 @@ class FeedModuleTest {
     @Test
     fun `generateFeed filters by target`() = runTest {
         val result1 =
-            feedModule.createPost(
-                NewPostRequest(
-                    content = "Twitter post",
-                    targets = listOf("twitter"),
-                ),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(
+                    NewPostRequest(
+                        content = "Twitter post",
+                        targets = listOf("twitter"),
+                    )
+                )
+            }
         assertTrue(result1 is Either.Right)
         val result2 =
-            feedModule.createPost(
-                NewPostRequest(
-                    content = "Mastodon post",
-                    targets = listOf("mastodon"),
-                ),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(
+                    NewPostRequest(
+                        content = "Mastodon post",
+                        targets = listOf("mastodon"),
+                    )
+                )
+            }
         assertTrue(result2 is Either.Right)
 
         val feedContent =
@@ -339,16 +376,14 @@ class FeedModuleTest {
     @Test
     fun `generateFeed keeps newest posts first`() = runTest {
         val firstResult =
-            feedModule.createPost(
-                NewPostRequest(content = "Older post"),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(NewPostRequest(content = "Older post"))
+            }
         assertTrue(firstResult is Either.Right)
         val secondResult =
-            feedModule.createPost(
-                NewPostRequest(content = "Newer post"),
-                testUserUuid,
-            )
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(NewPostRequest(content = "Newer post"))
+            }
         assertTrue(secondResult is Either.Right)
 
         val feedContent = feedModule.generateFeed(testUserUuid)
@@ -363,11 +398,14 @@ class FeedModuleTest {
     @Test
     fun `getFeedItemByUuid returns post when found`() = runTest {
         val request = NewPostRequest(content = "Test post")
-        val result = feedModule.createPost(request, testUserUuid)
+        val result =
+            context(createTestSession(testUserUuid)) {
+                feedModule.createPost(request)
+            }
         assertTrue(result is Either.Right)
 
         val posts = postsDb.getAllForUser(testUserUuid)
-        val uuid = (posts as Either.Right).value[0].uuid
+        val uuid = requireNotNull(posts.getOrNull())[0].uuid
 
         val post = feedModule.getFeedItemByUuid(testUserUuid, uuid)
 
