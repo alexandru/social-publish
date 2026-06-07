@@ -155,7 +155,11 @@ class TwitterRoutesCallbackTest {
 
         assertEquals(HttpStatusCode.Found, response.status)
         oauthServer.stop()
-        assertEquals("/account", response.headers[HttpHeaders.Location])
+        assertTrue(
+            response.headers[HttpHeaders.Location]?.startsWith(
+                "/account?info="
+            ) == true
+        )
         val stored =
             testContext.documentsDb
                 .searchByKey("twitter-oauth-token:$testUserUuid", testUserUuid)

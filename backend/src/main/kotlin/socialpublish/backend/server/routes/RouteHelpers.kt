@@ -35,3 +35,9 @@ suspend fun ApplicationCall.redirectToAccountError(message: String) {
         "/account?error=${URLEncoder.encode(message, Charsets.UTF_8)}"
     )
 }
+
+suspend fun ApplicationCall.redirectToAccountInfo(message: String) {
+    respondRedirect(
+        "/account?info=${URLEncoder.encode(message, Charsets.UTF_8)}"
+    )
+}

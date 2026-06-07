@@ -67,7 +67,7 @@ class TwitterRoutes(
         ) {
             is arrow.core.Either.Right -> {
                 call.preventOAuthRedirectCaching()
-                call.respondRedirect("/account")
+                call.redirectToAccountInfo("Twitter connected successfully.")
             }
             is arrow.core.Either.Left ->
                 call.redirectToAccountError(

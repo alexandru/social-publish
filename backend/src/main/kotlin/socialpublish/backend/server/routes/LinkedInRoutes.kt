@@ -99,7 +99,9 @@ class LinkedInRoutes(
                 ) {
                     is arrow.core.Either.Right -> {
                         call.preventOAuthRedirectCaching()
-                        call.respondRedirect("/account")
+                        call.redirectToAccountInfo(
+                            "LinkedIn connected successfully."
+                        )
                     }
                     is arrow.core.Either.Left ->
                         call.redirectToLinkedInAuthorizationFailed()
