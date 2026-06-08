@@ -1,10 +1,11 @@
 package socialpublish.backend.clients.twitter
 
 import arrow.core.Either
-import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.nonEmptyListOf
-import arrow.core.raise.either
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -143,11 +144,12 @@ class TwitterApiModule(
     /** Restore OAuth token from database (scoped to the user) */
     private suspend fun restoreOauthTokenFromDb(
         userUuid: UUIDv7
-    ): ApiResult<TwitterOAuthToken?> =
-        when (val document = loadTwitterOAuthDocument(userUuid)) {
-            is Either.Right -> document.value.accessToken.right()
-            is Either.Left -> document.value.toTwitterApiError().left()
-        }
+    ): ApiResult<TwitterOAuthToken?> = either {
+        loadTwitterOAuthDocument(userUuid)
+            .mapLeft { it.toTwitterApiError() }
+            .bind()
+            .accessToken
+    }
 
     /** Load the full OAuth document, or return an empty one if none exists. */
     private suspend fun loadTwitterOAuthDocument(
@@ -224,17 +226,17 @@ class TwitterApiModule(
     suspend fun buildAuthorizeURL(
         config: TwitterConfig,
         userUuid: UUIDv7,
-    ): ApiResult<String> {
-        return try {
+    ): ApiResult<String> = either {
+        try {
             val service = createOAuthService(config, callbackUrl)
             val token = withContext(Dispatchers.LoomIO) { service.requestToken }
             val authUrl = service.getAuthorizationUrl(token)
 
             // Store pending request token in existing auth document
             val existingDoc =
-                loadTwitterOAuthDocument(userUuid).getOrElse {
-                    return it.toTwitterApiError().left()
-                }
+                loadTwitterOAuthDocument(userUuid)
+                    .mapLeft { it.toTwitterApiError() }
+                    .bind()
             saveTwitterOAuthDocument(
                     userUuid,
                     existingDoc.copy(
@@ -245,11 +247,10 @@ class TwitterApiModule(
                             )
                     ),
                 )
-                .getOrElse {
-                    return it.toTwitterApiError().left()
-                }
+                .mapLeft { it.toTwitterApiError() }
+                .bind()
 
-            authUrl.right()
+            authUrl
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to get Twitter request token", e)
@@ -260,12 +261,13 @@ class TwitterApiModule(
                 } else {
                     "Twitter authorization failed!"
                 }
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "twitter",
                     errorMessage = userMessage,
                 )
-                .left()
+            )
         }
     }
 
@@ -275,36 +277,38 @@ class TwitterApiModule(
         token: String,
         verifier: String,
         userUuid: UUIDv7,
-    ): ApiResult<Unit> {
-        return try {
+    ): ApiResult<Unit> = either {
+        try {
             val existingDoc =
-                loadTwitterOAuthDocument(userUuid).getOrElse {
-                    return it.toTwitterApiError().left()
-                }
+                loadTwitterOAuthDocument(userUuid)
+                    .mapLeft { it.toTwitterApiError() }
+                    .bind()
             val pending = existingDoc.pendingRequest
 
             if (pending == null) {
                 logger.warn("No pending request token found for user $userUuid")
-                return RequestError(
+                raise(
+                    RequestError(
                         status = 400,
                         module = "twitter",
                         errorMessage =
                             "Authorization could not be verified. Please try again.",
                     )
-                    .left()
+                )
             }
 
             if (pending.token != token) {
                 logger.warn(
                     "Callback token mismatch: expected ${pending.token}, got $token"
                 )
-                return RequestError(
+                raise(
+                    RequestError(
                         status = 400,
                         module = "twitter",
                         errorMessage =
                             "Authorization could not be verified. Please try again.",
                     )
-                    .left()
+                )
             }
 
             val reqToken = OAuth1RequestToken(token, pending.secret)
@@ -327,20 +331,20 @@ class TwitterApiModule(
                         pendingRequest = null,
                     ),
                 )
-                .getOrElse {
-                    return it.toTwitterApiError().left()
-                }
+                .mapLeft { it.toTwitterApiError() }
+                .bind()
 
-            Unit.right()
+            Unit
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to save Twitter OAuth token", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "twitter",
                     errorMessage = "Failed to save OAuth token: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -459,38 +463,31 @@ class TwitterApiModule(
         config: TwitterConfig,
         request: NewPostRequest,
         replyToId: String? = null,
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             val userUuid = userUuid()
             // Validate request
-            validateRequest(request)?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
 
             val message = request.messages.first()
 
             // Get OAuth token
             val token =
-                restoreOauthTokenFromDb(userUuid).getOrElse {
-                    return it.left()
-                }
-                    ?: return ValidationError(
+                restoreOauthTokenFromDb(userUuid).bind()
+                    ?: raise(
+                        ValidationError(
                             status = 401,
                             errorMessage =
                                 "Unauthorized: Missing Twitter OAuth token!",
                             module = "twitter",
                         )
-                        .left()
+                    )
 
             // Upload images if present
             val mediaIds = mutableListOf<String>()
             if (!message.images.isNullOrEmpty()) {
                 for (imageUuid in message.images) {
-                    mediaIds.add(
-                        uploadMedia(config, token, imageUuid).getOrElse {
-                            return it.left()
-                        }
-                    )
+                    mediaIds.add(uploadMedia(config, token, imageUuid).bind())
                 }
             }
 
@@ -534,38 +531,39 @@ class TwitterApiModule(
             if (response.status.value == 201) {
                 val data = response.body<TwitterPostResponse>()
                 NewTwitterPostResponse(
-                        id = data.data.id,
-                        messages =
-                            listOf(
-                                PublishedMessageResponse(
-                                    id = data.data.id,
-                                    replyToId = replyToId,
-                                )
-                            ),
-                    )
-                    .right()
+                    id = data.data.id,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(
+                                id = data.data.id,
+                                replyToId = replyToId,
+                            )
+                        ),
+                )
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn(
                     "Failed to post to Twitter: ${response.status}, body: $errorBody"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "twitter",
                         errorMessage = "Failed to create post",
                         body = ResponseBody(asString = errorBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to Twitter", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "twitter",
                     errorMessage = "Failed to post to Twitter: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -573,10 +571,8 @@ class TwitterApiModule(
     override suspend fun createThread(
         config: TwitterConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        validateRequest(request)?.let {
-            return it.left()
-        }
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
         var previousId: String? = null
         val messages = mutableListOf<PublishedMessageResponse>()
@@ -589,28 +585,23 @@ class TwitterApiModule(
                     language = request.language,
                     messages = nonEmptyListOf(message),
                 )
-            when (
-                val result =
-                    createPost(
+            val result =
+                createPost(
                         config = config,
                         request = singleRequest,
                         replyToId = previousId,
                     )
-            ) {
-                is Either.Left -> return result.value.left()
-                is Either.Right -> {
-                    val response = result.value as NewTwitterPostResponse
-                    if (messages.isEmpty()) {
-                        rootId = response.id
-                    }
-                    val published = response.messages.first()
-                    messages += published
-                    previousId = published.id
-                }
+                    .bind()
+            val response = result as NewTwitterPostResponse
+            if (messages.isEmpty()) {
+                rootId = response.id
             }
+            val published = response.messages.first()
+            messages += published
+            previousId = published.id
         }
 
-        return NewTwitterPostResponse(id = rootId, messages = messages).right()
+        NewTwitterPostResponse(id = rootId, messages = messages)
     }
 }
 

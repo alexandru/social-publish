@@ -1,8 +1,10 @@
 package socialpublish.backend.clients.mastodon
 
-import arrow.core.Either
 import arrow.core.left
 import arrow.core.nonEmptyListOf
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -185,7 +187,7 @@ class MastodonApiModule(
     private suspend fun waitForMediaProcessing(
         config: MastodonConfig,
         mediaId: String,
-    ): ApiResult<MastodonMediaResponse> {
+    ): ApiResult<MastodonMediaResponse> = either {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
             delay(200.milliseconds)
@@ -198,7 +200,7 @@ class MastodonApiModule(
             when (response.status.value) {
                 200 -> {
                     val data = response.body<MastodonMediaResponse>()
-                    return data.right()
+                    return@either data
                 }
 
                 202 -> {
@@ -208,23 +210,25 @@ class MastodonApiModule(
 
                 else -> {
                     val errorBody = response.bodyAsText()
-                    return RequestError(
+                    raise(
+                        RequestError(
                             status = response.status.value,
                             module = "mastodon",
                             errorMessage = "Failed to get media status",
                             body = ResponseBody(asString = errorBody),
                         )
-                        .left()
+                    )
                 }
             }
         }
 
-        return CaughtException(
+        raise(
+            CaughtException(
                 status = 500,
                 module = "mastodon",
                 errorMessage = "Media processing timeout",
             )
-            .left()
+        )
     }
 
     /** Create a single post on Mastodon */
@@ -233,12 +237,10 @@ class MastodonApiModule(
         config: MastodonConfig,
         request: NewPostRequest,
         replyToId: String? = null,
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             // Validate request
-            validateRequest(request)?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
 
             val message = request.messages.first()
 
@@ -246,10 +248,7 @@ class MastodonApiModule(
             val mediaIds = mutableListOf<String>()
             if (!message.images.isNullOrEmpty()) {
                 for (imageUuid in message.images) {
-                    when (val result = uploadMedia(config, imageUuid)) {
-                        is Either.Right -> mediaIds.add(result.value.id)
-                        is Either.Left -> return result.value.left()
-                    }
+                    mediaIds.add(uploadMedia(config, imageUuid).bind().id)
                 }
             }
 
@@ -282,40 +281,41 @@ class MastodonApiModule(
             if (response.status.value == 200) {
                 val data = response.body<MastodonStatusResponse>()
                 NewMastodonPostResponse(
-                        uri = data.url,
-                        id = data.id,
-                        messages =
-                            listOf(
-                                PublishedMessageResponse(
-                                    id = data.id,
-                                    uri = data.url,
-                                    replyToId = replyToId,
-                                )
-                            ),
-                    )
-                    .right()
+                    uri = data.url,
+                    id = data.id,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(
+                                id = data.id,
+                                uri = data.url,
+                                replyToId = replyToId,
+                            )
+                        ),
+                )
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn(
                     "Failed to post to Mastodon: ${response.status}, body: $errorBody"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "mastodon",
                         errorMessage = "Failed to create status",
                         body = ResponseBody(asString = errorBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to Mastodon", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "mastodon",
                     errorMessage = "Failed to post to Mastodon: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -323,10 +323,8 @@ class MastodonApiModule(
     override suspend fun createThread(
         config: MastodonConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        validateRequest(request)?.let {
-            return it.left()
-        }
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
         var previousId: String? = null
         val messages = mutableListOf<PublishedMessageResponse>()
@@ -340,34 +338,24 @@ class MastodonApiModule(
                     language = request.language,
                     messages = nonEmptyListOf(message),
                 )
-            when (
-                val result =
-                    createPost(
+            val result =
+                createPost(
                         config = config,
                         request = singleRequest,
                         replyToId = previousId,
                     )
-            ) {
-                is Either.Left -> return result.value.left()
-                is Either.Right -> {
-                    val response = result.value as NewMastodonPostResponse
-                    if (messages.isEmpty()) {
-                        rootUri = response.uri
-                        rootId = response.id
-                    }
-                    val published = response.messages.first()
-                    messages += published
-                    previousId = published.id
-                }
+                    .bind()
+            val response = result as NewMastodonPostResponse
+            if (messages.isEmpty()) {
+                rootUri = response.uri
+                rootId = response.id
             }
+            val published = response.messages.first()
+            messages += published
+            previousId = published.id
         }
 
-        return NewMastodonPostResponse(
-                uri = rootUri,
-                id = rootId,
-                messages = messages,
-            )
-            .right()
+        NewMastodonPostResponse(uri = rootUri, id = rootId, messages = messages)
     }
 }
 
