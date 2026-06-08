@@ -9,7 +9,7 @@ import socialpublish.frontend.utils.navigateTo
 
 @Composable
 fun Authorize(content: @Composable () -> Unit) {
-    val token = Storage.getJwtToken()
+    val token = Storage.getSessionToken()
 
     if (token == null) {
         LaunchedEffect(Unit) {

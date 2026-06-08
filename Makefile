@@ -36,7 +36,6 @@ clean:
 test:
 	./gradlew test
 
-# Dependency updates
 dependency-updates:
 	./gradlew dependencyUpdates \
 		-Drevision=release \
@@ -45,11 +44,16 @@ dependency-updates:
 		open backend/build/dependencyUpdates/report.html && \
 		open frontend/build/dependencyUpdates/report.html
 
+dependency-updates-ci:
+	./gradlew dependencyUpdates --no-parallel -Drevision=release -DoutputFormatter=html --refresh-dependencies
+
 skills-update:
 	npx skills add alexandru/skills -a claude-code github-copilot opencode -y --skill \
 		arrow-resource \
 		arrow-typed-errors \
-		compose-state-hoisting
+		compose-state-hoisting \
+		kotlin-context-parameters \
+		simplify
 
 # Docker setup
 docker-init:
@@ -82,7 +86,7 @@ docker-build-jvm-local:
 
 docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
-	docker run -it -p 3000:3000 --rm --name social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
+	docker run -it -p 3000:3000 --rm --name social-publish -v social-publish-data:/var/lib/social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
 
 # Code quality
 lint:

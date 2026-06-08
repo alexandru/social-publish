@@ -26,133 +26,142 @@ import socialpublish.backend.testutils.createTestDatabase
 
 class SocialMediaValidationTest {
     private fun testHttpClient(): HttpClient =
-        HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
-
-    @Test
-    fun `bluesky validation uses 300-char limit with links counted as 25`(@TempDir tempDir: Path) =
-        runTest {
-            val db = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, db)
-            val httpClient = testHttpClient()
-            val module =
-                BlueskyApiModule(
-                    filesModule = filesModule,
-                    httpClient = httpClient,
-                    linkPreviewParser = LinkPreviewParser(httpClient = httpClient),
-                )
-
-            val accepted =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(273),
-                                link = "https://example.com",
-                            )
-                        )
-                )
-            val rejected =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(274),
-                                link = "https://example.com",
-                            )
-                        )
-                )
-
-            assertNull(module.validateRequest(accepted))
-            val error = module.validateRequest(rejected)
-            assertNotNull(error)
-            assertEquals("bluesky", error.module)
-
-            httpClient.close()
+        HttpClient(CIO) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
         }
 
     @Test
-    fun `mastodon validation uses 500-char limit with links counted as 25`(@TempDir tempDir: Path) =
-        runTest {
-            val db = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, db)
-            val httpClient = testHttpClient()
-            val module = MastodonApiModule(filesModule, httpClient)
+    fun `bluesky validation uses 300-char limit with links counted as 25`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val httpClient = testHttpClient()
+        val module =
+            BlueskyApiModule(
+                filesModule = filesModule,
+                httpClient = httpClient,
+                linkPreviewParser = LinkPreviewParser(httpClient = httpClient),
+            )
 
-            val accepted =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(473),
-                                link = "https://example.com",
-                            )
+        val accepted =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(273),
+                            link = "https://example.com",
                         )
-                )
-            val rejected =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(474),
-                                link = "https://example.com",
-                            )
+                    )
+            )
+        val rejected =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(274),
+                            link = "https://example.com",
                         )
-                )
+                    )
+            )
 
-            assertNull(module.validateRequest(accepted))
-            val error = module.validateRequest(rejected)
-            assertNotNull(error)
-            assertEquals("mastodon", error.module)
+        assertNull(module.validateRequest(accepted))
+        val error = module.validateRequest(rejected)
+        assertNotNull(error)
+        assertEquals("bluesky", error.module)
 
-            httpClient.close()
-        }
+        httpClient.close()
+    }
 
     @Test
-    fun `twitter validation uses 280-char limit with links counted as 25`(@TempDir tempDir: Path) =
-        runTest {
-            val db = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, db)
-            val documentsDb = DocumentsDatabase(db)
-            val httpClient = testHttpClient()
-            val module =
-                TwitterApiModule(
-                    baseUrl = "http://localhost",
-                    documentsDb = documentsDb,
-                    filesModule = filesModule,
-                    httpClient = httpClient,
-                )
+    fun `mastodon validation uses 500-char limit with links counted as 25`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val httpClient = testHttpClient()
+        val module = MastodonApiModule(filesModule, httpClient)
 
-            val accepted =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(253),
-                                link = "https://example.com",
-                            )
+        val accepted =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(473),
+                            link = "https://example.com",
                         )
-                )
-            val rejected =
-                NewPostRequest(
-                    messages =
-                        nonEmptyListOf(
-                            NewPostRequestMessage(
-                                content = "a".repeat(254),
-                                link = "https://example.com",
-                            )
+                    )
+            )
+        val rejected =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(474),
+                            link = "https://example.com",
                         )
-                )
+                    )
+            )
 
-            assertNull(module.validateRequest(accepted))
-            val error = module.validateRequest(rejected)
-            assertNotNull(error)
-            assertEquals("twitter", error.module)
+        assertNull(module.validateRequest(accepted))
+        val error = module.validateRequest(rejected)
+        assertNotNull(error)
+        assertEquals("mastodon", error.module)
 
-            httpClient.close()
-        }
+        httpClient.close()
+    }
 
     @Test
-    fun `linkedin validation enforces post and follow-up limits`(@TempDir tempDir: Path) = runTest {
+    fun `twitter validation uses 280-char limit with links counted as 25`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val documentsDb = DocumentsDatabase(db)
+        val httpClient = testHttpClient()
+        val module =
+            TwitterApiModule(
+                baseUrl = "http://localhost",
+                documentsDb = documentsDb,
+                filesModule = filesModule,
+                httpClient = httpClient,
+            )
+
+        val accepted =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(253),
+                            link = "https://example.com",
+                        )
+                    )
+            )
+        val rejected =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "a".repeat(254),
+                            link = "https://example.com",
+                        )
+                    )
+            )
+
+        assertNull(module.validateRequest(accepted))
+        val error = module.validateRequest(rejected)
+        assertNotNull(error)
+        assertEquals("twitter", error.module)
+
+        httpClient.close()
+    }
+
+    @Test
+    fun `linkedin validation enforces post and follow-up limits`(
+        @TempDir tempDir: Path
+    ) = runTest {
         val db = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, db)
         val documentsDb = DocumentsDatabase(db)
@@ -170,15 +179,24 @@ class SocialMediaValidationTest {
             NewPostRequest(
                 messages =
                     nonEmptyListOf(
-                        NewPostRequestMessage(content = "a".repeat(1973), link = "https://x.com"),
-                        NewPostRequestMessage(content = "a".repeat(1223), link = "https://x.com"),
+                        NewPostRequestMessage(
+                            content = "a".repeat(1973),
+                            link = "https://x.com",
+                        ),
+                        NewPostRequestMessage(
+                            content = "a".repeat(1223),
+                            link = "https://x.com",
+                        ),
                     )
             )
         val rejectedPost =
             NewPostRequest(
                 messages =
                     nonEmptyListOf(
-                        NewPostRequestMessage(content = "a".repeat(1974), link = "https://x.com")
+                        NewPostRequestMessage(
+                            content = "a".repeat(1974),
+                            link = "https://x.com",
+                        )
                     )
             )
         val rejectedFollowUp =
@@ -186,7 +204,10 @@ class SocialMediaValidationTest {
                 messages =
                     nonEmptyListOf(
                         NewPostRequestMessage(content = "root"),
-                        NewPostRequestMessage(content = "a".repeat(1224), link = "https://x.com"),
+                        NewPostRequestMessage(
+                            content = "a".repeat(1224),
+                            link = "https://x.com",
+                        ),
                     )
             )
         val rejectedThreadLength =

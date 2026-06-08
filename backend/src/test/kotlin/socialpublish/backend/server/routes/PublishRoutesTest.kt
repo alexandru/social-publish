@@ -19,69 +19,20 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 
 class PublishRoutesTest {
-    @Test
-    fun `broadcastPostRoute accepts JSON request`(@TempDir tempDir: Path) = testApplication {
-        val jdbi = createTestDatabase(tempDir)
-        val postsDb =
-            socialpublish.backend.db.PostsDatabase(socialpublish.backend.db.DocumentsDatabase(jdbi))
-        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-        val publishModule =
-            PublishModule(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                feedModule,
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            )
-        val publishRoutes = PublishRoutes()
-
-        application {
-            install(ContentNegotiation) { json() }
-            routing {
-                post("/api/multiple/post") { publishRoutes.broadcastPostRoute(call, publishModule) }
-            }
-        }
-
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                        isLenient = true
-                    }
-                )
-            }
-        }
-
-        val request = NewPostRequest(content = "Test broadcast via JSON", targets = listOf("feed"))
-
-        val response =
-            client.post("/api/multiple/post") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.bodyAsText()
-        assertTrue(body.contains("http://localhost:3000/feed/"))
-        assertTrue(body.contains("\"feed\""))
-
-        client.close()
-    }
+    private val testSession =
+        createTestSession(
+            UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+        )
 
     @Test
-    fun `broadcastPostRoute returns error for unconfigured platform`(@TempDir tempDir: Path) =
+    fun `broadcastPostRoute accepts JSON request`(@TempDir tempDir: Path) =
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val postsDb =
@@ -89,7 +40,8 @@ class PublishRoutesTest {
                     socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
             val publishModule =
                 PublishModule(
                     null,
@@ -101,7 +53,7 @@ class PublishRoutesTest {
                     null,
                     null,
                     feedModule,
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                    testSession,
                 )
             val publishRoutes = PublishRoutes()
 
@@ -109,67 +61,12 @@ class PublishRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/multiple/post") {
-                        publishRoutes.broadcastPostRoute(call, publishModule)
-                    }
-                }
-            }
-
-            val client = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
+                        context(testSession) {
+                            publishRoutes.broadcastPostRoute(
+                                call,
+                                publishModule,
+                            )
                         }
-                    )
-                }
-            }
-
-            val request = NewPostRequest(content = "Test post", targets = listOf("bluesky"))
-
-            val response =
-                client.post("/api/multiple/post") {
-                    contentType(ContentType.Application.Json)
-                    setBody(request)
-                }
-
-            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
-            val body = response.bodyAsText()
-            assertTrue(body.contains("not configured") || body.contains("Bluesky"))
-
-            client.close()
-        }
-
-    @Test
-    fun `broadcastPostRoute returns composite error with details`(@TempDir tempDir: Path) =
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val postsDb =
-                socialpublish.backend.db.PostsDatabase(
-                    socialpublish.backend.db.DocumentsDatabase(jdbi)
-                )
-            val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
-            val publishModule =
-                PublishModule(
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    feedModule,
-                    java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                )
-            val publishRoutes = PublishRoutes()
-
-            application {
-                install(ContentNegotiation) { json() }
-                routing {
-                    post("/api/multiple/post") {
-                        publishRoutes.broadcastPostRoute(call, publishModule)
                     }
                 }
             }
@@ -187,8 +84,8 @@ class PublishRoutesTest {
 
             val request =
                 NewPostRequest(
-                    content = "Test composite error",
-                    targets = listOf("feed", "mastodon"),
+                    content = "Test broadcast via JSON",
+                    targets = listOf("feed"),
                 )
 
             val response =
@@ -197,12 +94,144 @@ class PublishRoutesTest {
                     setBody(request)
                 }
 
-            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+            assertEquals(HttpStatusCode.OK, response.status)
             val body = response.bodyAsText()
-            // Should contain composite error with responses array
-            assertTrue(body.contains("responses"))
-            assertTrue(body.contains("Failed to publish"))
+            assertTrue(body.contains("http://localhost:3000/feed/"))
+            assertTrue(body.contains("\"feed\""))
 
             client.close()
         }
+
+    @Test
+    fun `broadcastPostRoute returns error for unconfigured platform`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+        val publishModule =
+            PublishModule(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                feedModule,
+                testSession,
+            )
+        val publishRoutes = PublishRoutes()
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                post("/api/multiple/post") {
+                    context(testSession) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        val request =
+            NewPostRequest(content = "Test post", targets = listOf("bluesky"))
+
+        val response =
+            client.post("/api/multiple/post") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("not configured") || body.contains("Bluesky"))
+
+        client.close()
+    }
+
+    @Test
+    fun `broadcastPostRoute returns composite error with details`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+        val publishModule =
+            PublishModule(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                feedModule,
+                testSession,
+            )
+        val publishRoutes = PublishRoutes()
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                post("/api/multiple/post") {
+                    context(testSession) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        val request =
+            NewPostRequest(
+                content = "Test composite error",
+                targets = listOf("feed", "mastodon"),
+            )
+
+        val response =
+            client.post("/api/multiple/post") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        val body = response.bodyAsText()
+        // Should contain composite error with responses array
+        assertTrue(body.contains("responses"))
+        assertTrue(body.contains("Failed to publish"))
+
+        client.close()
+    }
 }

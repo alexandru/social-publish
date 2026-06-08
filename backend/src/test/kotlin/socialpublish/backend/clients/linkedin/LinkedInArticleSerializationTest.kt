@@ -37,7 +37,8 @@ class LinkedInArticleSerializationTest {
 
         val out = json.encodeToString(UgcPostRequest.serializer(), request)
 
-        // The serialized JSON must not contain a '"media": "urn:li:digitalmedia' entry inside the
+        // The serialized JSON must not contain a '"media":
+        // "urn:li:digitalmedia' entry inside the
         // media item
         assertFalse(
             out.contains("\"media\":\"urn:li:digitalmedia"),

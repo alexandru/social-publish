@@ -1,22 +1,23 @@
 package socialpublish.backend.common
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-
-private val logger = KotlinLogging.logger {}
+import java.net.URI
 
 data class ParsedUrl(val scheme: String, val host: String, val port: Int?) {
     fun isLocal(): Boolean {
         // Consider common loopback addresses local, including IPv6 loopback
         val h = host.trim().removePrefix("[").removeSuffix("]").lowercase()
-        return h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0:0:0:0:0:0:0:1"
+        return h == "localhost" ||
+            h == "127.0.0.1" ||
+            h == "::1" ||
+            h == "0:0:0:0:0:0:0:1"
     }
 }
 
 fun parseUrl(url: String): ParsedUrl? =
     try {
-        var uri = java.net.URI(url)
+        var uri = URI(url)
         if (uri.scheme == null) {
-            uri = java.net.URI("https://$url")
+            uri = URI("https://$url")
         }
         val scheme = uri.scheme
         val host = uri.host
@@ -25,7 +26,10 @@ fun parseUrl(url: String): ParsedUrl? =
             return null
         }
         return ParsedUrl(scheme, host, port)
-    } catch (e: Exception) {
-        logger.error(e) { "Failed to parse URL: $url" }
+    } catch (e: Throwable) {
+        rethrowIfFatalOrCancelled(e)
+        logger.error("Failed to parse URL: $url", e)
         null
     }
+
+private val logger by loggerFactory()

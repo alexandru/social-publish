@@ -7,26 +7,26 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             // Versions
-            version("kotlin", "2.3.0")
-            version("ktor", "3.4.0")
+            version("kotlin", "2.3.21")
+            version("ktor", "3.4.3")
             version("arrow", "2.2.1.1")
-            version("jdbi", "3.51.0")
-            version("logback", "1.5.25")
+            version("jdbi", "3.52.1")
+            version("logback", "1.5.32")
             version("clikt", "5.1.0")
-            version("kotlinx-serialization", "1.9.0")
-            version("sqlite-jdbc", "3.51.1.0")
-            version("kotlin-logging", "7.0.14")
+            version("kotlinx-serialization", "1.11.0")
+            version("sqlite-jdbc", "3.53.0.0")
+
             version("rome", "2.1.0")
             version("scribejava", "8.3.3")
-            version("jsoup", "1.18.3")
+            version("jsoup", "1.22.2")
             version("bcrypt", "0.10.2")
             version("jbcrypt", "0.4")
-            version("mockk", "1.14.7")
-            version("kotlinx-coroutines", "1.10.2")
+            version("mockk", "1.14.9")
+            version("kotlinx-coroutines", "1.11.0")
             version("common-text", "1.15.0")
-            version("apache-tika", "3.2.3")
+            version("apache-tika", "3.3.0")
             version("hikaricp", "7.0.2")
-            version("compose", "1.10.0")
+            version("compose", "1.11.0")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()
@@ -44,7 +44,6 @@ dependencyResolutionManagement {
             library("ktor-server-content-negotiation", "io.ktor", "ktor-server-content-negotiation").versionRef("ktor")
             library("ktor-serialization-kotlinx-json", "io.ktor", "ktor-serialization-kotlinx-json").versionRef("ktor")
             library("ktor-server-auth", "io.ktor", "ktor-server-auth").versionRef("ktor")
-            library("ktor-server-auth-jwt", "io.ktor", "ktor-server-auth-jwt").versionRef("ktor")
             library("ktor-server-status-pages", "io.ktor", "ktor-server-status-pages").versionRef("ktor")
             library("ktor-server-call-logging", "io.ktor", "ktor-server-call-logging").versionRef("ktor")
             library("ktor-server-cors", "io.ktor", "ktor-server-cors").versionRef("ktor")
@@ -79,7 +78,6 @@ dependencyResolutionManagement {
 
             // Logging
             library("logback-classic", "ch.qos.logback", "logback-classic").versionRef("logback")
-            library("kotlin-logging", "io.github.oshai", "kotlin-logging-jvm").versionRef("kotlin-logging")
 
             // RSS generation
             library("rome", "com.rometools", "rome").versionRef("rome")
@@ -136,7 +134,6 @@ dependencyResolutionManagement {
                     "ktor-server-content-negotiation",
                     "ktor-serialization-kotlinx-json",
                     "ktor-server-auth",
-                    "ktor-server-auth-jwt",
                     "ktor-server-status-pages",
                     "ktor-server-call-logging",
                     "ktor-server-cors",
@@ -156,7 +153,7 @@ dependencyResolutionManagement {
                 ),
             )
             bundle("jdbi", listOf("jdbi-core", "jdbi-kotlin", "jdbi-kotlin-sqlobject"))
-            bundle("logging", listOf("logback-classic", "kotlin-logging"))
+            bundle("logging", listOf("logback-classic"))
         }
     }
 }

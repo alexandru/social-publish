@@ -24,7 +24,13 @@ data class NewPostRequest(
         targets = targets,
         language = language,
         messages =
-            nonEmptyListOf(NewPostRequestMessage(content = content, link = link, images = images)),
+            nonEmptyListOf(
+                NewPostRequestMessage(
+                    content = content,
+                    link = link,
+                    images = images,
+                )
+            ),
     )
 }
 

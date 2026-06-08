@@ -14,33 +14,22 @@ fun Operation.Builder.documentSecurityRequirements() {
     security {
         // Each call = an OR alternative
         requirement("bearerAuth")
-        requirement("accessTokenQuery")
         requirement("accessTokenCookie")
     }
 }
 
 fun Application.configureOpenApiSecuritySchemes() {
-    // 1) Authorization: Bearer <JWT>
     registerBearerAuthSecurityScheme(
         name = "bearerAuth",
-        description = "JWT via Authorization: Bearer <token>",
-        bearerFormat = "JWT",
+        description = "Session token via Authorization: Bearer <token>",
+        bearerFormat = "session-token",
     )
 
-    // 2) access_token in query
-    registerApiKeySecurityScheme(
-        name = "accessTokenQuery",
-        keyName = "access_token",
-        keyLocation = SecuritySchemeIn.QUERY,
-        description = "JWT via ?access_token=... (discouraged, but supported)",
-    )
-
-    // 3) access_token in cookie
     registerApiKeySecurityScheme(
         name = "accessTokenCookie",
         keyName = "access_token",
         keyLocation = SecuritySchemeIn.COOKIE,
-        description = "JWT via Cookie: access_token=...",
+        description = "Session token via Cookie: access_token=...",
     )
 }
 
@@ -69,38 +58,34 @@ inline fun <reified T : Any> Responses.Builder.documentNewPostResponses() {
 
 fun Responses.Builder.documentOAuthCallbackResponses() {
     HttpStatusCode.Found {
-        description = "Successful authorization, redirects to account page (302 Found)"
-    }
-    HttpStatusCode.BadRequest {
-        description = "Missing required parameters (code, state, or verifier)"
-        schema = jsonSchema<ErrorResponse>()
-    }
-    HttpStatusCode.Unauthorized {
-        description = "State parameter mismatch or authorization failed"
-        schema = jsonSchema<ErrorResponse>()
-    }
-    HttpStatusCode.InternalServerError {
-        description = "Failed to save authorization token"
-        schema = jsonSchema<ErrorResponse>()
+        description =
+            "Redirects to /account?info=... on success, or /account?error=... on failure"
     }
 }
 
 fun Responses.Builder.documentOAuthStatusResponses() {
-    HttpStatusCode.OK { description = "Authorization status retrieved successfully" }
+    HttpStatusCode.OK {
+        description = "Authorization status retrieved successfully"
+    }
     HttpStatusCode.InternalServerError {
         description = "Failed to check authorization status"
         schema = jsonSchema<ErrorResponse>()
     }
 }
 
-fun Operation.Builder.documentOAuthAuthorizeSpec(oauthVersion: String, platform: String) {
+fun Operation.Builder.documentOAuthAuthorizeSpec(
+    oauthVersion: String,
+    platform: String,
+) {
     description =
         "Starts the $oauthVersion authorization flow for $platform. Redirects to $platform's authorization page."
     documentSecurityRequirements()
     responses {
-        HttpStatusCode.Found { description = "Redirect to $platform authorization URL (302 Found)" }
+        HttpStatusCode.Found {
+            description = "Redirect to $platform authorization URL (302 Found)"
+        }
         HttpStatusCode.Unauthorized {
-            description = "Not authenticated (missing or invalid JWT token)"
+            description = "Not authenticated (missing or invalid session token)"
             schema = jsonSchema<ErrorResponse>()
         }
         HttpStatusCode.ServiceUnavailable {

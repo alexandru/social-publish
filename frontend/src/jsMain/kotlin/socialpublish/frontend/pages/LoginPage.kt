@@ -3,17 +3,29 @@ package socialpublish.frontend.pages
 import androidx.compose.runtime.*
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.ErrorModal
+import socialpublish.frontend.components.NotificationMessage
+import socialpublish.frontend.components.NotificationType
 import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.TextInputField
-import socialpublish.frontend.models.LoginRequest
-import socialpublish.frontend.models.LoginResponse
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.navigateTo
+import socialpublish.frontend.utils.rethrowIfFatal
+
+@Serializable
+internal data class LoginRequest(val username: String, val password: String)
+
+@Serializable
+internal data class LoginResponse(
+    val token: String,
+    val configuredServices: ConfiguredServices = ConfiguredServices(),
+)
 
 // External declaration for URLSearchParams
 external class URLSearchParams(init: String = definedExternally) {
@@ -33,13 +45,19 @@ fun LoginPage() {
     val redirectParam = remember {
         val redirect = URLSearchParams(window.location.search).get("redirect")
         // Only allow internal paths that start with '/' and don't contain '..'
-        if (redirect != null && redirect.startsWith("/") && !redirect.contains("..")) {
+        if (
+            redirect != null &&
+                redirect.startsWith("/") &&
+                !redirect.contains("..")
+        ) {
             redirect
         } else {
             null
         }
     }
-    val reasonParam = remember { URLSearchParams(window.location.search).get("reason") }
+    val reasonParam = remember {
+        URLSearchParams(window.location.search).get("reason")
+    }
 
     val handleSubmit: () -> Unit = {
         scope.launch {
@@ -53,18 +71,22 @@ fun LoginPage() {
 
                 when (response) {
                     is ApiResponse.Success -> {
-                        Storage.setJwtToken(response.data.token)
-                        Storage.setConfiguredServices(response.data.configuredServices)
+                        Storage.setSessionToken(response.data.token)
+                        Storage.setConfiguredServices(
+                            response.data.configuredServices
+                        )
                         navigateTo(redirectParam ?: "/form")
                     }
                     is ApiResponse.Error -> {
                         error = response.message
                     }
                     is ApiResponse.Exception -> {
-                        error = "Exception while logging in: ${response.message}"
+                        error =
+                            "Exception while logging in: ${response.message}"
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                rethrowIfFatal(e)
                 error = "Exception while logging in: ${e.message}"
             } finally {
                 isLoading = false
@@ -79,13 +101,15 @@ fun LoginPage() {
 
         // Show info notification if redirected from a protected page
         if (reasonParam == "session_expired") {
-            Div(attrs = { classes("notification", "is-warning", "is-light") }) {
-                Text("Your session expired. Please log in again.")
-            }
+            NotificationMessage(
+                message = "Your session expired. Please log in again.",
+                type = NotificationType.WARNING,
+            )
         } else if (redirectParam != null) {
-            Div(attrs = { classes("notification", "is-info", "is-light") }) {
-                Text("You need to log in to access this page.")
-            }
+            NotificationMessage(
+                message = "You need to log in to access this page.",
+                type = NotificationType.INFO,
+            )
         }
 
         Form(

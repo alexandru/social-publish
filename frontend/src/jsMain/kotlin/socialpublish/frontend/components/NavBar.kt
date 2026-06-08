@@ -7,11 +7,12 @@ import socialpublish.frontend.utils.navigateTo
 
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {
-    val isLoggedIn = Storage.hasJwtToken()
-    val feedHref = Storage.getJwtUserUuid()?.let { "/feed/$it" }
+    val isLoggedIn = Storage.hasSessionToken()
+    val feedHref = "#"
     var navbarActive by remember { mutableStateOf(false) }
 
-    // Normalize currentPath to ignore trailing slashes and query strings so active checks are
+    // Normalize currentPath to ignore trailing slashes and query strings so
+    // active checks are
     // robust
 
     Nav(
@@ -101,14 +102,12 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                         }
                     }
 
-                    feedHref?.let { href ->
-                        NavItemLink(
-                            href = href,
-                            label = "Feed",
-                            iconClasses = arrayOf("fas", "fa-rss"),
-                            openInNewTab = true,
-                        )
-                    }
+                    NavItemLink(
+                        href = feedHref,
+                        label = "Feed",
+                        iconClasses = arrayOf("fas", "fa-rss"),
+                        openInNewTab = true,
+                    )
                 }
 
                 // New API link (opens in new tab)
@@ -190,7 +189,9 @@ private fun NavButton(
                 }
             },
         ) {
-            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            Span(attrs = { classes("icon") }) {
+                I(attrs = { classes(*iconClasses) })
+            }
             B { Text(label) }
         }
     } else {
@@ -200,7 +201,9 @@ private fun NavButton(
                 if (onClick != null) onClick { onClick() }
             }
         ) {
-            Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+            Span(attrs = { classes("icon") }) {
+                I(attrs = { classes(*iconClasses) })
+            }
             B { Text(label) }
         }
     }
@@ -223,7 +226,9 @@ private fun NavItemLink(
             }
         },
     ) {
-        Span(attrs = { classes("icon") }) { I(attrs = { classes(*iconClasses) }) }
+        Span(attrs = { classes("icon") }) {
+            I(attrs = { classes(*iconClasses) })
+        }
         B { Text(label) }
     }
 }

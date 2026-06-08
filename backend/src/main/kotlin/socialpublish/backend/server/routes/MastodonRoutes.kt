@@ -9,28 +9,35 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
-import java.util.UUID
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.db.UserSession
 
 class MastodonRoutes(private val mastodonModule: MastodonApiModule) {
+    context(_: UserSession)
     suspend fun createPostRoute(
-        userUuid: UUID,
         mastodonConfig: MastodonConfig,
         call: ApplicationCall,
     ) {
         val request =
             runCatching { call.receive<NewPostRequest>() }.getOrNull()
                 ?: run {
-                    val contentTypeHeader = call.request.headers[HttpHeaders.ContentType]
-                    val contentType = contentTypeHeader?.let { ContentType.parse(it) }
+                    val contentTypeHeader =
+                        call.request.headers[HttpHeaders.ContentType]
+                    val contentType = contentTypeHeader?.let {
+                        ContentType.parse(it)
+                    }
                     val params =
                         if (
-                            contentType?.match(ContentType.Application.FormUrlEncoded) == true ||
-                                contentType?.match(ContentType.MultiPart.FormData) == true
+                            contentType?.match(
+                                ContentType.Application.FormUrlEncoded
+                            ) == true ||
+                                contentType?.match(
+                                    ContentType.MultiPart.FormData
+                                ) == true
                         ) {
                             call.receiveParameters()
                         } else {
@@ -50,7 +57,9 @@ class MastodonRoutes(private val mastodonModule: MastodonApiModule) {
                     )
                 }
 
-        when (val result = mastodonModule.createThread(mastodonConfig, request, userUuid)) {
+        when (
+            val result = mastodonModule.createThread(mastodonConfig, request)
+        ) {
             is Either.Right -> call.respond(result.value)
             is Either.Left -> {
                 val error = result.value

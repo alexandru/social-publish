@@ -1,14 +1,14 @@
 package socialpublish.backend.db
 
 import java.time.Instant
-import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
- * Custom exception class for database-related errors, because we want typed exceptions in our
- * lives.
+ * Custom exception class for database-related errors, because we want typed
+ * exceptions in our lives.
  */
-class DBException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class DBException(message: String, cause: Throwable? = null) :
+    Exception(message, cause)
 
 /** Sealed class for SQL update exceptions with constraint violation details. */
 sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
@@ -25,7 +25,11 @@ sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
         val column: String?,
         val constraint: String?,
         override val cause: Throwable,
-    ) : SqlUpdateException("Foreign key constraint violation: $constraint", cause)
+    ) :
+        SqlUpdateException(
+            "Foreign key constraint violation: $constraint",
+            cause,
+        )
 
     data class CheckViolation(
         val table: String?,
@@ -34,8 +38,10 @@ sealed class SqlUpdateException(message: String, cause: Throwable? = null) :
         override val cause: Throwable,
     ) : SqlUpdateException("Check constraint violation: $constraint", cause)
 
-    data class Unknown(override val message: String, override val cause: Throwable) :
-        SqlUpdateException(message, cause)
+    data class Unknown(
+        override val message: String,
+        override val cause: Throwable,
+    ) : SqlUpdateException(message, cause)
 }
 
 @Serializable
@@ -51,7 +57,7 @@ data class Document(
     val kind: String,
     val tags: List<Tag>,
     val payload: String,
-    val userUuid: UUID,
+    val userUuid: UUIDv7,
     val createdAt: Instant,
 )
 
@@ -80,7 +86,7 @@ data class Post(
 
 /** User account for authentication. */
 data class User(
-    val uuid: UUID,
+    val uuid: UUIDv7,
     val username: String,
     val passwordHash: String?,
     val settings: UserSettings?,
@@ -96,7 +102,9 @@ sealed interface CreateResult<out T> {
     /** Value already exists (duplicate). */
     data object Duplicate : CreateResult<Nothing>
 
-    /** Convert to nullable, returning the value if Created, null if Duplicate. */
+    /**
+     * Convert to nullable, returning the value if Created, null if Duplicate.
+     */
     val toNullable: T?
         get() =
             when (this) {
@@ -105,12 +113,31 @@ sealed interface CreateResult<out T> {
             }
 }
 
-/** User session for JWT authentication with optional refresh token support. */
+/** Result for username update operations. */
+sealed interface UpdateUsernameResult {
+    /** Username was updated successfully. */
+    data object Success : UpdateUsernameResult
+
+    /** User with the specified username was not found. */
+    data object UserNotFound : UpdateUsernameResult
+
+    /** New username already exists for another user. */
+    data object UsernameAlreadyExists : UpdateUsernameResult
+}
+
+/** User session for server-side authentication. */
 data class UserSession(
-    val uuid: UUID,
-    val userUuid: UUID,
+    val uuid: UUIDv7,
+    val user: User,
     val tokenHash: String,
-    val refreshTokenHash: String?,
     val expiresAt: Instant,
     val createdAt: Instant,
+    val revokedAt: Instant?,
 )
+
+/**
+ * Result of creating a new user session on login.
+ *
+ * We need `rawToken` to return it to the client (one time, on login only).
+ */
+data class NewUserSession(val rawToken: String, val session: UserSession)

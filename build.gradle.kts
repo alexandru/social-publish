@@ -1,18 +1,16 @@
 plugins {
-    kotlin("multiplatform") version "2.3.0" apply false
-    kotlin("jvm") version "2.3.0" apply false
-    kotlin("plugin.serialization") version "2.3.0" apply false
-    id("com.github.ben-manes.versions") version "0.53.0" apply false
-    id("com.ncorti.ktfmt.gradle") version "0.25.0" apply false
-    id("org.jetbrains.kotlinx.kover") version "0.9.4" apply false
+    kotlin("multiplatform") version "2.3.21" apply false
+    kotlin("jvm") version "2.3.21" apply false
+    kotlin("plugin.serialization") version "2.3.21" apply false
+    id("com.github.ben-manes.versions") version "0.54.0" apply false
+    id("com.ncorti.ktfmt.gradle") version "0.26.0" apply false
+    id("org.jetbrains.kotlinx.kover") version "0.9.8" apply false
 }
 
 allprojects {
     repositories {
-        google()
         mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-wrappers/maven")
+        google()
     }
 }
 
@@ -22,6 +20,7 @@ subprojects {
 
     extensions.configure<com.ncorti.ktfmt.gradle.KtfmtExtension> {
         kotlinLangStyle()
+        maxWidth = 80
         // Enable automatic removal of unused imports during formatting
         removeUnusedImports.set(true)
     }

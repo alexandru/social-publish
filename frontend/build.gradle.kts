@@ -3,8 +3,8 @@ import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    id("org.jetbrains.compose") version "1.10.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.3.0"
+    id("org.jetbrains.compose") version "1.11.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.3.21"
 }
 
 kotlin {
@@ -17,7 +17,10 @@ kotlin {
 
             runTask {
                 val resourcesDir =
-                    project.layout.buildDirectory.dir("processedResources/js/main").get().asFile
+                    project.layout.buildDirectory
+                        .dir("processedResources/js/main")
+                        .get()
+                        .asFile
                 devServerProperty.set(
                     KotlinWebpackConfig.DevServer(
                             port = 3002,
@@ -69,4 +72,6 @@ kotlin {
 
 // Configure distribution task to prefer webpack output over processedResources
 // This prevents duplicate index.html issues
-tasks.named<Sync>("jsBrowserDistribution") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
+tasks.named<Sync>("jsBrowserDistribution") {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}

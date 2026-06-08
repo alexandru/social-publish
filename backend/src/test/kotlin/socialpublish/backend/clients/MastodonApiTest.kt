@@ -10,7 +10,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -22,19 +21,24 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.receiveMultipart
 import socialpublish.backend.testutils.uploadTestImage
 
 class MastodonApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
-    fun `uploads images with alt text and creates status`(@TempDir tempDir: Path) = runTest {
+    fun `uploads images with alt text and creates status`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -46,12 +50,18 @@ class MastodonApiTest {
 
             application {
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     post("/api/v2/media") {
                         val multipart = receiveMultipart(call)
                         val file = multipart.files.single()
                         uploadedImages.add(imageDimensions(file.bytes))
-                        descriptions.add(multipart.fields["description"]?.firstOrNull())
+                        descriptions.add(
+                            multipart.fields["description"]?.firstOrNull()
+                        )
                         mediaCounter += 1
                         call.respondText(
                             "{" +
@@ -82,17 +92,28 @@ class MastodonApiTest {
                 }
             }
 
-            val upload1 = uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
-            val upload2 = uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
+            val upload1 =
+                uploadTestImage(mastodonClient, "flower1.jpeg", "rose")
+            val upload2 =
+                uploadTestImage(mastodonClient, "flower2.jpeg", "tulip")
 
             val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
 
-            val req = NewPostRequest(content = "Hello", images = listOf(upload1.uuid, upload2.uuid))
-            val mastodonConfig = MastodonConfig(host = "http://localhost", accessToken = "token")
-            val result = mastodonModule.createPost(mastodonConfig, req, testUserUuid)
+            val req =
+                NewPostRequest(
+                    content = "Hello",
+                    images = listOf(upload1.uuid, upload2.uuid),
+                )
+            val mastodonConfig =
+                MastodonConfig(host = "http://localhost", accessToken = "token")
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    mastodonModule.createThread(mastodonConfig, req)
+                }
 
             assertTrue(result.isRight())
-            val response = (result as Either.Right).value as NewMastodonPostResponse
+            val response =
+                (result as Either.Right).value as NewMastodonPostResponse
             assertNotNull(response.uri)
 
             assertEquals(listOf("rose", "tulip"), descriptions)
@@ -110,7 +131,9 @@ class MastodonApiTest {
     }
 
     @Test
-    fun `createThread links follow-up status to previous status`(@TempDir tempDir: Path) = runTest {
+    fun `createThread links follow-up status to previous status`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
@@ -143,26 +166,38 @@ class MastodonApiTest {
                     }
                 }
                 .use { mastodonClient ->
-                    val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
+                    val mastodonModule =
+                        MastodonApiModule(filesModule, mastodonClient)
                     val request =
                         NewPostRequest(
                             targets = listOf("mastodon"),
                             messages =
                                 nonEmptyListOf(
-                                    socialpublish.backend.common.NewPostRequestMessage(
-                                        content = "Root"
-                                    ),
-                                    socialpublish.backend.common.NewPostRequestMessage(
-                                        content = "Reply"
-                                    ),
+                                    socialpublish.backend.common
+                                        .NewPostRequestMessage(
+                                            content = "Root"
+                                        ),
+                                    socialpublish.backend.common
+                                        .NewPostRequestMessage(
+                                            content = "Reply"
+                                        ),
                                 ),
                         )
-                    val config = MastodonConfig(host = "http://localhost", accessToken = "token")
+                    val config =
+                        MastodonConfig(
+                            host = "http://localhost",
+                            accessToken = "token",
+                        )
 
-                    val result = mastodonModule.createThread(config, request, testUserUuid)
+                    val result =
+                        context(createTestSession(testUserUuid)) {
+                            mastodonModule.createThread(config, request)
+                        }
 
                     assertTrue(result is Either.Right)
-                    val response = (result as Either.Right).value as NewMastodonPostResponse
+                    val response =
+                        (result as Either.Right).value
+                            as NewMastodonPostResponse
                     assertEquals("status-1", response.id)
                     assertEquals(2, response.messages.size)
                     assertEquals("status-1", response.messages[1].replyToId)

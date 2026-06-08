@@ -12,7 +12,8 @@ data class GenerateAltTextRequest(
 
 @Serializable data class GenerateAltTextResponse(val altText: String)
 
-// OpenAI-compatible API models (works with OpenAI, Mistral, and other compatible providers)
+// OpenAI-compatible API models (works with OpenAI, Mistral, and other
+// compatible providers)
 @Serializable
 data class OpenAiChatRequest(
     val model: String,
@@ -20,7 +21,8 @@ data class OpenAiChatRequest(
     @SerialName("max_tokens") val maxTokens: Int = 300,
 )
 
-@Serializable data class OpenAiMessage(val role: String, val content: List<OpenAiContent>)
+@Serializable
+data class OpenAiMessage(val role: String, val content: List<OpenAiContent>)
 
 @Serializable
 data class OpenAiContent(

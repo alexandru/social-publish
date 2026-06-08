@@ -19,11 +19,16 @@ object ApiClient {
         if (includeContentType) {
             headers["Content-Type"] = "application/json"
         }
-        Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+        Storage.getSessionToken()?.let {
+            headers["Authorization"] = "Bearer $it"
+        }
         return headers
     }
 
-    suspend inline fun <reified T, reified B> post(url: String, body: B? = null): ApiResponse<T> {
+    suspend inline fun <reified T, reified B> post(
+        url: String,
+        body: B? = null,
+    ): ApiResponse<T> {
         return try {
             val requestInit =
                 RequestInit(
@@ -42,9 +47,16 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
-                    console.warn("Failed to decode error response from $url:", e)
-                    ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
+                    console.warn(
+                        "Failed to decode error response from $url:",
+                        e,
+                    )
+                    ApiResponse.Error(
+                        "HTTP ${response.status} error",
+                        response.status.toInt(),
+                    )
                 }
             }
         } catch (e: Throwable) {
@@ -53,7 +65,10 @@ object ApiClient {
         }
     }
 
-    suspend inline fun <reified T, reified B> put(url: String, body: B? = null): ApiResponse<T> {
+    suspend inline fun <reified T, reified B> put(
+        url: String,
+        body: B? = null,
+    ): ApiResponse<T> {
         return try {
             val requestInit =
                 RequestInit(
@@ -72,9 +87,16 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
-                    console.warn("Failed to decode error response from $url:", e)
-                    ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
+                    console.warn(
+                        "Failed to decode error response from $url:",
+                        e,
+                    )
+                    ApiResponse.Error(
+                        "HTTP ${response.status} error",
+                        response.status.toInt(),
+                    )
                 }
             }
         } catch (e: Throwable) {
@@ -83,7 +105,10 @@ object ApiClient {
         }
     }
 
-    suspend inline fun <reified T, reified B> patch(url: String, body: B? = null): ApiResponse<T> {
+    suspend inline fun <reified T, reified B> patch(
+        url: String,
+        body: B? = null,
+    ): ApiResponse<T> {
         return try {
             val requestInit =
                 RequestInit(
@@ -102,9 +127,16 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
-                    console.warn("Failed to decode error response from $url:", e)
-                    ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
+                    console.warn(
+                        "Failed to decode error response from $url:",
+                        e,
+                    )
+                    ApiResponse.Error(
+                        "HTTP ${response.status} error",
+                        response.status.toInt(),
+                    )
                 }
             }
         } catch (e: Throwable) {
@@ -115,7 +147,8 @@ object ApiClient {
 
     suspend inline fun <reified T> get(url: String): ApiResponse<T> {
         return try {
-            val requestInit = RequestInit(method = "GET", headers = createHeaders())
+            val requestInit =
+                RequestInit(method = "GET", headers = createHeaders())
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
@@ -127,9 +160,16 @@ object ApiClient {
                 try {
                     val error = json.decodeFromString<ErrorResponse>(text)
                     ApiResponse.Error(error.error, response.status.toInt())
-                } catch (e: Exception) {
-                    console.warn("Failed to decode error response from $url:", e)
-                    ApiResponse.Error("HTTP ${response.status} error", response.status.toInt())
+                } catch (e: Throwable) {
+                    rethrowIfFatal(e)
+                    console.warn(
+                        "Failed to decode error response from $url:",
+                        e,
+                    )
+                    ApiResponse.Error(
+                        "HTTP ${response.status} error",
+                        response.status.toInt(),
+                    )
                 }
             }
         } catch (e: Throwable) {
@@ -153,9 +193,12 @@ object ApiClient {
             // Don't include Content-Type header for multipart/form-data
             // Browser will set it automatically with boundary
             val headers = js("{}")
-            Storage.getJwtToken()?.let { headers["Authorization"] = "Bearer $it" }
+            Storage.getSessionToken()?.let {
+                headers["Authorization"] = "Bearer $it"
+            }
 
-            val requestInit = RequestInit(method = "POST", headers = headers, body = formData)
+            val requestInit =
+                RequestInit(method = "POST", headers = headers, body = formData)
 
             val response: Response = window.fetch(url, requestInit).await()
             val text = response.text().await()
@@ -164,7 +207,10 @@ object ApiClient {
                 val data = json.decodeFromString<T>(text)
                 ApiResponse.Success(data)
             } else {
-                ApiResponse.Error("HTTP ${response.status}: $text", response.status.toInt())
+                ApiResponse.Error(
+                    "HTTP ${response.status}: $text",
+                    response.status.toInt(),
+                )
             }
         } catch (e: Throwable) {
             console.error("ApiClient.uploadFile exception:", e)
@@ -178,7 +224,8 @@ object ApiClient {
 sealed class ApiResponse<out T> {
     data class Success<T>(val data: T) : ApiResponse<T>()
 
-    data class Error(val message: String, val code: Int) : ApiResponse<Nothing>()
+    data class Error(val message: String, val code: Int) :
+        ApiResponse<Nothing>()
 
     data class Exception(val message: String) : ApiResponse<Nothing>()
 }

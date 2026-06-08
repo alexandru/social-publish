@@ -3,18 +3,13 @@
 package socialpublish.backend.server
 
 import arrow.continuations.ktor.server
-import arrow.core.getOrElse
 import arrow.fx.coroutines.resource
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.*
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.createRouteScopedPlugin
 import io.ktor.server.application.install
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.plugins.calllogging.CallLogging
@@ -25,13 +20,13 @@ import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.swagger.swaggerUI
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.head
 import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
-import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ExperimentalKtorApi
 import kotlin.time.Duration.Companion.minutes
@@ -46,13 +41,15 @@ import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.common.*
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostsDatabase
-import socialpublish.backend.db.UserSettings
+import socialpublish.backend.db.UserSessionsDatabase
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.*
+import socialpublish.backend.server.routes.AUTH_SESSION
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
 import socialpublish.backend.server.routes.BlueskyRoutes
@@ -70,9 +67,7 @@ import socialpublish.backend.server.routes.TwitterRoutes
 import socialpublish.backend.server.routes.UserResponse
 import socialpublish.backend.server.routes.UserSettingsPatch
 import socialpublish.backend.server.routes.configureAuth
-import socialpublish.backend.server.routes.resolveUserUuid
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.server.routes.withSession
 
 fun startServer(
     config: AppConfig,
@@ -80,22 +75,25 @@ fun startServer(
     postsDb: PostsDatabase,
     filesDb: FilesDatabase,
     usersDb: UsersDatabase,
+    userSessionsDb: UserSessionsDatabase,
     engine: ApplicationEngineFactory<*, *> = CIO,
 ) = resource {
-    logger.info { "Starting HTTP server on port ${config.server.httpPort}..." }
+    logger.info("Starting HTTP server on port ${config.server.httpPort}...")
 
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
     val feedModule = FeedModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
+    val authService = AuthService(userSessionsDb)
     val authRoutes =
-        AuthRoutes(config = config.server.auth, usersDb = usersDb, documentsDb = documentsDb)
+        AuthRoutes(authService = authService, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
     val feedRoutes = FeedRoutes(feedModule)
     val settingsRoutes = SettingsRoutes(usersDb = usersDb)
 
-    // Social network modules – instantiated once at startup; per-user config is passed per call.
+    // Social network modules – instantiated once at startup; per-user config is
+    // passed per call.
     val blueskyModule = BlueskyApiModule.resource(filesModule).bind()
     val mastodonModule = MastodonApiModule.resource(filesModule).bind()
     val twitterModule =
@@ -142,12 +140,14 @@ fun startServer(
 
         // Configure rate limiting for login endpoint
         install(RateLimit) {
-            register(RateLimitName("login")) { rateLimiter(limit = 20, refillPeriod = 5.minutes) }
+            register(RateLimitName("login")) {
+                rateLimiter(limit = 20, refillPeriod = 5.minutes)
+            }
         }
 
         install(StatusPages) {
             exception<Throwable> { call, cause ->
-                logger.error(cause) { "Unhandled exception" }
+                logger.error("Unhandled exception", cause)
                 // Don't expose internal error details to clients for security
                 call.respondText(
                     text = "500: Internal Server Error",
@@ -156,20 +156,26 @@ fun startServer(
             }
         }
 
-        // Configure JWT authentication
         configureAuth(authRoutes)
+
         // Configure OpenAPI / Swagger documentation
         configureOpenApiSecuritySchemes()
 
         routing {
-            // Swagger UI for API documentation - points to dynamically generated spec
-            swaggerUI(path = "docs") { info = OpenApiInfo("Social Publish API", "1.0.0") }
+            // Swagger UI for API documentation - points to dynamically
+            // generated spec
+            swaggerUI(path = "docs") {
+                info = OpenApiInfo("Social Publish API", "1.0.0")
+            }
 
             // Health check endpoints
-            get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
+            get("/ping") {
+                    call.respondText("pong", status = HttpStatusCode.OK)
+                }
                 .describe {
                     summary = "Health check"
-                    description = "Returns 'pong' to indicate the server is running"
+                    description =
+                        "Returns 'pong' to indicate the server is running"
                     responses {
                         HttpStatusCode.OK {
                             description = "Server is healthy"
@@ -182,7 +188,8 @@ fun startServer(
             head("/ping") { call.respondText("", status = HttpStatusCode.OK) }
                 .describe {
                     summary = "Health check (HEAD)"
-                    description = "HEAD method for health checks, returns only headers without body"
+                    description =
+                        "HEAD method for health checks, returns only headers without body"
                     responses {
                         HttpStatusCode.OK {
                             description = "Server is healthy"
@@ -196,17 +203,21 @@ fun startServer(
                 post("/api/login") { authRoutes.loginRoute(call) }
                     .describe {
                         summary = "User login"
-                        description = "Authenticate user and get JWT token"
+                        description =
+                            "Authenticate user and get a session token"
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<LoginRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<LoginRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<LoginRequest>()
                             }
                         }
                         responses {
                             HttpStatusCode.OK {
-                                description = "Successful login, returns JWT token"
+                                description =
+                                    "Successful login, returns session token"
                                 schema = jsonSchema<LoginResponse>()
                             }
                             HttpStatusCode.BadRequest {
@@ -221,25 +232,20 @@ fun startServer(
                     }
             }
 
-            // Protected routes
-            authenticate("auth-jwt") {
-                // Load the authenticated user's UUID and settings into call attributes once
-                // per request, making them available to all route handlers without repeated DB
-                // queries.
-                install(
-                    createRouteScopedPlugin("UserContextPlugin") {
-                        onCall { call ->
-                            val userUuid = call.resolveUserUuid() ?: return@onCall
-                            val settings =
-                                usersDb.findByUuid(userUuid).getOrElse { null }?.settings
-                                    ?: UserSettings()
-                            call.attributes.put(UserUuidKey, userUuid)
-                            call.attributes.put(UserSettingsKey, settings)
-                        }
-                    }
-                )
+            post("/api/logout") {
+                val token = authRoutes.extractAccessToken(call)
+                if (token == null) {
+                    call.respond(mapOf("success" to true))
+                } else {
+                    authRoutes.logoutRoute(token, call)
+                }
+            }
 
-                get("/api/protected") { authRoutes.protectedRoute(call) }
+            // Protected routes
+            authenticate(AUTH_SESSION) {
+                get("/api/protected") {
+                        withSession(call) { authRoutes.protectedRoute(call) }
+                    }
                     .describe {
                         summary = "Protected route"
                         description = "Test endpoint requiring authentication"
@@ -257,8 +263,9 @@ fun startServer(
                     }
 
                 get("/api/account/settings") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        settingsRoutes.getSettingsRoute(userUuid, call)
+                        withSession(call) {
+                            settingsRoutes.getSettingsRoute(call)
+                        }
                     }
                     .describe {
                         summary = "Get account settings"
@@ -278,8 +285,9 @@ fun startServer(
                     }
 
                 patch("/api/account/settings") {
-                        val userUuid = call.requireUserUuid() ?: return@patch
-                        settingsRoutes.patchSettingsRoute(userUuid, call)
+                        withSession(call) {
+                            settingsRoutes.patchSettingsRoute(call)
+                        }
                     }
                     .describe {
                         summary = "Partially update user settings"
@@ -310,8 +318,7 @@ fun startServer(
 
                 // File upload
                 post("/api/files/upload") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        filesRoutes.uploadFileRoute(userUuid, call)
+                        withSession(call) { filesRoutes.uploadFileRoute(call) }
                     }
                     .describe {
                         summary = "Upload file"
@@ -329,7 +336,8 @@ fun startServer(
                                                 "altText" to
                                                     ReferenceOr.Value(
                                                         JsonSchema(
-                                                            type = JsonType.STRING,
+                                                            type =
+                                                                JsonType.STRING,
                                                             description =
                                                                 "Alt text for accessibility",
                                                         )
@@ -337,9 +345,11 @@ fun startServer(
                                                 "file" to
                                                     ReferenceOr.Value(
                                                         JsonSchema(
-                                                            type = JsonType.STRING,
+                                                            type =
+                                                                JsonType.STRING,
                                                             format = "binary",
-                                                            description = "Image file contents",
+                                                            description =
+                                                                "Image file contents",
                                                         )
                                                     ),
                                             ),
@@ -366,11 +376,12 @@ fun startServer(
                         }
                     }
 
-                // LLM alt-text generation (extracted to LlmRoutes)
+                // LLM alt-text generation
                 post("/api/llm/generate-alt-text") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val llmConfig = call.requireUserSettings(usersDb, userUuid).llm
-                        llmRoutes.generateAltTextRoute(userUuid, llmConfig, call)
+                        withSession(call) {
+                            val llmConfig = userSettings().llm
+                            llmRoutes.generateAltTextRoute(llmConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Generate alt-text for image"
@@ -413,8 +424,7 @@ fun startServer(
 
                 // Feed post creation
                 post("/api/feed/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        feedRoutes.createPostRoute(userUuid, call)
+                        withSession(call) { feedRoutes.createPostRoute(call) }
                     }
                     .describe {
                         summary = "Create feed post"
@@ -422,24 +432,29 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewFeedPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewFeedPostResponse>()
+                        }
                     }
 
                 // Social media posts
                 post("/api/bluesky/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val blueskyConfig =
-                            call.requireUserSettings(usersDb, userUuid).bluesky
-                                ?: run {
-                                    call.respondWithNotConfigured("Bluesky")
-                                    return@post
-                                }
-                        blueskyRoutes.createPostRoute(userUuid, blueskyConfig, call)
+                        withSession(call) {
+                            val blueskyConfig =
+                                userSettings().bluesky
+                                    ?: run {
+                                        call.respondWithNotConfigured("Bluesky")
+                                        return@withSession
+                                    }
+                            blueskyRoutes.createPostRoute(blueskyConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Post to Bluesky"
@@ -447,23 +462,30 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewBlueSkyPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewBlueSkyPostResponse>()
+                        }
                     }
 
                 post("/api/mastodon/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val mastodonConfig =
-                            call.requireUserSettings(usersDb, userUuid).mastodon
-                                ?: run {
-                                    call.respondWithNotConfigured("Mastodon")
-                                    return@post
-                                }
-                        mastodonRoutes.createPostRoute(userUuid, mastodonConfig, call)
+                        withSession(call) {
+                            val mastodonConfig =
+                                userSettings().mastodon
+                                    ?: run {
+                                        call.respondWithNotConfigured(
+                                            "Mastodon"
+                                        )
+                                        return@withSession
+                                    }
+                            mastodonRoutes.createPostRoute(mastodonConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Post to Mastodon"
@@ -471,23 +493,28 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewMastodonPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewMastodonPostResponse>()
+                        }
                     }
 
                 post("/api/twitter/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val twitterConfig =
-                            call.requireUserSettings(usersDb, userUuid).twitter
-                                ?: run {
-                                    call.respondWithNotConfigured("Twitter")
-                                    return@post
-                                }
-                        twitterRoutes.createPostRoute(userUuid, twitterConfig, call)
+                        withSession(call) {
+                            val twitterConfig =
+                                userSettings().twitter
+                                    ?: run {
+                                        call.respondWithNotConfigured("Twitter")
+                                        return@withSession
+                                    }
+                            twitterRoutes.createPostRoute(twitterConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Post to Twitter/X"
@@ -495,23 +522,30 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewTwitterPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewTwitterPostResponse>()
+                        }
                     }
 
                 post("/api/linkedin/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val linkedInConfig =
-                            call.requireUserSettings(usersDb, userUuid).linkedin
-                                ?: run {
-                                    call.respondWithNotConfigured("LinkedIn")
-                                    return@post
-                                }
-                        linkedInRoutes.createPostRoute(userUuid, linkedInConfig, call)
+                        withSession(call) {
+                            val linkedInConfig =
+                                userSettings().linkedin
+                                    ?: run {
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
+                                        return@withSession
+                                    }
+                            linkedInRoutes.createPostRoute(linkedInConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Post to LinkedIn"
@@ -519,44 +553,59 @@ fun startServer(
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<NewLinkedInPostResponse>() }
+                        responses {
+                            documentNewPostResponses<NewLinkedInPostResponse>()
+                        }
                     }
 
                 post("/api/multiple/post") {
-                        val userUuid = call.requireUserUuid() ?: return@post
-                        val userSettings = call.requireUserSettings(usersDb, userUuid)
-                        val publishModule =
-                            PublishModule(
-                                mastodonModule = mastodonModule,
-                                mastodonConfig = userSettings.mastodon,
-                                blueskyModule = blueskyModule,
-                                blueskyConfig = userSettings.bluesky,
-                                twitterModule = twitterModule,
-                                twitterConfig = userSettings.twitter,
-                                linkedInModule = linkedInModule,
-                                linkedInConfig = userSettings.linkedin,
-                                feedModule = feedModule,
-                                userUuid = userUuid,
+                        withSession(call) {
+                            val settings = userSettings()
+                            val publishModule =
+                                PublishModule(
+                                    mastodonModule = mastodonModule,
+                                    mastodonConfig = settings.mastodon,
+                                    blueskyModule = blueskyModule,
+                                    blueskyConfig = settings.bluesky,
+                                    twitterModule = twitterModule,
+                                    twitterConfig = settings.twitter,
+                                    linkedInModule = linkedInModule,
+                                    linkedInConfig = settings.linkedin,
+                                    feedModule = feedModule,
+                                    userSession = userSession(),
+                                )
+                            publishRoutes.broadcastPostRoute(
+                                call,
+                                publishModule,
                             )
-                        publishRoutes.broadcastPostRoute(call, publishModule)
+                        }
                     }
                     .describe {
                         summary = "Broadcast post to multiple platforms"
-                        description = "Publish a post to multiple social media platforms at once"
+                        description =
+                            "Publish a post to multiple social media platforms at once"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
-                            ContentType.Application.Json { schema = jsonSchema<NewPostRequest>() }
+                            ContentType.Application.Json {
+                                schema = jsonSchema<NewPostRequest>()
+                            }
                             ContentType.Application.FormUrlEncoded {
                                 schema = jsonSchema<NewPostRequest>()
                             }
                         }
-                        responses { documentNewPostResponses<Map<String, NewPostResponse>>() }
+                        responses {
+                            documentNewPostResponses<
+                                Map<String, NewPostResponse>
+                            >()
+                        }
                     }
 
                 // -----------------------------------------------------------
@@ -564,24 +613,15 @@ fun startServer(
 
                 // Twitter OAuth flow
                 get("/api/twitter/authorize") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        val username =
-                            call.principal<JWTPrincipal>()?.getClaim("username", String::class)
-                                ?: return@get
-                        val twitterConfig =
-                            call.requireUserSettings(usersDb, userUuid).twitter
-                                ?: run {
-                                    call.respondWithNotConfigured("Twitter")
-                                    return@get
-                                }
-                        val callbackJwtToken =
-                            authRoutes.authModule.generateToken(username, userUuid)
-                        twitterRoutes.authorizeRoute(
-                            userUuid,
-                            twitterConfig,
-                            callbackJwtToken,
-                            call,
-                        )
+                        withSession(call) {
+                            val twitterConfig =
+                                userSettings().twitter
+                                    ?: run {
+                                        call.respondWithNotConfigured("Twitter")
+                                        return@withSession
+                                    }
+                            twitterRoutes.authorizeRoute(twitterConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Initiate Twitter OAuth authorization"
@@ -589,14 +629,15 @@ fun startServer(
                     }
 
                 get("/api/twitter/callback") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        val twitterConfig =
-                            call.requireUserSettings(usersDb, userUuid).twitter
-                                ?: run {
-                                    call.respondWithNotConfigured("Twitter")
-                                    return@get
-                                }
-                        twitterRoutes.callbackRoute(userUuid, twitterConfig, call)
+                        withSession(call) {
+                            val twitterConfig =
+                                userSettings().twitter
+                                    ?: run {
+                                        call.respondWithNotConfigured("Twitter")
+                                        return@withSession
+                                    }
+                            twitterRoutes.callbackRoute(twitterConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Twitter OAuth callback"
@@ -604,8 +645,7 @@ fun startServer(
                     }
 
                 get("/api/twitter/status") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        twitterRoutes.statusRoute(userUuid, call)
+                        withSession(call) { twitterRoutes.statusRoute(call) }
                     }
                     .describe {
                         summary = "Check Twitter authorization status"
@@ -617,24 +657,17 @@ fun startServer(
 
                 // LinkedIn OAuth flow
                 get("/api/linkedin/authorize") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        val username =
-                            call.principal<JWTPrincipal>()?.getClaim("username", String::class)
-                                ?: return@get
-                        val linkedInConfig =
-                            call.requireUserSettings(usersDb, userUuid).linkedin
-                                ?: run {
-                                    call.respondWithNotConfigured("LinkedIn")
-                                    return@get
-                                }
-                        val callbackJwtToken =
-                            authRoutes.authModule.generateToken(username, userUuid)
-                        linkedInRoutes.authorizeRoute(
-                            userUuid,
-                            linkedInConfig,
-                            callbackJwtToken,
-                            call,
-                        )
+                        withSession(call) {
+                            val linkedInConfig =
+                                userSettings().linkedin
+                                    ?: run {
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
+                                        return@withSession
+                                    }
+                            linkedInRoutes.authorizeRoute(linkedInConfig, call)
+                        }
                     }
                     .describe {
                         summary = "Initiate LinkedIn OAuth authorization"
@@ -642,14 +675,17 @@ fun startServer(
                     }
 
                 get("/api/linkedin/callback") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        val linkedInConfig =
-                            call.requireUserSettings(usersDb, userUuid).linkedin
-                                ?: run {
-                                    call.respondWithNotConfigured("LinkedIn")
-                                    return@get
-                                }
-                        linkedInRoutes.callbackRoute(userUuid, linkedInConfig, call)
+                        withSession(call) {
+                            val linkedInConfig =
+                                userSettings().linkedin
+                                    ?: run {
+                                        call.respondWithNotConfigured(
+                                            "LinkedIn"
+                                        )
+                                        return@withSession
+                                    }
+                            linkedInRoutes.callbackRoute(linkedInConfig, call)
+                        }
                     }
                     .describe {
                         summary = "LinkedIn OAuth callback"
@@ -657,8 +693,7 @@ fun startServer(
                     }
 
                 get("/api/linkedin/status") {
-                        val userUuid = call.requireUserUuid() ?: return@get
-                        linkedInRoutes.statusRoute(userUuid, call)
+                        withSession(call) { linkedInRoutes.statusRoute(call) }
                     }
                     .describe {
                         summary = "Check LinkedIn authorization status"
@@ -675,11 +710,13 @@ fun startServer(
             get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
                     summary = "Get user feed"
-                    description = "Generate and retrieve the Atom feed for a specific user"
+                    description =
+                        "Generate and retrieve the Atom feed for a specific user"
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose feed should be returned"
+                            description =
+                                "UUID of the user whose feed should be returned"
                         }
                         query("filterByLinks") {
                             required = false
@@ -704,7 +741,9 @@ fun startServer(
                     }
                 }
 
-            get("/feed/{userUuid}/target/{target}") { feedRoutes.generateFeedRoute(call) }
+            get("/feed/{userUuid}/target/{target}") {
+                    feedRoutes.generateFeedRoute(call)
+                }
                 .describe {
                     summary = "Get user feed for specific target"
                     description =
@@ -713,7 +752,8 @@ fun startServer(
                     parameters {
                         path("userUuid") {
                             required = true
-                            description = "UUID of the user whose feed should be returned"
+                            description =
+                                "UUID of the user whose feed should be returned"
                         }
                         path("target") {
                             required = true
@@ -733,7 +773,8 @@ fun startServer(
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "Atom feed in XML format filtered by target"
+                            description =
+                                "Atom feed in XML format filtered by target"
                             ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
@@ -746,7 +787,8 @@ fun startServer(
             get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
                 .describe {
                     summary = "Get user feed item by UUID"
-                    description = "Retrieve a specific feed item by user UUID and post UUID"
+                    description =
+                        "Retrieve a specific feed item by user UUID and post UUID"
                     parameters {
                         path("userUuid") {
                             required = true
@@ -826,3 +868,5 @@ fun startServer(
         }
     }
 }
+
+private val logger by loggerFactory()

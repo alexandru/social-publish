@@ -1,6 +1,5 @@
 package socialpublish.backend.server.routes
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -8,9 +7,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import java.io.File
 import socialpublish.backend.common.isPathWithinBase
+import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.server.ServerConfig
-
-private val logger = KotlinLogging.logger {}
 
 class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
     suspend fun serveStaticFile(call: ApplicationCall) {
@@ -20,19 +18,30 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
             val canonicalBaseDir = baseDir.canonicalFile
 
             val file =
-                if (path.isBlank() || path.matches(Regex("^(login|form|account).*"))) {
+                if (
+                    path.isBlank() ||
+                        path.matches(Regex("^(login|form|account).*"))
+                ) {
                     File(canonicalBaseDir, "index.html")
                 } else {
                     File(canonicalBaseDir, path)
                 }
 
-            // Security: Check that the resolved file is within the allowed directory
-            if (file.exists() && file.isFile && isPathWithinBase(file, canonicalBaseDir)) {
+            // Security: Check that the resolved file is within the allowed
+            // directory
+            if (
+                file.exists() &&
+                    file.isFile &&
+                    isPathWithinBase(file, canonicalBaseDir)
+            ) {
                 // Set appropriate caching headers based on file type
                 when {
-                    // Hashed files (app.{hash}.js, {hash}.woff2, etc.) - immutable, cache forever
+                    // Hashed files (app.{hash}.js, {hash}.woff2, etc.) -
+                    // immutable, cache forever
                     file.name.matches(
-                        Regex("(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)")
+                        Regex(
+                            "(?:.*\\.[a-f0-9]{8,}\\.|[a-f0-9]{8,}\\.)(?:js|woff2|woff|ttf|eot)"
+                        )
                     ) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
@@ -46,8 +55,11 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
                             "public, max-age=7200, stale-while-revalidate=86400",
                         )
                     }
-                    // Images and other assets - 2 days with stale-while-revalidate
-                    file.name.matches(Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")) -> {
+                    // Images and other assets - 2 days with
+                    // stale-while-revalidate
+                    file.name.matches(
+                        Regex(".*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|css)")
+                    ) -> {
                         call.response.headers.append(
                             HttpHeaders.CacheControl,
                             "public, max-age=172800, stale-while-revalidate=86400",
@@ -68,13 +80,15 @@ class StaticAssetsRoutes(private val serverConfig: ServerConfig) {
             triedPaths.add(file.canonicalPath)
         }
 
-        logger.warn {
+        logger.warn(
             "Static file not found. Tried paths:\n${
                 triedPaths.joinToString(
                     ",\n"
                 )
             }"
-        }
+        )
         call.respond(HttpStatusCode.NotFound)
     }
 }
+
+private val logger by loggerFactory()

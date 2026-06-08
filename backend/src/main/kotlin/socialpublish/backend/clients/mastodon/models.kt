@@ -10,4 +10,9 @@ data class MastodonMediaResponse(
     val description: String? = null,
 )
 
-@Serializable data class MastodonStatusResponse(val id: String, val uri: String, val url: String)
+@Serializable
+data class MastodonStatusResponse(
+    val id: String,
+    val uri: String,
+    val url: String,
+)

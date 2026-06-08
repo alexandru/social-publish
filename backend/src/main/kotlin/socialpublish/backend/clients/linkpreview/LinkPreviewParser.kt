@@ -3,7 +3,6 @@ package socialpublish.backend.clients.linkpreview
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
-import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
@@ -14,8 +13,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.common.loggerFactory
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 
 /**
  * Configuration for LinkPreviewParser HTTP client timeouts.
@@ -36,7 +35,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
         suspend fun <A> scoped(
             config: LinkPreviewConfig = LinkPreviewConfig(),
             block: suspend (LinkPreviewParser) -> A,
-        ): A = resourceScope { LinkPreviewParser(config).bind().let { parser -> block(parser) } }
+        ): A = resourceScope {
+            LinkPreviewParser(config).bind().let { parser -> block(parser) }
+        }
 
         operator fun invoke(
             config: LinkPreviewConfig = LinkPreviewConfig()
@@ -45,15 +46,20 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
                 install(
                     {
                         HttpClient(CIO) {
-                            // Disable automatic redirects to detect bot blocking
+                            // Disable automatic redirects to detect bot
+                            // blocking
                             followRedirects = false
                             expectSuccess = false
 
-                            // Configure timeouts to prevent hanging on unresponsive servers
+                            // Configure timeouts to prevent hanging on
+                            // unresponsive servers
                             install(io.ktor.client.plugins.HttpTimeout) {
-                                requestTimeoutMillis = config.requestTimeout.inWholeMilliseconds
-                                connectTimeoutMillis = config.connectTimeout.inWholeMilliseconds
-                                socketTimeoutMillis = config.socketTimeout.inWholeMilliseconds
+                                requestTimeoutMillis =
+                                    config.requestTimeout.inWholeMilliseconds
+                                connectTimeoutMillis =
+                                    config.connectTimeout.inWholeMilliseconds
+                                socketTimeoutMillis =
+                                    config.socketTimeout.inWholeMilliseconds
                             }
                         }
                     },
@@ -68,7 +74,8 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
      *
      * Attempts to extract metadata in the following priority order:
      * 1. Open Graph tags (og:title, og:description, og:url, og:image)
-     * 2. Twitter Cards tags (twitter:title, twitter:description, twitter:url, twitter:image)
+     * 2. Twitter Cards tags (twitter:title, twitter:description, twitter:url,
+     *    twitter:image)
      * 3. Standard HTML tags (<title>, <meta name="description">)
      *
      * @param html The HTML content to parse
@@ -83,18 +90,24 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
         val description = extractDescription(doc)
         val image = extractImage(doc, url)
 
-        return LinkPreview(title = title, description = description, image = image)
+        return LinkPreview(
+            title = title,
+            description = description,
+            image = image,
+        )
     }
 
     /**
      * Fetches a URL and extracts link preview metadata.
      *
-     * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For other URLs, fetches
-     * the HTML content directly. Prevents redirects to avoid bot detection. If a redirect is
-     * detected, this function returns null.
+     * For YouTube URLs, uses the YouTube OEmbed API to avoid bot detection. For
+     * other URLs, fetches the HTML content directly. Prevents redirects to
+     * avoid bot detection. If a redirect is detected, this function returns
+     * null.
      *
      * @param url The URL to fetch
-     * @return A LinkPreview object if successful, null if redirect detected or fetch failed
+     * @return A LinkPreview object if successful, null if redirect detected or
+     *   fetch failed
      */
     suspend fun fetchPreview(url: String): LinkPreview? {
         // Use YouTube OEmbed API for YouTube URLs to avoid bot blocking
@@ -106,14 +119,15 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val response = httpClient.get(url)
 
             if (!response.status.isSuccess()) {
-                logger.warn { "Failed to fetch URL $url: ${response.status}" }
+                logger.warn("Failed to fetch URL $url: ${response.status}")
                 return null
             }
 
             val html = response.bodyAsText()
             parseHtml(html, url)
-        } catch (e: Exception) {
-            logger.warn(e) { "Error fetching link preview for $url" }
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.warn("Error fetching link preview for $url", e)
             null
         }
     }
@@ -121,11 +135,11 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
     /**
      * Fetches YouTube video metadata using the YouTube OEmbed API.
      *
-     * Does not fallback to HTML fetching if the OEmbed API fails, as YouTube blocks bots and
-     * servers.
+     * Does not fallback to HTML fetching if the OEmbed API fails, as YouTube
+     * blocks bots and servers.
      *
-     * Requests larger thumbnails by setting maxwidth and maxheight parameters to get better quality
-     * preview images.
+     * Requests larger thumbnails by setting maxwidth and maxheight parameters
+     * to get better quality preview images.
      *
      * @param url The YouTube URL to fetch metadata for
      * @return A LinkPreview if successful, null otherwise
@@ -138,7 +152,8 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
                     .apply {
                         parameters.append("url", url)
                         parameters.append("format", "json")
-                        // Request larger thumbnails for better quality preview images (e.g.,
+                        // Request larger thumbnails for better quality preview
+                        // images (e.g.,
                         // 1280x720
                         // instead of 480x360)
                         parameters.append("maxwidth", "1280")
@@ -149,14 +164,17 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             val response = httpClient.get(oembedUrl)
 
             if (!response.status.isSuccess()) {
-                logger.warn { "Failed to fetch YouTube OEmbed for $url: ${response.status}" }
+                logger.warn(
+                    "Failed to fetch YouTube OEmbed for $url: ${response.status}"
+                )
                 return null
             }
 
             val json = response.bodyAsText()
             parseYouTubeOEmbedResponse(json)
-        } catch (e: Exception) {
-            logger.warn(e) { "Error fetching YouTube OEmbed for $url" }
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.warn("Error fetching YouTube OEmbed for $url", e)
             null
         }
     }
@@ -232,9 +250,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -247,9 +265,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -262,9 +280,9 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
             ?.let { imageUrl ->
                 val resolved = resolveImageUrl(imageUrl, baseUrl)
                 if (resolved == null) {
-                    logger.warn {
+                    logger.warn(
                         "Failed to resolve image URL '$imageUrl' against base URL '$baseUrl'"
-                    }
+                    )
                 }
                 return resolved
             }
@@ -272,3 +290,5 @@ class LinkPreviewParser(private val httpClient: HttpClient) {
         return null
     }
 }
+
+private val logger by loggerFactory()

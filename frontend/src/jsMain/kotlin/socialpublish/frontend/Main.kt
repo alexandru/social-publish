@@ -2,6 +2,7 @@ package socialpublish.frontend
 
 import androidx.compose.runtime.*
 import kotlinx.browser.window
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Main
@@ -9,12 +10,17 @@ import org.jetbrains.compose.web.renderComposable
 import socialpublish.frontend.components.NavBar
 import socialpublish.frontend.pages.*
 import socialpublish.frontend.utils.ApiClient
+import socialpublish.frontend.utils.ApiResponse
+import socialpublish.frontend.utils.ConfiguredServices
 import socialpublish.frontend.utils.Storage
 import socialpublish.frontend.utils.buildLoginRedirectPath
 import socialpublish.frontend.utils.isUnauthorized
+import socialpublish.frontend.utils.logoutAndClearLocalSession
 import socialpublish.frontend.utils.navigateTo
 
-@JsModule("bulma/css/bulma.min.css") @JsNonModule external val bulmaStyles: dynamic
+@JsModule("bulma/css/bulma.min.css")
+@JsNonModule
+external val bulmaStyles: dynamic
 
 @JsModule("@fortawesome/fontawesome-free/css/all.min.css")
 @JsNonModule
@@ -28,22 +34,29 @@ fun main() {
     renderComposable(rootElementId = "root") { App() }
 }
 
-@Serializable private data class SessionUserResponse(val username: String)
+@Serializable
+private data class SessionUserResponse(
+    val username: String,
+    val configuredServices: ConfiguredServices,
+)
 
 @Composable
 fun App() {
     var currentPath by remember { mutableStateOf(window.location.pathname) }
     var sessionChecked by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Handle browser navigation
     DisposableEffect(Unit) {
-        val listener: (dynamic) -> Unit = { currentPath = window.location.pathname }
+        val listener: (dynamic) -> Unit = {
+            currentPath = window.location.pathname
+        }
         window.addEventListener("popstate", listener)
         onDispose { window.removeEventListener("popstate", listener) }
     }
 
     LaunchedEffect(currentPath) {
-        val token = Storage.getJwtToken()
+        val token = Storage.getSessionToken()
         if (token == null || currentPath == "/login") {
             sessionChecked = true
             return@LaunchedEffect
@@ -52,19 +65,23 @@ fun App() {
         sessionChecked = false
         val response = ApiClient.get<SessionUserResponse>("/api/protected")
         if (isUnauthorized(response)) {
-            Storage.clearJwtToken()
+            Storage.clearSessionToken()
             Storage.setConfiguredServices(null)
             navigateTo(buildLoginRedirectPath(currentPath))
             return@LaunchedEffect
+        }
+        if (response is ApiResponse.Success) {
+            Storage.setConfiguredServices(response.data.configuredServices)
         }
         sessionChecked = true
     }
 
     Div {
         NavBar(currentPath = currentPath) {
-            Storage.clearJwtToken()
-            Storage.setConfiguredServices(null)
-            navigateTo("/login")
+            coroutineScope.launch {
+                logoutAndClearLocalSession()
+                navigateTo("/login")
+            }
         }
 
         Main {

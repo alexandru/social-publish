@@ -31,7 +31,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/article") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/article")
+        }
         assertNotNull(preview)
         assertEquals("Test Article Title", preview.title)
         assertEquals("This is a test description", preview.description)
@@ -55,7 +57,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/twitter") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/twitter")
+        }
 
         assertNotNull(preview)
         assertEquals("Twitter Title", preview.title)
@@ -64,28 +68,30 @@ class LinkPreviewParserTest {
     }
 
     @Test
-    fun `falls back to standard HTML tags when meta tags are missing`() = runTest {
-        val html =
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Standard HTML Title</title>
-                <meta name="description" content="Standard HTML description">
-            </head>
-            <body></body>
-            </html>
-            """
-                .trimIndent()
+    fun `falls back to standard HTML tags when meta tags are missing`() =
+        runTest {
+            val html =
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Standard HTML Title</title>
+                    <meta name="description" content="Standard HTML description">
+                </head>
+                <body></body>
+                </html>
+                """
+                    .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/standard") }
+            val preview = LinkPreviewParser.scoped {
+                it.parseHtml(html, "https://example.com/standard")
+            }
 
-        assertNotNull(preview)
-        assertEquals("Standard HTML Title", preview.title)
-        assertEquals("Standard HTML description", preview.description)
-        assertNull(preview.image)
-    }
+            assertNotNull(preview)
+            assertEquals("Standard HTML Title", preview.title)
+            assertEquals("Standard HTML description", preview.description)
+            assertNull(preview.image)
+        }
 
     @Test
     fun `prioritizes Open Graph over Twitter Cards`() = runTest {
@@ -104,7 +110,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com")
+        }
 
         assertNotNull(preview)
         assertEquals("OG Title", preview.title)
@@ -124,7 +132,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com")
+        }
 
         assertNull(preview)
     }
@@ -143,8 +153,9 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/fallback-url") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/fallback-url")
+        }
 
         assertNotNull(preview)
     }
@@ -164,32 +175,40 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com")
+        }
 
         assertNotNull(preview)
         assertEquals("https://example.com/twitter-src.jpg", preview.image)
     }
 
     @Test
-    fun `handles relative image URLs by resolving them to absolute URLs`() = runTest {
-        val html =
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Relative Image Test</title>
-                <meta property="og:image" content="/images/relative.jpg">
-            </head>
-            <body></body>
-            </html>
-            """
-                .trimIndent()
+    fun `handles relative image URLs by resolving them to absolute URLs`() =
+        runTest {
+            val html =
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Relative Image Test</title>
+                    <meta property="og:image" content="/images/relative.jpg">
+                </head>
+                <body></body>
+                </html>
+                """
+                    .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+            val preview = LinkPreviewParser.scoped {
+                it.parseHtml(html, "https://example.com")
+            }
 
-        assertNotNull(preview)
-        assertEquals("https://example.com/images/relative.jpg", preview.image)
-    }
+            assertNotNull(preview)
+            assertEquals(
+                "https://example.com/images/relative.jpg",
+                preview.image,
+            )
+        }
 
     @Test
     fun `handles absolute image URLs by keeping them unchanged`() = runTest {
@@ -206,10 +225,15 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com")
+        }
 
         assertNotNull(preview)
-        assertEquals("https://cdn.example.com/images/absolute.jpg", preview.image)
+        assertEquals(
+            "https://cdn.example.com/images/absolute.jpg",
+            preview.image,
+        )
     }
 
     @Test
@@ -227,10 +251,15 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com") }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com")
+        }
 
         assertNotNull(preview)
-        assertEquals("https://cdn.example.com/images/protocol-relative.jpg", preview.image)
+        assertEquals(
+            "https://cdn.example.com/images/protocol-relative.jpg",
+            preview.image,
+        )
     }
 
     @Test
@@ -248,68 +277,89 @@ class LinkPreviewParserTest {
             """
                 .trimIndent()
 
-        val preview =
-            LinkPreviewParser.scoped { it.parseHtml(html, "https://example.com/blog/post") }
-
-        assertNotNull(preview)
-        assertEquals("https://example.com/blog/images/path-relative.jpg", preview.image)
-    }
-
-    @Test
-    fun `handles malformed base URL by returning preview without image`() = runTest {
-        val html =
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Malformed Base URL Test</title>
-                <meta property="og:image" content="/images/relative.jpg">
-            </head>
-            <body></body>
-            </html>
-            """
-                .trimIndent()
-
-        val preview = LinkPreviewParser.scoped { it.parseHtml(html, "not-a-valid-url") }
-
-        assertNotNull(preview)
-        assertEquals("Malformed Base URL Test", preview.title)
-        assertNull(preview.image) // Should be null due to malformed base URL
-    }
-
-    @Test
-    fun `fetches YouTube video using oembed API for youtube com URL`() = runTest {
-        val mockEngine = MockEngine { request ->
-            when (request.url.toString()) {
-                "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D5l2wMgm7ZOk&format=json&maxwidth=1280&maxheight=720" ->
-                    respond(
-                        content =
-                            ByteReadChannel(
-                                """
-                                {
-                                    "title": "Why Black Boxes are so Hard to Reuse",
-                                    "author_name": "Computer History Museum",
-                                    "type": "video",
-                                    "thumbnail_url": "https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg"
-                                }
-                                """
-                                    .trimIndent()
-                            ),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
-                else -> respond(content = "", status = HttpStatusCode.NotFound)
-            }
+        val preview = LinkPreviewParser.scoped {
+            it.parseHtml(html, "https://example.com/blog/post")
         }
 
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
-        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=5l2wMgm7ZOk")
-
         assertNotNull(preview)
-        assertEquals("Why Black Boxes are so Hard to Reuse", preview.title)
-        assertEquals("Computer History Museum", preview.description)
-        assertEquals("https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg", preview.image)
+        assertEquals(
+            "https://example.com/blog/images/path-relative.jpg",
+            preview.image,
+        )
     }
+
+    @Test
+    fun `handles malformed base URL by returning preview without image`() =
+        runTest {
+            val html =
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Malformed Base URL Test</title>
+                    <meta property="og:image" content="/images/relative.jpg">
+                </head>
+                <body></body>
+                </html>
+                """
+                    .trimIndent()
+
+            val preview = LinkPreviewParser.scoped {
+                it.parseHtml(html, "not-a-valid-url")
+            }
+
+            assertNotNull(preview)
+            assertEquals("Malformed Base URL Test", preview.title)
+            assertNull(
+                preview.image
+            ) // Should be null due to malformed base URL
+        }
+
+    @Test
+    fun `fetches YouTube video using oembed API for youtube com URL`() =
+        runTest {
+            val mockEngine = MockEngine { request ->
+                when (request.url.toString()) {
+                    "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D5l2wMgm7ZOk&format=json&maxwidth=1280&maxheight=720" ->
+                        respond(
+                            content =
+                                ByteReadChannel(
+                                    """
+                                    {
+                                        "title": "Why Black Boxes are so Hard to Reuse",
+                                        "author_name": "Computer History Museum",
+                                        "type": "video",
+                                        "thumbnail_url": "https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg"
+                                    }
+                                    """
+                                        .trimIndent()
+                                ),
+                            status = HttpStatusCode.OK,
+                            headers =
+                                headersOf(
+                                    HttpHeaders.ContentType,
+                                    "application/json",
+                                ),
+                        )
+                    else ->
+                        respond(content = "", status = HttpStatusCode.NotFound)
+                }
+            }
+
+            val parser = LinkPreviewParser(HttpClient(mockEngine))
+            val preview =
+                parser.fetchPreview(
+                    "https://www.youtube.com/watch?v=5l2wMgm7ZOk"
+                )
+
+            assertNotNull(preview)
+            assertEquals("Why Black Boxes are so Hard to Reuse", preview.title)
+            assertEquals("Computer History Museum", preview.description)
+            assertEquals(
+                "https://i.ytimg.com/vi/5l2wMgm7ZOk/hqdefault.jpg",
+                preview.image,
+            )
+        }
 
     @Test
     fun `fetches YouTube video using oembed API for youtu be URL`() = runTest {
@@ -330,7 +380,11 @@ class LinkPreviewParserTest {
                                     .trimIndent()
                             ),
                         status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        headers =
+                            headersOf(
+                                HttpHeaders.ContentType,
+                                "application/json",
+                            ),
                     )
                 else -> respond(content = "", status = HttpStatusCode.NotFound)
             }
@@ -342,32 +396,41 @@ class LinkPreviewParserTest {
         assertNotNull(preview)
         assertEquals("OpenAI is Broke", preview.title)
         assertEquals("Vanessa Wingårdh", preview.description)
-        assertEquals("https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg", preview.image)
+        assertEquals(
+            "https://i.ytimg.com/vi/Y3N9qlPZBc0/hqdefault.jpg",
+            preview.image,
+        )
     }
 
     @Test
     fun `returns null when YouTube oembed API returns error`() = runTest {
-        val mockEngine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.NotFound) }
+        val mockEngine = MockEngine { _ ->
+            respond(content = "", status = HttpStatusCode.NotFound)
+        }
 
         val parser = LinkPreviewParser(HttpClient(mockEngine))
-        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=invalid")
+        val preview =
+            parser.fetchPreview("https://www.youtube.com/watch?v=invalid")
 
         assertNull(preview)
     }
 
     @Test
-    fun `returns null when YouTube oembed API returns invalid JSON`() = runTest {
-        val mockEngine = MockEngine { _ ->
-            respond(
-                content = ByteReadChannel("invalid json"),
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "application/json"),
-            )
+    fun `returns null when YouTube oembed API returns invalid JSON`() =
+        runTest {
+            val mockEngine = MockEngine { _ ->
+                respond(
+                    content = ByteReadChannel("invalid json"),
+                    status = HttpStatusCode.OK,
+                    headers =
+                        headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+
+            val parser = LinkPreviewParser(HttpClient(mockEngine))
+            val preview =
+                parser.fetchPreview("https://www.youtube.com/watch?v=123")
+
+            assertNull(preview)
         }
-
-        val parser = LinkPreviewParser(HttpClient(mockEngine))
-        val preview = parser.fetchPreview("https://www.youtube.com/watch?v=123")
-
-        assertNull(preview)
-    }
 }

@@ -1,15 +1,17 @@
+@file:MustUseReturnValues
+
 package socialpublish.backend.db
 
 import arrow.core.Either
 import arrow.core.getOrElse
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.Raise
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
 import arrow.fx.coroutines.resourceScope
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.io.File
 import java.sql.Connection
 import java.sql.PreparedStatement
@@ -25,15 +27,21 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.intellij.lang.annotations.Language
 import socialpublish.backend.common.LoomIO
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.common.loggerFactory
+import socialpublish.backend.common.rethrowIfFatal
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
+import socialpublish.backend.db.Database.Companion.connect
 
 /**
  * Database connection with HikariCP pooling.
  *
  * @property clock Clock instance for time-based operations (useful for testing)
  */
-data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: String) {
+data class Database(
+    val dataSource: DataSource,
+    val clock: Clock,
+    val dbPath: String,
+) {
     companion object {
         /** Dispatcher used for all database operations (virtual threads). */
         val Dispatcher = Dispatchers.LoomIO
@@ -41,44 +49,57 @@ data class Database(val dataSource: DataSource, val clock: Clock, val dbPath: St
         /**
          * Creates a database connection and runs migrations.
          *
-         * Creates parent directories and the database file if they don't exist. Runs all pending
-         * migrations before returning.
+         * Creates parent directories and the database file if they don't exist.
+         * Runs all pending migrations before returning.
          */
         fun connect(dbPath: String): Resource<Database> = resource {
-            logger.info { "Connecting to database at $dbPath" }
+            logger.info("Connecting to database at $dbPath")
             val dbFile = File(dbPath)
             dbFile.parentFile?.mkdirs()
 
             val dataSource = createDataSource(dbPath).bind()
-            val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
+            val db =
+                Database(
+                    dataSource = dataSource,
+                    clock = Clock.systemUTC(),
+                    dbPath = dbPath,
+                )
 
             // Run migrations
             migrate(db).getOrElse { throw it }
-            logger.info { "Database connected and migrated" }
+            logger.info("Database connected and migrated")
             db
         }
 
         /**
          * Creates an unmanaged database connection for testing.
          *
-         * Unlike [connect], this does not use Arrow Resource management and returns the Database
-         * directly. The caller is responsible for closing the connection pool when done, though in
-         * practice test JVMs exit quickly so this is rarely necessary.
+         * Unlike [connect], this does not use Arrow Resource management and
+         * returns the Database directly. The caller is responsible for closing
+         * the connection pool when done, though in practice test JVMs exit
+         * quickly so this is rarely necessary.
          *
-         * This is intended for test scenarios where the database needs to outlive a single scope.
+         * This is intended for test scenarios where the database needs to
+         * outlive a single scope.
          */
         suspend fun connectUnmanaged(dbPath: String): Database {
-            logger.info { "Connecting to database (unmanaged) at $dbPath" }
+            logger.info("Connecting to database (unmanaged) at $dbPath")
             val dbFile = File(dbPath)
             dbFile.parentFile?.mkdirs()
 
             val hikariConfig = createHikariConfig(dbPath)
-            val dataSource = withContext(Database.Dispatcher) { HikariDataSource(hikariConfig) }
-            val db = Database(dataSource = dataSource, clock = Clock.systemUTC(), dbPath = dbPath)
+            val dataSource =
+                withContext(Dispatcher) { HikariDataSource(hikariConfig) }
+            val db =
+                Database(
+                    dataSource = dataSource,
+                    clock = Clock.systemUTC(),
+                    dbPath = dbPath,
+                )
 
             // Run migrations
             migrate(db).getOrElse { throw it }
-            logger.info { "Database connected and migrated (unmanaged)" }
+            logger.info("Database connected and migrated (unmanaged)")
             return db
         }
     }
@@ -91,23 +112,26 @@ data class DatabaseResources(
     val postsDb: PostsDatabase,
     val filesDb: FilesDatabase,
     val usersDb: UsersDatabase,
+    val userSessionsDb: UserSessionsDatabase,
 )
 
 /** Factory for creating database resource bundles. */
 object DatabaseBundle {
     /** Creates a bundle with all database access objects. */
     fun resource(dbPath: String): Resource<DatabaseResources> = resource {
-        val db = Database.connect(dbPath).bind()
+        val db = connect(dbPath).bind()
         val documentsDb = DocumentsDatabase(db)
         val postsDb = PostsDatabase(documentsDb)
         val filesDb = FilesDatabase(db)
         val usersDb = UsersDatabase(db)
+        val userSessionsDb = UserSessionsDatabase(db, usersDb)
         DatabaseResources(
             db = db,
             documentsDb = documentsDb,
             postsDb = postsDb,
             filesDb = filesDb,
             usersDb = usersDb,
+            userSessionsDb = userSessionsDb,
         )
     }
 }
@@ -120,7 +144,8 @@ fun Connection.safe(): SafeConnection = SafeConnection(this)
 /** Type-safe wrapper around JDBC PreparedStatement (zero runtime overhead). */
 @JvmInline value class SafePreparedStatement(val statement: PreparedStatement)
 
-fun PreparedStatement.safe(): SafePreparedStatement = SafePreparedStatement(this)
+fun PreparedStatement.safe(): SafePreparedStatement =
+    SafePreparedStatement(this)
 
 /** Type-safe wrapper around JDBC ResultSet (zero runtime overhead). */
 @JvmInline value class SafeResultSet(val resultSet: ResultSet)
@@ -135,7 +160,8 @@ private fun createHikariConfig(dbPath: String): HikariConfig =
         // Keep pool size low for SQLite
         maximumPoolSize = 3
         minimumIdle = 1
-        // Allow SQLite to wait briefly when the DB file is locked by another writer.
+        // Allow SQLite to wait briefly when the DB file is locked by another
+        // writer.
         connectionInitSql = "PRAGMA busy_timeout = 5000"
         // Instructs HikariCP to not throw if the pool cannot be seeded
         // with an initial connection
@@ -156,11 +182,18 @@ fun createDataSource(dbPath: String): Resource<DataSource> = resource {
 /**
  * Acquires a connection from the pool.
  *
- * Connection is automatically returned to the pool when the Resource is released.
+ * Connection is automatically returned to the pool when the Resource is
+ * released.
  */
 fun Database.connection(): Resource<SafeConnection> = resource {
     install(
-        { withContext(Database.Dispatcher) { SafeConnection(dataSource.connection) } },
+        {
+            withContext(Database.Dispatcher) {
+                val c = dataSource.connection
+                c.autoCommit = true
+                SafeConnection(c)
+            }
+        },
         { c, _ -> withContext(Database.Dispatcher) { c.connection.close() } },
     )
 }
@@ -168,76 +201,124 @@ fun Database.connection(): Resource<SafeConnection> = resource {
 /**
  * Executes a block within a transaction.
  *
- * Automatically commits on success and rolls back on exception. Auto-commit is disabled during
- * execution and restored afterwards.
+ * Automatically commits on success and rolls back on exception.
  */
-suspend fun <A> Database.transaction(block: suspend SafeConnection.() -> A): A = resourceScope {
-    val ref = connection().bind()
-    try {
-        ref.connection.autoCommit = false
-        val result = block(ref)
-        ref.connection.commit()
-        result
-    } catch (e: Exception) {
-        ref.connection.rollback()
-        throw e
-    } finally {
-        ref.connection.autoCommit = true
+suspend fun <A> Database.transaction(
+    block:
+        suspend context(Raise<DBException>)
+        SafeConnection.() -> A
+): Either<DBException, A> = resourceScope {
+    either {
+        val ref =
+            try {
+                connection().bind()
+            } catch (e: SQLException) {
+                raise(DBException("Failed to acquire database connection", e))
+            }
+        try {
+            ref.connection.autoCommit = false
+            val result = block(ref)
+            ref.connection.commit()
+            result
+        } catch (e: Throwable) {
+            rethrowIfFatal(e) { ref.connection.rollback() }
+            raise(DBException("Transaction failed", e))
+        }
     }
 }
 
 /**
  * Executes a transaction with typed constraint violation handling.
  *
- * Returns `Either<SqlUpdateException, A>` for handling constraint violations. Useful for
- * INSERT/UPDATE operations.
+ * Returns `Either<SqlUpdateException, A>` for handling constraint violations.
+ * Useful for INSERT/UPDATE operations.
  *
- * SQLite note: Unlike PostgreSQL, constraint violations are detected by parsing error messages, so
- * table/column information may not always be available.
+ * SQLite note: Unlike PostgreSQL, constraint violations are detected by parsing
+ * error messages, so table/column information may not always be available.
  */
 suspend fun <A> Database.transactionForUpdates(
-    block: suspend SafeConnection.() -> A
-): Either<SqlUpdateException, A> =
+    block:
+        suspend context(Raise<DBException>)
+        SafeConnection.() -> A
+): Either<SqlUpdateException, A> = either {
     try {
-        transaction(block).right()
+        transaction(block).getOrElse { throw it.cause ?: it }
     } catch (e: SqlUpdateException) {
-        e.left()
+        raise(e)
     } catch (e: SQLException) {
         // SQLite error handling
         when {
-            e.message?.contains("UNIQUE constraint", ignoreCase = true) == true -> {
+            e.message?.contains("UNIQUE constraint", ignoreCase = true) ==
+                true -> {
                 // Extract constraint name from error message if possible
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.UniqueViolation(null, null, constraintName, e).left()
+                raise(
+                    SqlUpdateException.UniqueViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
-            e.message?.contains("FOREIGN KEY constraint", ignoreCase = true) == true -> {
+
+            e.message?.contains("FOREIGN KEY constraint", ignoreCase = true) ==
+                true -> {
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.ForeignKeyViolation(null, null, constraintName, e).left()
+                raise(
+                    SqlUpdateException.ForeignKeyViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
-            e.message?.contains("CHECK constraint", ignoreCase = true) == true -> {
+
+            e.message?.contains("CHECK constraint", ignoreCase = true) ==
+                true -> {
                 val constraintName = extractConstraintName(e.message)
-                SqlUpdateException.CheckViolation(null, null, constraintName, e).left()
+                raise(
+                    SqlUpdateException.CheckViolation(
+                        null,
+                        null,
+                        constraintName,
+                        e,
+                    )
+                )
             }
+
             else -> {
-                SqlUpdateException.Unknown(e.message ?: "Unknown SQL error", e).left()
+                raise(
+                    SqlUpdateException.Unknown(
+                        e.message ?: "Unknown SQL error",
+                        e,
+                    )
+                )
             }
         }
+    } catch (e: Throwable) {
+        rethrowIfFatalOrCancelled(e)
+        raise(SqlUpdateException.Unknown("Unexpected exception", e))
     }
+}
 
 /** Extracts constraint name from SQLite error messages. */
 private fun extractConstraintName(message: String?): String? {
     if (message == null) return null
     // Try to extract constraint name from SQLite error messages
     // Example: "UNIQUE constraint failed: users.email"
-    val pattern = """constraint\s+(?:failed:\s+)?([^\s,]+)""".toRegex(RegexOption.IGNORE_CASE)
+    val pattern =
+        """constraint\s+(?:failed:\s+)?([^\s,]+)"""
+            .toRegex(RegexOption.IGNORE_CASE)
     return pattern.find(message)?.groupValues?.get(1)
 }
 
 /**
  * Executes a PreparedStatement with coroutine cancellation support.
  *
- * If the coroutine is cancelled, the SQL statement is cancelled and resources are cleaned up
- * properly.
+ * If the coroutine is cancelled, the SQL statement is cancelled and resources
+ * are cleaned up properly.
  */
 suspend fun <A> SafePreparedStatement.useWithInterruption(
     block: suspend PreparedStatement.() -> A
@@ -251,7 +332,9 @@ suspend fun <A> SafePreparedStatement.useWithInterruption(
                     block(statement)
                 } catch (e: Exception) {
                     // Filter cancellation to avoid logging downstream
-                    if (!isActive) throw CancellationException("Query cancelled", e) else throw e
+                    if (!isActive)
+                        throw CancellationException("Query cancelled", e)
+                    else throw e
                 }
             }
             // (3) Wait for result
@@ -273,13 +356,21 @@ suspend fun <A> SafePreparedStatement.useWithInterruption(
     }
 
 /** Executes a SQL query on an existing connection. */
+context(_: Raise<DBException>)
 suspend fun <A> SafeConnection.query(
     @Language("SQL") sql: String,
     block: suspend PreparedStatement.() -> A,
-): A =
+) =
     withContext(Database.Dispatcher) {
-        @Suppress("SqlSourceToSinkFlow")
-        connection.prepareStatement(sql.trimIndent()).safe().useWithInterruption(block)
+        try {
+            connection
+                .prepareStatement(sql.trimIndent())
+                .safe()
+                .useWithInterruption(block)
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            raise(DBException("Database query failed", e))
+        }
     }
 
 /**
@@ -287,6 +378,7 @@ suspend fun <A> SafeConnection.query(
  *
  * For multiple queries in a transaction, use [transaction] instead.
  */
+context(_: Raise<DBException>)
 suspend fun <A> Database.query(
     @Language("SQL") sql: String,
     block: suspend PreparedStatement.() -> A,
@@ -300,14 +392,13 @@ suspend fun <A> Database.query(
  * val names = resultSet.safe().toList { rs -> rs.getString("name") }
  * ```
  */
-fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> =
-    resultSet.use {
-        val result = mutableListOf<A>()
-        while (it.next()) {
-            result.add(f(it))
-        }
-        result
+fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> = resultSet.use {
+    val result = mutableListOf<A>()
+    while (it.next()) {
+        result.add(f(it))
     }
+    result
+}
 
 /**
  * Extracts the first row from a ResultSet, or null if empty.
@@ -319,34 +410,35 @@ fun <A> SafeResultSet.toList(f: (ResultSet) -> A): List<A> =
  * }
  * ```
  */
-fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? =
-    resultSet.use { if (resultSet.next()) f(resultSet) else null }
+fun <A> SafeResultSet.firstOrNull(f: (ResultSet) -> A): A? = resultSet.use {
+    if (resultSet.next()) f(resultSet) else null
+}
 
 /**
  * Runs all pending database migrations.
  *
- * Migrations are idempotent - safe to call multiple times. Already-applied migrations are skipped.
+ * Migrations are idempotent - safe to call multiple times. Already-applied
+ * migrations are skipped.
  */
-suspend fun migrate(db: Database): Either<DBException, Unit> =
-    try {
-        db.transaction { runMigrations() }
-        Either.Right(Unit)
-    } catch (e: Exception) {
-        DBException("Migration failed", e).left()
-    }
+suspend fun migrate(db: Database): Either<DBException, Unit> = db.transaction {
+    runMigrations()
+}
 
+context(_: Raise<DBException>)
 private suspend fun SafeConnection.runMigrations() {
-    logger.info { "Running database migrations..." }
+    logger.info("Running database migrations...")
 
     // Apply all migrations in order
     migrations.forEachIndexed { index, migration ->
         if (!migration.testIfApplied(this)) {
-            logger.info { "Applying migration $index" }
+            logger.info("Applying migration $index")
             migration.execute(this)
         } else {
-            logger.debug { "Migration $index already applied, skipping" }
+            logger.debug("Migration $index already applied, skipping")
         }
     }
 
-    logger.info { "Database migrations completed" }
+    logger.info("Database migrations completed")
 }
+
+private val logger by loggerFactory()

@@ -20,7 +20,8 @@ class UrlsTest {
 
     @Test
     fun `parseUrl should return null for input that looks like scheme_host`() {
-        // java.net.URI treats 'example.com:3000' as a scheme, not as host:port, so parser should
+        // java.net.URI treats 'example.com:3000' as a scheme, not as host:port,
+        // so parser should
         // return null
         val parsed = parseUrl("example.com:3000")
         assertNull(parsed)

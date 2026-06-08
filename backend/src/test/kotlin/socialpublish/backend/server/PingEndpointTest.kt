@@ -26,8 +26,9 @@ class PingEndpointTest {
             assertEquals(HttpStatusCode.OK, status)
             assertEquals("pong", bodyAsText())
             assertTrue(
-                headers[HttpHeaders.ContentType]?.contains(ContentType.Text.Plain.toString()) ==
-                    true
+                headers[HttpHeaders.ContentType]?.contains(
+                    ContentType.Text.Plain.toString()
+                ) == true
             )
         }
     }
@@ -40,13 +41,18 @@ class PingEndpointTest {
             assertEquals(HttpStatusCode.OK, status)
             // HEAD responses should not have a body
             val body = bodyAsText()
-            assertTrue(body.isEmpty(), "HEAD response should have empty body, but got: '$body'")
+            assertTrue(
+                body.isEmpty(),
+                "HEAD response should have empty body, but got: '$body'",
+            )
         }
     }
 
     private fun Application.configurePingEndpoint() {
         routing {
-            get("/ping") { call.respondText("pong", status = HttpStatusCode.OK) }
+            get("/ping") {
+                call.respondText("pong", status = HttpStatusCode.OK)
+            }
             head("/ping") { call.respondText("", status = HttpStatusCode.OK) }
         }
     }

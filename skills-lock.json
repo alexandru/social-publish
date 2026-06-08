@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "arrow-resource": {
+      "source": "alexandru/skills",
+      "sourceType": "github",
+      "skillPath": "skills/arrow-resource/SKILL.md",
+      "computedHash": "1944a581af2a57cea2941ae175668f4b274c32e699d5a626616c3fdbcbe6d662"
+    },
+    "arrow-typed-errors": {
+      "source": "alexandru/skills",
+      "sourceType": "github",
+      "skillPath": "skills/arrow-typed-errors/SKILL.md",
+      "computedHash": "a4d1ed6c0643f6b2f7c1f710015421f23786f02647251869b2111c378ccab8f9"
+    },
+    "compose-state-hoisting": {
+      "source": "alexandru/skills",
+      "sourceType": "github",
+      "skillPath": "skills/compose-state-hoisting/SKILL.md",
+      "computedHash": "25e8fff5d4971118080d920d1affe45fc0786fecfbab259524329aa78dc3a19c"
+    },
+    "kotlin-context-parameters": {
+      "source": "alexandru/skills",
+      "sourceType": "github",
+      "skillPath": "skills/kotlin-context-parameters/SKILL.md",
+      "computedHash": "5df194708db7393daa1c2cc67c3aa79aa25847965645d0bec974c5fd9b757bb5"
+    },
+    "simplify": {
+      "source": "alexandru/skills",
+      "sourceType": "github",
+      "skillPath": "skills/simplify/SKILL.md",
+      "computedHash": "c1c25910819652a25ac68063fcf663ba9392d19bcd58d153a1a8fcc92b6721ee"
+    }
+  }
+}

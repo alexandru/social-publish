@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# CLI wrapper for running social-publish commands with minimal logging
+# This script wraps the java-exec command and sets up logging for CLI usage.
+# 
+# Usage: ./cli <command> [options]
+# Example: ./cli create-user --db-path /var/lib/social-publish/sqlite3.db
+
+# Run the app with minimal logging (warnings and errors only)
+# Use --verbose flag on individual commands to see more logging
+exec /opt/app/java-exec -jar /opt/app/app.jar "$@"

@@ -6,7 +6,11 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-data class BlueskyConfig(val service: String, val username: String, val password: String)
+data class BlueskyConfig(
+    val service: String,
+    val username: String,
+    val password: String,
+)
 
 @Serializable
 data class BlueskySessionResponse(
@@ -16,9 +20,14 @@ data class BlueskySessionResponse(
     val did: String,
 )
 
-@Serializable data class BlueskyCreateSessionRequest(val identifier: String, val password: String)
+@Serializable
+data class BlueskyCreateSessionRequest(
+    val identifier: String,
+    val password: String,
+)
 
-@Serializable data class BlueskyBlobUploadResponse(val blob: BlueskyBlobUploadBlob)
+@Serializable
+data class BlueskyBlobUploadResponse(val blob: BlueskyBlobUploadBlob)
 
 @Serializable
 data class BlueskyBlobUploadBlob(
@@ -58,11 +67,15 @@ data class BlueskyFacetFeature(
 )
 
 @Serializable
-data class BlueskyFacet(val index: BlueskyFacetIndex, val features: List<BlueskyFacetFeature>)
+data class BlueskyFacet(
+    val index: BlueskyFacetIndex,
+    val features: List<BlueskyFacetFeature>,
+)
 
 @Serializable data class BlueskyReplyRef(val uri: String, val cid: String)
 
-@Serializable data class BlueskyReply(val root: BlueskyReplyRef, val parent: BlueskyReplyRef)
+@Serializable
+data class BlueskyReply(val root: BlueskyReplyRef, val parent: BlueskyReplyRef)
 
 @Serializable
 data class BlueskyExternal(
@@ -72,10 +85,17 @@ data class BlueskyExternal(
     val thumb: BlueskyBlobRef? = null,
 )
 
-@Serializable data class BlueskyExternalEmbed(val `$type`: String, val external: BlueskyExternal)
+@Serializable
+data class BlueskyExternalEmbed(
+    val `$type`: String,
+    val external: BlueskyExternal,
+)
 
 @Serializable
-data class BlueskyImagesEmbed(val `$type`: String, val images: List<BlueskyImageEmbed>)
+data class BlueskyImagesEmbed(
+    val `$type`: String,
+    val images: List<BlueskyImageEmbed>,
+)
 
 @Serializable
 data class BlueskyPostRecord(

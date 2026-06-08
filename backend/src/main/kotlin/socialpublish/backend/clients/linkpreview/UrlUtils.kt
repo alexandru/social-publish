@@ -21,14 +21,16 @@ fun resolveImageUrl(imageUrl: String, baseUrl: String): String? {
 
     return when {
         // Already absolute URL (has protocol)
-        imageUrl.startsWith("http://") || imageUrl.startsWith("https://") -> imageUrl
+        imageUrl.startsWith("http://") || imageUrl.startsWith("https://") ->
+            imageUrl
 
         // Protocol-relative URL (starts with //)
         imageUrl.startsWith("//") -> {
             if (!isBaseUrlValid) {
                 null
             } else {
-                val protocol = if (baseUrl.startsWith("https://")) "https:" else "http:"
+                val protocol =
+                    if (baseUrl.startsWith("https://")) "https:" else "http:"
                 "$protocol$imageUrl"
             }
         }

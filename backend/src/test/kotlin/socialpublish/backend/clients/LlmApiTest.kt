@@ -11,7 +11,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import java.nio.file.Path
-import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -22,13 +21,16 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.llm.LlmApiModule
 import socialpublish.backend.clients.llm.LlmConfig
 import socialpublish.backend.clients.llm.OpenAiChatRequest
+import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
+import socialpublish.backend.testutils.createTestSession
 import socialpublish.backend.testutils.uploadTestImage
 
 class LlmApiTest {
-    private val testUserUuid: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
+    private val testUserUuid: UUIDv7 =
+        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
 
     @Test
     fun `generates alt text using OpenAI`(@TempDir tempDir: Path) = runTest {
@@ -48,7 +50,11 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     // Mock OpenAI API
                     post("/v1/chat/completions") {
                         receivedRequest = call.receive<OpenAiChatRequest>()
@@ -95,10 +101,16 @@ class LlmApiTest {
                     apiKey = "test-key",
                     model = "gpt-4o-mini",
                 )
-            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    llmModule.generateAltText(llmConfig, upload.uuid)
+                }
 
             // Verify result
-            assertTrue(result is Either.Right, "Expected successful result but got: $result")
+            assertTrue(
+                result is Either.Right,
+                "Expected successful result but got: $result",
+            )
             val altText = (result as Either.Right).value
             assertEquals("A beautiful red rose in bloom", altText)
 
@@ -121,7 +133,10 @@ class LlmApiTest {
             val imageContent = message?.content?.find { it.type == "image_url" }
             assertNotNull(imageContent?.imageUrl)
             assertTrue(
-                imageContent?.imageUrl?.url?.startsWith("data:image/jpeg;base64,") == true,
+                imageContent
+                    ?.imageUrl
+                    ?.url
+                    ?.startsWith("data:image/jpeg;base64,") == true,
                 "Image should be base64 encoded",
             )
         }
@@ -144,7 +159,11 @@ class LlmApiTest {
                     )
                 }
                 routing {
-                    post("/api/files/upload") { filesRoutes.uploadFileRoute(testUserUuid, call) }
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            filesRoutes.uploadFileRoute(call)
+                        }
+                    }
                     // Mock Mistral API
                     post("/v1/chat/completions") {
                         call.respondText(
@@ -190,46 +209,61 @@ class LlmApiTest {
                     apiKey = "test-key",
                     model = "pixtral-12b-2409",
                 )
-            val result = llmModule.generateAltText(llmConfig, testUserUuid, upload.uuid)
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    llmModule.generateAltText(llmConfig, upload.uuid)
+                }
 
             // Verify result
             assertTrue(result is Either.Right, "Expected successful result")
             val altText = (result as Either.Right).value
-            assertEquals("A vibrant yellow tulip against a green background", altText)
+            assertEquals(
+                "A vibrant yellow tulip against a green background",
+                altText,
+            )
         }
     }
 
     @Test
-    fun `returns error for non-existent image`(@TempDir tempDir: Path) = runTest {
-        testApplication {
-            val jdbi = createTestDatabase(tempDir)
-            val filesModule = createFilesModule(tempDir, jdbi)
+    fun `returns error for non-existent image`(@TempDir tempDir: Path) =
+        runTest {
+            testApplication {
+                val jdbi = createTestDatabase(tempDir)
+                val filesModule = createFilesModule(tempDir, jdbi)
 
-            val client = createClient {
-                install(ClientContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        }
-                    )
+                val client = createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
                 }
-            }
 
-            val llmModule = LlmApiModule(filesModule, client)
+                val llmModule = LlmApiModule(filesModule, client)
 
-            val dummyConfig =
-                LlmConfig(
-                    apiUrl = "/v1/chat/completions",
-                    apiKey = "test-key",
-                    model = "gpt-4o-mini",
+                val dummyConfig =
+                    LlmConfig(
+                        apiUrl = "/v1/chat/completions",
+                        apiKey = "test-key",
+                        model = "gpt-4o-mini",
+                    )
+                val result =
+                    context(createTestSession(testUserUuid)) {
+                        llmModule.generateAltText(
+                            dummyConfig,
+                            "non-existent-uuid",
+                        )
+                    }
+
+                assertTrue(result is Either.Left, "Expected error result")
+                val error = (result as Either.Left).value
+                assertEquals(404, error.status)
+                assertTrue(
+                    error.errorMessage.contains("not found", ignoreCase = true)
                 )
-            val result = llmModule.generateAltText(dummyConfig, testUserUuid, "non-existent-uuid")
-
-            assertTrue(result is Either.Left, "Expected error result")
-            val error = (result as Either.Left).value
-            assertEquals(404, error.status)
-            assertTrue(error.errorMessage.contains("not found", ignoreCase = true))
+            }
         }
-    }
 }

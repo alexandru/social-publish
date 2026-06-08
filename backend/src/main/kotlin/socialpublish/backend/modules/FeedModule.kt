@@ -8,9 +8,7 @@ import com.rometools.rome.feed.synd.SyndContentImpl
 import com.rometools.rome.feed.synd.SyndEntryImpl
 import com.rometools.rome.feed.synd.SyndFeedImpl
 import com.rometools.rome.io.SyndFeedOutput
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.Date
-import java.util.UUID
 import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
@@ -20,20 +18,27 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.PublishedMessageResponse
+import socialpublish.backend.common.loggerFactory
+import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.Post
 import socialpublish.backend.db.PostPayload
 import socialpublish.backend.db.PostsDatabase
-
-private val logger = KotlinLogging.logger {}
+import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.db.UserSession
+import socialpublish.backend.server.userUuid
 
 class FeedModule(
     private val baseUrl: String,
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
-    private fun validateMessages(messages: List<NewPostRequestMessage>): CaughtException? {
-        val invalid = messages.any { it.content.isEmpty() || it.content.length > 1000 }
+    private fun validateMessages(
+        messages: List<NewPostRequestMessage>
+    ): CaughtException? {
+        val invalid = messages.any {
+            it.content.isEmpty() || it.content.length > 1000
+        }
         return if (invalid) {
             CaughtException(
                 status = 400,
@@ -45,8 +50,13 @@ class FeedModule(
         }
     }
 
-    suspend fun createPost(request: NewPostRequest, userUuid: UUID): ApiResult<NewPostResponse> {
+    /** Create a new feed post (context-based, for routes) */
+    context(_: UserSession)
+    suspend fun createPost(
+        request: NewPostRequest
+    ): ApiResult<NewPostResponse> {
         return try {
+            val userUuid = userUuid()
             validateMessages(request.messages)?.let {
                 return it.left()
             }
@@ -56,8 +66,9 @@ class FeedModule(
                 messages = request.messages,
                 userUuid = userUuid,
             )
-        } catch (e: Exception) {
-            logger.error(e) { "Failed to save feed item" }
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.error("Failed to save feed item", e)
             CaughtException(
                     status = 500,
                     module = "feed",
@@ -67,11 +78,15 @@ class FeedModule(
         }
     }
 
+    /**
+     * Create feed posts with threading support (explicit userUuid, for
+     * PublishModule)
+     */
     suspend fun createPosts(
         targets: List<String>,
         language: String?,
         messages: List<NewPostRequestMessage>,
-        userUuid: UUID,
+        userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> {
         validateMessages(messages)?.let {
             return it.left()
@@ -97,23 +112,11 @@ class FeedModule(
                     replyToPostUuid = previousPostUuid,
                 )
 
-            val postResult =
-                try {
-                    postsDb.create(payload, normalizedTargets, userUuid)
-                } catch (e: Exception) {
-                    logger.error(e) { "Failed to save feed item" }
-                    return CaughtException(
-                            status = 500,
-                            module = "feed",
-                            errorMessage = "Failed to save feed item: ${e.message}",
-                        )
-                        .left()
-                }
             val post =
-                when (postResult) {
-                    is arrow.core.Either.Right -> postResult.value
-                    is arrow.core.Either.Left -> {
-                        logger.error(postResult.value) { "Failed to save feed item" }
+                postsDb
+                    .create(payload, normalizedTargets, userUuid)
+                    .getOrElse { error ->
+                        logger.error("Failed to save feed item", error)
                         return CaughtException(
                                 status = 500,
                                 module = "feed",
@@ -121,7 +124,6 @@ class FeedModule(
                             )
                             .left()
                     }
-                }
             val postUri = "$baseUrl/feed/$userUuid/${post.uuid}"
             messageResponses +=
                 PublishedMessageResponse(
@@ -132,20 +134,27 @@ class FeedModule(
             previousPostUuid = post.uuid
         }
 
-        val firstUri = messageResponses.firstOrNull()?.uri ?: "$baseUrl/feed/$userUuid"
-        return NewFeedPostResponse(uri = firstUri, messages = messageResponses).right()
+        val firstUri =
+            messageResponses.firstOrNull()?.uri ?: "$baseUrl/feed/$userUuid"
+        return NewFeedPostResponse(uri = firstUri, messages = messageResponses)
+            .right()
     }
 
+    /** Generate Atom feed */
     suspend fun generateFeed(
-        userUuid: UUID,
+        userUuid: UUIDv7,
         filterByLinks: String? = null,
         filterByImages: String? = null,
         target: String? = null,
     ): String {
         val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
-        val mediaNamespace = Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
+        val mediaNamespace =
+            Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
         val threadingNamespace =
-            Namespace.getNamespace("thr", "http://purl.org/syndication/thread/1.0")
+            Namespace.getNamespace(
+                "thr",
+                "http://purl.org/syndication/thread/1.0",
+            )
 
         val feed =
             SyndFeedImpl().apply {
@@ -180,8 +189,9 @@ class FeedModule(
 
             for (imageUuid in post.images.orEmpty()) {
                 val upload =
-                    filesDb.getFileByUuidForUser(imageUuid, userUuid).getOrElse { throw it }
-                        ?: continue
+                    filesDb
+                        .getFileByUuidForUser(imageUuid, userUuid)
+                        .getOrElse { throw it } ?: continue
                 val content = Element("content", mediaNamespace)
                 content.setAttribute("url", "$baseUrl/files/${upload.uuid}")
                 content.setAttribute("fileSize", upload.size.toString())
@@ -220,10 +230,9 @@ class FeedModule(
                         }
 
                     if (categoryNames.isNotEmpty()) {
-                        categories =
-                            categoryNames.map { name ->
-                                SyndCategoryImpl().apply { this.name = name }
-                            }
+                        categories = categoryNames.map { name ->
+                            SyndCategoryImpl().apply { this.name = name }
+                        }
                     }
 
                     val foreignMarkupElements = mutableListOf<Element>()
@@ -255,7 +264,12 @@ class FeedModule(
         return output.outputString(feed)
     }
 
-    suspend fun getFeedItemByUuid(userUuid: UUID, uuid: String): Post? {
-        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse { throw it }
+    /** Get feed item by UUID */
+    suspend fun getFeedItemByUuid(userUuid: UUIDv7, uuid: String): Post? {
+        return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse {
+            throw it
+        }
     }
 }
+
+private val logger by loggerFactory()

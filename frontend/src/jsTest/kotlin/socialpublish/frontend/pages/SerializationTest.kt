@@ -1,4 +1,4 @@
-package socialpublish.frontend.models
+package socialpublish.frontend.pages
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -6,14 +6,16 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import socialpublish.frontend.pages.TwitterStatusResponse
+import socialpublish.frontend.components.GenerateAltTextRequest
+import socialpublish.frontend.utils.ConfiguredServices
 
 class SerializationTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
     fun testLoginRequestSerializationRoundTrip() {
-        val original = LoginRequest(username = "testuser", password = "testpass")
+        val original =
+            LoginRequest(username = "testuser", password = "testpass")
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<LoginRequest>(encoded)
 
@@ -35,20 +37,21 @@ class SerializationTest {
     fun testLoginResponseSerializationRoundTrip() {
         val original =
             LoginResponse(
-                token = "jwt-token-123",
+                token = "session-token-123",
                 configuredServices = ConfiguredServices(twitter = true),
             )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
         assertEquals(original, decoded)
-        assertEquals("jwt-token-123", decoded.token)
+        assertEquals("session-token-123", decoded.token)
         assertTrue(decoded.configuredServices.twitter)
     }
 
     @Test
     fun testLoginResponseDeserialization() {
-        val jsonString = """{"token":"abc123","configuredServices":{"twitter":true}}"""
+        val jsonString =
+            """{"token":"abc123","configuredServices":{"twitter":true}}"""
         val decoded = json.decodeFromString<LoginResponse>(jsonString)
 
         assertEquals("abc123", decoded.token)
@@ -122,13 +125,17 @@ class SerializationTest {
         assertEquals(listOf("twitter", "mastodon"), decoded.targets)
         assertEquals("Test post content", decoded.messages.first().content)
         assertEquals("https://example.com", decoded.messages.first().link)
-        assertEquals(listOf("img1.jpg", "img2.jpg"), decoded.messages.first().images)
+        assertEquals(
+            listOf("img1.jpg", "img2.jpg"),
+            decoded.messages.first().images,
+        )
         assertEquals("en", decoded.language)
     }
 
     @Test
     fun testPublishRequestDeserializationWithDefaults() {
-        val jsonString = """{"targets":["twitter"],"messages":[{"content":"Hello"}]}"""
+        val jsonString =
+            """{"targets":["twitter"],"messages":[{"content":"Hello"}]}"""
         val decoded = json.decodeFromString<PublishRequest>(jsonString)
 
         assertEquals(listOf("twitter"), decoded.targets)
@@ -222,7 +229,10 @@ class SerializationTest {
     fun testComplexNestedSerialization() {
         // Test nested object serialization
         val response =
-            LoginResponse(token = "token", configuredServices = ConfiguredServices(twitter = true))
+            LoginResponse(
+                token = "token",
+                configuredServices = ConfiguredServices(twitter = true),
+            )
         val encoded = json.encodeToString(response)
         val decoded = json.decodeFromString<LoginResponse>(encoded)
 
@@ -233,7 +243,8 @@ class SerializationTest {
     @Test
     fun testTwitterStatusResponseDeserializationWithAuthorization() {
         // Backend returns createdAt as Long (epoch milliseconds)
-        val jsonString = """{"hasAuthorization":true,"createdAt":1737478801545}"""
+        val jsonString =
+            """{"hasAuthorization":true,"createdAt":1737478801545}"""
         val decoded = json.decodeFromString<TwitterStatusResponse>(jsonString)
 
         assertTrue(decoded.hasAuthorization)
@@ -267,7 +278,11 @@ class SerializationTest {
 
     @Test
     fun testTwitterStatusResponseSerializationRoundTrip() {
-        val original = TwitterStatusResponse(hasAuthorization = true, createdAt = 1737478801545L)
+        val original =
+            TwitterStatusResponse(
+                hasAuthorization = true,
+                createdAt = 1737478801545L,
+            )
         val encoded = json.encodeToString(original)
         val decoded = json.decodeFromString<TwitterStatusResponse>(encoded)
 
