@@ -159,7 +159,7 @@ class SocialMediaValidationTest {
     }
 
     @Test
-    fun `linkedin validation enforces post and follow-up limits`(
+    fun `linkedin validation uses combined content and image limits`(
         @TempDir tempDir: Path
     ) = runTest {
         val db = createTestDatabase(tempDir)
@@ -179,53 +179,41 @@ class SocialMediaValidationTest {
             NewPostRequest(
                 messages =
                     nonEmptyListOf(
-                        NewPostRequestMessage(
-                            content = "a".repeat(1973),
-                            link = "https://x.com",
-                        ),
-                        NewPostRequestMessage(
-                            content = "a".repeat(1223),
-                            link = "https://x.com",
-                        ),
+                        NewPostRequestMessage(content = "a".repeat(1000)),
+                        NewPostRequestMessage(content = "b".repeat(994)),
                     )
             )
-        val rejectedPost =
+        val rejectedCombinedContent =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(content = "a".repeat(1000)),
+                        NewPostRequestMessage(content = "b".repeat(999)),
+                    )
+            )
+        val rejectedCombinedImages =
             NewPostRequest(
                 messages =
                     nonEmptyListOf(
                         NewPostRequestMessage(
-                            content = "a".repeat(1974),
-                            link = "https://x.com",
-                        )
-                    )
-            )
-        val rejectedFollowUp =
-            NewPostRequest(
-                messages =
-                    nonEmptyListOf(
-                        NewPostRequestMessage(content = "root"),
+                            content = "root",
+                            images = listOf("image-1", "image-2", "image-3"),
+                        ),
                         NewPostRequestMessage(
                             content = "a".repeat(1224),
-                            link = "https://x.com",
+                            images = listOf("image-4", "image-5"),
                         ),
-                    )
-            )
-        val rejectedThreadLength =
-            NewPostRequest(
-                messages =
-                    nonEmptyListOf(
-                        NewPostRequestMessage(content = "root"),
-                        NewPostRequestMessage(content = "reply one"),
-                        NewPostRequestMessage(content = "reply two"),
                     )
             )
 
         assertNull(module.validateRequest(accepted))
-        assertNotNull(module.validateRequest(rejectedPost))
-        assertNotNull(module.validateRequest(rejectedFollowUp))
-        val threadError = module.validateRequest(rejectedThreadLength)
-        assertNotNull(threadError)
-        assertEquals("linkedin", threadError.module)
+        val contentError = module.validateRequest(rejectedCombinedContent)
+        assertNotNull(contentError)
+        assertEquals("linkedin", contentError.module)
+
+        val imageError = module.validateRequest(rejectedCombinedImages)
+        assertNotNull(imageError)
+        assertEquals("linkedin", imageError.module)
 
         httpClient.close()
     }

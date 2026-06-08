@@ -1,5 +1,5 @@
-@username = alex
-@password = pass
+@username = admin
+@password = parola
 @baseUrl = http://localhost:3000
 
 ###
@@ -42,7 +42,7 @@ Content-Type: application/json
   "messages": [
     { "content": "Thread root post" },
     { "content": "Thread reply #1" },
-    { "content": "Thread reply #2", "link": "https://example.com/thread" }
+    { "content": "Thread reply #2", "link": "https://alexn.org/blog/2026/03/06/copyright-is-dead/" }
   ]
 }
 
@@ -56,8 +56,8 @@ Content-Type: application/json
   "targets": ["linkedin", "feed"],
   "language": "en",
   "messages": [
-    { "content": "LinkedIn root post" },
-    { "content": "Link in comments: https://example.com" }
+    { "content": "Just a test, please ignore", "link": "https://alexn.org/blog/2026/03/05/boring-tech-irrelevant/" },
+    { "content": "More content...", "link": "https://alexn.org/blog/2026/03/06/copyright-is-dead/" }
   ]
 }
 
@@ -108,7 +108,7 @@ Content-Type: multipart/form-data; boundary=WebKitFormBoundary
 Content-Disposition: form-data; name="file"; filename="cat2.jpeg"
 Content-Type: image/jpeg
 
-< ./docs/cat.jpeg
+< ./docs/cat2.jpeg
 --WebKitFormBoundary--
 
 {{
@@ -137,7 +137,7 @@ Authorization: Bearer {{$global.jwt}}
 Content-Type: application/json
 
 {
-  "targets": ["bluesky", "mastodon", "twitter", "feed"],
+  "targets": ["linkedin"],
   "messages": [
     {
       "content": "Root message with an image",

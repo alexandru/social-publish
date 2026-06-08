@@ -47,7 +47,6 @@ package socialpublish.backend.clients.linkedin
  */
 import arrow.core.getOrElse
 import arrow.core.left
-import arrow.core.nonEmptyListOf
 import arrow.core.raise.context.bind
 import arrow.core.raise.context.either
 import arrow.core.raise.context.raise
@@ -67,7 +66,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
 import io.ktor.http.contentType
-import io.ktor.http.encodeURLPathPart
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import java.net.URLEncoder
@@ -147,8 +145,8 @@ class LinkedInApiModule(
     }
 
     companion object Factory {
-        const val LINKEDIN_COMMENT_MAX_LENGTH = 1250
         private const val LINKEDIN_POST_MAX_LENGTH = 2000
+        private const val LINKEDIN_MAX_IMAGES = 4
         private const val LinkLength = 25
 
         // Shared JSON instance for serialization/deserialization
@@ -190,7 +188,7 @@ class LinkedInApiModule(
 
     override fun validateRequest(request: NewPostRequest): ValidationError? {
         val urlRegex = Regex("(https?://\\S+)")
-        request.messages.forEachIndexed { index, message ->
+        request.messages.forEach { message ->
             if (message.content.isEmpty()) {
                 return ValidationError(
                     status = 400,
@@ -198,46 +196,30 @@ class LinkedInApiModule(
                     errorMessage = "Content must not be empty",
                 )
             }
-            val text =
-                message.content +
-                    if (message.link != null) "\n\n${message.link}" else ""
-            val links = urlRegex.findAll(text).count()
-            val withoutLinks = urlRegex.replace(text, "")
-            val effectiveLength =
-                withoutLinks.codePointCount(0, withoutLinks.length) +
-                    (links * LinkLength)
-            val limit =
-                if (index == 0) LINKEDIN_POST_MAX_LENGTH
-                else LINKEDIN_COMMENT_MAX_LENGTH
-            if (effectiveLength > limit) {
-                val kind = if (index == 0) "post" else "follow-up comment"
-                return ValidationError(
-                    status = 400,
-                    module = "linkedin",
-                    errorMessage = "LinkedIn $kind exceeds $limit characters",
-                )
-            }
         }
 
-        if (request.messages.size > 2) {
-            return ValidationError(
-                status = 400,
-                module = "linkedin",
-                errorMessage = "LinkedIn supports at most one follow-up message",
-            )
-        }
-        if (request.messages.size == 1) {
-            return null
-        }
-
-        val followUp = request.messages[1]
-        val imageCount = followUp.images?.size ?: 0
-        if (imageCount > 1) {
+        val imageCount = linkedInPostImages(request).size
+        if (imageCount > LINKEDIN_MAX_IMAGES) {
             return ValidationError(
                 status = 400,
                 module = "linkedin",
                 errorMessage =
-                    "LinkedIn follow-up comment supports at most one image",
+                    "LinkedIn post supports at most $LINKEDIN_MAX_IMAGES images",
+            )
+        }
+
+        val text = linkedInPostContent(request)
+        val links = urlRegex.findAll(text).count()
+        val withoutLinks = urlRegex.replace(text, "")
+        val effectiveLength =
+            withoutLinks.codePointCount(0, withoutLinks.length) +
+                (links * LinkLength)
+        if (effectiveLength > LINKEDIN_POST_MAX_LENGTH) {
+            return ValidationError(
+                status = 400,
+                module = "linkedin",
+                errorMessage =
+                    "LinkedIn post exceeds $LINKEDIN_POST_MAX_LENGTH characters",
             )
         }
         return null
@@ -324,7 +306,18 @@ class LinkedInApiModule(
         if (headers.isNotEmpty()) {
             sb.appendLine("  Headers:")
             headers.forEach { (key, values) ->
-                values.forEach { value -> sb.appendLine("    $key: $value") }
+                values.forEach { value ->
+                    val maskedValue =
+                        if (
+                            key.equals("Set-Cookie", ignoreCase = true) ||
+                                key.equals("Authorization", ignoreCase = true)
+                        ) {
+                            value.take(AUTH_TOKEN_PREVIEW_LENGTH) + "..."
+                        } else {
+                            value
+                        }
+                    sb.appendLine("    $key: $maskedValue")
+                }
             }
         }
         if (!body.isNullOrEmpty()) {
@@ -333,6 +326,18 @@ class LinkedInApiModule(
         }
         return sb.toString()
     }
+
+    private fun linkedInMessageBlock(message: NewPostRequestMessage): String =
+        listOfNotNull(message.content, message.link).joinToString("\n\n")
+
+    private fun linkedInPostContent(request: NewPostRequest): String =
+        request.messages.joinToString("\n\n") { linkedInMessageBlock(it) }
+
+    private fun linkedInPostImages(request: NewPostRequest): List<String> =
+        request.messages.toList().flatMap { it.images.orEmpty() }
+
+    private fun linkedInPostLink(request: NewPostRequest): String? =
+        request.messages.toList().asReversed().firstNotNullOfOrNull { it.link }
 
     /** Check if LinkedIn auth exists for the given user */
     suspend fun hasLinkedInAuth(userUuid: UUIDv7): Boolean =
@@ -829,10 +834,10 @@ class LinkedInApiModule(
             val (accessToken, personUrn) =
                 getValidToken(config, userUuid()).bind()
 
-            val message = request.messages.first()
-
             // Prepare text content
-            val content = message.content
+            val content = linkedInPostContent(request)
+            val images = linkedInPostImages(request)
+            val link = linkedInPostLink(request)
 
             logger.info(
                 "Posting to LinkedIn via UGC API:\n${content.trim().prependIndent("  |")}"
@@ -840,23 +845,13 @@ class LinkedInApiModule(
 
             // Upload images if present
             val uploadedAssets =
-                if (!message.images.isNullOrEmpty()) {
-                    message.images.map { imageUuid ->
+                if (images.isNotEmpty()) {
+                    images.map { imageUuid ->
                         uploadMedia(config, accessToken, personUrn, imageUuid)
                             .bind()
                     }
                 } else {
                     emptyList()
-                }
-
-            // Build UGC post request based on content type
-            // When both images and a link are present, append the link to the
-            // content text
-            val effectiveContent =
-                if (uploadedAssets.isNotEmpty() && message.link != null) {
-                    listOf(content, message.link).joinToString("\n\n")
-                } else {
-                    content
                 }
 
             val ugcPostRequest =
@@ -870,8 +865,7 @@ class LinkedInApiModule(
                                 UgcSpecificContent(
                                     shareContent =
                                         UgcShareContent(
-                                            shareCommentary =
-                                                UgcText(effectiveContent),
+                                            shareCommentary = UgcText(content),
                                             shareMediaCategory =
                                                 UgcMediaCategory.IMAGE,
                                             media =
@@ -892,8 +886,8 @@ class LinkedInApiModule(
                         )
                     }
                     // If we have a link (and no images), create ARTICLE share
-                    message.link != null -> {
-                        val linkPreview = fetchLinkPreview(message.link)
+                    link != null -> {
+                        val linkPreview = fetchLinkPreview(link)
                         UgcPostRequest(
                             author = personUrn,
                             lifecycleState = UgcLifecycleState.PUBLISHED,
@@ -908,8 +902,7 @@ class LinkedInApiModule(
                                                 listOf(
                                                     UgcMedia(
                                                         status = "READY",
-                                                        originalUrl =
-                                                            message.link,
+                                                        originalUrl = link,
                                                         title =
                                                             linkPreview
                                                                 ?.title
@@ -1066,94 +1059,10 @@ class LinkedInApiModule(
     }
 
     context(_: UserSession)
-    private suspend fun createComment(
-        config: LinkedInConfig,
-        rootPostId: String,
-        message: NewPostRequestMessage,
-    ): ApiResult<PublishedMessageResponse> = either {
-        val (accessToken, personUrn) = getValidToken(config, userUuid()).bind()
-
-        val uploadedAsset =
-            message.images?.firstOrNull()?.let { imageUuid ->
-                uploadMedia(config, accessToken, personUrn, imageUuid).bind()
-            }
-
-        val encodedRootPostId = rootPostId.encodeURLPathPart()
-
-        val commentText =
-            message.content +
-                if (message.link != null) "\n\n${message.link}" else ""
-        val requestBody =
-            LinkedInCommentRequest(
-                actor = personUrn,
-                `object` = rootPostId,
-                message = LinkedInCommentMessage(text = commentText),
-                content =
-                    uploadedAsset?.let {
-                        listOf(LinkedInCommentContent(entity = it.asset))
-                    },
-            )
-
-        val response =
-            httpClient.post(
-                "${config.apiBase}/socialActions/$encodedRootPostId/comments"
-            ) {
-                header("Authorization", "Bearer $accessToken")
-                header("X-Restli-Protocol-Version", "2.0.0")
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-            }
-
-        val responseBody = response.bodyAsText()
-        if (
-            response.status !in
-                listOf(HttpStatusCode.Created, HttpStatusCode.OK)
-        ) {
-            raise(
-                RequestError(
-                    status = response.status.value,
-                    module = "linkedin",
-                    errorMessage = "Failed to create comment",
-                    body = ResponseBody(asString = responseBody),
-                )
-            )
-        }
-
-        val commentId = response.headers["X-RestLi-Id"] ?: "linkedin-comment"
-        PublishedMessageResponse(
-            id = commentId,
-            uri = commentId,
-            commentOnId = rootPostId,
-        )
-    }
-
-    context(_: UserSession)
     override suspend fun createThread(
         config: LinkedInConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> = either {
-        validateRequest(request)?.let { raise(it) }
-
-        val rootRequest =
-            NewPostRequest(
-                targets = request.targets,
-                language = request.language,
-                messages = nonEmptyListOf(request.messages.first()),
-            )
-        val root =
-            createPost(config, rootRequest).bind() as NewLinkedInPostResponse
-
-        if (request.messages.size == 1) {
-            return@either root
-        }
-
-        val followUp = request.messages[1]
-        val comment = createComment(config, root.postId, followUp).bind()
-        NewLinkedInPostResponse(
-            postId = root.postId,
-            messages = root.messages + comment,
-        )
-    }
+    ): ApiResult<NewPostResponse> = createPost(config, request)
 }
 
 private val logger by loggerFactory()

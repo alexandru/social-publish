@@ -342,18 +342,6 @@ data class UgcVisibility(
  */
 @Serializable data class UgcPostResponse(val id: String? = null)
 
-@Serializable
-data class LinkedInCommentRequest(
-    val actor: String,
-    val `object`: String,
-    val message: LinkedInCommentMessage,
-    val content: List<LinkedInCommentContent>? = null,
-)
-
-@Serializable data class LinkedInCommentMessage(val text: String)
-
-@Serializable data class LinkedInCommentContent(val entity: String)
-
 // ============================================================================
 // LinkedIn API Error Models
 // ============================================================================
