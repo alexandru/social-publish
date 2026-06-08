@@ -7,9 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.dom.*
+import org.w3c.files.File
 import socialpublish.frontend.components.AddImageButton
 import socialpublish.frontend.components.Authorize
 import socialpublish.frontend.components.CharacterCounter
@@ -175,33 +177,35 @@ private fun PostForm(
 
     val handleSubmit: () -> Unit = {
         scope.launch {
-            if (formState.content.isEmpty()) {
-                onError("Content is required!")
-                return@launch
-            }
-
-            if (formState.targets.isEmpty()) {
-                onError("At least one publication target is required!")
+            formState.validateForSubmit().firstOrNull()?.let { error ->
+                onError(error.message)
                 return@launch
             }
 
             formState = formState.setSubmitting(true)
 
             try {
-                val imageUUIDs = mutableListOf<String>()
-                for (image in formState.images.values) {
-                    if (image.file != null) {
+                val requestMessages = mutableListOf<PublishRequestMessage>()
+                for ((index, message) in formState.messages.withIndex()) {
+                    val imageUUIDs = mutableListOf<String>()
+                    for (image in message.images.values) {
+                        val uploadedUuid = image.uploadedUuid
+                        if (uploadedUuid != null) {
+                            imageUUIDs.add(uploadedUuid)
+                            continue
+                        }
+
+                        val file = image.file ?: continue
                         when (
                             val response =
                                 ApiClient.uploadFile<FileUploadResponse>(
                                     "/api/files/upload",
-                                    image.file,
+                                    file,
                                     image.altText,
                                 )
                         ) {
-                            is ApiResponse.Success -> {
+                            is ApiResponse.Success ->
                                 imageUUIDs.add(response.data.uuid)
-                            }
                             is ApiResponse.Error -> {
                                 if (
                                     redirectToLoginIfUnauthorized(
@@ -212,32 +216,33 @@ private fun PostForm(
                                     return@launch
                                 }
                                 onError(
-                                    "Error uploading image: ${response.message}"
+                                    "Error uploading image for post ${index + 1}: ${response.message}"
                                 )
                                 return@launch
                             }
                             is ApiResponse.Exception -> {
                                 onError(
-                                    "Error uploading image: ${response.message}"
+                                    "Error uploading image for post ${index + 1}: ${response.message}"
                                 )
                                 return@launch
                             }
                         }
                     }
+
+                    requestMessages.add(
+                        PublishRequestMessage(
+                            content = message.content,
+                            link = message.link.ifEmpty { null },
+                            images = imageUUIDs.takeIf { it.isNotEmpty() },
+                        )
+                    )
                 }
 
                 val publishRequest =
                     PublishRequest(
                         targets = formState.targets.toList(),
                         language = formState.language,
-                        messages =
-                            listOf(
-                                PublishRequestMessage(
-                                    content = formState.content,
-                                    link = formState.link.ifEmpty { null },
-                                    images = imageUUIDs,
-                                )
-                            ),
+                        messages = requestMessages,
                     )
 
                 when (
@@ -294,7 +299,9 @@ private fun PostForm(
         attrs = {
             addEventListener("submit") { event ->
                 event.preventDefault()
-                handleSubmit()
+                if (window.confirm("Publish this thread now?")) {
+                    handleSubmit()
+                }
             }
         }
     ) {
@@ -309,76 +316,58 @@ private fun PostForm(
             // Distribution channels box
             Div(attrs = { classes("box", "mb-4") }) {
                 Div(attrs = { classes("checkboxes") }) {
-                    ServiceCheckboxField(
+                    PublishTargetCheckbox(
                         serviceName = "Mastodon",
-                        checked = formState.targets.contains("mastodon"),
-                        onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("mastodon")
-                        },
-                        disabled = !configuredServices.mastodon,
+                        target = "mastodon",
+                        formState = formState,
+                        configured = configuredServices.mastodon,
+                        onToggle = { formState = formState.toggleTarget(it) },
                     )
 
-                    ServiceCheckboxField(
+                    PublishTargetCheckbox(
                         serviceName = "Bluesky",
-                        checked = formState.targets.contains("bluesky"),
-                        onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("bluesky")
-                        },
-                        disabled = !configuredServices.bluesky,
+                        target = "bluesky",
+                        formState = formState,
+                        configured = configuredServices.bluesky,
+                        onToggle = { formState = formState.toggleTarget(it) },
                     )
 
-                    ServiceCheckboxField(
+                    PublishTargetCheckbox(
                         serviceName = "Twitter",
-                        checked = formState.targets.contains("twitter"),
-                        onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("twitter")
-                        },
-                        disabled = !configuredServices.twitter,
+                        target = "twitter",
+                        formState = formState,
+                        configured = configuredServices.twitter,
+                        onToggle = { formState = formState.toggleTarget(it) },
                     )
 
-                    ServiceCheckboxField(
+                    PublishTargetCheckbox(
                         serviceName = "LinkedIn",
-                        checked = formState.targets.contains("linkedin"),
-                        onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("linkedin")
-                        },
-                        disabled = !configuredServices.linkedin,
+                        target = "linkedin",
+                        formState = formState,
+                        configured = configuredServices.linkedin,
+                        onToggle = { formState = formState.toggleTarget(it) },
                     )
 
-                    ServiceCheckboxField(
+                    PublishTargetCheckbox(
                         serviceName = "Feed",
-                        checked = formState.targets.contains("feed"),
-                        onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("feed")
-                        },
+                        target = "feed",
+                        formState = formState,
+                        configured = true,
+                        onToggle = { formState = formState.toggleTarget(it) },
                     )
+                }
+
+                formState.targetGuidanceWarnings.forEach { warning ->
+                    P(attrs = { classes("help", "is-warning") }) {
+                        Text(warning)
+                    }
+                }
+                formState.unavailableTargetWarnings.forEach { warning ->
+                    P(attrs = { classes("help") }) { Text(warning) }
                 }
             }
 
             Div(attrs = { classes("box", "mb-4") }) {
-                TextAreaField(
-                    label = "Message",
-                    value = formState.content,
-                    onValueChange = { formState = formState.updateContent(it) },
-                    rows = 4,
-                    required = true,
-                    placeholder = "Write here...",
-                )
-
-                TextInputField(
-                    label = null,
-                    value = formState.link,
-                    onValueChange = { formState = formState.updateLink(it) },
-                    placeholder =
-                        "Highlighted URL (optional): https://example.com/...",
-                    pattern = "https?://.+",
-                )
-
-                CharacterCounter(
-                    remaining = formState.charactersRemaining,
-                    maximum = formState.maxCharacters,
-                )
-
                 SelectInputField(
                     label = null,
                     value = formState.language,
@@ -390,52 +379,55 @@ private fun PostForm(
                             .plus(LANGUAGE_OPTIONS),
                     icon = "fa-globe",
                 )
+            }
 
-                Div(attrs = { classes("columns", "is-multiline") }) {
-                    formState.images.values
-                        .sortedBy { it.id }
-                        .forEach { image ->
-                            Div(
-                                attrs = {
-                                    classes(
-                                        "column",
-                                        "is-half-tablet",
-                                        "is-half-desktop",
+            Div(attrs = { classes("mb-4") }) {
+                formState.messages.forEachIndexed { index, message ->
+                    key(message.id) {
+                        MessageComposerCard(
+                            message = message,
+                            messageNumber = index + 1,
+                            canRemove = formState.messages.size > 1,
+                            remaining =
+                                formState.charactersRemainingFor(message),
+                            maximum = formState.maxCharactersFor(message),
+                            isFormDisabled = formState.isFormDisabled,
+                            canAddImage = formState.canAddImageTo(message),
+                            language = formState.language,
+                            onContentChange = {
+                                formState =
+                                    formState.updateMessageContent(
+                                        message.id,
+                                        it,
                                     )
-                                }
-                            ) {
-                                key(image.id) {
-                                    ImageUpload(
-                                        id = image.id,
-                                        state = image,
-                                        onSelect = {
-                                            formState =
-                                                formState.updateImage(it)
-                                        },
-                                        onRemove = {
-                                            formState =
-                                                formState.removeImage(it)
-                                        },
-                                        onError = onError,
-                                        language = formState.language,
-                                    )
-                                }
-                            }
-                        }
-                }
-
-                Div(attrs = { classes("field") }) {
-                    Div(attrs = { classes("control") }) {
-                        AddImageButton(
-                            disabled =
-                                formState.images.size >= 4 ||
-                                    formState.isFormDisabled,
-                            onImageSelected = { file ->
+                            },
+                            onLinkChange = {
+                                formState =
+                                    formState.updateMessageLink(message.id, it)
+                            },
+                            onRemoveMessage = {
+                                formState = formState.removeMessage(message.id)
+                            },
+                            onImageSelected = { image ->
+                                formState =
+                                    formState.updateImage(message.id, image)
+                            },
+                            onImageRemoved = { imageId ->
+                                formState =
+                                    formState.removeImage(message.id, imageId)
+                            },
+                            onError = onError,
+                            onAddImage = { file ->
                                 scope.launch {
                                     formState = formState.setProcessing(true)
 
                                     try {
-                                        val ids = formState.images.keys.sorted()
+                                        val currentMessage =
+                                            formState.messages.first {
+                                                it.id == message.id
+                                            }
+                                        val ids =
+                                            currentMessage.images.keys.sorted()
                                         val newId =
                                             if (ids.isEmpty()) 1
                                             else ids.last() + 1
@@ -459,7 +451,10 @@ private fun PostForm(
                                                             response.data.uuid,
                                                     )
                                                 formState =
-                                                    formState.addImage(newImage)
+                                                    formState.addImage(
+                                                        message.id,
+                                                        newImage,
+                                                    )
                                             }
                                             is ApiResponse.Error -> {
                                                 if (
@@ -497,10 +492,39 @@ private fun PostForm(
                         )
                     }
                 }
+
+                if (formState.targets.contains("linkedin")) {
+                    CharacterCounter(
+                        remaining = formState.linkedinCharactersRemaining,
+                        maximum = PublishFormState.LINKEDIN_LIMIT,
+                    )
+                    P(attrs = { classes("help") }) {
+                        Text(
+                            "LinkedIn images: ${formState.linkedinImageCount} of ${PublishFormState.LINKEDIN_MAX_IMAGES} across the thread"
+                        )
+                    }
+                }
             }
 
             Div(attrs = { classes("box", "mb-4") }) {
-                Div(attrs = { classes("field") }) {
+                Div(attrs = { classes("field", "is-grouped") }) {
+                    Div(attrs = { classes("control") }) {
+                        Button(
+                            attrs = {
+                                classes("button", "is-link", "is-light")
+                                attr("type", "button")
+                                if (formState.isFormDisabled) {
+                                    attr("disabled", "")
+                                }
+                                onClick { formState = formState.addMessage() }
+                            }
+                        ) {
+                            Span(attrs = { classes("icon") }) {
+                                I(attrs = { classes("fas", "fa-plus") })
+                            }
+                            Span { Text("Add post") }
+                        }
+                    }
                     Div(attrs = { classes("control") }) {
                         Button(
                             attrs = {
@@ -518,4 +542,120 @@ private fun PostForm(
             }
         }
     }
+}
+
+@Composable
+private fun MessageComposerCard(
+    message: PublishMessageState,
+    messageNumber: Int,
+    canRemove: Boolean,
+    remaining: Int,
+    maximum: Int,
+    isFormDisabled: Boolean,
+    canAddImage: Boolean,
+    language: String?,
+    onContentChange: (String) -> Unit,
+    onLinkChange: (String) -> Unit,
+    onRemoveMessage: () -> Unit,
+    onImageSelected: (SelectedImage) -> Unit,
+    onImageRemoved: (Int) -> Unit,
+    onAddImage: (File) -> Unit,
+    onError: (String) -> Unit,
+) {
+    Div(attrs = { classes("box", "mb-4") }) {
+        Div(
+            attrs = { classes("is-flex", "is-justify-content-space-between") }
+        ) {
+            P(attrs = { classes("title", "is-5") }) {
+                Text("Post $messageNumber")
+            }
+            if (canRemove) {
+                Button(
+                    attrs = {
+                        classes("button", "is-small", "is-danger", "is-light")
+                        attr("type", "button")
+                        if (isFormDisabled) {
+                            attr("disabled", "")
+                        }
+                        onClick { onRemoveMessage() }
+                    }
+                ) {
+                    Text("Remove")
+                }
+            }
+        }
+
+        TextAreaField(
+            label = "Message",
+            value = message.content,
+            onValueChange = onContentChange,
+            rows = 4,
+            required = true,
+            placeholder = "Write here...",
+        )
+
+        TextInputField(
+            label = null,
+            value = message.link,
+            onValueChange = onLinkChange,
+            placeholder = "Highlighted URL (optional): https://example.com/...",
+            pattern = "https?://.+",
+        )
+
+        CharacterCounter(remaining = remaining, maximum = maximum)
+
+        Div(attrs = { classes("columns", "is-multiline") }) {
+            message.images.values
+                .sortedBy { it.id }
+                .forEach { image ->
+                    Div(
+                        attrs = {
+                            classes(
+                                "column",
+                                "is-half-tablet",
+                                "is-half-desktop",
+                            )
+                        }
+                    ) {
+                        key(image.id) {
+                            ImageUpload(
+                                id = image.id,
+                                state = image,
+                                onSelect = onImageSelected,
+                                onRemove = onImageRemoved,
+                                onError = onError,
+                                language = language,
+                            )
+                        }
+                    }
+                }
+        }
+
+        Div(attrs = { classes("field") }) {
+            Div(attrs = { classes("control") }) {
+                AddImageButton(
+                    disabled = !canAddImage || isFormDisabled,
+                    onImageSelected = onAddImage,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PublishTargetCheckbox(
+    serviceName: String,
+    target: String,
+    formState: PublishFormState,
+    configured: Boolean,
+    onToggle: (String) -> Unit,
+) {
+    val checked = formState.targets.contains(target)
+    ServiceCheckboxField(
+        serviceName = serviceName,
+        checked = checked,
+        onCheckedChange = { onToggle(target) },
+        disabled =
+            !configured || (!checked && !formState.isTargetSupported(target)),
+    )
 }
