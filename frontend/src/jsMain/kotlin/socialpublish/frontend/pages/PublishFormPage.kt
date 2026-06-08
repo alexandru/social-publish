@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import org.jetbrains.compose.web.attributes.InputType
 import org.jetbrains.compose.web.dom.*
 import org.w3c.files.File
 import socialpublish.frontend.components.AddImageButton
@@ -22,7 +23,6 @@ import socialpublish.frontend.components.PageContainer
 import socialpublish.frontend.components.SelectInputField
 import socialpublish.frontend.components.SelectOption
 import socialpublish.frontend.components.SelectedImage
-import socialpublish.frontend.components.ServiceCheckboxField
 import socialpublish.frontend.components.TextAreaField
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.utils.ApiClient
@@ -313,9 +313,14 @@ private fun PostForm(
                 }
             }
         ) {
-            // Distribution channels box
             Div(attrs = { classes("box", "mb-4") }) {
-                Div(attrs = { classes("checkboxes") }) {
+                SectionHeader(
+                    icon = "fa-share-nodes",
+                    title = "Publish targets",
+                    subtitle = "Choose where this thread should go.",
+                )
+
+                Div(attrs = { classes("is-flex", "is-flex-wrap-wrap") }) {
                     PublishTargetCheckbox(
                         serviceName = "Mastodon",
                         target = "mastodon",
@@ -368,6 +373,12 @@ private fun PostForm(
             }
 
             Div(attrs = { classes("box", "mb-4") }) {
+                SectionHeader(
+                    icon = "fa-globe",
+                    title = "Language",
+                    subtitle =
+                        "Optional, but useful for services that support language metadata.",
+                )
                 SelectInputField(
                     label = null,
                     value = formState.language,
@@ -507,35 +518,63 @@ private fun PostForm(
             }
 
             Div(attrs = { classes("box", "mb-4") }) {
-                Div(attrs = { classes("field", "is-grouped") }) {
-                    Div(attrs = { classes("control") }) {
-                        Button(
-                            attrs = {
-                                classes("button", "is-link", "is-light")
-                                attr("type", "button")
-                                if (formState.isFormDisabled) {
-                                    attr("disabled", "")
-                                }
-                                onClick { formState = formState.addMessage() }
-                            }
-                        ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fas", "fa-plus") })
-                            }
-                            Span { Text("Add post") }
+                Div(attrs = { classes("columns", "is-vcentered") }) {
+                    Div(attrs = { classes("column") }) {
+                        P(attrs = { classes("title", "is-5", "mb-1") }) {
+                            Text("Ready to publish?")
+                        }
+                        P(attrs = { classes("subtitle", "is-6", "mb-0") }) {
+                            Text("Add another post or submit the full thread.")
                         }
                     }
-                    Div(attrs = { classes("control") }) {
-                        Button(
+
+                    Div(attrs = { classes("column", "is-narrow") }) {
+                        Div(
                             attrs = {
-                                classes("button", "is-primary")
-                                attr("type", "submit")
+                                classes(
+                                    "field",
+                                    "is-grouped",
+                                    "is-justify-content-flex-end",
+                                    "mb-0",
+                                )
                             }
                         ) {
-                            Span(attrs = { classes("icon") }) {
-                                I(attrs = { classes("fas", "fa-paper-plane") })
+                            Div(attrs = { classes("control") }) {
+                                Button(
+                                    attrs = {
+                                        classes("button", "is-link", "is-light")
+                                        attr("type", "button")
+                                        if (formState.isFormDisabled) {
+                                            attr("disabled", "")
+                                        }
+                                        onClick {
+                                            formState = formState.addMessage()
+                                        }
+                                    }
+                                ) {
+                                    Span(attrs = { classes("icon") }) {
+                                        I(attrs = { classes("fas", "fa-plus") })
+                                    }
+                                    Span { Text("Add post") }
+                                }
                             }
-                            Span { Text("Submit") }
+                            Div(attrs = { classes("control") }) {
+                                Button(
+                                    attrs = {
+                                        classes("button", "is-primary")
+                                        attr("type", "submit")
+                                    }
+                                ) {
+                                    Span(attrs = { classes("icon") }) {
+                                        I(
+                                            attrs = {
+                                                classes("fas", "fa-paper-plane")
+                                            }
+                                        )
+                                    }
+                                    Span { Text("Submit") }
+                                }
+                            }
                         }
                     }
                 }
@@ -651,11 +690,77 @@ private fun PublishTargetCheckbox(
     onToggle: (String) -> Unit,
 ) {
     val checked = formState.targets.contains(target)
-    ServiceCheckboxField(
-        serviceName = serviceName,
-        checked = checked,
-        onCheckedChange = { onToggle(target) },
-        disabled =
-            !configured || (!checked && !formState.isTargetSupported(target)),
-    )
+    val disabled =
+        !configured || (!checked && !formState.isTargetSupported(target))
+    val colorClasses = targetColorClasses(target, checked)
+
+    Label(
+        attrs = {
+            classes(
+                "tag",
+                "is-medium",
+                "is-rounded",
+                "mr-2",
+                "mb-2",
+                *colorClasses,
+            )
+        }
+    ) {
+        Input(
+            type = InputType.Checkbox,
+            attrs = {
+                checked(checked)
+                if (disabled) attr("disabled", "")
+                onInput { onToggle(target) }
+            },
+        )
+        Span(attrs = { classes("icon", "is-small", "ml-1") }) {
+            I(attrs = { classes(*targetIcon(target)) })
+        }
+        Span(attrs = { classes("ml-1") }) { Text(serviceName) }
+    }
 }
+
+@Composable
+private fun SectionHeader(icon: String, title: String, subtitle: String) {
+    Div(attrs = { classes("media", "mb-4") }) {
+        Div(attrs = { classes("media-left") }) {
+            Span(
+                attrs = { classes("tag", "is-link", "is-light", "is-medium") }
+            ) {
+                Span(attrs = { classes("icon") }) {
+                    I(attrs = { classes("fas", icon) })
+                }
+            }
+        }
+        Div(attrs = { classes("media-content") }) {
+            P(attrs = { classes("title", "is-5", "mb-1") }) { Text(title) }
+            P(attrs = { classes("subtitle", "is-6", "mb-0") }) {
+                Text(subtitle)
+            }
+        }
+    }
+}
+
+private fun targetColorClasses(
+    target: String,
+    checked: Boolean,
+): Array<String> {
+    if (!checked) return arrayOf("is-light")
+    return when (target) {
+        "mastodon" -> arrayOf("is-link")
+        "bluesky" -> arrayOf("is-info")
+        "twitter" -> arrayOf("is-dark")
+        "linkedin" -> arrayOf("is-link")
+        else -> arrayOf("is-success")
+    }
+}
+
+private fun targetIcon(target: String): Array<String> =
+    when (target) {
+        "mastodon" -> arrayOf("fab", "fa-mastodon")
+        "bluesky" -> arrayOf("fab", "fa-bluesky")
+        "twitter" -> arrayOf("fab", "fa-x-twitter")
+        "linkedin" -> arrayOf("fab", "fa-linkedin")
+        else -> arrayOf("fas", "fa-rss")
+    }
