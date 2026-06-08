@@ -235,6 +235,7 @@ class MastodonApiModule(
         replyToId: String? = null,
     ): ApiResult<NewPostResponse> {
         return try {
+            // Validate request
             validateRequest(request)?.let { error ->
                 return error.left()
             }

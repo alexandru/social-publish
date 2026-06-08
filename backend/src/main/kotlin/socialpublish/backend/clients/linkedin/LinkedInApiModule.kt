@@ -636,6 +636,9 @@ class LinkedInApiModule(
             val profileResult = getUserProfile(config, validToken.accessToken)
         ) {
             is Either.Right -> {
+                // The OIDC /userinfo endpoint returns the subject ID in "sub"
+                // field
+                // Normalize to always use the full URN format
                 val rawId = profileResult.value.sub
                 val personUrn =
                     if (rawId.startsWith("urn:li:person:")) {
@@ -830,6 +833,7 @@ class LinkedInApiModule(
         request: NewPostRequest,
     ): ApiResult<NewPostResponse> {
         return try {
+            // Validate request
             validateRequest(request)?.let { error ->
                 return error.left()
             }

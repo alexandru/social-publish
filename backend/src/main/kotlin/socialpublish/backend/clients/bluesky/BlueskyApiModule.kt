@@ -209,6 +209,7 @@ class BlueskyApiModule(
         session: BlueskySessionResponse,
     ): BlueskyBlobRef? = resourceScope {
         try {
+            // Fetch the image
             val response = httpClient.get(imageUrl)
             if (response.status.value != 200) {
                 logger.warn(
@@ -245,6 +246,7 @@ class BlueskyApiModule(
                 "Fetched image from $imageUrl: ${uploadedFile.mimetype}, ${uploadedFile.size} bytes"
             )
 
+            // Upload to Bluesky
             val uploadResponse =
                 httpClient.post(
                     "${config.service}/xrpc/com.atproto.repo.uploadBlob"
@@ -398,9 +400,12 @@ class BlueskyApiModule(
     ): List<BlueskyFacet> {
         val facets = mutableListOf<BlueskyFacet>()
 
+        // 1. Detect Mentions (@handle.bsky.social)
         val mentionRegex = Regex("""(?<=\s|^)(@[a-zA-Z0-9.-]+)""")
         for (match in mentionRegex.findAll(text)) {
-            val handle = match.value.substring(1)
+            val handle = match.value.substring(1) // Remove '@'
+            // Only resolve if it looks like a valid handle (has at least one
+            // dot)
             if (handle.contains(".")) {
                 val did = resolveHandle(config, handle)
                 if (did != null) {
@@ -429,9 +434,10 @@ class BlueskyApiModule(
             }
         }
 
+        // 2. Detect Hashtags (#tag)
         val tagRegex = Regex("""(?<=\s|^)(#[a-zA-Z0-9]+)""")
         tagRegex.findAll(text).forEach { match ->
-            val tag = match.value.substring(1)
+            val tag = match.value.substring(1) // Remove '#'
             val byteStart = utf8Length(text.substring(0, match.range.first))
             val byteEnd = byteStart + utf8Length(match.value)
 
@@ -456,7 +462,11 @@ class BlueskyApiModule(
         return facets
     }
 
-    /** Build rich text payload with shortened link display text and facets. */
+    /**
+     * Build rich text payload with shortened link display text and facets.
+     *
+     * IMPORTANT: Calculates byte offsets using UTF-8 to match AT Protocol spec.
+     */
     private suspend fun buildRichText(
         config: BlueskyConfig,
         text: String,
@@ -496,6 +506,7 @@ class BlueskyApiModule(
         replyContext: BlueskyReplyContext?,
     ): ApiResult<NewPostResponse> {
         return try {
+            // Validate request
             validateRequest(request)?.let { error ->
                 return error.left()
             }
@@ -523,6 +534,9 @@ class BlueskyApiModule(
                     emptyList()
                 }
 
+            // Fetch link preview if link is present and no images
+            // Note: Bluesky only supports one embed type at a time, and images
+            // take priority
             val linkPreview =
                 if (message.link != null && imageEmbeds.isEmpty()) {
                     linkPreviewParser.fetchPreview(message.link)
@@ -530,6 +544,7 @@ class BlueskyApiModule(
                     null
                 }
 
+            // Upload link preview image if present
             val linkPreviewBlobRef =
                 if (linkPreview?.image != null) {
                     uploadBlobFromUrl(config, linkPreview.image, session)
@@ -537,10 +552,15 @@ class BlueskyApiModule(
                     null
                 }
 
+            // Prepare text
+            // If we have a link preview, use its canonical URL in the text
+            // This ensures consistency between facets and external embed
             val url = message.link
             val text =
                 message.content.trim() + if (url != null) "\n\n$url" else ""
 
+            // Detect facets (mentions, links, hashtags) and shorten link
+            // display text
             val (richText, facets) = buildRichText(config, text)
 
             logger.info(
@@ -557,6 +577,7 @@ class BlueskyApiModule(
                                 images = imageEmbeds,
                             ),
                         )
+                    // Add external link embed with preview
                     linkPreview != null && url != null ->
                         Json.encodeToJsonElement(
                             BlueskyExternalEmbed.serializer(),
@@ -568,6 +589,7 @@ class BlueskyApiModule(
                                         title = linkPreview.title,
                                         description =
                                             linkPreview.description ?: "",
+                                        // Add image blob if available
                                         thumb = linkPreviewBlobRef,
                                     ),
                             ),
@@ -575,6 +597,7 @@ class BlueskyApiModule(
                     else -> null
                 }
 
+            // Build post record
             val record =
                 BlueskyPostRecord(
                     `$type` = "app.bsky.feed.post",
@@ -600,6 +623,7 @@ class BlueskyApiModule(
                     embed = embed,
                 )
 
+            // Create the post
             val response =
                 httpClient.post(
                     "${config.service}/xrpc/com.atproto.repo.createRecord"

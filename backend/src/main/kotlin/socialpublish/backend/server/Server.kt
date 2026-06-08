@@ -376,7 +376,7 @@ fun startServer(
                         }
                     }
 
-                // LLM alt-text generation
+                // LLM alt-text generation (extracted to LlmRoutes)
                 post("/api/llm/generate-alt-text") {
                         withSession(call) {
                             val llmConfig = userSettings().llm

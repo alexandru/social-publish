@@ -453,7 +453,7 @@ class TwitterApiModule(
         }
     }
 
-    /** Create a single post on Twitter */
+    /** Create a post on Twitter */
     context(_: UserSession)
     private suspend fun createPost(
         config: TwitterConfig,
@@ -462,6 +462,7 @@ class TwitterApiModule(
     ): ApiResult<NewPostResponse> {
         return try {
             val userUuid = userUuid()
+            // Validate request
             validateRequest(request)?.let { error ->
                 return error.left()
             }

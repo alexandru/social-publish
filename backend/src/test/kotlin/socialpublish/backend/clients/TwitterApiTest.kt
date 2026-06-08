@@ -304,6 +304,7 @@ class TwitterApiTest {
                 }
             assertTrue(result.isRight())
 
+            // Jsoup properly decodes HTML entities and removes tags
             assertEquals(
                 "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>",
                 tweetText,
