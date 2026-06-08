@@ -28,6 +28,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.twitter.TwitterApiModule
 import socialpublish.backend.clients.twitter.TwitterConfig
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
@@ -177,7 +178,7 @@ class TwitterApiTest {
                 uploadTestImage(twitterClient, "flower2.jpeg", "tulip")
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Hello twitter",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
@@ -292,7 +293,7 @@ class TwitterApiTest {
                 )
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content =
                         "<p>Hello <strong>world</strong>!</p><p>Testing &amp; fun</p>"
                 )
@@ -567,7 +568,7 @@ class TwitterApiTest {
 
                     val request =
                         NewPostRequest(
-                            targets = listOf("twitter"),
+                            targets = listOf(Target.Twitter),
                             messages =
                                 nonEmptyListOf(
                                     socialpublish.backend.common

@@ -135,7 +135,7 @@ class LinkedInRoutes(
         linkedInConfig: LinkedInConfig,
         call: ApplicationCall,
     ) {
-        val request = call.receiveNewPostRequest()
+        val request = call.receiveNewPostRequestOrRespond() ?: return
 
         when (
             val result = linkedInModule.createThread(linkedInConfig, request)

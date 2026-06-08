@@ -21,6 +21,7 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
@@ -100,7 +101,7 @@ class MastodonApiTest {
             val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Hello",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
@@ -170,7 +171,7 @@ class MastodonApiTest {
                         MastodonApiModule(filesModule, mastodonClient)
                     val request =
                         NewPostRequest(
-                            targets = listOf("mastodon"),
+                            targets = listOf(Target.Mastodon),
                             messages =
                                 nonEmptyListOf(
                                     socialpublish.backend.common

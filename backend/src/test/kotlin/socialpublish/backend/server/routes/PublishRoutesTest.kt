@@ -19,6 +19,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
@@ -83,9 +84,9 @@ class PublishRoutesTest {
             }
 
             val request =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Test broadcast via JSON",
-                    targets = listOf("feed"),
+                    targets = listOf(Target.Feed),
                 )
 
             val response =
@@ -151,7 +152,10 @@ class PublishRoutesTest {
         }
 
         val request =
-            NewPostRequest(content = "Test post", targets = listOf("bluesky"))
+            NewPostRequest.singleMessage(
+                content = "Test post",
+                targets = listOf(Target.Bluesky),
+            )
 
         val response =
             client.post("/api/multiple/post") {
@@ -215,9 +219,9 @@ class PublishRoutesTest {
         }
 
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test composite error",
-                targets = listOf("feed", "mastodon"),
+                targets = listOf(Target.Feed, Target.Mastodon),
             )
 
         val response =

@@ -19,6 +19,7 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.PublishedMessageResponse
+import socialpublish.backend.common.Target
 import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
@@ -51,6 +52,13 @@ class FeedModule(
         }
     }
 
+    /**
+     * Public validation entry point for preflight checks that must run before
+     * any publishing side effects (feed or external).
+     */
+    fun validateRequest(request: NewPostRequest): CaughtException? =
+        validateMessages(request.messages)
+
     /** Create a new feed post (context-based, for routes) */
     context(_: UserSession)
     suspend fun createPost(
@@ -60,7 +68,7 @@ class FeedModule(
             val userUuid = userUuid()
             validateMessages(request.messages)?.let { raise(it) }
             createPosts(
-                    targets = request.targets ?: listOf("feed"),
+                    targets = request.targets ?: listOf(Target.Feed),
                     language = request.language,
                     messages = request.messages,
                     userUuid = userUuid,
@@ -84,13 +92,13 @@ class FeedModule(
      * PublishModule)
      */
     suspend fun createPosts(
-        targets: List<String>,
+        targets: List<Target>,
         language: String?,
         messages: List<NewPostRequestMessage>,
         userUuid: UUIDv7,
     ): ApiResult<NewPostResponse> = either {
         validateMessages(messages)?.let { raise(it) }
-        val normalizedTargets = targets.map { it.lowercase() }
+        val dbTargets = targets.map { it.serialName }
         var previousPostUuid: String? = null
         val messageResponses = mutableListOf<PublishedMessageResponse>()
 
@@ -113,7 +121,7 @@ class FeedModule(
 
             val post =
                 postsDb
-                    .create(payload, normalizedTargets, userUuid)
+                    .create(payload, dbTargets, userUuid)
                     .mapLeft { error ->
                         logger.error("Failed to save feed item", error)
                         CaughtException(

@@ -26,6 +26,7 @@ import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
@@ -114,7 +115,7 @@ class BlueskyApiTest {
                     linkPreviewParser = linkPreview,
                 )
 
-            val req = NewPostRequest(content = "Hello bluesky")
+            val req = NewPostRequest.singleMessage(content = "Hello bluesky")
             val blueskyConfig =
                 BlueskyConfig(
                     service = "http://localhost",
@@ -207,7 +208,7 @@ class BlueskyApiTest {
                     )
 
                 val req =
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Hello bluesky",
                         images = listOf(upload1.uuid, upload2.uuid),
                     )
@@ -362,7 +363,7 @@ class BlueskyApiTest {
                 )
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Check out this article",
                     link = "http://localhost/test-page.html",
                 )
@@ -504,7 +505,7 @@ class BlueskyApiTest {
                 val longLink =
                     "http://localhost/test-page.html?with=a-very-long-query-parameter-to-overflow"
                 val req =
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Check out this article",
                         link = longLink,
                     )
@@ -614,7 +615,7 @@ class BlueskyApiTest {
             val linkOne = "http://localhost/alpha?with=a-long-query-param"
             val linkTwo = "http://localhost/beta?another-long-query-param"
             val content = "First $linkOne and then $linkTwo"
-            val req = NewPostRequest(content = content)
+            val req = NewPostRequest.singleMessage(content = content)
             val blueskyConfig =
                 BlueskyConfig(
                     service = "http://localhost",
@@ -755,7 +756,7 @@ class BlueskyApiTest {
 
                     val request =
                         NewPostRequest(
-                            targets = listOf("bluesky"),
+                            targets = listOf(Target.Bluesky),
                             messages =
                                 nonEmptyListOf(
                                     NewPostRequestMessage(content = "Root"),

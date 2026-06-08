@@ -34,6 +34,7 @@ import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewLinkedInPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
@@ -317,8 +318,13 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Test LinkedIn post",
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "Test LinkedIn post"
+                            )
+                        ),
                 )
 
             val testUserUuid =
@@ -474,9 +480,14 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Post with image",
-                    targets = listOf("linkedin"),
-                    images = listOf(upload.uuid),
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "Post with image",
+                                images = listOf(upload.uuid),
+                            )
+                        ),
                 )
 
             val testUserUuid =
@@ -589,7 +600,7 @@ class LinkedInApiTest {
                 "quote=\" slash=\\ newline=\n tab=\t carriage=\r"
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -707,7 +718,7 @@ class LinkedInApiTest {
             val followUpLink = "https://example.com/follow-up"
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -767,7 +778,7 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -780,6 +791,157 @@ class LinkedInApiTest {
 
             val validation = module.validateRequest(request)
             assertNull(validation)
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `createThread omits alt text from follow-up image comment payload`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+            var rootPostCreated = false
+            var commentBody: String? = null
+
+            val token =
+                LinkedInOAuthToken(
+                    accessToken = "test-access-token",
+                    expiresIn = 5184000,
+                    refreshToken = "test-refresh-token",
+                    refreshTokenExpiresIn = 31536000,
+                )
+            val _ =
+                documentsDb.createOrUpdate(
+                    kind = "linkedin-oauth-token",
+                    payload = Json.encodeToString(token),
+                    userUuid = testUserUuid,
+                    searchKey =
+                        "linkedin-oauth-token:00000000-0000-0000-0000-000000000001",
+                    tags = emptyList(),
+                )
+
+            application {
+                routing {
+                    post("/api/files/upload") {
+                        context(createTestSession(testUserUuid)) {
+                            FilesRoutes(filesModule).uploadFileRoute(call)
+                        }
+                    }
+                    get("/v2/userinfo") {
+                        call.respondText(
+                            """{"sub":"urn:li:person:test123"}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    post("/v2/assets") {
+                        call.respondText(
+                            """{"value":{"asset":"urn:li:digitalmediaAsset:commentImage","uploadMechanism":{"com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest":{"uploadUrl":"http://localhost/upload-comment-image"}}}}""",
+                            ContentType.Application.Json,
+                        )
+                    }
+                    put("/upload-comment-image") {
+                        call.respondText("", status = HttpStatusCode.Created)
+                    }
+                    post("/v2/ugcPosts") {
+                        rootPostCreated = true
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:ugcPost:12345",
+                        )
+                        call.respondText(
+                            """{"id":"urn:li:ugcPost:12345"}""",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                    post("/v2/socialActions/{postId}/comments") {
+                        commentBody =
+                            call.receiveStream().readBytes().decodeToString()
+                        call.response.header(
+                            "X-RestLi-Id",
+                            "urn:li:comment:999",
+                        )
+                        call.respondText(
+                            "{}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Created,
+                        )
+                    }
+                }
+            }
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val upload =
+                uploadTestImage(
+                    linkedInClient,
+                    "flower1.jpeg",
+                    "Alt text that must not be sent to comments",
+                )
+
+            val config =
+                LinkedInConfig(
+                    clientId = "test-client-id",
+                    clientSecret = "test-client-secret",
+                    apiBase = "http://localhost/v2",
+                )
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val request =
+                NewPostRequest(
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "Root"),
+                            NewPostRequestMessage(
+                                content = "Follow-up image",
+                                images = listOf(upload.uuid),
+                            ),
+                        ),
+                )
+
+            val result =
+                context(createTestSession(testUserUuid)) {
+                    module.createThread(config, request)
+                }
+
+            assertTrue(result is Either.Right)
+            assertTrue(rootPostCreated, "Root post should have been created")
+            assertNotNull(commentBody)
+            assertTrue(
+                commentBody!!.contains("urn:li:digitalmediaAsset:commentImage"),
+                "Comment payload should include the uploaded asset",
+            )
+            assertFalse(
+                commentBody.contains(
+                    "Alt text that must not be sent to comments"
+                ),
+                "Comment payload should omit stored alt text",
+            )
+            assertFalse(
+                commentBody.contains("description"),
+                "Comment payload should not include image description fields",
+            )
 
             linkedInClient.close()
         }
@@ -879,7 +1041,7 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -934,7 +1096,11 @@ class LinkedInApiTest {
                 )
 
             val request =
-                NewPostRequest(content = "", targets = listOf("linkedin"))
+                NewPostRequest(
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(NewPostRequestMessage(content = "")),
+                )
 
             val testUserUuid =
                 UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
@@ -1241,9 +1407,14 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Post with multiple images",
-                    targets = listOf("linkedin"),
-                    images = uploads.map { it.uuid },
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "Post with multiple images",
+                                images = uploads.map { it.uuid },
+                            )
+                        ),
                 )
 
             val testUserUuid =
@@ -1389,9 +1560,14 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Check out this link!",
-                    targets = listOf("linkedin"),
-                    link = "http://localhost/preview-page",
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "Check out this link!",
+                                link = "http://localhost/preview-page",
+                            )
+                        ),
                 )
 
             val testUserUuid =
@@ -1532,10 +1708,15 @@ class LinkedInApiTest {
 
                 val request =
                     NewPostRequest(
-                        content = "Check out this link with image",
-                        targets = listOf("linkedin"),
-                        images = listOf(upload.uuid),
-                        link = "https://example.com/my-article",
+                        targets = listOf(Target.LinkedIn),
+                        messages =
+                            nonEmptyListOf(
+                                NewPostRequestMessage(
+                                    content = "Check out this link with image",
+                                    images = listOf(upload.uuid),
+                                    link = "https://example.com/my-article",
+                                )
+                            ),
                     )
 
                 val testUserUuid =
@@ -2235,9 +2416,14 @@ class LinkedInApiTest {
 
                 val request =
                     NewPostRequest(
-                        content = "Post with image",
-                        targets = listOf("linkedin"),
-                        images = listOf(upload.uuid),
+                        targets = listOf(Target.LinkedIn),
+                        messages =
+                            nonEmptyListOf(
+                                NewPostRequestMessage(
+                                    content = "Post with image",
+                                    images = listOf(upload.uuid),
+                                )
+                            ),
                     )
 
                 val testUserUuid =
@@ -2359,9 +2545,14 @@ class LinkedInApiTest {
 
                 val request =
                     NewPostRequest(
-                        content = "Post with image",
-                        targets = listOf("linkedin"),
-                        images = listOf(upload.uuid),
+                        targets = listOf(Target.LinkedIn),
+                        messages =
+                            nonEmptyListOf(
+                                NewPostRequestMessage(
+                                    content = "Post with image",
+                                    images = listOf(upload.uuid),
+                                )
+                            ),
                     )
 
                 val testUserUuid =
@@ -2458,8 +2649,11 @@ class LinkedInApiTest {
 
             val request =
                 NewPostRequest(
-                    content = "Test post",
-                    targets = listOf("linkedin"),
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "Test post")
+                        ),
                 )
 
             val testUserUuid =

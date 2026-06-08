@@ -101,7 +101,7 @@ class TwitterRoutes(
         twitterConfig: TwitterConfig,
         call: ApplicationCall,
     ) {
-        val request = call.receiveNewPostRequest()
+        val request = call.receiveNewPostRequestOrRespond() ?: return
 
         when (val result = twitterModule.createThread(twitterConfig, request)) {
             is arrow.core.Either.Right -> call.respond(result.value)

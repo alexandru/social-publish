@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.testutils.createTestDatabase
@@ -71,9 +72,9 @@ class FeedRoutesTest {
             }
 
             val request =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Test post via JSON",
-                    targets = listOf("feed"),
+                    targets = listOf(Target.Feed),
                 )
 
             val response =
@@ -125,7 +126,11 @@ class FeedRoutesTest {
                 }
             }
 
-            val request = NewPostRequest(content = "", targets = listOf("feed"))
+            val request =
+                NewPostRequest.singleMessage(
+                    content = "",
+                    targets = listOf(Target.Feed),
+                )
 
             val response =
                 client.post("/api/feed/post") {
@@ -181,7 +186,9 @@ class FeedRoutesTest {
             // Create a post first
             client.post("/api/feed/post") {
                 contentType(ContentType.Application.Json)
-                setBody(NewPostRequest(content = "Test feed content"))
+                setBody(
+                    NewPostRequest.singleMessage(content = "Test feed content")
+                )
             }
 
             // Get the feed
@@ -242,7 +249,7 @@ class FeedRoutesTest {
         client.post("/api/feed/post") {
             contentType(ContentType.Application.Json)
             setBody(
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Post with link",
                     link = "https://example.com",
                 )
@@ -250,7 +257,7 @@ class FeedRoutesTest {
         }
         client.post("/api/feed/post") {
             contentType(ContentType.Application.Json)
-            setBody(NewPostRequest(content = "Post without link"))
+            setBody(NewPostRequest.singleMessage(content = "Post without link"))
         }
 
         // Get feed with filterByLinks=include
@@ -309,18 +316,18 @@ class FeedRoutesTest {
             client.post("/api/feed/post") {
                 contentType(ContentType.Application.Json)
                 setBody(
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Twitter post",
-                        targets = listOf("twitter"),
+                        targets = listOf(Target.Twitter),
                     )
                 )
             }
             client.post("/api/feed/post") {
                 contentType(ContentType.Application.Json)
                 setBody(
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Mastodon post",
-                        targets = listOf("mastodon"),
+                        targets = listOf(Target.Mastodon),
                     )
                 )
             }
@@ -378,7 +385,11 @@ class FeedRoutesTest {
             val createResponse =
                 client.post("/api/feed/post") {
                     contentType(ContentType.Application.Json)
-                    setBody(NewPostRequest(content = "Test post for retrieval"))
+                    setBody(
+                        NewPostRequest.singleMessage(
+                            content = "Test post for retrieval"
+                        )
+                    )
                 }
             val createBody = createResponse.bodyAsText()
             // Extract UUID from the response URI

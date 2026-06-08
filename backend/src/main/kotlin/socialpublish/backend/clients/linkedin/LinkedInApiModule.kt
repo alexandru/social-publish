@@ -1079,16 +1079,6 @@ class LinkedInApiModule(
             }
 
         val encodedRootPostId = rootPostId.encodeURLPathPart()
-        if (!uploadedAsset?.description.isNullOrBlank()) {
-            raise(
-                ValidationError(
-                    status = 400,
-                    module = "linkedin",
-                    errorMessage =
-                        "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
-                )
-            )
-        }
 
         val commentText =
             message.content +

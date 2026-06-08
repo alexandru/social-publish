@@ -17,6 +17,7 @@ import socialpublish.backend.common.NewFeedPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
@@ -76,9 +77,9 @@ class PublishModuleTest {
                 testSession,
             )
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test post to feed",
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
             )
 
         val result =
@@ -110,7 +111,10 @@ class PublishModuleTest {
                 testSession,
             )
         val request =
-            NewPostRequest(content = "Test post", targets = listOf("mastodon"))
+            NewPostRequest.singleMessage(
+                content = "Test post",
+                targets = listOf(Target.Mastodon),
+            )
 
         val result =
             context(testSession) { publishModule.broadcastPost(request) }
@@ -145,9 +149,10 @@ class PublishModuleTest {
                     testSession,
                 )
             val request =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Test post",
-                    targets = listOf("feed", "mastodon", "twitter"),
+                    targets =
+                        listOf(Target.Feed, Target.Mastodon, Target.Twitter),
                 )
 
             val result =
@@ -188,7 +193,40 @@ class PublishModuleTest {
         }
 
     @Test
-    fun `broadcastPost with empty targets returns empty map`() = runTest {
+    fun `broadcastPost with empty targets returns validation error`() =
+        runTest {
+            val publishModule =
+                PublishModule(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    testSession,
+                )
+            val request =
+                NewPostRequest.singleMessage(
+                    content = "Test post",
+                    targets = emptyList(),
+                )
+
+            val result =
+                context(testSession) { publishModule.broadcastPost(request) }
+
+            val errorResult = assertIs<Either.Left<ApiError>>(result)
+            val error = errorResult.value
+            assertEquals(400, error.status)
+            assertTrue(
+                error.errorMessage.contains("No publish targets selected")
+            )
+        }
+
+    @Test
+    fun `broadcastPost with null targets returns validation error`() = runTest {
         val publishModule =
             PublishModule(
                 null,
@@ -203,41 +241,15 @@ class PublishModuleTest {
                 testSession,
             )
         val request =
-            NewPostRequest(content = "Test post", targets = emptyList())
+            NewPostRequest.singleMessage(content = "Test post", targets = null)
 
         val result =
             context(testSession) { publishModule.broadcastPost(request) }
 
-        val successResult =
-            assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
-        val responses = successResult.value
-        assertTrue(responses.isEmpty())
-    }
-
-    @Test
-    fun `broadcastPost with null targets returns empty map`() = runTest {
-        val publishModule =
-            PublishModule(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                feedModule,
-                testSession,
-            )
-        val request = NewPostRequest(content = "Test post", targets = null)
-
-        val result =
-            context(testSession) { publishModule.broadcastPost(request) }
-
-        val successResult =
-            assertIs<Either.Right<Map<String, NewPostResponse>>>(result)
-        val responses = successResult.value
-        assertTrue(responses.isEmpty())
+        val errorResult = assertIs<Either.Left<ApiError>>(result)
+        val error = errorResult.value
+        assertEquals(400, error.status)
+        assertTrue(error.errorMessage.contains("No publish targets selected"))
     }
 
     @Test
@@ -256,9 +268,9 @@ class PublishModuleTest {
                 testSession,
             )
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test post",
-                targets = listOf("FEED", "Mastodon"),
+                targets = listOf(Target.Feed, Target.Mastodon),
             )
 
         val result =
@@ -287,10 +299,16 @@ class PublishModuleTest {
                 testSession,
             )
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test post to all platforms",
                 targets =
-                    listOf("feed", "mastodon", "bluesky", "twitter", "linkedin"),
+                    listOf(
+                        Target.Feed,
+                        Target.Mastodon,
+                        Target.Bluesky,
+                        Target.Twitter,
+                        Target.LinkedIn,
+                    ),
             )
 
         val result =
@@ -333,7 +351,7 @@ class PublishModuleTest {
 
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin", "feed"),
+                    targets = listOf(Target.LinkedIn, Target.Feed),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -369,7 +387,7 @@ class PublishModuleTest {
 
             val request =
                 NewPostRequest(
-                    targets = listOf("linkedin", "feed"),
+                    targets = listOf(Target.LinkedIn, Target.Feed),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root"),
@@ -381,6 +399,48 @@ class PublishModuleTest {
             val _ =
                 context(testSession) { publishModule.broadcastPost(request) }
 
+            val posts =
+                postsDb.getAllForUser(
+                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+                )
+            assertTrue(posts.isRight())
+            val list = (posts as Either.Right).value
+            assertTrue(list.isEmpty())
+        }
+
+    @Test
+    fun `broadcastPost feed validation failure prevents publishing`() =
+        runTest {
+            val publishModule =
+                PublishModule(
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    testSession,
+                )
+
+            val longContent = "x".repeat(1001)
+            val request =
+                NewPostRequest.singleMessage(
+                    content = longContent,
+                    targets = listOf(Target.Feed),
+                )
+
+            val result =
+                context(testSession) { publishModule.broadcastPost(request) }
+
+            val errorResult = assertIs<Either.Left<ApiError>>(result)
+            val error = errorResult.value
+            assertEquals(400, error.status)
+            assertTrue(error.errorMessage.contains("characters"))
+
+            // Verify nothing was persisted
             val posts =
                 postsDb.getAllForUser(
                     UUIDv7.fromString("00000000-0000-0000-0000-000000000001")

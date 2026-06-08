@@ -11,6 +11,7 @@ import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewFeedPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
@@ -38,9 +39,9 @@ class FeedModuleTest {
     @Test
     fun `createPost creates valid feed post with tags`() = runTest {
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test post #kotlin #testing",
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
                 link = "https://example.com",
             )
 
@@ -56,9 +57,9 @@ class FeedModuleTest {
     @Test
     fun `createPost extracts hashtags correctly`() = runTest {
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Post with #kotlin #programming #test",
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
             )
 
         val result = context(testSession) { feedModule.createPost(request) }
@@ -78,7 +79,11 @@ class FeedModuleTest {
 
     @Test
     fun `createPost with empty content returns validation error`() = runTest {
-        val request = NewPostRequest(content = "", targets = listOf("feed"))
+        val request =
+            NewPostRequest.singleMessage(
+                content = "",
+                targets = listOf(Target.Feed),
+            )
 
         val result = context(testSession) { feedModule.createPost(request) }
 
@@ -93,7 +98,10 @@ class FeedModuleTest {
         runTest {
             val longContent = "a".repeat(1001)
             val request =
-                NewPostRequest(content = longContent, targets = listOf("feed"))
+                NewPostRequest.singleMessage(
+                    content = longContent,
+                    targets = listOf(Target.Feed),
+                )
 
             val result = context(testSession) { feedModule.createPost(request) }
 
@@ -105,10 +113,10 @@ class FeedModuleTest {
     @Test
     fun `createPost keeps HTML content as-is`() = runTest {
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content =
                     "<p>Test <strong>content</strong> with &nbsp; HTML</p>",
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
             )
 
         val result = context(testSession) { feedModule.createPost(request) }
@@ -128,9 +136,9 @@ class FeedModuleTest {
     @Test
     fun `createPost stores images reference`() = runTest {
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Post with image",
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
                 images = listOf("image-uuid-1", "image-uuid-2"),
             )
 
@@ -151,7 +159,10 @@ class FeedModuleTest {
     fun `generateFeed produces valid Atom feed`() = runTest {
         // Create a test post first
         val request =
-            NewPostRequest(content = "Test feed post", targets = listOf("feed"))
+            NewPostRequest.singleMessage(
+                content = "Test feed post",
+                targets = listOf(Target.Feed),
+            )
         val createResult =
             context(testSession) { feedModule.createPost(request) }
         assertTrue(createResult is Either.Right)
@@ -170,7 +181,9 @@ class FeedModuleTest {
             val result =
                 context(testSession) {
                     feedModule.createPost(
-                        NewPostRequest(content = "No external link")
+                        NewPostRequest.singleMessage(
+                            content = "No external link"
+                        )
                     )
                 }
             assertTrue(result is Either.Right)
@@ -192,7 +205,7 @@ class FeedModuleTest {
         runTest {
             val request =
                 NewPostRequest(
-                    targets = listOf("feed"),
+                    targets = listOf(Target.Feed),
                     messages =
                         nonEmptyListOf(
                             NewPostRequestMessage(content = "Root post"),
@@ -210,7 +223,7 @@ class FeedModuleTest {
     fun `generateFeed keeps latest thread message before root`() = runTest {
         val request =
             NewPostRequest(
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
                 messages =
                     nonEmptyListOf(
                         NewPostRequestMessage(content = "Root post in order"),
@@ -244,7 +257,7 @@ class FeedModuleTest {
 
         val result =
             module.createPosts(
-                targets = listOf("feed"),
+                targets = listOf(Target.Feed),
                 language = null,
                 messages = listOf(NewPostRequestMessage(content = "will fail")),
                 userUuid = testUserUuid,
@@ -263,7 +276,7 @@ class FeedModuleTest {
             val result1 =
                 context(testSession) {
                     feedModule.createPost(
-                        NewPostRequest(
+                        NewPostRequest.singleMessage(
                             content = "Post with link",
                             link = "https://example.com",
                         )
@@ -274,7 +287,9 @@ class FeedModuleTest {
             val result2 =
                 context(testSession) {
                     feedModule.createPost(
-                        NewPostRequest(content = "Post without link")
+                        NewPostRequest.singleMessage(
+                            content = "Post without link"
+                        )
                     )
                 }
             assertTrue(result2 is Either.Right)
@@ -293,7 +308,7 @@ class FeedModuleTest {
             val result1 =
                 context(testSession) {
                     feedModule.createPost(
-                        NewPostRequest(
+                        NewPostRequest.singleMessage(
                             content = "Post with link",
                             link = "https://example.com",
                         )
@@ -304,7 +319,9 @@ class FeedModuleTest {
             val result2 =
                 context(testSession) {
                     feedModule.createPost(
-                        NewPostRequest(content = "Post without link")
+                        NewPostRequest.singleMessage(
+                            content = "Post without link"
+                        )
                     )
                 }
             assertTrue(result2 is Either.Right)
@@ -321,9 +338,9 @@ class FeedModuleTest {
         val result1 =
             context(testSession) {
                 feedModule.createPost(
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Twitter post",
-                        targets = listOf("twitter"),
+                        targets = listOf(Target.Twitter),
                     )
                 )
             }
@@ -331,9 +348,9 @@ class FeedModuleTest {
         val result2 =
             context(testSession) {
                 feedModule.createPost(
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Mastodon post",
-                        targets = listOf("mastodon"),
+                        targets = listOf(Target.Mastodon),
                     )
                 )
             }
@@ -350,12 +367,16 @@ class FeedModuleTest {
     fun `generateFeed keeps newest posts first`() = runTest {
         val firstResult =
             context(testSession) {
-                feedModule.createPost(NewPostRequest(content = "Older post"))
+                feedModule.createPost(
+                    NewPostRequest.singleMessage(content = "Older post")
+                )
             }
         assertTrue(firstResult is Either.Right)
         val secondResult =
             context(testSession) {
-                feedModule.createPost(NewPostRequest(content = "Newer post"))
+                feedModule.createPost(
+                    NewPostRequest.singleMessage(content = "Newer post")
+                )
             }
         assertTrue(secondResult is Either.Right)
 
@@ -370,7 +391,7 @@ class FeedModuleTest {
 
     @Test
     fun `getFeedItemByUuid returns post when found`() = runTest {
-        val request = NewPostRequest(content = "Test post")
+        val request = NewPostRequest.singleMessage(content = "Test post")
         val result = context(testSession) { feedModule.createPost(request) }
         assertTrue(result is Either.Right)
 

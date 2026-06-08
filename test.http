@@ -97,3 +97,55 @@ Content-Type: application/json
     }
   ]
 }
+
+###
+# @name Upload second image
+POST {{baseUrl}}/api/files/upload
+Authorization: Bearer {{$global.jwt}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="cat2.jpeg"
+Content-Type: image/jpeg
+
+< ./docs/cat.jpeg
+--WebKitFormBoundary--
+
+{{
+  $global.imageUuid2=response.parsedBody.uuid;
+}}
+
+###
+# @name Broadcast thread with link in follow-up
+POST {{baseUrl}}/api/multiple/post
+Authorization: Bearer {{$global.jwt}}
+Content-Type: application/json
+
+{
+  "targets": ["bluesky", "mastodon", "twitter", "feed"],
+  "language": "en",
+  "messages": [
+    { "content": "Root message — no link here" },
+    { "content": "Follow-up with a link", "link": "https://example.com/highlighted" }
+  ]
+}
+
+###
+# @name Broadcast thread with images on both messages
+POST {{baseUrl}}/api/multiple/post
+Authorization: Bearer {{$global.jwt}}
+Content-Type: application/json
+
+{
+  "targets": ["bluesky", "mastodon", "twitter", "feed"],
+  "messages": [
+    {
+      "content": "Root message with an image",
+      "images": ["{{$global.imageUuid}}"]
+    },
+    {
+      "content": "Follow-up message with another image",
+      "images": ["{{$global.imageUuid2}}"]
+    }
+  ]
+}

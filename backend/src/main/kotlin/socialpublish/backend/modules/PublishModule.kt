@@ -21,6 +21,7 @@ import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.CompositeErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.Target
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.userUuid
@@ -48,10 +49,21 @@ class PublishModule(
     suspend fun broadcastPost(
         request: NewPostRequest
     ): ApiResult<Map<String, NewPostResponse>> = either {
-        val targets = request.targets?.map { it.lowercase() } ?: emptyList()
+        val targets = request.targets ?: emptyList()
+
+        // Validate targets are non-empty
+        if (targets.isEmpty()) {
+            raise(
+                ValidationError(
+                    status = 400,
+                    module = "publish",
+                    errorMessage = "No publish targets selected",
+                )
+            )
+        }
 
         // Preflight validation for all selected targets
-        if (targets.contains("linkedin") && request.messages.size > 2) {
+        if (Target.LinkedIn in targets && request.messages.size > 2) {
             raise(
                 ValidationError(
                     status = 400,
@@ -61,26 +73,29 @@ class PublishModule(
                 )
             )
         }
-        if (targets.contains("linkedin")) {
+        if (Target.Feed in targets) {
+            feedModule.validateRequest(request)?.let { raise(it) }
+        }
+        if (Target.LinkedIn in targets) {
             linkedInModule?.validateRequest(request)?.let { raise(it) }
         }
-        if (targets.contains("bluesky")) {
+        if (Target.Bluesky in targets) {
             blueskyModule?.validateRequest(request)?.let { raise(it) }
         }
-        if (targets.contains("mastodon")) {
+        if (Target.Mastodon in targets) {
             mastodonModule?.validateRequest(request)?.let { raise(it) }
         }
-        if (targets.contains("twitter")) {
+        if (Target.Twitter in targets) {
             twitterModule?.validateRequest(request)?.let { raise(it) }
         }
 
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
         val taskTargets = mutableListOf<String>()
 
-        if (targets.contains("feed")) {
+        if (Target.Feed in targets) {
             tasks.add {
                 feedModule.createPosts(
-                    targets = request.targets ?: listOf("feed"),
+                    targets = request.targets ?: listOf(Target.Feed),
                     language = request.language,
                     messages = request.messages,
                     userUuid = userUuid(),
@@ -89,7 +104,7 @@ class PublishModule(
             taskTargets.add("feed")
         }
 
-        if (targets.contains("mastodon")) {
+        if (Target.Mastodon in targets) {
             tasks.add {
                 val mod = mastodonModule
                 val cfg = mastodonConfig
@@ -108,7 +123,7 @@ class PublishModule(
             taskTargets.add("mastodon")
         }
 
-        if (targets.contains("bluesky")) {
+        if (Target.Bluesky in targets) {
             tasks.add {
                 val mod = blueskyModule
                 val cfg = blueskyConfig
@@ -126,7 +141,7 @@ class PublishModule(
             taskTargets.add("bluesky")
         }
 
-        if (targets.contains("twitter")) {
+        if (Target.Twitter in targets) {
             tasks.add {
                 val mod = twitterModule
                 val cfg = twitterConfig
@@ -144,7 +159,7 @@ class PublishModule(
             taskTargets.add("twitter")
         }
 
-        if (targets.contains("linkedin")) {
+        if (Target.LinkedIn in targets) {
             tasks.add {
                 val mod = linkedInModule
                 val cfg = linkedInConfig
