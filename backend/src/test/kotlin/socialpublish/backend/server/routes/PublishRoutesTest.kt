@@ -23,6 +23,7 @@ import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
+import socialpublish.backend.server.serverJson
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
@@ -59,7 +60,7 @@ class PublishRoutesTest {
             val publishRoutes = PublishRoutes()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/multiple/post") {
                         context(testSession) {
@@ -130,7 +131,7 @@ class PublishRoutesTest {
         val publishRoutes = PublishRoutes()
 
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(serverJson()) }
             routing {
                 post("/api/multiple/post") {
                     context(testSession) {
@@ -197,7 +198,7 @@ class PublishRoutesTest {
         val publishRoutes = PublishRoutes()
 
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(serverJson()) }
             routing {
                 post("/api/multiple/post") {
                     context(testSession) {

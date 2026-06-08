@@ -35,6 +35,7 @@ import socialpublish.backend.db.UserSettings
 import socialpublish.backend.db.UsersDatabase
 import socialpublish.backend.modules.AuthService
 import socialpublish.backend.server.respondWithUnauthorized
+import socialpublish.backend.server.serverJson
 import socialpublish.backend.testutils.createTestSession
 
 class SettingsRoutesTest {
@@ -105,7 +106,7 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(authCtx.usersDb)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/account/settings") {
                         authorizedRoute(
@@ -144,7 +145,7 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(authCtx.usersDb)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/account/settings") {
                         authorizedRoute(
@@ -221,7 +222,7 @@ class SettingsRoutesTest {
                     .getOrElse { throw it }
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     patch("/api/account/settings") {
                         context(
@@ -274,7 +275,7 @@ class SettingsRoutesTest {
                     .getOrElse { throw it }
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     patch("/api/account/settings") {
                         context(
@@ -311,7 +312,7 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(authCtx.usersDb)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/account/settings") {
                         authorizedRoute(
@@ -337,7 +338,7 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(authCtx.usersDb)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     patch("/api/account/settings") {
                         authorizedRoute(
@@ -372,7 +373,7 @@ class SettingsRoutesTest {
             val settingsRoutes = SettingsRoutes(authCtx.usersDb)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     patch("/api/account/settings") {
                         authorizedRoute(

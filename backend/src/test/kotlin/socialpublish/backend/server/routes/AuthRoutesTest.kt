@@ -34,6 +34,7 @@ import socialpublish.backend.db.query
 import socialpublish.backend.modules.AuthService
 import socialpublish.backend.server.putUserSession
 import socialpublish.backend.server.respondWithUnauthorized
+import socialpublish.backend.server.serverJson
 
 @Serializable private data class TokenResponse(val token: String?)
 
@@ -90,7 +91,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/login") { ctx.authRoute.loginRoute(call) }
                 }
@@ -123,7 +124,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/login") { ctx.authRoute.loginRoute(call) }
                 }
@@ -150,7 +151,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/login") { ctx.authRoute.loginRoute(call) }
                 }
@@ -195,7 +196,7 @@ class AuthRoutesTest {
                     .getOrElse { throw it }
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -220,7 +221,7 @@ class AuthRoutesTest {
                 AuthRoutes(ctx.authService, DocumentsDatabase(ctx.db))
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -253,7 +254,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(ctx.authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -285,7 +286,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/login") { ctx.authRoute.loginRoute(call) }
                 }
@@ -314,7 +315,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -341,7 +342,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -365,7 +366,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -392,7 +393,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -415,7 +416,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -437,7 +438,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -463,7 +464,7 @@ class AuthRoutesTest {
             val token = loginAndGetToken(ctx)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -489,7 +490,7 @@ class AuthRoutesTest {
             val token = loginAndGetToken(ctx)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -515,7 +516,7 @@ class AuthRoutesTest {
             val token = loginAndGetToken(ctx)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -548,7 +549,7 @@ class AuthRoutesTest {
                     .getOrElse { throw it }
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/api/protected") {
                         authorizedEndpoint(call, ctx) {
@@ -573,7 +574,7 @@ class AuthRoutesTest {
         testApplication {
             val ctx = testSetup()
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/test") {
                         val token = ctx.authRoute.extractAccessToken(call)
@@ -598,7 +599,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/test") {
                         val token = ctx.authRoute.extractAccessToken(call)
@@ -623,7 +624,7 @@ class AuthRoutesTest {
             val ctx = testSetup()
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/test") {
                         val token = ctx.authRoute.extractAccessToken(call)
@@ -644,7 +645,7 @@ class AuthRoutesTest {
         testApplication {
             val ctx = testSetup()
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/test") {
                         val token = ctx.authRoute.extractAccessToken(call)
@@ -668,7 +669,7 @@ class AuthRoutesTest {
         testApplication {
             val ctx = testSetup()
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     get("/test") {
                         val token = ctx.authRoute.extractAccessToken(call)
@@ -680,7 +681,10 @@ class AuthRoutesTest {
             val response = client.get("/test?access_token=query-token-789")
 
             assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("\"token\":null"))
+            val body = response.bodyAsText()
+            val tokenResponse =
+                serverJson().decodeFromString(TokenResponse.serializer(), body)
+            assertEquals(null, tokenResponse.token)
         }
     }
 
@@ -691,7 +695,7 @@ class AuthRoutesTest {
             val authRoute = AuthRoutes(ctx.authService, null)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing { post("/api/login") { authRoute.loginRoute(call) } }
             }
 
@@ -724,7 +728,7 @@ class AuthRoutesTest {
             val token = loginAndGetToken(ctx)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/logout") {
                         val bearerToken = ctx.authRoute.extractAccessToken(call)

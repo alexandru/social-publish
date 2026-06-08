@@ -104,6 +104,13 @@ class SerializationTest {
     }
 
     @Test
+    fun testFileAltTextPatchSerialization() {
+        val encoded = json.encodeToString(FileAltTextPatch("A flower"))
+
+        assertTrue(encoded.contains("\"altText\":\"A flower\""))
+    }
+
+    @Test
     fun testPublishRequestSerializationRoundTrip() {
         val original =
             PublishRequest(

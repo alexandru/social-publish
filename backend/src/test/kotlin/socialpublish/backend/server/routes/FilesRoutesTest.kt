@@ -4,13 +4,20 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientCon
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
+import io.ktor.client.request.patch as clientPatch
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -21,6 +28,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.modules.FileAltTextPatch
+import socialpublish.backend.server.serverJson
 import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
@@ -167,6 +176,89 @@ class FilesRoutesTest {
 
             client.close()
         }
+
+    @Test
+    fun `patch route updates alt text for uploaded file`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val filesRoutes = FilesRoutes(filesModule)
+
+        application {
+            install(ContentNegotiation) { json(serverJson()) }
+            routing {
+                post("/api/files/upload") {
+                    context(createTestSession(testUserUuid)) {
+                        filesRoutes.uploadFileRoute(call)
+                    }
+                }
+                patch("/api/files/{uuid}") {
+                    context(createTestSession(testUserUuid)) {
+                        filesRoutes.updateAltTextRoute(call)
+                    }
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        val upload = uploadTestImage(client, "flower1.jpeg", "")
+        val response =
+            client.clientPatch("/api/files/${upload.uuid}") {
+                contentType(ContentType.Application.Json)
+                setBody(Json.encodeToString(FileAltTextPatch("rose")))
+            }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        context(createTestSession(testUserUuid)) {
+            val processed =
+                requireNotNull(filesModule.readImageFile(upload.uuid))
+            assertEquals("rose", processed.altText)
+        }
+
+        client.close()
+    }
+
+    @Test
+    fun `patch route returns bad request for malformed body`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val filesRoutes = FilesRoutes(filesModule)
+
+        application {
+            install(ContentNegotiation) { json(serverJson()) }
+            routing {
+                patch("/api/files/{uuid}") {
+                    context(createTestSession(testUserUuid)) {
+                        filesRoutes.updateAltTextRoute(call)
+                    }
+                }
+            }
+        }
+
+        val response =
+            client.clientPatch("/api/files/some-uuid") {
+                contentType(ContentType.Application.Json)
+                setBody("not json")
+            }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(
+            response.bodyAsText().contains("Invalid file metadata patch")
+        )
+    }
 
     @Test
     fun `get route returns not found for unknown uuid`(@TempDir tempDir: Path) =

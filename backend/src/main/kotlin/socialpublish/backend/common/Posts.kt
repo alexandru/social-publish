@@ -7,9 +7,15 @@ import arrow.core.nonEmptyListOf
 import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import arrow.core.serialization.NonEmptyListSerializer
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.UseSerializers
+import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 enum class Target {
@@ -98,9 +104,29 @@ data class PublishedMessageResponse(
     val commentOnId: String? = null,
 )
 
-@Serializable
+@Serializable(with = NewPostResponseSerializer::class)
 sealed class NewPostResponse {
     abstract val module: String
+}
+
+object NewPostResponseSerializer :
+    JsonContentPolymorphicSerializer<NewPostResponse>(NewPostResponse::class) {
+    override fun selectDeserializer(
+        element: JsonElement
+    ): DeserializationStrategy<NewPostResponse> = let {
+        val module =
+            element.jsonObject["module"]?.jsonPrimitive?.content?.let {
+                Target.bySerialName(it)
+            }
+        when (module) {
+            Target.Bluesky -> NewBlueSkyPostResponse.serializer()
+            Target.Mastodon -> NewMastodonPostResponse.serializer()
+            Target.Feed -> NewFeedPostResponse.serializer()
+            Target.Twitter -> NewTwitterPostResponse.serializer()
+            Target.LinkedIn -> NewLinkedInPostResponse.serializer()
+            null -> throw SerializationException("Unknown post response module")
+        }
+    }
 }
 
 @Serializable

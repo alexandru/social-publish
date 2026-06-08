@@ -35,6 +35,8 @@ import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable internal data class FileUploadResponse(val uuid: String)
 
+@Serializable internal data class FileAltTextPatch(val altText: String? = null)
+
 @Serializable
 internal data class PublishRequest(
     val targets: List<String>,
@@ -189,21 +191,8 @@ private fun PostForm(
                 for ((index, message) in formState.messages.withIndex()) {
                     val imageUUIDs = mutableListOf<String>()
                     for (image in message.images.values) {
-                        val uploadedUuid = image.uploadedUuid
-                        if (uploadedUuid != null) {
-                            imageUUIDs.add(uploadedUuid)
-                            continue
-                        }
-
-                        val file = image.file ?: continue
-                        when (
-                            val response =
-                                ApiClient.uploadFile<FileUploadResponse>(
-                                    "/api/files/upload",
-                                    file,
-                                    image.altText,
-                                )
-                        ) {
+                        val response = image.prepareForPublish() ?: continue
+                        when (response) {
                             is ApiResponse.Success ->
                                 imageUUIDs.add(response.data.uuid)
                             is ApiResponse.Error -> {
@@ -216,13 +205,13 @@ private fun PostForm(
                                     return@launch
                                 }
                                 onError(
-                                    "Error uploading image for post ${index + 1}: ${response.message}"
+                                    "Error preparing image for post ${index + 1}: ${response.message}"
                                 )
                                 return@launch
                             }
                             is ApiResponse.Exception -> {
                                 onError(
-                                    "Error uploading image for post ${index + 1}: ${response.message}"
+                                    "Error preparing image for post ${index + 1}: ${response.message}"
                                 )
                                 return@launch
                             }
@@ -581,6 +570,25 @@ private fun PostForm(
             }
         }
     }
+}
+
+private suspend fun SelectedImage.prepareForPublish():
+    ApiResponse<FileUploadResponse>? {
+    val altText = altText?.takeIf { it.isNotBlank() }
+    val uploadedUuid = uploadedUuid
+    if (uploadedUuid != null) {
+        return ApiClient.patch<FileUploadResponse, FileAltTextPatch>(
+            "/api/files/$uploadedUuid",
+            FileAltTextPatch(altText),
+        )
+    }
+
+    val file = file ?: return null
+    return ApiClient.uploadFile<FileUploadResponse>(
+        "/api/files/upload",
+        file,
+        altText,
+    )
 }
 
 @Composable
