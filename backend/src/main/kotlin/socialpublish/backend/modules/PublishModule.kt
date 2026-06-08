@@ -51,7 +51,6 @@ class PublishModule(
     ): ApiResult<Map<String, NewPostResponse>> = either {
         val targets = request.targets ?: emptyList()
 
-        // Validate targets are non-empty
         if (targets.isEmpty()) {
             raise(
                 ValidationError(
@@ -62,7 +61,6 @@ class PublishModule(
             )
         }
 
-        // Preflight validation for all selected targets
         if (Target.LinkedIn in targets && request.messages.size > 2) {
             raise(
                 ValidationError(
@@ -73,6 +71,21 @@ class PublishModule(
                 )
             )
         }
+
+        validateTargets(request, targets)
+
+        val platformTasks = buildPlatformTasks(request, targets)
+        val results = coroutineScope {
+            platformTasks.map { (_, task) -> async { task() } }.awaitAll()
+        }
+
+        collectResults(platformTasks.map { it.first }, results)
+    }
+
+    private fun validateTargets(
+        request: NewPostRequest,
+        targets: List<Target>,
+    ) = either<Unit> {
         if (Target.Feed in targets) {
             feedModule.validateRequest(request)?.let { raise(it) }
         }
@@ -88,12 +101,16 @@ class PublishModule(
         if (Target.Twitter in targets) {
             twitterModule?.validateRequest(request)?.let { raise(it) }
         }
+    }
 
-        val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
-        val taskTargets = mutableListOf<String>()
+    private suspend fun buildPlatformTasks(
+        request: NewPostRequest,
+        targets: List<Target>,
+    ): List<Pair<String, suspend () -> ApiResult<NewPostResponse>>> {
+        val tasks = mutableListOf<Pair<String, suspend () -> ApiResult<NewPostResponse>>>()
 
         if (Target.Feed in targets) {
-            tasks.add {
+            tasks += "feed" to {
                 feedModule.createPosts(
                     targets = request.targets ?: listOf(Target.Feed),
                     language = request.language,
@@ -101,87 +118,63 @@ class PublishModule(
                     userUuid = userUuid(),
                 )
             }
-            taskTargets.add("feed")
         }
 
         if (Target.Mastodon in targets) {
-            tasks.add {
-                val mod = mastodonModule
-                val cfg = mastodonConfig
-                if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request)
-                } else {
-                    ValidationError(
-                            status = 503,
-                            errorMessage =
-                                "Mastodon integration not configured",
-                            module = "publish",
-                        )
-                        .left()
-                }
+            tasks += "mastodon" to {
+                mastodonModule?.let { mod ->
+                    mastodonConfig?.let { cfg ->
+                        mod.createThread(cfg, request)
+                    } ?: notConfiguredError("mastodon")
+                } ?: notConfiguredError("mastodon")
             }
-            taskTargets.add("mastodon")
         }
 
         if (Target.Bluesky in targets) {
-            tasks.add {
-                val mod = blueskyModule
-                val cfg = blueskyConfig
-                if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request)
-                } else {
-                    ValidationError(
-                            status = 503,
-                            errorMessage = "Bluesky integration not configured",
-                            module = "publish",
-                        )
-                        .left()
-                }
+            tasks += "bluesky" to {
+                blueskyModule?.let { mod ->
+                    blueskyConfig?.let { cfg ->
+                        mod.createThread(cfg, request)
+                    } ?: notConfiguredError("bluesky")
+                } ?: notConfiguredError("bluesky")
             }
-            taskTargets.add("bluesky")
         }
 
         if (Target.Twitter in targets) {
-            tasks.add {
-                val mod = twitterModule
-                val cfg = twitterConfig
-                if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request)
-                } else {
-                    ValidationError(
-                            status = 503,
-                            errorMessage = "Twitter integration not configured",
-                            module = "publish",
-                        )
-                        .left()
-                }
+            tasks += "twitter" to {
+                twitterModule?.let { mod ->
+                    twitterConfig?.let { cfg ->
+                        mod.createThread(cfg, request)
+                    } ?: notConfiguredError("twitter")
+                } ?: notConfiguredError("twitter")
             }
-            taskTargets.add("twitter")
         }
 
         if (Target.LinkedIn in targets) {
-            tasks.add {
-                val mod = linkedInModule
-                val cfg = linkedInConfig
-                if (mod != null && cfg != null) {
-                    mod.createThread(cfg, request)
-                } else {
-                    ValidationError(
-                            status = 503,
-                            errorMessage =
-                                "LinkedIn integration not configured",
-                            module = "publish",
-                        )
-                        .left()
-                }
+            tasks += "linkedin" to {
+                linkedInModule?.let { mod ->
+                    linkedInConfig?.let { cfg ->
+                        mod.createThread(cfg, request)
+                    } ?: notConfiguredError("linkedin")
+                } ?: notConfiguredError("linkedin")
             }
-            taskTargets.add("linkedin")
         }
 
-        val results = coroutineScope {
-            tasks.map { task -> async { task() } }.awaitAll()
-        }
+        return tasks
+    }
 
+    private fun notConfiguredError(platform: String): ApiResult<NewPostResponse> =
+        ValidationError(
+                status = 503,
+                errorMessage = "$platform integration not configured",
+                module = "publish",
+            )
+            .left()
+
+    private fun collectResults(
+        platformNames: List<String>,
+        results: List<ApiResult<NewPostResponse>>,
+    ): ApiResult<Map<String, NewPostResponse>> = either {
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {
             val status = errors.maxOf { it.value.status }
@@ -214,8 +207,8 @@ class PublishModule(
                     it.value
                 }
             buildMap {
-                taskTargets.zip(successResults).forEach { (target, result) ->
-                    put(target, result)
+                platformNames.zip(successResults).forEach { (name, result) ->
+                    put(name, result)
                 }
             }
         }
