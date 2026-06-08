@@ -3,6 +3,7 @@ package socialpublish.backend.clients.twitter
 import arrow.core.Either
 import arrow.core.raise.context.either
 import arrow.core.raise.context.raise
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import socialpublish.backend.common.jsonCommon
 
@@ -78,9 +79,16 @@ data class TwitterOAuthDocument(
 data class TwitterCreateRequest(
     val text: String,
     val media: TwitterMedia? = null,
+    val reply: TwitterReply? = null,
 )
 
-@Serializable data class TwitterMedia(val media_ids: List<String>)
+@Serializable
+data class TwitterMedia(@SerialName("media_ids") val mediaIds: List<String>)
+
+@Serializable
+data class TwitterReply(
+    @SerialName("in_reply_to_tweet_id") val inReplyToTweetId: String
+)
 
 /** Twitter API error response (v1.1 and v2 share this shape). */
 @Serializable data class TwitterErrorResponse(val errors: List<TwitterError>)

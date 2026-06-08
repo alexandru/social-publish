@@ -1,6 +1,7 @@
 package socialpublish.backend.server.routes
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -12,10 +13,12 @@ import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.CompositeErrorWithDetails
 import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.db.UserSession
 import socialpublish.backend.modules.PublishModule
 
 class PublishRoutes {
     /** Handle broadcast POST HTTP route */
+    context(_: UserSession)
     suspend fun broadcastPostRoute(
         call: ApplicationCall,
         publishModule: PublishModule,
@@ -52,16 +55,19 @@ class PublishRoutes {
                     if (params?.get("bluesky") == "1") targets.add("bluesky")
                     if (params?.get("twitter") == "1") targets.add("twitter")
                     if (params?.get("linkedin") == "1") targets.add("linkedin")
-                    if (params?.get("rss") == "1") targets.add("rss")
+                    if (params?.get("feed") == "1") targets.add("feed")
 
-                    NewPostRequest(
-                        content = params?.get("content") ?: "",
-                        targets = targets.ifEmpty { null },
-                        link = params?.get("link"),
-                        language = params?.get("language"),
-                        cleanupHtml = params?.get("cleanupHtml")?.toBoolean(),
-                        images = params?.getAll("images"),
-                    )
+                    NewPostRequest.singleMessageFromTargetNames(
+                            content = params?.get("content") ?: "",
+                            targets = targets.ifEmpty { null },
+                            link = params?.get("link"),
+                            language = params?.get("language"),
+                            images = params?.getAll("images"),
+                        )
+                        .getOrElse { error ->
+                            call.respond(HttpStatusCode.BadRequest, error)
+                            return
+                        }
                 }
 
         when (val result = publishModule.broadcastPost(request)) {

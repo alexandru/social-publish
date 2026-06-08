@@ -79,14 +79,16 @@ class ErrorSerializationTest {
             CompositeErrorResponse(
                 type = "success",
                 result =
-                    NewRssPostResponse(uri = "http://localhost:3000/rss/123"),
+                    NewFeedPostResponse(uri = "http://localhost:3000/feed/123"),
             )
 
         val jsonString = json.encodeToString(response)
 
         assert(jsonString.contains("\"type\":\"success\""))
         assert(jsonString.contains("\"result\""))
-        assert(jsonString.contains("\"uri\":\"http://localhost:3000/rss/123\""))
+        assert(
+            jsonString.contains("\"uri\":\"http://localhost:3000/feed/123\"")
+        )
     }
 
     @Test
@@ -123,8 +125,8 @@ class ErrorSerializationTest {
                         CompositeErrorResponse(
                             type = "success",
                             result =
-                                NewRssPostResponse(
-                                    uri = "http://localhost:3000/rss/123"
+                                NewFeedPostResponse(
+                                    uri = "http://localhost:3000/feed/123"
                                 ),
                         ),
                         CompositeErrorResponse(

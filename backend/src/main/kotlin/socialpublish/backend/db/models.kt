@@ -68,6 +68,7 @@ data class PostPayload(
     val tags: List<String>? = null,
     val language: String? = null,
     val images: List<String>? = null,
+    val replyToPostUuid: String? = null,
 )
 
 @Serializable
@@ -80,6 +81,7 @@ data class Post(
     val tags: List<String>? = null,
     val language: String? = null,
     val images: List<String>? = null,
+    val replyToPostUuid: String? = null,
 )
 
 /** User account for authentication. */

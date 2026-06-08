@@ -35,11 +35,16 @@ import socialpublish.frontend.utils.rethrowIfFatal
 
 @Serializable
 internal data class PublishRequest(
+    val targets: List<String>,
+    val language: String? = null,
+    val messages: List<PublishRequestMessage>,
+)
+
+@Serializable
+internal data class PublishRequestMessage(
     val content: String,
     val link: String? = null,
-    val targets: List<String>,
-    val images: List<String> = emptyList(),
-    val language: String? = null,
+    val images: List<String>? = null,
 )
 
 @Serializable
@@ -48,6 +53,16 @@ internal data class ModulePostResponse(
     val uri: String? = null,
     val id: String? = null,
     val cid: String? = null,
+    val postId: String? = null,
+    val messages: List<ModulePostMessage>? = null,
+)
+
+@Serializable
+internal data class ModulePostMessage(
+    val id: String,
+    val uri: String? = null,
+    val replyToId: String? = null,
+    val commentOnId: String? = null,
 )
 
 internal val LANGUAGE_OPTIONS =
@@ -155,7 +170,7 @@ private fun PostForm(
     var formState by remember { mutableStateOf(PublishFormState()) }
 
     val configuredServices = Storage.getConfiguredServices()
-    val rssFeedHref = "#"
+    val feedHref = "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: () -> Unit = {
@@ -213,11 +228,16 @@ private fun PostForm(
 
                 val publishRequest =
                     PublishRequest(
-                        content = formState.content,
-                        link = formState.link.ifEmpty { null },
                         targets = formState.targets.toList(),
-                        images = imageUUIDs,
                         language = formState.language,
+                        messages =
+                            listOf(
+                                PublishRequestMessage(
+                                    content = formState.content,
+                                    link = formState.link.ifEmpty { null },
+                                    images = imageUUIDs,
+                                )
+                            ),
                     )
 
                 when (
@@ -238,10 +258,10 @@ private fun PostForm(
                                 P {
                                     Text("View the ")
                                     A(
-                                        href = rssFeedHref,
+                                        href = feedHref,
                                         attrs = { attr("target", "_blank") },
                                     ) {
-                                        Text("RSS feed?")
+                                        Text("feed?")
                                     }
                                 }
                             }
@@ -326,10 +346,10 @@ private fun PostForm(
                     )
 
                     ServiceCheckboxField(
-                        serviceName = "RSS feed",
-                        checked = formState.targets.contains("rss"),
+                        serviceName = "Feed",
+                        checked = formState.targets.contains("feed"),
                         onCheckedChange = { _ ->
-                            formState = formState.toggleTarget("rss")
+                            formState = formState.toggleTarget("feed")
                         },
                     )
                 }

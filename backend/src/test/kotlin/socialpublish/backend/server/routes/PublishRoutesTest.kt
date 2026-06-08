@@ -19,13 +19,19 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
-import socialpublish.backend.modules.RssModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
 class PublishRoutesTest {
+    private val testSession =
+        createTestSession(
+            UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+        )
+
     @Test
     fun `broadcastPostRoute accepts JSON request`(@TempDir tempDir: Path) =
         testApplication {
@@ -35,7 +41,8 @@ class PublishRoutesTest {
                     socialpublish.backend.db.DocumentsDatabase(jdbi)
                 )
             val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-            val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+            val feedModule =
+                FeedModule("http://localhost:3000", postsDb, filesDb)
             val publishModule =
                 PublishModule(
                     null,
@@ -46,12 +53,8 @@ class PublishRoutesTest {
                     null,
                     null,
                     null,
-                    rssModule,
-                    createTestSession(
-                        UUIDv7.fromString(
-                            "00000000-0000-0000-0000-000000000001"
-                        )
-                    ),
+                    feedModule,
+                    testSession,
                 )
             val publishRoutes = PublishRoutes()
 
@@ -59,7 +62,12 @@ class PublishRoutesTest {
                 install(ContentNegotiation) { json() }
                 routing {
                     post("/api/multiple/post") {
-                        publishRoutes.broadcastPostRoute(call, publishModule)
+                        context(testSession) {
+                            publishRoutes.broadcastPostRoute(
+                                call,
+                                publishModule,
+                            )
+                        }
                     }
                 }
             }
@@ -76,9 +84,9 @@ class PublishRoutesTest {
             }
 
             val request =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Test broadcast via JSON",
-                    targets = listOf("rss"),
+                    targets = listOf(Target.Feed),
                 )
 
             val response =
@@ -89,8 +97,8 @@ class PublishRoutesTest {
 
             assertEquals(HttpStatusCode.OK, response.status)
             val body = response.bodyAsText()
-            assertTrue(body.contains("http://localhost:3000/rss/"))
-            assertTrue(body.contains("\"rss\""))
+            assertTrue(body.contains("http://localhost:3000/feed/"))
+            assertTrue(body.contains("\"feed\""))
 
             client.close()
         }
@@ -105,7 +113,7 @@ class PublishRoutesTest {
                 socialpublish.backend.db.DocumentsDatabase(jdbi)
             )
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
         val publishModule =
             PublishModule(
                 null,
@@ -116,10 +124,8 @@ class PublishRoutesTest {
                 null,
                 null,
                 null,
-                rssModule,
-                createTestSession(
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-                ),
+                feedModule,
+                testSession,
             )
         val publishRoutes = PublishRoutes()
 
@@ -127,7 +133,9 @@ class PublishRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/multiple/post") {
-                    publishRoutes.broadcastPostRoute(call, publishModule)
+                    context(testSession) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
                 }
             }
         }
@@ -144,7 +152,10 @@ class PublishRoutesTest {
         }
 
         val request =
-            NewPostRequest(content = "Test post", targets = listOf("bluesky"))
+            NewPostRequest.singleMessage(
+                content = "Test post",
+                targets = listOf(Target.Bluesky),
+            )
 
         val response =
             client.post("/api/multiple/post") {
@@ -169,7 +180,7 @@ class PublishRoutesTest {
                 socialpublish.backend.db.DocumentsDatabase(jdbi)
             )
         val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
-        val rssModule = RssModule("http://localhost:3000", postsDb, filesDb)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
         val publishModule =
             PublishModule(
                 null,
@@ -180,10 +191,8 @@ class PublishRoutesTest {
                 null,
                 null,
                 null,
-                rssModule,
-                createTestSession(
-                    UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-                ),
+                feedModule,
+                testSession,
             )
         val publishRoutes = PublishRoutes()
 
@@ -191,7 +200,9 @@ class PublishRoutesTest {
             install(ContentNegotiation) { json() }
             routing {
                 post("/api/multiple/post") {
-                    publishRoutes.broadcastPostRoute(call, publishModule)
+                    context(testSession) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
                 }
             }
         }
@@ -208,9 +219,9 @@ class PublishRoutesTest {
         }
 
         val request =
-            NewPostRequest(
+            NewPostRequest.singleMessage(
                 content = "Test composite error",
-                targets = listOf("rss", "mastodon"),
+                targets = listOf(Target.Feed, Target.Mastodon),
             )
 
         val response =

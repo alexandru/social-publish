@@ -1,6 +1,7 @@
 package socialpublish.backend.clients
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.request.receiveParameters
@@ -20,6 +21,7 @@ import socialpublish.backend.clients.mastodon.MastodonApiModule
 import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.ImageDimensions
@@ -99,7 +101,7 @@ class MastodonApiTest {
             val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Hello",
                     images = listOf(upload1.uuid, upload2.uuid),
                 )
@@ -107,7 +109,7 @@ class MastodonApiTest {
                 MastodonConfig(host = "http://localhost", accessToken = "token")
             val result =
                 context(createTestSession(testUserUuid)) {
-                    mastodonModule.createPost(mastodonConfig, req)
+                    mastodonModule.createThread(mastodonConfig, req)
                 }
 
             assertTrue(result.isRight())
@@ -126,6 +128,82 @@ class MastodonApiTest {
             assertTrue(uploadedImages[1].height <= 1600)
 
             mastodonClient.close()
+        }
+    }
+
+    @Test
+    fun `createThread links follow-up status to previous status`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            var counter = 0
+            val replyChain = mutableListOf<String?>()
+
+            application {
+                routing {
+                    post("/api/v1/statuses") {
+                        val params = call.receiveParameters()
+                        replyChain += params["in_reply_to_id"]
+                        counter += 1
+                        call.respondText(
+                            "{" +
+                                "\"id\":\"status-$counter\",\"uri\":\"http://mastodon.local/status/$counter\",\"url\":\"http://mastodon.local/s/$counter\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                .use { mastodonClient ->
+                    val mastodonModule =
+                        MastodonApiModule(filesModule, mastodonClient)
+                    val request =
+                        NewPostRequest(
+                            targets = listOf(Target.Mastodon),
+                            messages =
+                                nonEmptyListOf(
+                                    socialpublish.backend.common
+                                        .NewPostRequestMessage(
+                                            content = "Root"
+                                        ),
+                                    socialpublish.backend.common
+                                        .NewPostRequestMessage(
+                                            content = "Reply"
+                                        ),
+                                ),
+                        )
+                    val config =
+                        MastodonConfig(
+                            host = "http://localhost",
+                            accessToken = "token",
+                        )
+
+                    val result =
+                        context(createTestSession(testUserUuid)) {
+                            mastodonModule.createThread(config, request)
+                        }
+
+                    assertTrue(result is Either.Right)
+                    val response =
+                        (result as Either.Right).value
+                            as NewMastodonPostResponse
+                    assertEquals("status-1", response.id)
+                    assertEquals(2, response.messages.size)
+                    assertEquals("status-1", response.messages[1].replyToId)
+                    assertEquals(listOf(null, "status-1"), replyChain)
+                }
         }
     }
 }

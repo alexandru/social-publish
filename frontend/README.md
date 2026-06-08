@@ -154,7 +154,7 @@ The development server is configured in `webpack.config.d/dev-server.js`:
 - **History API Fallback**: Enabled for client-side routing
 - **Proxies**:
   - `/api` → `http://localhost:3000`
-  - `/rss` → `http://localhost:3000`
+  - `/feed` → `http://localhost:3000`
   - `/files` → `http://localhost:3000`
 
 ### Gradle Build

@@ -135,9 +135,11 @@ class LinkedInRoutes(
         linkedInConfig: LinkedInConfig,
         call: ApplicationCall,
     ) {
-        val request = call.receiveNewPostRequest()
+        val request = call.receiveNewPostRequestOrRespond() ?: return
 
-        when (val result = linkedInModule.createPost(linkedInConfig, request)) {
+        when (
+            val result = linkedInModule.createThread(linkedInConfig, request)
+        ) {
             is arrow.core.Either.Right -> call.respond(result.value)
             is arrow.core.Either.Left -> {
                 val error = result.value

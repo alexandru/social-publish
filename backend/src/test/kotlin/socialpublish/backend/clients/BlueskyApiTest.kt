@@ -1,6 +1,7 @@
 package socialpublish.backend.clients
 
 import arrow.core.Either
+import arrow.core.nonEmptyListOf
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.request.receiveStream
@@ -14,14 +15,18 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.io.TempDir
 import socialpublish.backend.clients.bluesky.BlueskyApiModule
+import socialpublish.backend.clients.bluesky.BlueskyBlobRef
 import socialpublish.backend.clients.bluesky.BlueskyConfig
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
+import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.testutils.*
@@ -29,6 +34,43 @@ import socialpublish.backend.testutils.*
 class BlueskyApiTest {
     private val testUserUuid: UUIDv7 =
         UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+
+    @Test
+    fun `BlueskyBlobRef serialization includes dollar type blob with default Json`() {
+        val ref =
+            BlueskyBlobRef(
+                ref = JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+                mimeType = "image/jpeg",
+                size = 12345L,
+            )
+        val json = Json.encodeToString(BlueskyBlobRef.serializer(), ref)
+        val parsed = Json.parseToJsonElement(json).jsonObject
+
+        assertEquals("blob", parsed["\$type"]?.jsonPrimitive?.content)
+        assertEquals("image/jpeg", parsed["mimeType"]?.jsonPrimitive?.content)
+        assertEquals(12345L, parsed["size"]?.jsonPrimitive?.long)
+        assertEquals(
+            JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+            parsed["ref"]?.jsonObject,
+        )
+    }
+
+    @Test
+    fun `BlueskyBlobRef round-trips with default Json`() {
+        val original =
+            BlueskyBlobRef(
+                ref = JsonObject(mapOf("\$link" to JsonPrimitive("bafytest"))),
+                mimeType = "image/png",
+                size = 999L,
+            )
+        val json = Json.encodeToString(BlueskyBlobRef.serializer(), original)
+        val deserialized =
+            Json.decodeFromString(BlueskyBlobRef.serializer(), json)
+
+        assertEquals(original.ref, deserialized.ref)
+        assertEquals(original.mimeType, deserialized.mimeType)
+        assertEquals(original.size, deserialized.size)
+    }
 
     @Test
     fun `creates post without images`(@TempDir tempDir: Path) = runTest {
@@ -73,7 +115,7 @@ class BlueskyApiTest {
                     linkPreviewParser = linkPreview,
                 )
 
-            val req = NewPostRequest(content = "Hello bluesky")
+            val req = NewPostRequest.singleMessage(content = "Hello bluesky")
             val blueskyConfig =
                 BlueskyConfig(
                     service = "http://localhost",
@@ -82,7 +124,7 @@ class BlueskyApiTest {
                 )
             val result =
                 context(createTestSession(testUserUuid)) {
-                    blueskyModule.createPost(blueskyConfig, req)
+                    blueskyModule.createThread(blueskyConfig, req)
                 }
 
             assertTrue(result.isRight())
@@ -166,7 +208,7 @@ class BlueskyApiTest {
                     )
 
                 val req =
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Hello bluesky",
                         images = listOf(upload1.uuid, upload2.uuid),
                     )
@@ -178,7 +220,7 @@ class BlueskyApiTest {
                     )
                 val result =
                     context(createTestSession(testUserUuid)) {
-                        blueskyModule.createPost(blueskyConfig, req)
+                        blueskyModule.createThread(blueskyConfig, req)
                     }
 
                 assertTrue(result.isRight())
@@ -219,6 +261,22 @@ class BlueskyApiTest {
                     uploadedImages[1].height,
                     ratios[1]?.get("height")?.jsonPrimitive?.content?.toInt(),
                 )
+
+                // Each image blob must contain "$type":"blob"
+                val imageBlobs = images.map {
+                    it.jsonObject["image"]?.jsonObject
+                }
+                imageBlobs.forEachIndexed { i, blob ->
+                    assertNotNull(
+                        blob,
+                        "image[$i].image should be a JSON object",
+                    )
+                    assertEquals(
+                        "blob",
+                        blob.get("\$type")?.jsonPrimitive?.content,
+                        "image[$i].image.\$type should be 'blob'",
+                    )
+                }
 
                 blueskyClient.close()
             }
@@ -305,7 +363,7 @@ class BlueskyApiTest {
                 )
 
             val req =
-                NewPostRequest(
+                NewPostRequest.singleMessage(
                     content = "Check out this article",
                     link = "http://localhost/test-page.html",
                 )
@@ -317,7 +375,7 @@ class BlueskyApiTest {
                 )
             val result =
                 context(createTestSession(testUserUuid)) {
-                    blueskyModule.createPost(blueskyConfig, req)
+                    blueskyModule.createThread(blueskyConfig, req)
                 }
 
             assertTrue(result.isRight())
@@ -350,6 +408,11 @@ class BlueskyApiTest {
             // Check that the thumbnail blob was included
             val thumb = external["thumb"]?.jsonObject
             assertNotNull(thumb)
+            assertEquals(
+                "blob",
+                thumb.get("\$type")?.jsonPrimitive?.content,
+                "thumb.\$type should be 'blob'",
+            )
 
             blueskyClient.close()
         }
@@ -442,7 +505,7 @@ class BlueskyApiTest {
                 val longLink =
                     "http://localhost/test-page.html?with=a-very-long-query-parameter-to-overflow"
                 val req =
-                    NewPostRequest(
+                    NewPostRequest.singleMessage(
                         content = "Check out this article",
                         link = longLink,
                     )
@@ -454,7 +517,7 @@ class BlueskyApiTest {
                     )
                 val result =
                     context(createTestSession(testUserUuid)) {
-                        blueskyModule.createPost(blueskyConfig, req)
+                        blueskyModule.createThread(blueskyConfig, req)
                     }
 
                 assertTrue(result.isRight())
@@ -552,7 +615,7 @@ class BlueskyApiTest {
             val linkOne = "http://localhost/alpha?with=a-long-query-param"
             val linkTwo = "http://localhost/beta?another-long-query-param"
             val content = "First $linkOne and then $linkTwo"
-            val req = NewPostRequest(content = content)
+            val req = NewPostRequest.singleMessage(content = content)
             val blueskyConfig =
                 BlueskyConfig(
                     service = "http://localhost",
@@ -561,7 +624,7 @@ class BlueskyApiTest {
                 )
             val result =
                 context(createTestSession(testUserUuid)) {
-                    blueskyModule.createPost(blueskyConfig, req)
+                    blueskyModule.createThread(blueskyConfig, req)
                 }
 
             assertTrue(result.isRight())
@@ -633,6 +696,122 @@ class BlueskyApiTest {
             assertEquals(linkTwo, secondUri)
 
             blueskyClient.close()
+        }
+    }
+
+    @Test
+    fun `createThread sets reply context for follow-up post`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val replyPayloads = mutableListOf<JsonObject?>()
+            var postCounter = 0
+
+            application {
+                routing {
+                    post("/xrpc/com.atproto.server.createSession") {
+                        call.respondText(
+                            "{" +
+                                "\"accessJwt\":\"atk\",\"refreshJwt\":\"rft\",\"handle\":\"u\",\"did\":\"did:plc:123\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                    post("/xrpc/com.atproto.repo.createRecord") {
+                        val body =
+                            call.receiveStream().readBytes().decodeToString()
+                        val payload = Json.parseToJsonElement(body).jsonObject
+                        val record = payload["record"]?.jsonObject
+                        replyPayloads += record?.get("reply")?.jsonObject
+                        postCounter += 1
+                        call.respondText(
+                            "{" +
+                                "\"uri\":\"at://did:plc:123/app.bsky.feed.post/$postCounter\",\"cid\":\"cid$postCounter\"}",
+                            io.ktor.http.ContentType.Application.Json,
+                        )
+                    }
+                }
+            }
+
+            createClient {
+                    install(ClientContentNegotiation) {
+                        json(
+                            Json {
+                                ignoreUnknownKeys = true
+                                isLenient = true
+                            }
+                        )
+                    }
+                }
+                .use { blueskyClient ->
+                    val linkPreview =
+                        LinkPreviewParser(httpClient = blueskyClient)
+                    val module =
+                        BlueskyApiModule(
+                            filesModule = filesModule,
+                            httpClient = blueskyClient,
+                            linkPreviewParser = linkPreview,
+                        )
+
+                    val request =
+                        NewPostRequest(
+                            targets = listOf(Target.Bluesky),
+                            messages =
+                                nonEmptyListOf(
+                                    NewPostRequestMessage(content = "Root"),
+                                    NewPostRequestMessage(content = "Reply"),
+                                ),
+                        )
+                    val config =
+                        BlueskyConfig(
+                            service = "http://localhost",
+                            username = "u",
+                            password = "p",
+                        )
+
+                    val result =
+                        context(createTestSession(testUserUuid)) {
+                            module.createThread(config, request)
+                        }
+
+                    assertTrue(result.isRight())
+                    assertEquals(2, replyPayloads.size)
+                    assertEquals(null, replyPayloads[0])
+                    val secondReply = requireNotNull(replyPayloads[1])
+                    assertEquals(
+                        "at://did:plc:123/app.bsky.feed.post/1",
+                        secondReply["root"]
+                            ?.jsonObject
+                            ?.get("uri")
+                            ?.jsonPrimitive
+                            ?.content,
+                    )
+                    assertEquals(
+                        "cid1",
+                        secondReply["root"]
+                            ?.jsonObject
+                            ?.get("cid")
+                            ?.jsonPrimitive
+                            ?.content,
+                    )
+                    assertEquals(
+                        "at://did:plc:123/app.bsky.feed.post/1",
+                        secondReply["parent"]
+                            ?.jsonObject
+                            ?.get("uri")
+                            ?.jsonPrimitive
+                            ?.content,
+                    )
+                    assertEquals(
+                        "cid1",
+                        secondReply["parent"]
+                            ?.jsonObject
+                            ?.get("cid")
+                            ?.jsonPrimitive
+                            ?.content,
+                    )
+                }
         }
     }
 }

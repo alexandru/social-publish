@@ -209,7 +209,12 @@ suspend fun <A> Database.transaction(
         SafeConnection.() -> A
 ): Either<DBException, A> = resourceScope {
     either {
-        val ref = connection().bind()
+        val ref =
+            try {
+                connection().bind()
+            } catch (e: SQLException) {
+                raise(DBException("Failed to acquire database connection", e))
+            }
         try {
             ref.connection.autoCommit = false
             val result = block(ref)

@@ -1,8 +1,11 @@
 package socialpublish.backend.clients.bluesky
 
-import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.nonEmptyListOf
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -17,20 +20,17 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respond
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.asSource
+import java.text.BreakIterator
 import java.time.Instant
 import kotlinx.io.buffered
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
+import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.clients.linkpreview.LinkPreviewParser
 import socialpublish.backend.common.*
 import socialpublish.backend.common.jsonCommon
@@ -41,13 +41,22 @@ import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.UploadedFile
 
 private const val BlueskyLinkDisplayLength = 24
+private const val BlueskyCharacterLimit = 300
+private const val LinkLength = 25
+
+private data class BlueskyReplyContext(
+    val rootUri: String,
+    val rootCid: String,
+    val parentUri: String,
+    val parentCid: String,
+)
 
 /** Bluesky API module implementing AT Protocol */
 class BlueskyApiModule(
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
     private val linkPreviewParser: LinkPreviewParser,
-) {
+) : SocialMediaApi<BlueskyConfig> {
     companion object {
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install({
@@ -80,10 +89,10 @@ class BlueskyApiModule(
                 ) {
                     contentType(ContentType.Application.Json)
                     setBody(
-                        buildJsonObject {
-                            put("identifier", config.username)
-                            put("password", config.password)
-                        }
+                        BlueskyCreateSessionRequest(
+                            identifier = config.username,
+                            password = config.password,
+                        )
                     )
                 }
 
@@ -147,20 +156,10 @@ class BlueskyApiModule(
                 }
 
             if (response.status.value == 200) {
-                val blobData = response.body<JsonObject>()
-                val blob =
-                    blobData["blob"] as? JsonObject
-                        ?: return CaughtException(
-                                status = 500,
-                                module = "bluesky",
-                                errorMessage = "Invalid blob response",
-                            )
-                            .left()
-
+                val blob = response.body<BlueskyBlobUploadResponse>().blob
                 val blobRef =
                     BlueskyBlobRef(
-                        `$type` = "blob",
-                        ref = blob["ref"] as JsonObject,
+                        ref = blob.ref,
                         mimeType = file.mimetype,
                         size = file.size,
                     )
@@ -263,12 +262,10 @@ class BlueskyApiModule(
                 }
 
             if (uploadResponse.status.isSuccess()) {
-                val blobData = uploadResponse.body<JsonObject>()
-                val blob = blobData["blob"] as? JsonObject ?: return null
+                val blob = uploadResponse.body<BlueskyBlobUploadResponse>().blob
 
                 return@resourceScope BlueskyBlobRef(
-                    `$type` = "blob",
-                    ref = blob["ref"] as JsonObject,
+                    ref = blob.ref,
                     mimeType = uploadedFile.mimetype,
                     size = uploadedFile.size,
                 )
@@ -287,7 +284,49 @@ class BlueskyApiModule(
 
     @Serializable data class DidResolutionResponse(val did: String)
 
-    // ... (existing code)
+    private fun countGraphemes(text: String): Int {
+        val iterator = BreakIterator.getCharacterInstance()
+        iterator.setText(text)
+        var count = 0
+        var index = iterator.first()
+        while (index != BreakIterator.DONE) {
+            val next = iterator.next()
+            if (next == BreakIterator.DONE) {
+                break
+            }
+            count += 1
+            index = next
+        }
+        return count
+    }
+
+    override fun validateRequest(request: NewPostRequest): ValidationError? {
+        val urlRegex = Regex("(https?://\\S+)")
+        request.messages.forEach { message ->
+            if (message.content.isEmpty()) {
+                return ValidationError(
+                    status = 400,
+                    module = "bluesky",
+                    errorMessage = "Content must not be empty",
+                )
+            }
+            val text =
+                message.content.trim() +
+                    if (message.link != null) "\n\n${message.link}" else ""
+            val links = urlRegex.findAll(text).count()
+            val textWithoutLinks = urlRegex.replace(text, "")
+            val length = countGraphemes(textWithoutLinks) + (links * LinkLength)
+            if (length > BlueskyCharacterLimit) {
+                return ValidationError(
+                    status = 400,
+                    module = "bluesky",
+                    errorMessage =
+                        "Bluesky post exceeds $BlueskyCharacterLimit characters",
+                )
+            }
+        }
+        return null
+    }
 
     /** Resolve a handle to a DID using the Bluesky API */
     private suspend fun resolveHandle(
@@ -318,11 +357,6 @@ class BlueskyApiModule(
         }
     }
 
-    private data class RichTextPayload(
-        val text: String,
-        val facets: List<JsonObject>,
-    )
-
     private fun utf8Length(value: String): Int =
         value.toByteArray(Charsets.UTF_8).size
 
@@ -343,22 +377,17 @@ class BlueskyApiModule(
         byteStart: Int,
         byteEnd: Int,
         uri: String,
-    ): JsonObject {
-        return buildJsonObject {
-            putJsonObject("index") {
-                put("byteStart", byteStart)
-                put("byteEnd", byteEnd)
-            }
-            putJsonArray("features") {
-                add(
-                    buildJsonObject {
-                        put("\$type", "app.bsky.richtext.facet#link")
-                        put("uri", uri)
-                    }
-                )
-            }
-        }
-    }
+    ): BlueskyFacet =
+        BlueskyFacet(
+            index = BlueskyFacetIndex(byteStart = byteStart, byteEnd = byteEnd),
+            features =
+                listOf(
+                    BlueskyFacetFeature(
+                        `$type` = "app.bsky.richtext.facet#link",
+                        uri = uri,
+                    )
+                ),
+        )
 
     /**
      * Detect facets (mentions, hashtags) in text.
@@ -368,8 +397,8 @@ class BlueskyApiModule(
     private suspend fun detectMentionsAndTags(
         config: BlueskyConfig,
         text: String,
-    ): List<JsonObject> {
-        val facets = mutableListOf<JsonObject>()
+    ): List<BlueskyFacet> {
+        val facets = mutableListOf<BlueskyFacet>()
 
         // 1. Detect Mentions (@handle.bsky.social)
         val mentionRegex = Regex("""(?<=\s|^)(@[a-zA-Z0-9.-]+)""")
@@ -384,24 +413,23 @@ class BlueskyApiModule(
                         utf8Length(text.substring(0, match.range.first))
                     val byteEnd = byteStart + utf8Length(match.value)
 
-                    val facet = buildJsonObject {
-                        putJsonObject("index") {
-                            put("byteStart", byteStart)
-                            put("byteEnd", byteEnd)
-                        }
-                        putJsonArray("features") {
-                            add(
-                                buildJsonObject {
-                                    put(
-                                        "\$type",
-                                        "app.bsky.richtext.facet#mention",
+                    facets.add(
+                        BlueskyFacet(
+                            index =
+                                BlueskyFacetIndex(
+                                    byteStart = byteStart,
+                                    byteEnd = byteEnd,
+                                ),
+                            features =
+                                listOf(
+                                    BlueskyFacetFeature(
+                                        `$type` =
+                                            "app.bsky.richtext.facet#mention",
+                                        did = did,
                                     )
-                                    put("did", did)
-                                }
-                            )
-                        }
-                    }
-                    facets.add(facet)
+                                ),
+                        )
+                    )
                 }
             }
         }
@@ -413,21 +441,22 @@ class BlueskyApiModule(
             val byteStart = utf8Length(text.substring(0, match.range.first))
             val byteEnd = byteStart + utf8Length(match.value)
 
-            val facet = buildJsonObject {
-                putJsonObject("index") {
-                    put("byteStart", byteStart)
-                    put("byteEnd", byteEnd)
-                }
-                putJsonArray("features") {
-                    add(
-                        buildJsonObject {
-                            put("\$type", "app.bsky.richtext.facet#tag")
-                            put("tag", tag)
-                        }
-                    )
-                }
-            }
-            facets.add(facet)
+            facets.add(
+                BlueskyFacet(
+                    index =
+                        BlueskyFacetIndex(
+                            byteStart = byteStart,
+                            byteEnd = byteEnd,
+                        ),
+                    features =
+                        listOf(
+                            BlueskyFacetFeature(
+                                `$type` = "app.bsky.richtext.facet#tag",
+                                tag = tag,
+                            )
+                        ),
+                )
+            )
         }
 
         return facets
@@ -441,24 +470,20 @@ class BlueskyApiModule(
     private suspend fun buildRichText(
         config: BlueskyConfig,
         text: String,
-    ): RichTextPayload {
+    ): Pair<String, List<BlueskyFacet>> {
         val urlRegex = Regex("""(?<=\s|^)(https?://[^\s]+)""")
-        val facets = mutableListOf<JsonObject>()
+        val facets = mutableListOf<BlueskyFacet>()
         val builder = StringBuilder()
-        var byteOffset = 0
         var lastIndex = 0
 
         for (match in urlRegex.findAll(text)) {
             val prefix = text.substring(lastIndex, match.range.first)
             builder.append(prefix)
-            byteOffset += utf8Length(prefix)
 
             val displayText = shortenLinkForDisplay(match.value)
-            val byteStart = byteOffset
-            val byteEnd = byteStart + utf8Length(displayText)
-
+            val byteStart = utf8Length(builder.toString())
             builder.append(displayText)
-            byteOffset = byteEnd
+            val byteEnd = utf8Length(builder.toString())
 
             facets.add(buildLinkFacet(byteStart, byteEnd, match.value))
             lastIndex = match.range.last + 1
@@ -470,37 +495,28 @@ class BlueskyApiModule(
 
         val finalText = builder.toString()
         val mentionAndTagFacets = detectMentionsAndTags(config, finalText)
-        return RichTextPayload(finalText, facets + mentionAndTagFacets)
+        return finalText to (facets + mentionAndTagFacets)
     }
 
-    /** Create a post on Bluesky */
+    /** Create a single post on Bluesky */
     context(_: UserSession)
-    suspend fun createPost(
+    private suspend fun createPost(
         config: BlueskyConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        return try {
+        replyContext: BlueskyReplyContext?,
+    ): ApiResult<NewPostResponse> = either {
+        try {
             // Validate request
-            request.validate()?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
 
-            val session =
-                when (val authResult = createSession(config)) {
-                    is Either.Left -> return authResult.value.left()
-                    is Either.Right -> authResult.value
-                }
+            val message = request.messages.first()
+
+            val session = createSession(config).bind()
 
             val imageEmbeds =
-                if (!request.images.isNullOrEmpty()) {
-                    request.images.map { imageUuid ->
-                        when (
-                            val uploadResult =
-                                uploadBlob(config, imageUuid, session)
-                        ) {
-                            is Either.Left -> return uploadResult.value.left()
-                            is Either.Right -> uploadResult.value
-                        }
+                if (!message.images.isNullOrEmpty()) {
+                    message.images.map { imageUuid ->
+                        uploadBlob(config, imageUuid, session).bind()
                     }
                 } else {
                     emptyList()
@@ -510,8 +526,8 @@ class BlueskyApiModule(
             // Note: Bluesky only supports one embed type at a time, and images
             // take priority
             val linkPreview =
-                if (request.link != null && imageEmbeds.isEmpty()) {
-                    linkPreviewParser.fetchPreview(request.link)
+                if (message.link != null && imageEmbeds.isEmpty()) {
+                    linkPreviewParser.fetchPreview(message.link)
                 } else {
                     null
                 }
@@ -527,89 +543,73 @@ class BlueskyApiModule(
             // Prepare text
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
-            val url = request.link
+            val url = message.link
             val text =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content.trim()
-                } + if (url != null) "\n\n$url" else ""
+                message.content.trim() + if (url != null) "\n\n$url" else ""
 
             // Detect facets (mentions, links, hashtags) and shorten link
             // display text
-            val richText = buildRichText(config, text)
+            val (richText, facets) = buildRichText(config, text)
 
             logger.info(
-                "Posting to Bluesky:\n${richText.text.trim().prependIndent("  |")}"
+                "Posting to Bluesky:\n${richText.trim().prependIndent("  |")}"
             )
 
-            // Build post record
-            val record = buildJsonObject {
-                put("\$type", "app.bsky.feed.post")
-                put("text", richText.text)
-                put("createdAt", Instant.now().toString())
-
-                if (richText.facets.isNotEmpty()) {
-                    putJsonArray("facets") {
-                        richText.facets.forEach { add(it) }
-                    }
-                }
-
-                if (request.language != null) {
-                    putJsonArray("langs") {
-                        add(JsonPrimitive(request.language))
-                    }
-                }
-
-                if (imageEmbeds.isNotEmpty()) {
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.images")
-                        putJsonArray("images") {
-                            imageEmbeds.forEach { embed ->
-                                add(
-                                    buildJsonObject {
-                                        put("alt", embed.alt)
-                                        putJsonObject("image") {
-                                            put("\$type", embed.image.`$type`)
-                                            put("ref", embed.image.ref)
-                                            put(
-                                                "mimeType",
-                                                embed.image.mimeType,
-                                            )
-                                            put("size", embed.image.size)
-                                        }
-                                        embed.aspectRatio?.let { ratio ->
-                                            putJsonObject("aspectRatio") {
-                                                put("width", ratio.width)
-                                                put("height", ratio.height)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                } else if (linkPreview != null) {
+            val embed =
+                when {
+                    imageEmbeds.isNotEmpty() ->
+                        Json.encodeToJsonElement(
+                            BlueskyImagesEmbed.serializer(),
+                            BlueskyImagesEmbed(
+                                `$type` = "app.bsky.embed.images",
+                                images = imageEmbeds,
+                            ),
+                        )
                     // Add external link embed with preview
-                    putJsonObject("embed") {
-                        put("\$type", "app.bsky.embed.external")
-                        putJsonObject("external") {
-                            put("uri", url)
-                            put("title", linkPreview.title)
-                            put("description", linkPreview.description ?: "")
-                            // Add image blob if available
-                            if (linkPreviewBlobRef != null) {
-                                putJsonObject("thumb") {
-                                    put("\$type", linkPreviewBlobRef.`$type`)
-                                    put("ref", linkPreviewBlobRef.ref)
-                                    put("mimeType", linkPreviewBlobRef.mimeType)
-                                    put("size", linkPreviewBlobRef.size)
-                                }
-                            }
-                        }
-                    }
+                    linkPreview != null && url != null ->
+                        Json.encodeToJsonElement(
+                            BlueskyExternalEmbed.serializer(),
+                            BlueskyExternalEmbed(
+                                `$type` = "app.bsky.embed.external",
+                                external =
+                                    BlueskyExternal(
+                                        uri = url,
+                                        title = linkPreview.title,
+                                        description =
+                                            linkPreview.description ?: "",
+                                        // Add image blob if available
+                                        thumb = linkPreviewBlobRef,
+                                    ),
+                            ),
+                        )
+                    else -> null
                 }
-            }
+
+            // Build post record
+            val record =
+                BlueskyPostRecord(
+                    `$type` = "app.bsky.feed.post",
+                    text = richText,
+                    createdAt = Instant.now().toString(),
+                    facets = facets.takeIf { it.isNotEmpty() },
+                    langs = request.language?.let { listOf(it) },
+                    reply =
+                        replyContext?.let { reply ->
+                            BlueskyReply(
+                                root =
+                                    BlueskyReplyRef(
+                                        uri = reply.rootUri,
+                                        cid = reply.rootCid,
+                                    ),
+                                parent =
+                                    BlueskyReplyRef(
+                                        uri = reply.parentUri,
+                                        cid = reply.parentCid,
+                                    ),
+                            )
+                        },
+                    embed = embed,
+                )
 
             // Create the post
             val response =
@@ -619,79 +619,120 @@ class BlueskyApiModule(
                     header("Authorization", "Bearer ${session.accessJwt}")
                     contentType(ContentType.Application.Json)
                     setBody(
-                        buildJsonObject {
-                            put("repo", session.did)
-                            put("collection", "app.bsky.feed.post")
-                            put("record", record)
-                        }
+                        BlueskyCreateRecordRequest(
+                            repo = session.did,
+                            collection = "app.bsky.feed.post",
+                            record = record,
+                        )
                     )
                 }
 
             if (response.status.value == 200) {
                 val data = response.body<BlueskyPostResponse>()
-                NewBlueSkyPostResponse(uri = data.uri, cid = data.cid).right()
+                NewBlueSkyPostResponse(
+                    uri = data.uri,
+                    cid = data.cid,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(
+                                id = data.uri,
+                                uri = data.uri,
+                                replyToId = replyContext?.parentUri,
+                            )
+                        ),
+                )
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn(
                     "Failed to post to Bluesky: ${response.status}, body: $errorBody"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "bluesky",
                         errorMessage = "Failed to create post",
                         body = ResponseBody(asString = errorBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to Bluesky", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "bluesky",
                     errorMessage = "Failed to post to Bluesky: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
-    /** Handle Bluesky post creation HTTP route */
     context(_: UserSession)
-    suspend fun createPostRoute(call: ApplicationCall, config: BlueskyConfig) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
+    override suspend fun createThread(
+        config: BlueskyConfig,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
-        when (val result = createPost(config, request)) {
-            is Either.Right -> call.respond(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+        var replyContext: BlueskyReplyContext? = null
+        val messages = mutableListOf<PublishedMessageResponse>()
+        var rootUri = ""
+        var rootCid = ""
+
+        for (message in request.messages) {
+            val singleRequest =
+                NewPostRequest(
+                    targets = request.targets,
+                    language = request.language,
+                    messages = nonEmptyListOf(message),
                 )
-            }
-        }
-    }
 
-    private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
+            val result =
+                createPost(
+                        config = config,
+                        request = singleRequest,
+                        replyContext = replyContext,
+                    )
+                    .bind()
+            val response = result as NewBlueSkyPostResponse
+            if (messages.isEmpty()) {
+                rootUri = response.uri
+                rootCid =
+                    response.cid
+                        ?: raise(
+                            ValidationError(
+                                status = 500,
+                                module = "bluesky",
+                                errorMessage = "Missing cid for root post",
+                            )
+                        )
+            }
+            val parentCid =
+                response.cid
+                    ?: raise(
+                        ValidationError(
+                            status = 500,
+                            module = "bluesky",
+                            errorMessage = "Missing cid for reply post",
+                        )
+                    )
+            val published = response.messages.first()
+            messages += published
+            replyContext =
+                BlueskyReplyContext(
+                    rootUri = rootUri,
+                    rootCid = rootCid,
+                    parentUri = response.uri,
+                    parentCid = parentCid,
+                )
+        }
+
+        NewBlueSkyPostResponse(
+            uri = rootUri,
+            cid = rootCid,
+            messages = messages,
+        )
     }
 }
 

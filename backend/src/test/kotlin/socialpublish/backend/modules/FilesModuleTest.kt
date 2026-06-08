@@ -21,10 +21,16 @@ import socialpublish.backend.testutils.imageDimensions
 import socialpublish.backend.testutils.loadTestResourceBytes
 
 class FilesModuleTest {
-    private val userA =
-        UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
-    private val userB =
-        UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
+    private val testSession by lazy {
+        createTestSession(
+            UUIDv7.fromString("00000000-0000-0000-0000-000000000001")
+        )
+    }
+    private val testSessionB by lazy {
+        createTestSession(
+            UUIDv7.fromString("00000000-0000-0000-0000-000000000002")
+        )
+    }
 
     @Test
     fun `uploads images and stores originals`(@TempDir tempDir: Path) =
@@ -32,9 +38,8 @@ class FilesModuleTest {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
             val upload1 =
-                context(createTestSession(userA)) {
-                    filesModule
-                        .uploadFile(
+                context(testSession) {
+                        filesModule.uploadFile(
                             UploadedFile(
                                 fileName = "flower1.jpeg",
                                 source =
@@ -50,14 +55,13 @@ class FilesModuleTest {
                                 altText = "rose",
                             )
                         )
-                        .getOrElse {
-                            error("Unexpected upload error: ${it.errorMessage}")
-                        }
-                }
+                    }
+                    .getOrElse {
+                        error("Unexpected upload error: ${it.errorMessage}")
+                    }
             val upload2 =
-                context(createTestSession(userA)) {
-                    filesModule
-                        .uploadFile(
+                context(testSession) {
+                        filesModule.uploadFile(
                             UploadedFile(
                                 fileName = "flower2.jpeg",
                                 source =
@@ -73,17 +77,17 @@ class FilesModuleTest {
                                 altText = "tulip",
                             )
                         )
-                        .getOrElse {
-                            error("Unexpected upload error: ${it.errorMessage}")
-                        }
-                }
+                    }
+                    .getOrElse {
+                        error("Unexpected upload error: ${it.errorMessage}")
+                    }
 
             val processed1 =
-                context(createTestSession(userA)) {
+                context(testSession) {
                     requireNotNull(filesModule.readImageFile(upload1.uuid))
                 }
             val processed2 =
-                context(createTestSession(userA)) {
+                context(testSession) {
                     requireNotNull(filesModule.readImageFile(upload2.uuid))
                 }
 
@@ -104,7 +108,7 @@ class FilesModuleTest {
             assertEquals(stored2.height, processed2.height)
 
             val retrieved =
-                context(createTestSession(userA)) {
+                context(testSession) {
                     requireNotNull(filesModule.readImageFile(upload1.uuid))
                 }
             val retrievedDimensions =
@@ -122,9 +126,8 @@ class FilesModuleTest {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)
             val upload =
-                context(createTestSession(userA)) {
-                    filesModule
-                        .uploadFile(
+                context(testSession) {
+                        filesModule.uploadFile(
                             UploadedFile(
                                 fileName = "flower1.jpeg",
                                 source =
@@ -140,10 +143,10 @@ class FilesModuleTest {
                                 altText = "rose",
                             )
                         )
-                        .getOrElse {
-                            error("Unexpected upload error: ${it.errorMessage}")
-                        }
-                }
+                    }
+                    .getOrElse {
+                        error("Unexpected upload error: ${it.errorMessage}")
+                    }
 
             val result = filesModule.getFile(upload.uuid)
 
@@ -175,7 +178,7 @@ class FilesModuleTest {
             val filesModule = createFilesModule(tempDir, jdbi)
 
             val result =
-                context(createTestSession(userA)) {
+                context(testSession) {
                     filesModule.uploadFile(
                         UploadedFile(
                             fileName = "notes.txt",
@@ -210,9 +213,8 @@ class FilesModuleTest {
         val jdbi = createTestDatabase(tempDir)
         val filesModule = createFilesModule(tempDir, jdbi)
         val upload =
-            context(createTestSession(userA)) {
-                filesModule
-                    .uploadFile(
+            context(testSession) {
+                    filesModule.uploadFile(
                         UploadedFile(
                             fileName = "flower1.jpeg",
                             source =
@@ -228,19 +230,17 @@ class FilesModuleTest {
                             altText = "rose",
                         )
                     )
-                    .getOrElse {
-                        error("Unexpected upload error: ${it.errorMessage}")
-                    }
-            }
+                }
+                .getOrElse {
+                    error("Unexpected upload error: ${it.errorMessage}")
+                }
 
         val ownerRead =
-            context(createTestSession(userA)) {
+            context(testSession) {
                 requireNotNull(filesModule.readImageFile(upload.uuid))
             }
         val otherRead =
-            context(createTestSession(userB)) {
-                filesModule.readImageFile(upload.uuid)
-            }
+            context(testSessionB) { filesModule.readImageFile(upload.uuid) }
 
         assertEquals("rose", ownerRead.altText)
         assertEquals(null, otherRead)

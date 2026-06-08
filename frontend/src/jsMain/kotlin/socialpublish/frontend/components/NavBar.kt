@@ -8,6 +8,7 @@ import socialpublish.frontend.utils.navigateTo
 @Composable
 fun NavBar(currentPath: String, onLogout: () -> Unit) {
     val isLoggedIn = Storage.hasSessionToken()
+    val feedHref = "#"
     var navbarActive by remember { mutableStateOf(false) }
 
     // Normalize currentPath to ignore trailing slashes and query strings so
@@ -100,6 +101,13 @@ fun NavBar(currentPath: String, onLogout: () -> Unit) {
                             )
                         }
                     }
+
+                    NavItemLink(
+                        href = feedHref,
+                        label = "Feed",
+                        iconClasses = arrayOf("fas", "fa-rss"),
+                        openInNewTab = true,
+                    )
                 }
 
                 // New API link (opens in new tab)

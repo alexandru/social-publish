@@ -52,13 +52,15 @@ import socialpublish.backend.modules.*
 import socialpublish.backend.server.routes.AUTH_SESSION
 import socialpublish.backend.server.routes.AccountSettingsView
 import socialpublish.backend.server.routes.AuthRoutes
+import socialpublish.backend.server.routes.BlueskyRoutes
+import socialpublish.backend.server.routes.FeedRoutes
 import socialpublish.backend.server.routes.FilesRoutes
 import socialpublish.backend.server.routes.LinkedInRoutes
 import socialpublish.backend.server.routes.LlmRoutes
 import socialpublish.backend.server.routes.LoginRequest
 import socialpublish.backend.server.routes.LoginResponse
+import socialpublish.backend.server.routes.MastodonRoutes
 import socialpublish.backend.server.routes.PublishRoutes
-import socialpublish.backend.server.routes.RssRoutes
 import socialpublish.backend.server.routes.SettingsRoutes
 import socialpublish.backend.server.routes.StaticAssetsRoutes
 import socialpublish.backend.server.routes.TwitterRoutes
@@ -79,7 +81,7 @@ fun startServer(
     logger.info("Starting HTTP server on port ${config.server.httpPort}...")
 
     val staticAssetsRoutes = StaticAssetsRoutes(config.server)
-    val rssModule = RssModule(config.server.baseUrl, postsDb, filesDb)
+    val feedModule = FeedModule(config.server.baseUrl, postsDb, filesDb)
     val filesModule = FilesModule.create(config.files, filesDb)
 
     val authService = AuthService(userSessionsDb)
@@ -87,7 +89,7 @@ fun startServer(
         AuthRoutes(authService = authService, documentsDb = documentsDb)
     val publishRoutes = PublishRoutes()
     val filesRoutes = FilesRoutes(filesModule)
-    val rssRoutes = RssRoutes(rssModule)
+    val feedRoutes = FeedRoutes(feedModule)
     val settingsRoutes = SettingsRoutes(usersDb = usersDb)
 
     // Social network modules – instantiated once at startup; per-user config is
@@ -111,6 +113,8 @@ fun startServer(
     val llmModule = LlmApiModule.resource(filesModule).bind()
     val twitterRoutes = TwitterRoutes(twitterModule, documentsDb)
     val linkedInRoutes = LinkedInRoutes(linkedInModule, documentsDb)
+    val blueskyRoutes = BlueskyRoutes(blueskyModule)
+    val mastodonRoutes = MastodonRoutes(mastodonModule)
     val llmRoutes = LlmRoutes(llmModule)
 
     server(engine, port = config.server.httpPort, preWait = 5.seconds) {
@@ -418,13 +422,13 @@ fun startServer(
                         }
                     }
 
-                // RSS post creation
-                post("/api/rss/post") {
-                        withSession(call) { rssRoutes.createPostRoute(call) }
+                // Feed post creation
+                post("/api/feed/post") {
+                        withSession(call) { feedRoutes.createPostRoute(call) }
                     }
                     .describe {
-                        summary = "Create RSS post"
-                        description = "Create a new RSS feed post"
+                        summary = "Create feed post"
+                        description = "Create a new feed post"
                         documentSecurityRequirements()
                         requestBody {
                             required = true
@@ -436,7 +440,7 @@ fun startServer(
                             }
                         }
                         responses {
-                            documentNewPostResponses<NewRssPostResponse>()
+                            documentNewPostResponses<NewFeedPostResponse>()
                         }
                     }
 
@@ -449,7 +453,7 @@ fun startServer(
                                         call.respondWithNotConfigured("Bluesky")
                                         return@withSession
                                     }
-                            blueskyModule.createPostRoute(call, blueskyConfig)
+                            blueskyRoutes.createPostRoute(blueskyConfig, call)
                         }
                     }
                     .describe {
@@ -480,7 +484,7 @@ fun startServer(
                                         )
                                         return@withSession
                                     }
-                            mastodonModule.createPostRoute(call, mastodonConfig)
+                            mastodonRoutes.createPostRoute(mastodonConfig, call)
                         }
                     }
                     .describe {
@@ -563,18 +567,18 @@ fun startServer(
 
                 post("/api/multiple/post") {
                         withSession(call) {
-                            val userSettings = userSettings()
+                            val settings = userSettings()
                             val publishModule =
                                 PublishModule(
                                     mastodonModule = mastodonModule,
-                                    mastodonConfig = userSettings.mastodon,
+                                    mastodonConfig = settings.mastodon,
                                     blueskyModule = blueskyModule,
-                                    blueskyConfig = userSettings.bluesky,
+                                    blueskyConfig = settings.bluesky,
                                     twitterModule = twitterModule,
-                                    twitterConfig = userSettings.twitter,
+                                    twitterConfig = settings.twitter,
                                     linkedInModule = linkedInModule,
-                                    linkedInConfig = userSettings.linkedin,
-                                    rssModule = rssModule,
+                                    linkedInConfig = settings.linkedin,
+                                    feedModule = feedModule,
                                     userSession = userSession(),
                                 )
                             publishRoutes.broadcastPostRoute(
@@ -701,55 +705,55 @@ fun startServer(
             }
 
             // -----------------------------------------------------------
-            // Public RSS feed
+            // Public feed
 
-            get("/rss/{userUuid}") { rssRoutes.generateRssRoute(call) }
+            get("/feed/{userUuid}") { feedRoutes.generateFeedRoute(call) }
                 .describe {
-                    summary = "Get user RSS feed"
+                    summary = "Get user feed"
                     description =
-                        "Generate and retrieve the RSS feed for a specific user"
+                        "Generate and retrieve the Atom feed for a specific user"
                     parameters {
                         path("userUuid") {
                             required = true
                             description =
-                                "UUID of the user whose RSS feed should be returned"
+                                "UUID of the user whose feed should be returned"
                         }
                         query("filterByLinks") {
                             required = false
                             description =
-                                "Filter to only include posts with links (true/false)"
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
                             description =
-                                "Filter to only include posts with images (true/false)"
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {
                         HttpStatusCode.OK {
-                            description = "RSS feed in XML format"
-                            ContentType.Application.Rss()
+                            description = "Atom feed in XML format"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/target/{target}") {
-                    rssRoutes.generateRssRoute(call)
+            get("/feed/{userUuid}/target/{target}") {
+                    feedRoutes.generateFeedRoute(call)
                 }
                 .describe {
-                    summary = "Get user RSS feed for specific target"
+                    summary = "Get user feed for specific target"
                     description =
-                        "Generate and retrieve a user's RSS feed filtered by target platform " +
+                        "Generate and retrieve a user's feed filtered by target platform " +
                             "(e.g., 'mastodon', 'twitter', 'bluesky', 'linkedin')"
                     parameters {
                         path("userUuid") {
                             required = true
                             description =
-                                "UUID of the user whose RSS feed should be returned"
+                                "UUID of the user whose feed should be returned"
                         }
                         path("target") {
                             required = true
@@ -759,32 +763,32 @@ fun startServer(
                         query("filterByLinks") {
                             required = false
                             description =
-                                "Filter to only include posts with links (true/false)"
+                                "Filter posts by links: include (only posts with links) or exclude (only posts without links)"
                         }
                         query("filterByImages") {
                             required = false
                             description =
-                                "Filter to only include posts with images (true/false)"
+                                "Filter posts by images: include (only posts with images) or exclude (only posts without images)"
                         }
                     }
                     responses {
                         HttpStatusCode.OK {
                             description =
-                                "RSS feed in XML format filtered by target"
-                            ContentType.Application.Rss()
+                                "Atom feed in XML format filtered by target"
+                            ContentType.parse("application/atom+xml")
                         }
                         HttpStatusCode.InternalServerError {
-                            description = "Failed to generate RSS feed"
+                            description = "Failed to generate feed"
                             schema = jsonSchema<ErrorResponse>()
                         }
                     }
                 }
 
-            get("/rss/{userUuid}/{uuid}") { rssRoutes.getRssItem(call) }
+            get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
                 .describe {
-                    summary = "Get user RSS item by UUID"
+                    summary = "Get user feed item by UUID"
                     description =
-                        "Retrieve a specific RSS post/item by user UUID and post UUID"
+                        "Retrieve a specific feed item by user UUID and post UUID"
                     parameters {
                         path("userUuid") {
                             required = true

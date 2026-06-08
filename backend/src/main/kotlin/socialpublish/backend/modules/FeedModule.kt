@@ -1,8 +1,9 @@
 package socialpublish.backend.modules
 
 import arrow.core.getOrElse
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import com.rometools.rome.feed.synd.SyndCategoryImpl
 import com.rometools.rome.feed.synd.SyndContentImpl
 import com.rometools.rome.feed.synd.SyndEntryImpl
@@ -13,9 +14,12 @@ import org.jdom2.Element
 import org.jdom2.Namespace
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
+import socialpublish.backend.common.NewFeedPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
-import socialpublish.backend.common.NewRssPostResponse
+import socialpublish.backend.common.PublishedMessageResponse
+import socialpublish.backend.common.Target
 import socialpublish.backend.common.loggerFactory
 import socialpublish.backend.common.rethrowIfFatalOrCancelled
 import socialpublish.backend.db.FilesDatabase
@@ -26,67 +30,124 @@ import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.db.UserSession
 import socialpublish.backend.server.userUuid
 
-class RssModule(
+class FeedModule(
     private val baseUrl: String,
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
-    /** Create a new RSS post */
+    private fun validateMessages(
+        messages: List<NewPostRequestMessage>
+    ): CaughtException? {
+        val invalid = messages.any {
+            it.content.isEmpty() || it.content.length > 1000
+        }
+        return if (invalid) {
+            CaughtException(
+                status = 400,
+                module = "feed",
+                errorMessage = "Content must be between 1 and 1000 characters",
+            )
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Public validation entry point for preflight checks that must run before
+     * any publishing side effects (feed or external).
+     */
+    fun validateRequest(request: NewPostRequest): CaughtException? =
+        validateMessages(request.messages)
+
+    /** Create a new feed post (context-based, for routes) */
     context(_: UserSession)
     suspend fun createPost(
         request: NewPostRequest
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             val userUuid = userUuid()
-            // Validate request
-            request.validate()?.let { error ->
-                return error.left()
-            }
+            validateMessages(request.messages)?.let { raise(it) }
+            createPosts(
+                    targets = request.targets ?: listOf(Target.Feed),
+                    language = request.language,
+                    messages = request.messages,
+                    userUuid = userUuid,
+                )
+                .bind()
+        } catch (e: Throwable) {
+            rethrowIfFatalOrCancelled(e)
+            logger.error("Failed to save feed item", e)
+            raise(
+                CaughtException(
+                    status = 500,
+                    module = "feed",
+                    errorMessage = "Failed to save feed item: ${e.message}",
+                )
+            )
+        }
+    }
 
-            val content =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content
-                }
+    /**
+     * Create feed posts with threading support (explicit userUuid, for
+     * PublishModule)
+     */
+    suspend fun createPosts(
+        targets: List<Target>,
+        language: String?,
+        messages: List<NewPostRequestMessage>,
+        userUuid: UUIDv7,
+    ): ApiResult<NewPostResponse> = either {
+        validateMessages(messages)?.let { raise(it) }
+        val dbTargets = targets.map { it.serialName }
+        var previousPostUuid: String? = null
+        val messageResponses = mutableListOf<PublishedMessageResponse>()
 
-            // Extract hashtags
+        for (message in messages) {
             val tags =
                 Regex("""(?:^|\s)(#\w+)""")
-                    .findAll(content)
+                    .findAll(message.content)
                     .map { it.value.trim().substring(1) }
                     .toList()
 
             val payload =
                 PostPayload(
-                    content = content,
-                    link = request.link,
-                    language = request.language,
+                    content = message.content,
+                    link = message.link,
+                    language = language,
                     tags = tags,
-                    images = request.images,
+                    images = message.images,
+                    replyToPostUuid = previousPostUuid,
                 )
 
             val post =
                 postsDb
-                    .create(payload, request.targets ?: emptyList(), userUuid)
-                    .getOrElse { throw it }
-
-            NewRssPostResponse(uri = "$baseUrl/rss/$userUuid/${post.uuid}")
-                .right()
-        } catch (e: Throwable) {
-            rethrowIfFatalOrCancelled(e)
-            logger.error("Failed to save RSS item", e)
-            CaughtException(
-                    status = 500,
-                    module = "rss",
-                    errorMessage = "Failed to save RSS item: ${e.message}",
+                    .create(payload, dbTargets, userUuid)
+                    .mapLeft { error ->
+                        logger.error("Failed to save feed item", error)
+                        CaughtException(
+                            status = 500,
+                            module = "feed",
+                            errorMessage = "Failed to save feed item",
+                        )
+                    }
+                    .bind()
+            val postUri = "$baseUrl/feed/$userUuid/${post.uuid}"
+            messageResponses +=
+                PublishedMessageResponse(
+                    id = post.uuid,
+                    uri = postUri,
+                    replyToId = previousPostUuid,
                 )
-                .left()
+            previousPostUuid = post.uuid
         }
+
+        val firstUri =
+            messageResponses.firstOrNull()?.uri ?: "$baseUrl/feed/$userUuid"
+        NewFeedPostResponse(uri = firstUri, messages = messageResponses)
     }
 
-    /** Generate RSS feed */
-    suspend fun generateRss(
+    /** Generate Atom feed */
+    suspend fun generateFeed(
         userUuid: UUIDv7,
         filterByLinks: String? = null,
         filterByImages: String? = null,
@@ -95,14 +156,19 @@ class RssModule(
         val posts = postsDb.getAllForUser(userUuid).getOrElse { throw it }
         val mediaNamespace =
             Namespace.getNamespace("media", "http://search.yahoo.com/mrss/")
+        val threadingNamespace =
+            Namespace.getNamespace(
+                "thr",
+                "http://purl.org/syndication/thread/1.0",
+            )
 
         val feed =
             SyndFeedImpl().apply {
-                feedType = "rss_2.0"
+                feedType = "atom_1.0"
                 title = "Feed of ${baseUrl.replace(Regex("^https?://"), "")}"
                 link = baseUrl
-                uri = "$baseUrl/rss"
-                description = "Social publish RSS feed"
+                uri = "$baseUrl/feed"
+                description = "Social publish feed"
                 publishedDate = Date()
             }
 
@@ -124,7 +190,7 @@ class RssModule(
                 continue
             }
 
-            val guid = "$baseUrl/rss/$userUuid/${post.uuid}"
+            val guid = "$baseUrl/feed/$userUuid/${post.uuid}"
             val mediaElements = mutableListOf<Element>()
 
             for (imageUuid in post.images.orEmpty()) {
@@ -157,7 +223,7 @@ class RssModule(
                 categoryNames.addAll(post.targets)
             }
 
-            entries +=
+            val entry =
                 SyndEntryImpl().apply {
                     title = post.content
                     link = post.link ?: guid
@@ -175,10 +241,27 @@ class RssModule(
                         }
                     }
 
+                    val foreignMarkupElements = mutableListOf<Element>()
                     if (mediaElements.isNotEmpty()) {
-                        foreignMarkup = mediaElements
+                        foreignMarkupElements.addAll(mediaElements)
+                    }
+
+                    post.replyToPostUuid?.let { parentUuid ->
+                        val parentUri = "$baseUrl/feed/$userUuid/$parentUuid"
+                        foreignMarkupElements +=
+                            Element("in-reply-to", threadingNamespace).apply {
+                                setAttribute("ref", parentUri)
+                                setAttribute("href", parentUri)
+                                setAttribute("type", "text/html")
+                            }
+                    }
+
+                    if (foreignMarkupElements.isNotEmpty()) {
+                        foreignMarkup = foreignMarkupElements
                     }
                 }
+
+            entries += entry
         }
 
         feed.entries = entries
@@ -187,22 +270,11 @@ class RssModule(
         return output.outputString(feed)
     }
 
-    /** Get RSS item by UUID */
-    suspend fun getRssItemByUuid(userUuid: UUIDv7, uuid: String): Post? {
+    /** Get feed item by UUID */
+    suspend fun getFeedItemByUuid(userUuid: UUIDv7, uuid: String): Post? {
         return postsDb.searchByUuidForUser(uuid, userUuid).getOrElse {
             throw it
         }
-    }
-
-    private fun cleanupHtml(html: String): String {
-        // Basic HTML cleanup - remove tags but keep content
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
     }
 }
 

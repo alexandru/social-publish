@@ -1,7 +1,10 @@
 package socialpublish.backend.clients.mastodon
 
-import arrow.core.Either
 import arrow.core.left
+import arrow.core.nonEmptyListOf
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -18,21 +21,17 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.parameters
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.receive
-import io.ktor.server.request.receiveParameters
-import io.ktor.server.response.respond
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
+import socialpublish.backend.clients.common.SocialMediaApi
 import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
-import socialpublish.backend.common.ErrorResponse
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.ResponseBody
 import socialpublish.backend.common.ValidationError
@@ -45,8 +44,11 @@ import socialpublish.backend.modules.FilesModule
 class MastodonApiModule(
     private val filesModule: FilesModule,
     private val httpClient: HttpClient,
-) {
+) : SocialMediaApi<MastodonConfig> {
     companion object {
+        private const val MastodonCharacterLimit = 500
+        private const val LinkLength = 25
+
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
                 {
@@ -62,6 +64,36 @@ class MastodonApiModule(
             resource {
                 MastodonApiModule(filesModule, defaultHttpClient().bind())
             }
+    }
+
+    override fun validateRequest(request: NewPostRequest): ValidationError? {
+        val urlRegex = Regex("(https?://\\S+)")
+        request.messages.forEach { message ->
+            if (message.content.isEmpty()) {
+                return ValidationError(
+                    status = 400,
+                    module = "mastodon",
+                    errorMessage = "Content must not be empty",
+                )
+            }
+            val text =
+                message.content +
+                    if (message.link != null) "\n\n${message.link}" else ""
+            val links = urlRegex.findAll(text).count()
+            val withoutLinks = urlRegex.replace(text, "")
+            val length =
+                withoutLinks.codePointCount(0, withoutLinks.length) +
+                    (links * LinkLength)
+            if (length > MastodonCharacterLimit) {
+                return ValidationError(
+                    status = 400,
+                    module = "mastodon",
+                    errorMessage =
+                        "Mastodon post exceeds $MastodonCharacterLimit characters",
+                )
+            }
+        }
+        return null
     }
 
     private fun mediaUrlV2(config: MastodonConfig) =
@@ -155,7 +187,7 @@ class MastodonApiModule(
     private suspend fun waitForMediaProcessing(
         config: MastodonConfig,
         mediaId: String,
-    ): ApiResult<MastodonMediaResponse> {
+    ): ApiResult<MastodonMediaResponse> = either {
         (1..30).forEach { _ ->
             // Try for up to 6 seconds
             delay(200.milliseconds)
@@ -168,7 +200,7 @@ class MastodonApiModule(
             when (response.status.value) {
                 200 -> {
                     val data = response.body<MastodonMediaResponse>()
-                    return data.right()
+                    return@either data
                 }
 
                 202 -> {
@@ -178,55 +210,52 @@ class MastodonApiModule(
 
                 else -> {
                     val errorBody = response.bodyAsText()
-                    return RequestError(
+                    raise(
+                        RequestError(
                             status = response.status.value,
                             module = "mastodon",
                             errorMessage = "Failed to get media status",
                             body = ResponseBody(asString = errorBody),
                         )
-                        .left()
+                    )
                 }
             }
         }
 
-        return CaughtException(
+        raise(
+            CaughtException(
                 status = 500,
                 module = "mastodon",
                 errorMessage = "Media processing timeout",
             )
-            .left()
+        )
     }
 
-    /** Create a post on Mastodon */
+    /** Create a single post on Mastodon */
     context(_: UserSession)
-    suspend fun createPost(
+    private suspend fun createPost(
         config: MastodonConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        return try {
+        replyToId: String? = null,
+    ): ApiResult<NewPostResponse> = either {
+        try {
             // Validate request
-            request.validate()?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
+
+            val message = request.messages.first()
 
             // Upload images if present
             val mediaIds = mutableListOf<String>()
-            if (!request.images.isNullOrEmpty()) {
-                for (imageUuid in request.images) {
-                    when (val result = uploadMedia(config, imageUuid)) {
-                        is Either.Right -> mediaIds.add(result.value.id)
-                        is Either.Left -> return result.value.left()
-                    }
+            if (!message.images.isNullOrEmpty()) {
+                for (imageUuid in message.images) {
+                    mediaIds.add(uploadMedia(config, imageUuid).bind().id)
                 }
             }
 
             // Prepare status content
             val content =
-                if (request.cleanupHtml == true) {
-                    cleanupHtml(request.content)
-                } else {
-                    request.content
-                } + if (request.link != null) "\n\n${request.link}" else ""
+                message.content +
+                    if (message.link != null) "\n\n${message.link}" else ""
 
             logger.info(
                 "Posting to Mastodon:\n${content.trim().prependIndent("  |")}"
@@ -239,6 +268,7 @@ class MastodonApiModule(
                     formParameters =
                         parameters {
                             append("status", content)
+                            replyToId?.let { append("in_reply_to_id", it) }
                             if (mediaIds.isNotEmpty()) {
                                 mediaIds.forEach { append("media_ids[]", it) }
                             }
@@ -250,69 +280,82 @@ class MastodonApiModule(
 
             if (response.status.value == 200) {
                 val data = response.body<MastodonStatusResponse>()
-                NewMastodonPostResponse(uri = data.url).right()
+                NewMastodonPostResponse(
+                    uri = data.url,
+                    id = data.id,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(
+                                id = data.id,
+                                uri = data.url,
+                                replyToId = replyToId,
+                            )
+                        ),
+                )
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn(
                     "Failed to post to Mastodon: ${response.status}, body: $errorBody"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "mastodon",
                         errorMessage = "Failed to create status",
                         body = ResponseBody(asString = errorBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to Mastodon", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "mastodon",
                     errorMessage = "Failed to post to Mastodon: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
-    /** Handle Mastodon post creation HTTP route */
     context(_: UserSession)
-    suspend fun createPostRoute(call: ApplicationCall, config: MastodonConfig) {
-        val request =
-            runCatching { call.receive<NewPostRequest>() }.getOrNull()
-                ?: run {
-                    val params = call.receiveParameters()
-                    NewPostRequest(
-                        content = params["content"] ?: "",
-                        targets = params.getAll("targets"),
-                        link = params["link"],
-                        language = params["language"],
-                        cleanupHtml = params["cleanupHtml"]?.toBoolean(),
-                        images = params.getAll("images"),
-                    )
-                }
+    override suspend fun createThread(
+        config: MastodonConfig,
+        request: NewPostRequest,
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
-        when (val result = createPost(config, request)) {
-            is Either.Right -> call.respond(result.value)
-            is Either.Left -> {
-                val error = result.value
-                call.respond(
-                    HttpStatusCode.fromValue(error.status),
-                    ErrorResponse(error = error.errorMessage),
+        var previousId: String? = null
+        val messages = mutableListOf<PublishedMessageResponse>()
+        var rootUri = ""
+        var rootId = ""
+
+        for (message in request.messages) {
+            val singleRequest =
+                NewPostRequest(
+                    targets = request.targets,
+                    language = request.language,
+                    messages = nonEmptyListOf(message),
                 )
+            val result =
+                createPost(
+                        config = config,
+                        request = singleRequest,
+                        replyToId = previousId,
+                    )
+                    .bind()
+            val response = result as NewMastodonPostResponse
+            if (messages.isEmpty()) {
+                rootUri = response.uri
+                rootId = response.id
             }
+            val published = response.messages.first()
+            messages += published
+            previousId = published.id
         }
-    }
 
-    private fun cleanupHtml(html: String): String {
-        return html
-            .replace(Regex("<[^>]+>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&amp;", "&")
-            .trim()
+        NewMastodonPostResponse(uri = rootUri, id = rootId, messages = messages)
     }
 }
 

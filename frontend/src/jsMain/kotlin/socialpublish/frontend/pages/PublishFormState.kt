@@ -9,7 +9,7 @@ data class PublishFormState(
     val content: String = "",
     val link: String = "",
     val language: String? = null,
-    val targets: Set<String> = setOf("rss"),
+    val targets: Set<String> = setOf("feed"),
     val images: Map<Int, SelectedImage> = emptyMap(),
     val isSubmitting: Boolean = false,
     val isProcessing: Boolean = false,
