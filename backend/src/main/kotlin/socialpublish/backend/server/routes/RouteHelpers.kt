@@ -36,22 +36,24 @@ suspend fun ApplicationCall.receiveNewPostRequestOrRespond(): NewPostRequest? =
         }
 
 fun ApplicationCall.preventOAuthRedirectCaching() {
-    response.header(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, private",
-    )
+    response.header("Cache-Control", "no-store, no-cache, must-revalidate, private")
     response.header("Pragma", "no-cache")
     response.header("Expires", "0")
 }
 
-suspend fun ApplicationCall.redirectToAccountError(message: String) {
+private suspend fun ApplicationCall.redirectWithParam(
+    key: String,
+    value: String,
+) {
     respondRedirect(
-        "/account?error=${URLEncoder.encode(message, Charsets.UTF_8)}"
+        "/account?$key=${URLEncoder.encode(value, Charsets.UTF_8)}"
     )
 }
 
+suspend fun ApplicationCall.redirectToAccountError(message: String) {
+    redirectWithParam("error", message)
+}
+
 suspend fun ApplicationCall.redirectToAccountInfo(message: String) {
-    respondRedirect(
-        "/account?info=${URLEncoder.encode(message, Charsets.UTF_8)}"
-    )
+    redirectWithParam("info", message)
 }

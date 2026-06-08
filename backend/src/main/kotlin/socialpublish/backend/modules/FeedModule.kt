@@ -38,8 +38,8 @@ class FeedModule(
     private fun validateMessages(
         messages: List<NewPostRequestMessage>
     ): CaughtException? {
-        val invalid = messages.any {
-            it.content.isEmpty() || it.content.length > 1000
+        val invalid = messages.any { message ->
+            message.content.isEmpty() || message.content.length > 1000
         }
         return if (invalid) {
             CaughtException(
