@@ -45,10 +45,12 @@ package socialpublish.backend.clients.linkedin
  * @see LinkedInApiModule Main API client class
  * @see LinkedInConfig Configuration for OAuth credentials and API endpoints
  */
-import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.nonEmptyListOf
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -589,67 +591,54 @@ class LinkedInApiModule(
     suspend fun getValidToken(
         config: LinkedInConfig,
         userUuid: UUIDv7,
-    ): ApiResult<Pair<String, String>> {
+    ): ApiResult<Pair<String, String>> = either {
         val token =
             restoreOAuthTokenFromDb(userUuid)
-                ?: return ValidationError(
+                ?: raise(
+                    ValidationError(
                         status = 401,
                         errorMessage =
                             "Unauthorized: Missing LinkedIn OAuth token!",
                         module = "linkedin",
                     )
-                    .left()
+                )
 
         val validToken =
             if (token.isExpired()) {
                 if (token.refreshToken == null) {
-                    return ValidationError(
+                    raise(
+                        ValidationError(
                             status = 401,
                             errorMessage =
                                 "LinkedIn token expired and no refresh token available. Please re-authorize.",
                             module = "linkedin",
                         )
-                        .left()
+                    )
                 }
 
                 logger.info("LinkedIn token expired, refreshing...")
-                when (
-                    val result = refreshAccessToken(config, token.refreshToken)
-                ) {
-                    is Either.Right -> {
-                        val newToken = result.value
-                        when (
-                            val saveResult = saveOAuthToken(newToken, userUuid)
-                        ) {
-                            is Either.Right -> newToken
-                            is Either.Left -> return saveResult.value.left()
-                        }
-                    }
-                    is Either.Left -> return result.value.left()
-                }
+                val newToken =
+                    refreshAccessToken(config, token.refreshToken).bind()
+                saveOAuthToken(newToken, userUuid).bind()
+                newToken
             } else {
                 token
             }
 
         // Get person URN from user profile
-        when (
-            val profileResult = getUserProfile(config, validToken.accessToken)
-        ) {
-            is Either.Right -> {
-                // The OIDC /userinfo endpoint returns the subject ID in "sub"
-                // field
-                // Normalize to always use the full URN format
-                val rawId = profileResult.value.sub
-                val personUrn =
-                    if (rawId.startsWith("urn:li:person:")) {
-                        rawId
-                    } else {
-                        "urn:li:person:$rawId"
-                    }
-                return (validToken.accessToken to personUrn).right()
+        val profileResult =
+            getUserProfile(config, validToken.accessToken).bind()
+        // The OIDC /userinfo endpoint returns the subject ID in "sub"
+        // field
+        // Normalize to always use the full URN format
+        val rawId = profileResult.sub
+        val personUrn =
+            if (rawId.startsWith("urn:li:person:")) {
+                rawId
+            } else {
+                "urn:li:person:$rawId"
             }
-            is Either.Left -> return profileResult.value.left()
-        }
+        validToken.accessToken to personUrn
     }
 
     /** Upload media to LinkedIn */
@@ -831,19 +820,14 @@ class LinkedInApiModule(
     private suspend fun createPost(
         config: LinkedInConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             // Validate request
-            validateRequest(request)?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
 
             // Get valid OAuth token and person URN
             val (accessToken, personUrn) =
-                when (val result = getValidToken(config, userUuid())) {
-                    is Either.Right -> result.value
-                    is Either.Left -> return result.value.left()
-                }
+                getValidToken(config, userUuid()).bind()
 
             val message = request.messages.first()
 
@@ -855,23 +839,15 @@ class LinkedInApiModule(
             )
 
             // Upload images if present
-            val uploadedAssets = mutableListOf<UploadedAsset>()
-            if (!message.images.isNullOrEmpty()) {
-                for (imageUuid in message.images) {
-                    when (
-                        val result =
-                            uploadMedia(
-                                config,
-                                accessToken,
-                                personUrn,
-                                imageUuid,
-                            )
-                    ) {
-                        is Either.Right -> uploadedAssets.add(result.value)
-                        is Either.Left -> return result.value.left()
+            val uploadedAssets =
+                if (!message.images.isNullOrEmpty()) {
+                    message.images.map { imageUuid ->
+                        uploadMedia(config, accessToken, personUrn, imageUuid)
+                            .bind()
                     }
+                } else {
+                    emptyList()
                 }
-            }
 
             // Build UGC post request based on content type
             // When both images and a link are present, append the link to the
@@ -1057,37 +1033,35 @@ class LinkedInApiModule(
                             }
                         }
                 NewLinkedInPostResponse(
-                        postId = postId,
-                        messages =
-                            listOf(
-                                PublishedMessageResponse(
-                                    id = postId,
-                                    uri = postId,
-                                )
-                            ),
-                    )
-                    .right()
+                    postId = postId,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(id = postId, uri = postId)
+                        ),
+                )
             } else {
                 logger.warn(
                     "Failed to post to LinkedIn via UGC API: ${response.status}"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "linkedin",
                         errorMessage = "Failed to create post",
                         body = ResponseBody(asString = responseBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to LinkedIn via UGC API", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "linkedin",
                     errorMessage = "Failed to post to LinkedIn: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -1096,33 +1070,24 @@ class LinkedInApiModule(
         config: LinkedInConfig,
         rootPostId: String,
         message: NewPostRequestMessage,
-    ): ApiResult<PublishedMessageResponse> {
-        val (accessToken, personUrn) =
-            when (val result = getValidToken(config, userUuid())) {
-                is Either.Right -> result.value
-                is Either.Left -> return result.value.left()
-            }
+    ): ApiResult<PublishedMessageResponse> = either {
+        val (accessToken, personUrn) = getValidToken(config, userUuid()).bind()
 
         val uploadedAsset =
             message.images?.firstOrNull()?.let { imageUuid ->
-                when (
-                    val result =
-                        uploadMedia(config, accessToken, personUrn, imageUuid)
-                ) {
-                    is Either.Left -> return result.value.left()
-                    is Either.Right -> result.value
-                }
+                uploadMedia(config, accessToken, personUrn, imageUuid).bind()
             }
 
         val encodedRootPostId = rootPostId.encodeURLPathPart()
         if (!uploadedAsset?.description.isNullOrBlank()) {
-            return ValidationError(
+            raise(
+                ValidationError(
                     status = 400,
                     module = "linkedin",
                     errorMessage =
                         "LinkedIn comments do not support image alt-text; remove alt-text from follow-up image",
                 )
-                .left()
+            )
         }
 
         val commentText =
@@ -1154,32 +1119,30 @@ class LinkedInApiModule(
             response.status !in
                 listOf(HttpStatusCode.Created, HttpStatusCode.OK)
         ) {
-            return RequestError(
+            raise(
+                RequestError(
                     status = response.status.value,
                     module = "linkedin",
                     errorMessage = "Failed to create comment",
                     body = ResponseBody(asString = responseBody),
                 )
-                .left()
+            )
         }
 
         val commentId = response.headers["X-RestLi-Id"] ?: "linkedin-comment"
-        return PublishedMessageResponse(
-                id = commentId,
-                uri = commentId,
-                commentOnId = rootPostId,
-            )
-            .right()
+        PublishedMessageResponse(
+            id = commentId,
+            uri = commentId,
+            commentOnId = rootPostId,
+        )
     }
 
     context(_: UserSession)
     override suspend fun createThread(
         config: LinkedInConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        validateRequest(request)?.let {
-            return it.left()
-        }
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
         val rootRequest =
             NewPostRequest(
@@ -1188,26 +1151,18 @@ class LinkedInApiModule(
                 messages = nonEmptyListOf(request.messages.first()),
             )
         val root =
-            when (val result = createPost(config, rootRequest)) {
-                is Either.Left -> return result.value.left()
-                is Either.Right -> result.value as NewLinkedInPostResponse
-            }
+            createPost(config, rootRequest).bind() as NewLinkedInPostResponse
 
         if (request.messages.size == 1) {
-            return root.right()
+            return@either root
         }
 
         val followUp = request.messages[1]
-        val followUpResult = createComment(config, root.postId, followUp)
-        return when (followUpResult) {
-            is Either.Left -> followUpResult.value.left()
-            is Either.Right ->
-                NewLinkedInPostResponse(
-                        postId = root.postId,
-                        messages = root.messages + followUpResult.value,
-                    )
-                    .right()
-        }
+        val comment = createComment(config, root.postId, followUp).bind()
+        NewLinkedInPostResponse(
+            postId = root.postId,
+            messages = root.messages + comment,
+        )
     }
 }
 
