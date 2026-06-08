@@ -2,7 +2,8 @@ package socialpublish.backend.modules
 
 import arrow.core.Either
 import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -46,38 +47,31 @@ class PublishModule(
     context(_: UserSession)
     suspend fun broadcastPost(
         request: NewPostRequest
-    ): ApiResult<Map<String, NewPostResponse>> {
+    ): ApiResult<Map<String, NewPostResponse>> = either {
         val targets = request.targets?.map { it.lowercase() } ?: emptyList()
 
         // Preflight validation for all selected targets
         if (targets.contains("linkedin") && request.messages.size > 2) {
-            return ValidationError(
+            raise(
+                ValidationError(
                     status = 400,
                     module = "publish",
                     errorMessage =
                         "LinkedIn allows at most two messages (one post and one follow-up comment)",
                 )
-                .left()
+            )
         }
         if (targets.contains("linkedin")) {
-            linkedInModule?.validateRequest(request)?.let {
-                return it.left()
-            }
+            linkedInModule?.validateRequest(request)?.let { raise(it) }
         }
         if (targets.contains("bluesky")) {
-            blueskyModule?.validateRequest(request)?.let {
-                return it.left()
-            }
+            blueskyModule?.validateRequest(request)?.let { raise(it) }
         }
         if (targets.contains("mastodon")) {
-            mastodonModule?.validateRequest(request)?.let {
-                return it.left()
-            }
+            mastodonModule?.validateRequest(request)?.let { raise(it) }
         }
         if (targets.contains("twitter")) {
-            twitterModule?.validateRequest(request)?.let {
-                return it.left()
-            }
+            twitterModule?.validateRequest(request)?.let { raise(it) }
         }
 
         val tasks = mutableListOf<suspend () -> ApiResult<NewPostResponse>>()
@@ -191,25 +185,24 @@ class PublishModule(
                         )
                 }
             }
-            return CompositeError(
+            raise(
+                CompositeError(
                     module = "publish",
                     errorMessage = "Failed to publish to some platforms",
                     responses = responsePayloads,
                     status = status,
                 )
-                .left()
+            )
         } else {
             val successResults =
                 results.filterIsInstance<Either.Right<NewPostResponse>>().map {
                     it.value
                 }
-            return buildMap {
-                    taskTargets.zip(successResults).forEach { (target, result)
-                        ->
-                        put(target, result)
-                    }
+            buildMap {
+                taskTargets.zip(successResults).forEach { (target, result) ->
+                    put(target, result)
                 }
-                .right()
+            }
         }
     }
 }

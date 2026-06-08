@@ -1,8 +1,9 @@
 package socialpublish.backend.modules
 
 import arrow.core.getOrElse
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import com.rometools.rome.feed.synd.SyndCategoryImpl
 import com.rometools.rome.feed.synd.SyndContentImpl
 import com.rometools.rome.feed.synd.SyndEntryImpl
@@ -54,27 +55,27 @@ class FeedModule(
     context(_: UserSession)
     suspend fun createPost(
         request: NewPostRequest
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             val userUuid = userUuid()
-            validateMessages(request.messages)?.let {
-                return it.left()
-            }
+            validateMessages(request.messages)?.let { raise(it) }
             createPosts(
-                targets = request.targets ?: listOf("feed"),
-                language = request.language,
-                messages = request.messages,
-                userUuid = userUuid,
-            )
+                    targets = request.targets ?: listOf("feed"),
+                    language = request.language,
+                    messages = request.messages,
+                    userUuid = userUuid,
+                )
+                .bind()
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to save feed item", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "feed",
                     errorMessage = "Failed to save feed item: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -87,10 +88,8 @@ class FeedModule(
         language: String?,
         messages: List<NewPostRequestMessage>,
         userUuid: UUIDv7,
-    ): ApiResult<NewPostResponse> {
-        validateMessages(messages)?.let {
-            return it.left()
-        }
+    ): ApiResult<NewPostResponse> = either {
+        validateMessages(messages)?.let { raise(it) }
         val normalizedTargets = targets.map { it.lowercase() }
         var previousPostUuid: String? = null
         val messageResponses = mutableListOf<PublishedMessageResponse>()
@@ -115,15 +114,15 @@ class FeedModule(
             val post =
                 postsDb
                     .create(payload, normalizedTargets, userUuid)
-                    .getOrElse { error ->
+                    .mapLeft { error ->
                         logger.error("Failed to save feed item", error)
-                        return CaughtException(
-                                status = 500,
-                                module = "feed",
-                                errorMessage = "Failed to save feed item",
-                            )
-                            .left()
+                        CaughtException(
+                            status = 500,
+                            module = "feed",
+                            errorMessage = "Failed to save feed item",
+                        )
                     }
+                    .bind()
             val postUri = "$baseUrl/feed/$userUuid/${post.uuid}"
             messageResponses +=
                 PublishedMessageResponse(
@@ -136,8 +135,7 @@ class FeedModule(
 
         val firstUri =
             messageResponses.firstOrNull()?.uri ?: "$baseUrl/feed/$userUuid"
-        return NewFeedPostResponse(uri = firstUri, messages = messageResponses)
-            .right()
+        NewFeedPostResponse(uri = firstUri, messages = messageResponses)
     }
 
     /** Generate Atom feed */

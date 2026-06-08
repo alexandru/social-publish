@@ -1,8 +1,9 @@
 package socialpublish.backend.modules
 
 import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import at.favre.lib.crypto.bcrypt.BCrypt as FavreBCrypt
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CaughtException
@@ -34,17 +35,18 @@ class AuthService(private val userSessionsDb: UserSessionsDatabase) {
         }
 
     suspend fun authorize(token: String): Either<ApiError, UserSession> =
-        when (val result = userSessionsDb.authorize(token)) {
-            is Either.Left -> {
-                logger.error("DB error during authorization", result.value)
-                CaughtException(
+        either {
+            userSessionsDb
+                .authorize(token)
+                .mapLeft { error ->
+                    logger.error("DB error during authorization", error)
+                    CaughtException(
                         status = 500,
                         module = "auth",
                         errorMessage = "Server error",
                     )
-                    .left()
-            }
-            is Either.Right -> result.value?.right() ?: unauthorized().left()
+                }
+                .bind() ?: raise(unauthorized())
         }
 
     companion object {

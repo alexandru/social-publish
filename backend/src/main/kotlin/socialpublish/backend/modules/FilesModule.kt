@@ -3,6 +3,8 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -220,43 +222,45 @@ private constructor(
     }
 
     /** Retrieve uploaded file */
-    suspend fun getFile(uuid: String): ApiResult<StoredFile> {
-        return try {
+    suspend fun getFile(uuid: String): ApiResult<StoredFile> = either {
+        try {
             val upload = db.getFileByUuid(uuid).getOrElse { throw it }
             if (upload == null) {
-                return ValidationError(
+                raise(
+                    ValidationError(
                         status = 404,
                         errorMessage = "File not found",
                         module = "files",
                     )
-                    .left()
+                )
             }
 
             val filePath = File(processedPath, upload.hash)
             if (!filePath.exists()) {
-                return ValidationError(
+                raise(
+                    ValidationError(
                         status = 404,
                         errorMessage = "File content not found",
                         module = "files",
                     )
-                    .left()
+                )
             }
 
             StoredFile(
-                    file = filePath,
-                    mimeType = upload.mimetype,
-                    originalName = upload.originalname,
-                )
-                .right()
+                file = filePath,
+                mimeType = upload.mimetype,
+                originalName = upload.originalname,
+            )
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to get file", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "files",
                     errorMessage = "Failed to get file: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
