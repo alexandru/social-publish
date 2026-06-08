@@ -1,9 +1,11 @@
 package socialpublish.backend.clients.bluesky
 
-import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.nonEmptyListOf
+import arrow.core.raise.context.bind
+import arrow.core.raise.context.either
+import arrow.core.raise.context.raise
 import arrow.core.right
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.resource
@@ -502,31 +504,19 @@ class BlueskyApiModule(
         config: BlueskyConfig,
         request: NewPostRequest,
         replyContext: BlueskyReplyContext?,
-    ): ApiResult<NewPostResponse> {
-        return try {
+    ): ApiResult<NewPostResponse> = either {
+        try {
             // Validate request
-            validateRequest(request)?.let { error ->
-                return error.left()
-            }
+            validateRequest(request)?.let { raise(it) }
 
             val message = request.messages.first()
 
-            val session =
-                when (val authResult = createSession(config)) {
-                    is Either.Left -> return authResult.value.left()
-                    is Either.Right -> authResult.value
-                }
+            val session = createSession(config).bind()
 
             val imageEmbeds =
                 if (!message.images.isNullOrEmpty()) {
                     message.images.map { imageUuid ->
-                        when (
-                            val uploadResult =
-                                uploadBlob(config, imageUuid, session)
-                        ) {
-                            is Either.Left -> return uploadResult.value.left()
-                            is Either.Right -> uploadResult.value
-                        }
+                        uploadBlob(config, imageUuid, session).bind()
                     }
                 } else {
                     emptyList()
@@ -640,40 +630,41 @@ class BlueskyApiModule(
             if (response.status.value == 200) {
                 val data = response.body<BlueskyPostResponse>()
                 NewBlueSkyPostResponse(
-                        uri = data.uri,
-                        cid = data.cid,
-                        messages =
-                            listOf(
-                                PublishedMessageResponse(
-                                    id = data.uri,
-                                    uri = data.uri,
-                                    replyToId = replyContext?.parentUri,
-                                )
-                            ),
-                    )
-                    .right()
+                    uri = data.uri,
+                    cid = data.cid,
+                    messages =
+                        listOf(
+                            PublishedMessageResponse(
+                                id = data.uri,
+                                uri = data.uri,
+                                replyToId = replyContext?.parentUri,
+                            )
+                        ),
+                )
             } else {
                 val errorBody = response.bodyAsText()
                 logger.warn(
                     "Failed to post to Bluesky: ${response.status}, body: $errorBody"
                 )
-                RequestError(
+                raise(
+                    RequestError(
                         status = response.status.value,
                         module = "bluesky",
                         errorMessage = "Failed to create post",
                         body = ResponseBody(asString = errorBody),
                     )
-                    .left()
+                )
             }
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to post to Bluesky", e)
-            CaughtException(
+            raise(
+                CaughtException(
                     status = 500,
                     module = "bluesky",
                     errorMessage = "Failed to post to Bluesky: ${e.message}",
                 )
-                .left()
+            )
         }
     }
 
@@ -681,10 +672,8 @@ class BlueskyApiModule(
     override suspend fun createThread(
         config: BlueskyConfig,
         request: NewPostRequest,
-    ): ApiResult<NewPostResponse> {
-        validateRequest(request)?.let {
-            return it.left()
-        }
+    ): ApiResult<NewPostResponse> = either {
+        validateRequest(request)?.let { raise(it) }
 
         var replyContext: BlueskyReplyContext? = null
         val messages = mutableListOf<PublishedMessageResponse>()
@@ -699,56 +688,51 @@ class BlueskyApiModule(
                     messages = nonEmptyListOf(message),
                 )
 
-            when (
-                val result =
-                    createPost(
+            val result =
+                createPost(
                         config = config,
                         request = singleRequest,
                         replyContext = replyContext,
                     )
-            ) {
-                is Either.Left -> return result.value.left()
-                is Either.Right -> {
-                    val response = result.value as NewBlueSkyPostResponse
-                    if (messages.isEmpty()) {
-                        rootUri = response.uri
-                        rootCid =
-                            response.cid
-                                ?: return ValidationError(
-                                        status = 500,
-                                        module = "bluesky",
-                                        errorMessage =
-                                            "Missing cid for root post",
-                                    )
-                                    .left()
-                    }
-                    val parentCid =
-                        response.cid
-                            ?: return ValidationError(
-                                    status = 500,
-                                    module = "bluesky",
-                                    errorMessage = "Missing cid for reply post",
-                                )
-                                .left()
-                    val published = response.messages.first()
-                    messages += published
-                    replyContext =
-                        BlueskyReplyContext(
-                            rootUri = rootUri,
-                            rootCid = rootCid,
-                            parentUri = response.uri,
-                            parentCid = parentCid,
+                    .bind()
+            val response = result as NewBlueSkyPostResponse
+            if (messages.isEmpty()) {
+                rootUri = response.uri
+                rootCid =
+                    response.cid
+                        ?: raise(
+                            ValidationError(
+                                status = 500,
+                                module = "bluesky",
+                                errorMessage = "Missing cid for root post",
+                            )
                         )
-                }
             }
+            val parentCid =
+                response.cid
+                    ?: raise(
+                        ValidationError(
+                            status = 500,
+                            module = "bluesky",
+                            errorMessage = "Missing cid for reply post",
+                        )
+                    )
+            val published = response.messages.first()
+            messages += published
+            replyContext =
+                BlueskyReplyContext(
+                    rootUri = rootUri,
+                    rootCid = rootCid,
+                    parentUri = response.uri,
+                    parentCid = parentCid,
+                )
         }
 
-        return NewBlueSkyPostResponse(
-                uri = rootUri,
-                cid = rootCid,
-                messages = messages,
-            )
-            .right()
+        NewBlueSkyPostResponse(
+            uri = rootUri,
+            cid = rootCid,
+            messages = messages,
+        )
     }
 }
 
