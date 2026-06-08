@@ -157,7 +157,6 @@ class BlueskyApiModule(
                 val blob = response.body<BlueskyBlobUploadResponse>().blob
                 val blobRef =
                     BlueskyBlobRef(
-                        `$type` = "blob",
                         ref = blob.ref,
                         mimeType = file.mimetype,
                         size = file.size,
@@ -264,7 +263,6 @@ class BlueskyApiModule(
                 val blob = uploadResponse.body<BlueskyBlobUploadResponse>().blob
 
                 return@resourceScope BlueskyBlobRef(
-                    `$type` = "blob",
                     ref = blob.ref,
                     mimeType = uploadedFile.mimetype,
                     size = uploadedFile.size,
