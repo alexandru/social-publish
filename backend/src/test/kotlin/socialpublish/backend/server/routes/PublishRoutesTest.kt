@@ -10,6 +10,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -18,12 +19,15 @@ import kotlin.test.Test
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
 import socialpublish.backend.modules.PublishModule
 import socialpublish.backend.server.serverJson
+import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
@@ -238,5 +242,99 @@ class PublishRoutesTest {
         assertTrue(body.contains("Failed to publish"))
 
         client.close()
+    }
+
+    @Test
+    fun `broadcastPostRoute returns 502 Bad Gateway when upstream returns 401`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val upstreamBody = "Mastodon said no"
+
+        val mastodonClient = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+        val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
+        val mastodonConfig =
+            MastodonConfig(host = "http://localhost", accessToken = "token")
+        val publishModule =
+            PublishModule(
+                mastodonModule,
+                mastodonConfig,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                feedModule,
+                testSession,
+            )
+        val publishRoutes = PublishRoutes()
+
+        application {
+            install(ContentNegotiation) { json(serverJson()) }
+            routing {
+                post("/api/multiple/post") {
+                    context(testSession) {
+                        publishRoutes.broadcastPostRoute(call, publishModule)
+                    }
+                }
+                post("/api/v1/statuses") {
+                    call.respondText(
+                        upstreamBody,
+                        status = HttpStatusCode.Unauthorized,
+                    )
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        val request =
+            NewPostRequest.singleMessage(
+                content = "Test upstream 401",
+                targets = listOf(Target.Mastodon),
+            )
+
+        val response =
+            client.post("/api/multiple/post") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+        // The upstream returned 401; the backend must NOT mirror that as a
+        // 401 response, because the frontend treats 401 as a Social-Publish
+        // session expiry and would log the user out.
+        assertEquals(HttpStatusCode.BadGateway, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("Mastodon"))
+        assertTrue(body.contains(upstreamBody))
+
+        client.close()
+        mastodonClient.close()
     }
 }

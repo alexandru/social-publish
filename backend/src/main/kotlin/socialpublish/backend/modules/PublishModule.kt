@@ -21,6 +21,7 @@ import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.CompositeErrorResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.RequestError
 import socialpublish.backend.common.Target
 import socialpublish.backend.common.ValidationError
 import socialpublish.backend.db.UserSession
@@ -63,16 +64,6 @@ class PublishModule(
         }
 
         // Preflight validation for all selected targets
-        if (Target.LinkedIn in targets && request.messages.size > 2) {
-            raise(
-                ValidationError(
-                    status = 400,
-                    module = "publish",
-                    errorMessage =
-                        "LinkedIn allows at most two messages (one post and one follow-up comment)",
-                )
-            )
-        }
         if (Target.Feed in targets) {
             feedModule.validateRequest(request)?.let { raise(it) }
         }
@@ -184,7 +175,8 @@ class PublishModule(
 
         val errors = results.filterIsInstance<Either.Left<ApiError>>()
         if (errors.isNotEmpty()) {
-            val status = errors.maxOf { it.value.status }
+            val sanitized = errors.map { it.value.sanitizeForClient() }
+            val status = sanitized.maxOf { it.status }
             val responsePayloads = results.map { result ->
                 when (result) {
                     is Either.Right ->
@@ -192,12 +184,15 @@ class PublishModule(
                             type = "success",
                             result = result.value,
                         )
-                    is Either.Left ->
+                    is Either.Left -> {
+                        val sanitizedError = result.value.sanitizeForClient()
                         CompositeErrorResponse(
                             type = "error",
                             module = result.value.module,
-                            error = result.value.errorMessage,
+                            error = sanitizedError.error,
+                            status = sanitizedError.status,
                         )
+                    }
                 }
             }
             raise(
@@ -221,3 +216,40 @@ class PublishModule(
         }
     }
 }
+
+/**
+ * Aggregated, client-safe view of an upstream/platform error.
+ *
+ * `status` is the HTTP code we want the *client* to see (e.g. 502 instead of
+ * the upstream 401), and `error` is the message we want the *user* to read.
+ */
+private data class SanitizedError(val status: Int, val error: String)
+
+/**
+ * Rewrites a per-platform error so the HTTP status returned to the client is
+ * decoupled from any 3rd-party platform's HTTP status code. This is critical
+ * because the frontend treats HTTP 401 as "your Social Publish session expired"
+ * and would log the user out on an unrelated Twitter/Mastodon authentication
+ * error.
+ *
+ * Platform errors (module = twitter/mastodon/bluesky/linkedin) are mapped to
+ * 502 Bad Gateway with a message that names the platform and surfaces the
+ * upstream body. Local errors raised by [PublishModule] itself (module =
+ * "publish", e.g. the integration-not-configured 503) keep their original
+ * status and message.
+ */
+private fun ApiError.sanitizeForClient(): SanitizedError {
+    val moduleName = module
+    if (moduleName != null && moduleName in UPSTREAM_PLATFORM_MODULES) {
+        val platformLabel = moduleName.replaceFirstChar { it.uppercaseChar() }
+        val upstreamDetail =
+            (this as? RequestError)?.body?.asString?.takeIf { it.isNotBlank() }
+                ?: errorMessage
+        val message = "$platformLabel rejected the post: $upstreamDetail"
+        return SanitizedError(status = 502, error = message)
+    }
+    return SanitizedError(status = status, error = errorMessage)
+}
+
+private val UPSTREAM_PLATFORM_MODULES =
+    setOf("twitter", "mastodon", "bluesky", "linkedin")

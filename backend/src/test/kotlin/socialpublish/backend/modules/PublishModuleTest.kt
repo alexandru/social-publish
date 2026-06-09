@@ -2,15 +2,25 @@ package socialpublish.backend.modules
 
 import arrow.core.Either
 import arrow.core.nonEmptyListOf
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.clients.mastodon.MastodonApiModule
+import socialpublish.backend.clients.mastodon.MastodonConfig
 import socialpublish.backend.common.ApiError
 import socialpublish.backend.common.CompositeError
 import socialpublish.backend.common.NewFeedPostResponse
@@ -22,6 +32,7 @@ import socialpublish.backend.db.DocumentsDatabase
 import socialpublish.backend.db.FilesDatabase
 import socialpublish.backend.db.PostsDatabase
 import socialpublish.backend.db.UUIDv7
+import socialpublish.backend.testutils.createFilesModule
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
@@ -333,7 +344,7 @@ class PublishModuleTest {
     }
 
     @Test
-    fun `broadcastPost rejects linkedin with more than two messages`() =
+    fun `broadcastPost accepts linkedin with more than two messages`() =
         runTest {
             val publishModule =
                 PublishModule(
@@ -364,8 +375,20 @@ class PublishModuleTest {
                 context(testSession) { publishModule.broadcastPost(request) }
 
             val error = assertIs<Either.Left<ApiError>>(result).value
-            assertEquals(400, error.status)
-            assertTrue(error.errorMessage.contains("LinkedIn"))
+            // LinkedIn itself is not configured (null), so it surfaces a 503
+            // composite error — but preflight must NOT reject the request for
+            // having more than two messages (LinkedIn concatenates them).
+            val compositeError = assertIs<CompositeError>(error)
+            assertTrue(
+                compositeError.errorMessage.contains("Failed to publish") ||
+                    compositeError.responses.any { it.module == "linkedin" }
+            )
+            assertTrue(
+                compositeError.responses.none {
+                    it.type == "error" &&
+                        it.error?.contains("two messages") == true
+                }
+            )
         }
 
     @Test
@@ -390,9 +413,7 @@ class PublishModuleTest {
                     targets = listOf(Target.LinkedIn, Target.Feed),
                     messages =
                         nonEmptyListOf(
-                            NewPostRequestMessage(content = "Root"),
-                            NewPostRequestMessage(content = "Reply #1"),
-                            NewPostRequestMessage(content = "Reply #2"),
+                            NewPostRequestMessage(content = "x".repeat(1001))
                         ),
                 )
 
@@ -449,4 +470,82 @@ class PublishModuleTest {
             val list = (posts as Either.Right).value
             assertTrue(list.isEmpty())
         }
+
+    @Test
+    fun `broadcastPost maps upstream RequestError status to 502 Bad Gateway`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val upstreamBody = "upstream says no"
+
+            application {
+                routing {
+                    post("/api/v1/statuses") {
+                        call.respondText(
+                            upstreamBody,
+                            status = HttpStatusCode.Unauthorized,
+                        )
+                    }
+                }
+            }
+
+            val mastodonClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val mastodonModule = MastodonApiModule(filesModule, mastodonClient)
+            val mastodonConfig =
+                MastodonConfig(host = "http://localhost", accessToken = "token")
+
+            val publishModule =
+                PublishModule(
+                    mastodonModule,
+                    mastodonConfig,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    feedModule,
+                    testSession,
+                )
+
+            val request =
+                NewPostRequest.singleMessage(
+                    content = "Test",
+                    targets = listOf(Target.Mastodon),
+                )
+
+            val result =
+                context(testSession) { publishModule.broadcastPost(request) }
+
+            val error = assertIs<Either.Left<ApiError>>(result).value
+            val compositeError = assertIs<CompositeError>(error)
+            // The upstream returned 401; the publish response must surface a
+            // 5xx (502) so the frontend does not mistake this for a
+            // Social-Publish session expiry.
+            assertEquals(502, compositeError.status)
+            val mastodonResponse =
+                compositeError.responses.find {
+                    it.type == "error" && it.module == "mastodon"
+                }
+            assertNotNull(mastodonResponse)
+            // The user must understand that the failure came from Mastodon,
+            // and ideally see what Mastodon said.
+            val mastodonError = mastodonResponse.error ?: ""
+            assertTrue(mastodonError.contains("Mastodon", ignoreCase = true))
+            assertTrue(mastodonError.contains(upstreamBody))
+
+            mastodonClient.close()
+        }
+    }
 }
