@@ -43,6 +43,7 @@ import socialpublish.backend.modules.UploadedFile
 private const val BlueskyLinkDisplayLength = 24
 private const val BlueskyCharacterLimit = 300
 private const val LinkLength = 25
+private const val MaxImages = 4
 
 private data class BlueskyReplyContext(
     val rootUri: String,
@@ -302,17 +303,32 @@ class BlueskyApiModule(
 
     override fun validateRequest(request: NewPostRequest): ValidationError? {
         val urlRegex = Regex("(https?://\\S+)")
-        request.messages.forEach { message ->
-            if (message.content.isEmpty()) {
+        request.messages.forEachIndexed { index, message ->
+            if (!message.isPublishable) {
                 return ValidationError(
                     status = 400,
                     module = "bluesky",
-                    errorMessage = "Content must not be empty",
+                    errorMessage =
+                        "Post ${index + 1}: a message must have content, a link, " +
+                            "or at least one image.",
+                )
+            }
+            if (
+                !message.images.isNullOrEmpty() &&
+                    message.images.size > MaxImages
+            ) {
+                return ValidationError(
+                    status = 400,
+                    module = "bluesky",
+                    errorMessage =
+                        "Post ${index + 1}: Bluesky supports at most $MaxImages images.",
                 )
             }
             val text =
-                message.content.trim() +
-                    if (message.link != null) "\n\n${message.link}" else ""
+                NewPostRequestMessage.buildPostText(
+                    message.content,
+                    message.link,
+                )
             val links = urlRegex.findAll(text).count()
             val textWithoutLinks = urlRegex.replace(text, "")
             val length = countGraphemes(textWithoutLinks) + (links * LinkLength)
@@ -321,7 +337,8 @@ class BlueskyApiModule(
                     status = 400,
                     module = "bluesky",
                     errorMessage =
-                        "Bluesky post exceeds $BlueskyCharacterLimit characters",
+                        "Post ${index + 1}: Bluesky post exceeds " +
+                            "$BlueskyCharacterLimit characters",
                 )
             }
         }
@@ -544,8 +561,7 @@ class BlueskyApiModule(
             // If we have a link preview, use its canonical URL in the text
             // This ensures consistency between facets and external embed
             val url = message.link
-            val text =
-                message.content.trim() + if (url != null) "\n\n$url" else ""
+            val text = NewPostRequestMessage.buildPostText(message.content, url)
 
             // Detect facets (mentions, links, hashtags) and shorten link
             // display text

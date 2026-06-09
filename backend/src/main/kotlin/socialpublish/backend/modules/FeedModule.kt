@@ -35,21 +35,36 @@ class FeedModule(
     private val postsDb: PostsDatabase,
     private val filesDb: FilesDatabase,
 ) {
+    companion object {
+        private const val FEED_CONTENT_LIMIT = 1000
+    }
+
     private fun validateMessages(
         messages: List<NewPostRequestMessage>
     ): CaughtException? {
-        val invalid = messages.any {
-            it.content.isEmpty() || it.content.length > 1000
+        messages.forEachIndexed { index, message ->
+            if (!message.isPublishable) {
+                return CaughtException(
+                    status = 400,
+                    module = "feed",
+                    errorMessage =
+                        "Post ${index + 1}: a message must have content, a link, " +
+                            "or at least one image.",
+                )
+            }
+            val codePointCount =
+                message.content.codePointCount(0, message.content.length)
+            if (codePointCount > FEED_CONTENT_LIMIT) {
+                return CaughtException(
+                    status = 400,
+                    module = "feed",
+                    errorMessage =
+                        "Post ${index + 1}: content must be at most " +
+                            "$FEED_CONTENT_LIMIT characters.",
+                )
+            }
         }
-        return if (invalid) {
-            CaughtException(
-                status = 400,
-                module = "feed",
-                errorMessage = "Content must be between 1 and 1000 characters",
-            )
-        } else {
-            null
-        }
+        return null
     }
 
     /**

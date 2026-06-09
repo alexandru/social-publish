@@ -96,7 +96,61 @@ class FeedRoutesTest {
         }
 
     @Test
-    fun `createPostRoute validates empty content`(@TempDir tempDir: Path) =
+    fun `createPostRoute validates empty content without link or image`(
+        @TempDir tempDir: Path
+    ) = testApplication {
+        val jdbi = createTestDatabase(tempDir)
+        val postsDb =
+            socialpublish.backend.db.PostsDatabase(
+                socialpublish.backend.db.DocumentsDatabase(jdbi)
+            )
+        val filesDb = socialpublish.backend.db.FilesDatabase(jdbi)
+        val feedModule = FeedModule("http://localhost:3000", postsDb, filesDb)
+        val feedRoutes = FeedRoutes(feedModule)
+
+        application {
+            install(ContentNegotiation) { json(serverJson()) }
+            routing {
+                post("/api/feed/post") {
+                    context(createTestSession(testUserUuid)) {
+                        feedRoutes.createPostRoute(call)
+                    }
+                }
+            }
+        }
+
+        val client = createClient {
+            install(ClientContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                    }
+                )
+            }
+        }
+
+        val request =
+            NewPostRequest.singleMessage(
+                content = "",
+                targets = listOf(Target.Feed),
+            )
+
+        val response =
+            client.post("/api/feed/post") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("content, a link, or at least one image"))
+
+        client.close()
+    }
+
+    @Test
+    fun `createPostRoute accepts link-only post`(@TempDir tempDir: Path) =
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val postsDb =
@@ -133,6 +187,7 @@ class FeedRoutesTest {
             val request =
                 NewPostRequest.singleMessage(
                     content = "",
+                    link = "https://example.com",
                     targets = listOf(Target.Feed),
                 )
 
@@ -142,9 +197,7 @@ class FeedRoutesTest {
                     setBody(request)
                 }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            val body = response.bodyAsText()
-            assertTrue(body.contains("between 1 and 1000 characters"))
+            assertEquals(HttpStatusCode.OK, response.status)
 
             client.close()
         }

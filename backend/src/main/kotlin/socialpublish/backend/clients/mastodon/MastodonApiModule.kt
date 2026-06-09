@@ -30,6 +30,7 @@ import socialpublish.backend.common.ApiResult
 import socialpublish.backend.common.CaughtException
 import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
+import socialpublish.backend.common.NewPostRequestMessage
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.PublishedMessageResponse
 import socialpublish.backend.common.RequestError
@@ -48,6 +49,7 @@ class MastodonApiModule(
     companion object {
         private const val MastodonCharacterLimit = 500
         private const val LinkLength = 25
+        private const val MaxImages = 4
 
         fun defaultHttpClient(): Resource<HttpClient> = resource {
             install(
@@ -68,17 +70,32 @@ class MastodonApiModule(
 
     override fun validateRequest(request: NewPostRequest): ValidationError? {
         val urlRegex = Regex("(https?://\\S+)")
-        request.messages.forEach { message ->
-            if (message.content.isEmpty()) {
+        request.messages.forEachIndexed { index, message ->
+            if (!message.isPublishable) {
                 return ValidationError(
                     status = 400,
                     module = "mastodon",
-                    errorMessage = "Content must not be empty",
+                    errorMessage =
+                        "Post ${index + 1}: a message must have content, a link, " +
+                            "or at least one image.",
+                )
+            }
+            if (
+                !message.images.isNullOrEmpty() &&
+                    message.images.size > MaxImages
+            ) {
+                return ValidationError(
+                    status = 400,
+                    module = "mastodon",
+                    errorMessage =
+                        "Post ${index + 1}: Mastodon supports at most $MaxImages images.",
                 )
             }
             val text =
-                message.content +
-                    if (message.link != null) "\n\n${message.link}" else ""
+                NewPostRequestMessage.buildPostText(
+                    message.content,
+                    message.link,
+                )
             val links = urlRegex.findAll(text).count()
             val withoutLinks = urlRegex.replace(text, "")
             val length =
@@ -89,7 +106,8 @@ class MastodonApiModule(
                     status = 400,
                     module = "mastodon",
                     errorMessage =
-                        "Mastodon post exceeds $MastodonCharacterLimit characters",
+                        "Post ${index + 1}: Mastodon post exceeds " +
+                            "$MastodonCharacterLimit characters",
                 )
             }
         }
@@ -254,8 +272,10 @@ class MastodonApiModule(
 
             // Prepare status content
             val content =
-                message.content +
-                    if (message.link != null) "\n\n${message.link}" else ""
+                NewPostRequestMessage.buildPostText(
+                    message.content,
+                    message.link,
+                )
 
             logger.info(
                 "Posting to Mastodon:\n${content.trim().prependIndent("  |")}"

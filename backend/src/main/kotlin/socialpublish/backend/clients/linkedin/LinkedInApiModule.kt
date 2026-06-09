@@ -188,12 +188,14 @@ class LinkedInApiModule(
 
     override fun validateRequest(request: NewPostRequest): ValidationError? {
         val urlRegex = Regex("(https?://\\S+)")
-        request.messages.forEach { message ->
-            if (message.content.isEmpty()) {
+        request.messages.forEachIndexed { index, message ->
+            if (!message.isPublishable) {
                 return ValidationError(
                     status = 400,
                     module = "linkedin",
-                    errorMessage = "Content must not be empty",
+                    errorMessage =
+                        "Post ${index + 1}: a message must have content, a link, " +
+                            "or at least one image.",
                 )
             }
         }
@@ -328,10 +330,18 @@ class LinkedInApiModule(
     }
 
     private fun linkedInMessageBlock(message: NewPostRequestMessage): String =
-        listOfNotNull(message.content, message.link).joinToString("\n\n")
+        NewPostRequestMessage.buildPostText(message.content, message.link)
 
     private fun linkedInPostContent(request: NewPostRequest): String =
-        request.messages.joinToString("\n\n") { linkedInMessageBlock(it) }
+        // Image-only messages produce an empty text block via
+        // `linkedInMessageBlock`. Without filtering, `joinToString("\n\n")`
+        // would insert a spurious "\n\n" separator between (or around) those
+        // empty blocks, inflating the effective length and breaking the
+        // 2000-char limit check. Filter out empty blocks before joining.
+        request.messages
+            .map { linkedInMessageBlock(it) }
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
 
     private fun linkedInPostImages(request: NewPostRequest): List<String> =
         request.messages.toList().flatMap { it.images.orEmpty() }

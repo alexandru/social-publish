@@ -90,8 +90,51 @@ class FeedModuleTest {
         assertTrue(result is Either.Left)
         val error = (result as Either.Left).value
         assertEquals(400, error.status)
-        assertTrue(error.errorMessage.contains("between 1 and 1000 characters"))
+        assertTrue(
+            error.errorMessage.contains(
+                "content, a link, or at least one image"
+            )
+        )
     }
+
+    @Test
+    fun `createPost accepts empty content when a link is provided`() = runTest {
+        val request =
+            NewPostRequest.singleMessage(
+                content = "",
+                targets = listOf(Target.Feed),
+                link = "https://example.com",
+            )
+
+        val result = context(testSession) { feedModule.createPost(request) }
+
+        assertTrue(result is Either.Right)
+        val posts = postsDb.getAllForUser(testUserUuid)
+        assertTrue(posts is Either.Right)
+        val postsList = (posts as Either.Right).value
+        assertEquals(1, postsList.size)
+        assertEquals("https://example.com", postsList[0].link)
+    }
+
+    @Test
+    fun `createPost accepts empty content when an image is provided`() =
+        runTest {
+            val request =
+                NewPostRequest.singleMessage(
+                    content = "",
+                    targets = listOf(Target.Feed),
+                    images = listOf("image-uuid-1"),
+                )
+
+            val result = context(testSession) { feedModule.createPost(request) }
+
+            assertTrue(result is Either.Right)
+            val posts = postsDb.getAllForUser(testUserUuid)
+            assertTrue(posts is Either.Right)
+            val postsList = (posts as Either.Right).value
+            assertEquals(1, postsList.size)
+            assertEquals(listOf("image-uuid-1"), postsList[0].images)
+        }
 
     @Test
     fun `createPost with content too long returns validation error`() =
@@ -108,6 +151,26 @@ class FeedModuleTest {
             assertTrue(result is Either.Left)
             val error = (result as Either.Left).value
             assertEquals(400, error.status)
+        }
+
+    @Test
+    fun `createPost counts emoji as single code points toward the limit`() =
+        runTest {
+            // 1001 emoji is 2002 UTF-16 code units, but only 1001 code points.
+            // The limit is 1000 code points, so this should be rejected.
+            val emoji = "\uD83D\uDE00" // grinning face
+            val request =
+                NewPostRequest.singleMessage(
+                    content = emoji.repeat(1001),
+                    targets = listOf(Target.Feed),
+                )
+
+            val result = context(testSession) { feedModule.createPost(request) }
+
+            assertTrue(result is Either.Left)
+            val error = (result as Either.Left).value
+            assertEquals(400, error.status)
+            assertTrue(error.errorMessage.contains("at most 1000 characters"))
         }
 
     @Test

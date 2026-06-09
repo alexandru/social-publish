@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.io.TempDir
@@ -76,6 +77,58 @@ class SocialMediaValidationTest {
     }
 
     @Test
+    fun `bluesky validation rejects more than 4 images per message`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val httpClient = testHttpClient()
+        val module =
+            BlueskyApiModule(
+                filesModule = filesModule,
+                httpClient = httpClient,
+                linkPreviewParser = LinkPreviewParser(httpClient = httpClient),
+            )
+
+        val fourImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images = listOf("img-1", "img-2", "img-3", "img-4"),
+                        )
+                    )
+            )
+        val fiveImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images =
+                                listOf(
+                                    "img-1",
+                                    "img-2",
+                                    "img-3",
+                                    "img-4",
+                                    "img-5",
+                                ),
+                        )
+                    )
+            )
+
+        assertNull(module.validateRequest(fourImages))
+        val error = module.validateRequest(fiveImages)
+        assertNotNull(error)
+        assertEquals("bluesky", error.module)
+        assertTrue(error.errorMessage.contains("4 images"))
+        assertTrue(error.errorMessage.contains("Post 1"))
+
+        httpClient.close()
+    }
+
+    @Test
     fun `mastodon validation uses 500-char limit with links counted as 25`(
         @TempDir tempDir: Path
     ) = runTest {
@@ -109,6 +162,53 @@ class SocialMediaValidationTest {
         val error = module.validateRequest(rejected)
         assertNotNull(error)
         assertEquals("mastodon", error.module)
+
+        httpClient.close()
+    }
+
+    @Test
+    fun `mastodon validation rejects more than 4 images per message`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val httpClient = testHttpClient()
+        val module = MastodonApiModule(filesModule, httpClient)
+
+        val fourImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images = listOf("img-1", "img-2", "img-3", "img-4"),
+                        )
+                    )
+            )
+        val fiveImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images =
+                                listOf(
+                                    "img-1",
+                                    "img-2",
+                                    "img-3",
+                                    "img-4",
+                                    "img-5",
+                                ),
+                        )
+                    )
+            )
+
+        assertNull(module.validateRequest(fourImages))
+        val error = module.validateRequest(fiveImages)
+        assertNotNull(error)
+        assertEquals("mastodon", error.module)
+        assertTrue(error.errorMessage.contains("4 images"))
+        assertTrue(error.errorMessage.contains("Post 1"))
 
         httpClient.close()
     }
@@ -154,6 +254,60 @@ class SocialMediaValidationTest {
         val error = module.validateRequest(rejected)
         assertNotNull(error)
         assertEquals("twitter", error.module)
+
+        httpClient.close()
+    }
+
+    @Test
+    fun `twitter validation rejects more than 4 images per message`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val db = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, db)
+        val documentsDb = DocumentsDatabase(db)
+        val httpClient = testHttpClient()
+        val module =
+            TwitterApiModule(
+                baseUrl = "http://localhost",
+                documentsDb = documentsDb,
+                filesModule = filesModule,
+                httpClient = httpClient,
+            )
+
+        val fourImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images = listOf("img-1", "img-2", "img-3", "img-4"),
+                        )
+                    )
+            )
+        val fiveImages =
+            NewPostRequest(
+                messages =
+                    nonEmptyListOf(
+                        NewPostRequestMessage(
+                            content = "Hello",
+                            images =
+                                listOf(
+                                    "img-1",
+                                    "img-2",
+                                    "img-3",
+                                    "img-4",
+                                    "img-5",
+                                ),
+                        )
+                    )
+            )
+
+        assertNull(module.validateRequest(fourImages))
+        val error = module.validateRequest(fiveImages)
+        assertNotNull(error)
+        assertEquals("twitter", error.module)
+        assertTrue(error.errorMessage.contains("4 images"))
+        assertTrue(error.errorMessage.contains("Post 1"))
 
         httpClient.close()
     }

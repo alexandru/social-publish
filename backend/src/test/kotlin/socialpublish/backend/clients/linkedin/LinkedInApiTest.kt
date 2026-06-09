@@ -762,7 +762,122 @@ class LinkedInApiTest {
     }
 
     @Test
-    fun `validates empty content`(@TempDir tempDir: Path) = runTest {
+    fun `validateRequest accepts link-only and image-only messages`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            val linkOnly =
+                NewPostRequest(
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "",
+                                link = "https://example.com",
+                            )
+                        ),
+                )
+            val imageOnly =
+                NewPostRequest(
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(
+                                content = "",
+                                images = listOf("image-1"),
+                            )
+                        ),
+                )
+
+            assertNull(module.validateRequest(linkOnly))
+            assertNull(module.validateRequest(imageOnly))
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `validateRequest filters empty message blocks when joining content`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        testApplication {
+            val jdbi = createTestDatabase(tempDir)
+            val filesModule = createFilesModule(tempDir, jdbi)
+            val documentsDb = DocumentsDatabase(jdbi)
+
+            val linkedInClient = createClient {
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
+                }
+            }
+            val linkPreview = LinkPreviewParser(httpClient = linkedInClient)
+            val module =
+                LinkedInApiModule(
+                    "http://localhost",
+                    documentsDb,
+                    filesModule,
+                    linkedInClient.engine,
+                    linkPreview,
+                )
+
+            // First message is at the LinkedIn limit (2000 chars). The second
+            // message has no text — only images. With the buggy
+            // `joinToString("\n\n")`, the second empty block would add a
+            // trailing "\n\n" (2 chars), pushing the total to 2002 and
+            // triggering a 400. The fix filters empty blocks before joining,
+            // so the post validates.
+            val request =
+                NewPostRequest(
+                    targets = listOf(Target.LinkedIn),
+                    messages =
+                        nonEmptyListOf(
+                            NewPostRequestMessage(content = "a".repeat(2000)),
+                            NewPostRequestMessage(
+                                content = "",
+                                images = listOf("img-1"),
+                            ),
+                        ),
+                )
+
+            assertNull(module.validateRequest(request))
+
+            linkedInClient.close()
+        }
+    }
+
+    @Test
+    fun `validates message with no content, link, or images`(
+        @TempDir tempDir: Path
+    ) = runTest {
         testApplication {
             val jdbi = createTestDatabase(tempDir)
             val filesModule = createFilesModule(tempDir, jdbi)

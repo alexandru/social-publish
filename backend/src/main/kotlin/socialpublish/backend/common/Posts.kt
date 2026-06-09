@@ -94,7 +94,35 @@ data class NewPostRequestMessage(
     val content: String,
     val link: String? = null,
     val images: List<String>? = null,
-)
+) {
+    /**
+     * Whether this message is publishable: a post is valid when it has at least
+     * one of (non-blank content, non-blank link, at least one non-blank image
+     * UUID). Blank image UUIDs are treated as no image at all.
+     */
+    val isPublishable: Boolean
+        get() =
+            content.isNotBlank() ||
+                !link.isNullOrBlank() ||
+                (images?.any { it.isNotBlank() } == true)
+
+    companion object {
+        /**
+         * Concatenate [content] and [link] into the body of a single message,
+         * joined by `"\n\n"` when both are present. Returns just the non-blank
+         * part when one is blank, never producing a leading `"\n\n"`. The
+         * result is trimmed.
+         */
+        fun buildPostText(content: String, link: String?): String {
+            val parts =
+                listOfNotNull(
+                    content.takeIf { it.isNotBlank() },
+                    link?.takeIf { it.isNotBlank() },
+                )
+            return parts.joinToString("\n\n").trim()
+        }
+    }
+}
 
 @Serializable
 data class PublishedMessageResponse(

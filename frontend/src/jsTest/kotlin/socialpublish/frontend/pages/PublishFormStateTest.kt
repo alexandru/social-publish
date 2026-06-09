@@ -395,16 +395,23 @@ class PublishFormStateTest {
 
     @Test
     fun testSubmitValidationOnlyCoversRequiredFrontendFields() {
-        val blank = PublishFormState().updateContent(" ")
+        // A message with blank content, blank link, and no images should fail.
+        val blank = PublishFormState().updateContent(" ").updateLink(" ")
         val noTargets =
             PublishFormState().updateContent("Hello").toggleTarget("feed")
         val overLimit =
             PublishFormState()
                 .toggleTarget("twitter")
                 .updateContent("x".repeat(281))
+        val linkOnly = PublishFormState().updateLink("https://example.com")
+        val imageOnly = PublishFormState().addImage(SelectedImage(id = 1))
 
         assertEquals(
-            listOf(SubmitError("Content is required for post 1!")),
+            listOf(
+                SubmitError(
+                    "A message must have content, a link, or at least one image (post 1)."
+                )
+            ),
             blank.validateForSubmit(),
         )
         assertEquals(
@@ -412,5 +419,7 @@ class PublishFormStateTest {
             noTargets.validateForSubmit(),
         )
         assertTrue(overLimit.validateForSubmit().isEmpty())
+        assertTrue(linkOnly.validateForSubmit().isEmpty())
+        assertTrue(imageOnly.validateForSubmit().isEmpty())
     }
 }

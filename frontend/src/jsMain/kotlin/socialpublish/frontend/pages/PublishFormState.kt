@@ -85,6 +85,13 @@ data class PublishMessageState(
     val usedCharacters: Int
         get() = countCharactersWithLinks(postText)
 
+    /**
+     * Whether this message has enough material to publish: non-blank content, a
+     * non-blank link, or at least one image.
+     */
+    val isPublishable: Boolean
+        get() = content.isNotBlank() || link.isNotBlank() || images.isNotEmpty()
+
     fun supportedTargets(): Set<String> =
         PublishTargetSpecs.filter { spec ->
                 spec.perMessageCharacterLimit?.let { usedCharacters <= it } !=
@@ -245,11 +252,12 @@ data class PublishFormState(
     }
 
     fun validateForSubmit(): List<SubmitError> = buildList {
-        val blankMessageIndex = messages.indexOfFirst { it.content.isBlank() }
-        if (blankMessageIndex >= 0) {
+        val unpublishableIndex = messages.indexOfFirst { !it.isPublishable }
+        if (unpublishableIndex >= 0) {
             add(
                 SubmitError(
-                    "Content is required for post ${blankMessageIndex + 1}!"
+                    "A message must have content, a link, or at least one image " +
+                        "(post ${unpublishableIndex + 1})."
                 )
             )
         }

@@ -640,7 +640,9 @@ private fun MessageComposerCard(
             value = message.content,
             onValueChange = onContentChange,
             rows = 4,
-            required = true,
+            // The textarea is only required when the message has no other
+            // way to be published (no link, no images).
+            required = !message.isPublishable,
             placeholder = "Write here...",
         )
 

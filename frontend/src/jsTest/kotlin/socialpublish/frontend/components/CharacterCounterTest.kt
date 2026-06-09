@@ -18,6 +18,18 @@ class CharacterCounterTest {
     }
 
     @Test
+    fun testBuildPostTextTrimsWhitespace() {
+        val result = buildPostText("  Hello  ", "")
+        assertEquals("Hello", result)
+    }
+
+    @Test
+    fun testBuildPostTextExcludesBlankLink() {
+        val result = buildPostText("Hello", "   ")
+        assertEquals("Hello", result)
+    }
+
+    @Test
     fun testCountCharactersWithLinksUsesLinkLength() {
         val text = "Hello https://example.com"
         assertEquals(31, countCharactersWithLinks(text))

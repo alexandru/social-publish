@@ -12,8 +12,8 @@ private fun codePointLength(text: String): Int =
     js("Array.from(text).length") as Int
 
 fun buildPostText(content: String, link: String): String {
-    val parts = listOf(content, link).filter { it.isNotEmpty() }
-    return parts.joinToString("\n\n")
+    val parts = listOf(content, link).filter { it.isNotBlank() }
+    return parts.joinToString("\n\n").trim()
 }
 
 fun countCharactersWithLinks(text: String, linkLength: Int = 25): Int {
