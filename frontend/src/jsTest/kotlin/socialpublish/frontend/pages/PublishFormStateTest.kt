@@ -16,6 +16,7 @@ class PublishFormStateTest {
         assertEquals("", state.content)
         assertEquals("", state.link)
         assertEquals(setOf("feed"), state.targets)
+        assertEquals("en", state.language)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
         assertFalse(state.isProcessing)

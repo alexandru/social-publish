@@ -1,6 +1,7 @@
 package socialpublish.frontend.pages
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -8,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -287,6 +289,13 @@ private fun PostForm(
         }
     }
 
+    LaunchedEffect(formState.messages.size) {
+        if (formState.messages.size <= 1) return@LaunchedEffect
+        val id = formState.messages.last().id
+        val card = document.getElementById("message-card-$id")
+        card?.scrollIntoView()
+    }
+
     Form(
         attrs = {
             onSubmit { event ->
@@ -309,7 +318,6 @@ private fun PostForm(
                 SectionHeader(
                     icon = "fa-share-nodes",
                     title = "Publish targets",
-                    subtitle = "Choose where this thread should go.",
                 )
 
                 Div(attrs = { classes("is-flex", "is-flex-wrap-wrap") }) {
@@ -355,31 +363,30 @@ private fun PostForm(
                 }
 
                 formState.targetGuidanceWarnings.forEach { warning ->
-                    P(attrs = { classes("help", "is-warning") }) {
+                    P(
+                        attrs = {
+                            classes("help", "is-warning", "mt-2", "mb-0")
+                        }
+                    ) {
                         Text(warning)
                     }
                 }
                 formState.unavailableTargetWarnings.forEach { warning ->
-                    P(attrs = { classes("help") }) { Text(warning) }
+                    P(attrs = { classes("help", "mt-2", "mb-0") }) {
+                        Text(warning)
+                    }
                 }
             }
 
             Div(attrs = { classes("box", "mb-4") }) {
-                SectionHeader(
-                    icon = "fa-globe",
-                    title = "Language",
-                    subtitle =
-                        "Optional, but useful for services that support language metadata.",
-                )
+                SectionHeader(icon = "fa-globe", title = "Language")
                 SelectInputField(
                     label = null,
                     value = formState.language,
                     onValueChange = {
-                        formState = formState.updateLanguage(it)
+                        it?.let { formState = formState.updateLanguage(it) }
                     },
-                    options =
-                        listOf(SelectOption("Language", null))
-                            .plus(LANGUAGE_OPTIONS),
+                    options = LANGUAGE_OPTIONS,
                     icon = "fa-globe",
                 )
             }
@@ -509,65 +516,44 @@ private fun PostForm(
                 }
             }
 
-            Div(attrs = { classes("box", "mb-4") }) {
-                Div(attrs = { classes("columns", "is-vcentered") }) {
-                    Div(attrs = { classes("column") }) {
-                        P(attrs = { classes("title", "is-5", "mb-1") }) {
-                            Text("Ready to publish?")
+            Div(
+                attrs = {
+                    classes(
+                        "field",
+                        "is-grouped",
+                        "is-justify-content-flex-end",
+                        "mt-4",
+                    )
+                }
+            ) {
+                Div(attrs = { classes("control") }) {
+                    Button(
+                        attrs = {
+                            classes("button", "is-link", "is-light")
+                            attr("type", "button")
+                            if (formState.isFormDisabled) {
+                                attr("disabled", "")
+                            }
+                            onClick { formState = formState.addMessage() }
                         }
-                        P(attrs = { classes("subtitle", "is-6", "mb-0") }) {
-                            Text("Add another post or submit the full thread.")
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fas", "fa-plus") })
                         }
+                        Span { Text("Add post") }
                     }
-
-                    Div(attrs = { classes("column", "is-narrow") }) {
-                        Div(
-                            attrs = {
-                                classes(
-                                    "field",
-                                    "is-grouped",
-                                    "is-justify-content-flex-end",
-                                    "mb-0",
-                                )
-                            }
-                        ) {
-                            Div(attrs = { classes("control") }) {
-                                Button(
-                                    attrs = {
-                                        classes("button", "is-link", "is-light")
-                                        attr("type", "button")
-                                        if (formState.isFormDisabled) {
-                                            attr("disabled", "")
-                                        }
-                                        onClick {
-                                            formState = formState.addMessage()
-                                        }
-                                    }
-                                ) {
-                                    Span(attrs = { classes("icon") }) {
-                                        I(attrs = { classes("fas", "fa-plus") })
-                                    }
-                                    Span { Text("Add post") }
-                                }
-                            }
-                            Div(attrs = { classes("control") }) {
-                                Button(
-                                    attrs = {
-                                        classes("button", "is-primary")
-                                        attr("type", "submit")
-                                    }
-                                ) {
-                                    Span(attrs = { classes("icon") }) {
-                                        I(
-                                            attrs = {
-                                                classes("fas", "fa-paper-plane")
-                                            }
-                                        )
-                                    }
-                                    Span { Text("Submit") }
-                                }
-                            }
+                }
+                Div(attrs = { classes("control") }) {
+                    Button(
+                        attrs = {
+                            classes("button", "is-primary")
+                            attr("type", "submit")
                         }
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fas", "fa-paper-plane") })
+                        }
+                        Span { Text("Submit") }
                     }
                 }
             }
@@ -612,11 +598,23 @@ private fun MessageComposerCard(
     onAddImage: (File) -> Unit,
     onError: (String) -> Unit,
 ) {
-    Div(attrs = { classes("box", "mb-4") }) {
+    Div(
+        attrs = {
+            id("message-card-${message.id}")
+            classes("box", "mb-4")
+        }
+    ) {
         Div(
-            attrs = { classes("is-flex", "is-justify-content-space-between") }
+            attrs = {
+                classes(
+                    "is-flex",
+                    "is-justify-content-space-between",
+                    "is-align-items-center",
+                    "mb-2",
+                )
+            }
         ) {
-            P(attrs = { classes("title", "is-5") }) {
+            P(attrs = { classes("title", "is-6", "mb-0") }) {
                 Text("Post $messageNumber")
             }
             if (canRemove) {
@@ -636,7 +634,7 @@ private fun MessageComposerCard(
         }
 
         TextAreaField(
-            label = "Message",
+            label = null,
             value = message.content,
             onValueChange = onContentChange,
             rows = 4,
@@ -654,7 +652,11 @@ private fun MessageComposerCard(
 
         CharacterCounter(remaining = remaining, maximum = maximum)
 
-        Div(attrs = { classes("columns", "is-multiline") }) {
+        Div(
+            attrs = {
+                classes("columns", "is-multiline", "is-variable", "is-2")
+            }
+        ) {
             message.images.values
                 .sortedBy { it.id }
                 .forEach { image ->
@@ -733,23 +735,12 @@ private fun PublishTargetCheckbox(
 }
 
 @Composable
-private fun SectionHeader(icon: String, title: String, subtitle: String) {
-    Div(attrs = { classes("media", "mb-4") }) {
-        Div(attrs = { classes("media-left") }) {
-            Span(
-                attrs = { classes("tag", "is-link", "is-light", "is-medium") }
-            ) {
-                Span(attrs = { classes("icon") }) {
-                    I(attrs = { classes("fas", icon) })
-                }
-            }
+private fun SectionHeader(icon: String, title: String) {
+    Div(attrs = { classes("is-flex", "is-align-items-center", "mb-2") }) {
+        Span(attrs = { classes("icon", "mr-2", "has-text-link") }) {
+            I(attrs = { classes("fas", icon) })
         }
-        Div(attrs = { classes("media-content") }) {
-            P(attrs = { classes("title", "is-5", "mb-1") }) { Text(title) }
-            P(attrs = { classes("subtitle", "is-6", "mb-0") }) {
-                Text(subtitle)
-            }
-        }
+        P(attrs = { classes("title", "is-6", "mb-0") }) { Text(title) }
     }
 }
 

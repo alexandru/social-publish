@@ -98,7 +98,7 @@ data class PublishMessageState(
 data class PublishFormState(
     val messages: List<PublishMessageState> =
         listOf(PublishMessageState(id = 1)),
-    val language: String? = null,
+    val language: String = "en",
     val targets: Set<String> = setOf("feed"),
     val isSubmitting: Boolean = false,
     val isProcessing: Boolean = false,
@@ -271,8 +271,7 @@ data class PublishFormState(
     fun updateLink(value: String): PublishFormState =
         updateMessageLink(firstMessage.id, value)
 
-    fun updateLanguage(value: String?): PublishFormState =
-        copy(language = value)
+    fun updateLanguage(value: String): PublishFormState = copy(language = value)
 
     fun toggleTarget(target: String): PublishFormState =
         copy(
