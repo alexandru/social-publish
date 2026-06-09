@@ -121,7 +121,7 @@ internal val LANGUAGE_OPTIONS =
     )
 
 @Composable
-fun PublishFormPage() {
+fun PublishFormPage(userUuid: String = "") {
     Authorize {
         var errorMessage by remember { mutableStateOf<String?>(null) }
         var infoContent by remember {
@@ -150,6 +150,7 @@ fun PublishFormPage() {
 
         PageContainer("publish-form") {
             PostForm(
+                userUuid = userUuid,
                 onError = { errorMessage = it },
                 onInfo = { infoContent = it },
             )
@@ -172,6 +173,7 @@ private fun redirectToLoginIfUnauthorized(
 
 @Composable
 private fun PostForm(
+    userUuid: String,
     onError: (String) -> Unit,
     onInfo: (@Composable () -> Unit) -> Unit,
 ) {
@@ -179,7 +181,7 @@ private fun PostForm(
     val latestFormState by rememberUpdatedState(formState)
 
     val configuredServices = Storage.getConfiguredServices()
-    val feedHref = "#"
+    val feedHref = if (userUuid.isNotEmpty()) "/feed/$userUuid" else "#"
     val scope = rememberCoroutineScope()
 
     val handleSubmit: (PublishFormState) -> Unit = { submittedState ->

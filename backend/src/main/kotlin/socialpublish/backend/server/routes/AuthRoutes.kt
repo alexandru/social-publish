@@ -54,6 +54,7 @@ data class LoginResponse(
 data class UserResponse(
     val username: String,
     val configuredServices: ConfiguredServices,
+    val userUuid: String,
 )
 
 suspend fun withSession(
@@ -181,6 +182,7 @@ class AuthRoutes(
             UserResponse(
                 username = session.user.username,
                 configuredServices = configuredServices,
+                userUuid = session.user.uuid.toString(),
             )
         )
     }
