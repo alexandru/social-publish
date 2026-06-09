@@ -195,4 +195,42 @@ class AccountPageStateTest {
         assertTrue(linkedInConnected.linkedin)
         assertTrue(linkedInConnected.mastodon)
     }
+
+    @Test
+    fun `configured section predicates report true only when identifying field is set`() {
+        val empty = SettingsFormState()
+        assertFalse(empty.isBlueskyConfigured)
+        assertFalse(empty.isMastodonConfigured)
+        assertFalse(empty.isTwitterConfigured)
+        assertFalse(empty.isLinkedInConfigured)
+        assertFalse(empty.isLlmConfigured)
+
+        val partial =
+            SettingsFormState(
+                blueskyUsername = "alice.bsky.social",
+                blueskyPassword = "new-password",
+                // No host → mastodon not configured even though token may be
+                // set
+                mastodonToken = "x",
+            )
+        assertTrue(partial.isBlueskyConfigured)
+        assertFalse(partial.isMastodonConfigured)
+        assertFalse(partial.isTwitterConfigured)
+        assertFalse(partial.isLinkedInConfigured)
+        assertFalse(partial.isLlmConfigured)
+
+        val allSet =
+            SettingsFormState(
+                blueskyUsername = "alice.bsky.social",
+                mastodonHost = "https://mastodon.social",
+                twitterConsumerKey = "ck",
+                linkedinClientId = "cid",
+                llmApiUrl = "https://api.example.com",
+            )
+        assertTrue(allSet.isBlueskyConfigured)
+        assertTrue(allSet.isMastodonConfigured)
+        assertTrue(allSet.isTwitterConfigured)
+        assertTrue(allSet.isLinkedInConfigured)
+        assertTrue(allSet.isLlmConfigured)
+    }
 }

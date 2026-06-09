@@ -11,13 +11,15 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import org.jetbrains.compose.web.attributes.InputType
-import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.*
 import socialpublish.frontend.components.Authorize
+import socialpublish.frontend.components.CollapsibleSection
 import socialpublish.frontend.components.ErrorModal
 import socialpublish.frontend.components.NotificationMessage
 import socialpublish.frontend.components.NotificationType
 import socialpublish.frontend.components.PageContainer
+import socialpublish.frontend.components.SectionDivider
+import socialpublish.frontend.components.StatusBadge
 import socialpublish.frontend.components.TextInputField
 import socialpublish.frontend.utils.ApiClient
 import socialpublish.frontend.utils.ApiResponse
@@ -117,7 +119,27 @@ internal data class SettingsFormState(
     val llmApiKeyIsSet: Boolean = false,
     val llmApiKey: String = "",
     val llmModel: String = "",
-)
+) {
+    /**
+     * A section is "configured" when its non-sensitive identifying field is set
+     * (i.e. the backend returned a value for it). The `*IsSet` flags only
+     * describe the sensitive sub-field, so they are not the right signal here.
+     */
+    val isBlueskyConfigured: Boolean
+        get() = blueskyUsername.isNotBlank()
+
+    val isMastodonConfigured: Boolean
+        get() = mastodonHost.isNotBlank()
+
+    val isTwitterConfigured: Boolean
+        get() = twitterConsumerKey.isNotBlank()
+
+    val isLinkedInConfigured: Boolean
+        get() = linkedinClientId.isNotBlank()
+
+    val isLlmConfigured: Boolean
+        get() = llmApiUrl.isNotBlank()
+}
 
 internal fun AccountSettingsView.toFormState(): SettingsFormState =
     SettingsFormState(
@@ -446,52 +468,83 @@ fun AccountPage() {
                 onSave = saveSettings,
             )
 
+            SectionDivider(label = "Authorization", icon = "fa-plug")
+
             // OAuth connections box
-            Div(attrs = { classes("box", "mt-4") }) {
-                H2(attrs = { classes("subtitle") }) {
-                    Text("OAuth Connections")
-                }
+            CollapsibleSection(
+                title = "OAuth Connections",
+                icon = "fa-plug",
+                summary = {
+                    OAuthConnectionsBadge(
+                        statuses =
+                            listOf(state.twitterStatus, state.linkedInStatus)
+                    )
+                },
+            ) {
                 P(attrs = { classes("help", "mb-3") }) {
                     Text(
                         "After configuring Twitter/LinkedIn credentials above, connect here to authorize posting."
                     )
                 }
 
-                Button(
+                Div(
                     attrs = {
-                        classes("button", "is-link")
-                        onClick { authorizeTwitter() }
-                    }
-                ) {
-                    Span(attrs = { classes("icon") }) {
-                        I(attrs = { classes("fab", "fa-x-twitter") })
-                    }
-                    Span(attrs = { style { fontWeight("bold") } }) {
-                        Text("Connect X (Twitter)")
-                    }
-                }
-                P(attrs = { classes("help") }) { Text(state.twitterStatus) }
-
-                Br()
-
-                Button(
-                    attrs = {
-                        classes("button", "is-info")
-                        onClick { authorizeLinkedIn() }
-                    }
-                ) {
-                    Span(attrs = { classes("icon") }) {
-                        I(
-                            attrs = {
-                                classes("fa-brands", "fa-square-linkedin")
-                            }
+                        classes(
+                            "is-flex",
+                            "is-justify-content-space-between",
+                            "is-align-items-center",
+                            "mb-1",
                         )
                     }
-                    Span(attrs = { style { fontWeight("bold") } }) {
-                        Text("Connect LinkedIn")
+                ) {
+                    Button(
+                        attrs = {
+                            classes("button", "is-link")
+                            onClick { authorizeTwitter() }
+                        }
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(attrs = { classes("fab", "fa-x-twitter") })
+                        }
+                        Span(attrs = { classes("has-text-weight-bold") }) {
+                            Text("Connect X (Twitter)")
+                        }
+                    }
+                    P(attrs = { classes("help", "mb-0") }) {
+                        Text(state.twitterStatus)
                     }
                 }
-                P(attrs = { classes("help") }) { Text(state.linkedInStatus) }
+
+                Div(
+                    attrs = {
+                        classes(
+                            "is-flex",
+                            "is-justify-content-space-between",
+                            "is-align-items-center",
+                        )
+                    }
+                ) {
+                    Button(
+                        attrs = {
+                            classes("button", "is-info")
+                            onClick { authorizeLinkedIn() }
+                        }
+                    ) {
+                        Span(attrs = { classes("icon") }) {
+                            I(
+                                attrs = {
+                                    classes("fa-brands", "fa-square-linkedin")
+                                }
+                            )
+                        }
+                        Span(attrs = { classes("has-text-weight-bold") }) {
+                            Text("Connect LinkedIn")
+                        }
+                    }
+                    P(attrs = { classes("help", "mb-0") }) {
+                        Text(state.linkedInStatus)
+                    }
+                }
             }
         }
     }
@@ -629,9 +682,12 @@ private fun SettingsForm(
             }
         }
     ) {
-        // Bluesky
-        Div(attrs = { classes("box", "mb-4") }) {
-            H2(attrs = { classes("subtitle") }) { Text("Bluesky") }
+        CollapsibleSection(
+            title = "Bluesky",
+            icon = "fa-bluesky",
+            iconPrefix = "fab",
+            summary = { StatusBadge(isConfigured = state.isBlueskyConfigured) },
+        ) {
             TextInputField(
                 label = "Service URL",
                 value = state.blueskyService,
@@ -662,9 +718,12 @@ private fun SettingsForm(
             )
         }
 
-        // Mastodon
-        Div(attrs = { classes("box", "mb-4") }) {
-            H2(attrs = { classes("subtitle") }) { Text("Mastodon") }
+        CollapsibleSection(
+            title = "Mastodon",
+            icon = "fa-mastodon",
+            iconPrefix = "fab",
+            summary = { StatusBadge(isConfigured = state.isMastodonConfigured) },
+        ) {
             TextInputField(
                 label = "Host URL",
                 value = state.mastodonHost,
@@ -686,14 +745,16 @@ private fun SettingsForm(
             )
         }
 
-        // Twitter / X
-        Div(attrs = { classes("box", "mb-4") }) {
-            H2(attrs = { classes("subtitle") }) {
-                Text("X (Twitter) – App Credentials")
-            }
-            P(attrs = { classes("help", "mb-2") }) {
+        CollapsibleSection(
+            title = "X (Twitter)",
+            icon = "fa-x-twitter",
+            iconPrefix = "fab",
+            summary = { StatusBadge(isConfigured = state.isTwitterConfigured) },
+        ) {
+            P(attrs = { classes("help", "mb-3") }) {
                 Text(
-                    "Consumer key and secret from your Twitter Developer App. After saving, use the OAuth button below to authorize."
+                    "Consumer key and secret from your Twitter Developer App. " +
+                        "After saving, use the OAuth Connections section below to authorize."
                 )
             }
             TextInputField(
@@ -718,14 +779,16 @@ private fun SettingsForm(
             )
         }
 
-        // LinkedIn
-        Div(attrs = { classes("box", "mb-4") }) {
-            H2(attrs = { classes("subtitle") }) {
-                Text("LinkedIn – App Credentials")
-            }
-            P(attrs = { classes("help", "mb-2") }) {
+        CollapsibleSection(
+            title = "LinkedIn",
+            icon = "fa-linkedin",
+            iconPrefix = "fab",
+            summary = { StatusBadge(isConfigured = state.isLinkedInConfigured) },
+        ) {
+            P(attrs = { classes("help", "mb-3") }) {
                 Text(
-                    "Client ID and secret from your LinkedIn Developer App. After saving, use the OAuth button below to authorize."
+                    "Client ID and secret from your LinkedIn Developer App. " +
+                        "After saving, use the OAuth Connections section below to authorize."
                 )
             }
             TextInputField(
@@ -750,11 +813,11 @@ private fun SettingsForm(
             )
         }
 
-        // LLM
-        Div(attrs = { classes("box", "mb-4") }) {
-            H2(attrs = { classes("subtitle") }) {
-                Text("LLM (AI alt-text generation)")
-            }
+        CollapsibleSection(
+            title = "AI for alt-text",
+            icon = "fa-robot",
+            summary = { StatusBadge(isConfigured = state.isLlmConfigured) },
+        ) {
             TextInputField(
                 label = "API URL",
                 value = state.llmApiUrl,
@@ -778,16 +841,54 @@ private fun SettingsForm(
             )
         }
 
-        Button(
+        Div(
             attrs = {
-                classes("button", "is-primary")
-                attr("type", "submit")
+                classes(
+                    "field",
+                    "is-grouped",
+                    "is-justify-content-flex-end",
+                    "mt-2",
+                )
             }
         ) {
-            Span(attrs = { classes("icon") }) {
-                I(attrs = { classes("fas", "fa-save") })
+            Div(attrs = { classes("control") }) {
+                Button(
+                    attrs = {
+                        classes("button", "is-primary")
+                        attr("type", "submit")
+                    }
+                ) {
+                    Span(attrs = { classes("icon") }) {
+                        I(attrs = { classes("fas", "fa-save") })
+                    }
+                    Span { Text("Save Settings") }
+                }
             }
-            Span { Text("Save Settings") }
         }
+    }
+}
+
+/**
+ * Tri-state pill for the OAuth Connections section. A connection is considered
+ * active when its status string starts with "Connected". Local to this page
+ * because the parsing rule ("Connected...") is page-specific.
+ */
+@Composable
+private fun OAuthConnectionsBadge(statuses: List<String>) {
+    val connected = statuses.count { it.startsWith("Connected") }
+    val (color, text) =
+        when {
+            connected == 0 -> "is-light" to "Not connected"
+            connected == statuses.size -> "is-success" to "All connected"
+            else -> "is-warning" to "$connected/${statuses.size} connected"
+        }
+    Span(
+        attrs = {
+            classes("tag", "is-rounded", color)
+            if (color == "is-light") attr("has-text-grey", "")
+        }
+    ) {
+        I(attrs = { classes("fas", "fa-plug", "mr-1") })
+        Text(text)
     }
 }
