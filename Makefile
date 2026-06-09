@@ -10,7 +10,6 @@ RUN_ENV_VARS := \
 	-e "DB_PATH=/var/lib/social-publish/sqlite3.db" \
 	-e "HTTP_PORT=3000" \
 	-e "BASE_URL=${BASE_URL}" \
-	-e "JWT_SECRET=${JWT_SECRET}" \
 	-e "UPLOADED_FILES_PATH=/var/lib/social-publish/uploads"
 
 # Development targets

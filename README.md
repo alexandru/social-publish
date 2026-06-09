@@ -9,6 +9,7 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
 - Publish the same post to multiple networks from one form
 - Upload images with alt-text, or let an LLM generate alt-text automatically
 - Provide an RSS feed for external automation tools like IFTTT
+- Per-user social credentials configured from the web UI (no per-platform environment variables to manage)
 
 ## Supported networks
 
@@ -26,6 +27,7 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
 - [What it does](#what-it-does)
 - [Supported networks](#supported-networks)
 - [Self-hosting](#self-hosting)
+  - [Configuration](#configuration)
   - [Bluesky credentials](#bluesky-credentials)
   - [Mastodon credentials](#mastodon-credentials)
   - [Twitter setup](#twitter-setup)
@@ -33,7 +35,6 @@ In implementing [POSSE](https://indieweb.org/POSSE) (publish on your own site, s
   - [LLM setup (Optional)](#llm-setup-optional)
 - [CLI Commands](#cli-commands)
 - [RSS feed](#rss-feed)
-- [Developing](#developing)
 - [License](#license)
 
 ## Self-hosting
@@ -59,47 +60,28 @@ services:
       - external_network
 ```
 
+### Configuration
+
 Where `./envs/social-publish.env` contains:
 
 ```sh
 # Where the server is hosted — needed for correctly generating an RSS feed
 BASE_URL="https://your-hostname.com"
 
-# The server's Basic AUTH credentials
-SERVER_AUTH_USERNAME="your-username"
-SERVER_AUTH_PASSWORD="your-password"
+# Database
+DB_PATH="/data/socialpublish.db"
 
-# Bluesky credentials
-BSKY_HOST="https://bsky.social"
-BSKY_USERNAME="your-username"
-BSKY_PASSWORD="your-password"
+# File storage
+UPLOADED_FILES_PATH="/data/uploads"
 
-# Mastodon credentials
-MASTODON_HOST="https://mastodon.social"
-MASTODON_ACCESS_TOKEN="your-access-token"
-
-# Twitter OAuth1 key and secret (Consumer Keys in the Developer Portal)
-TWITTER_OAUTH1_CONSUMER_KEY="Api Key"
-TWITTER_OAUTH1_CONSUMER_SECRET="Api Secret Key"
-
-# LinkedIn OAuth2 credentials
-LINKEDIN_CLIENT_ID="your-client-id"
-LINKEDIN_CLIENT_SECRET="your-client-secret"
-
-# LLM for alt-text generation (optional)
-# Configure the API endpoint, key, and model for your LLM provider
-# For OpenAI:
-LLM_API_URL="https://api.openai.com/v1/chat/completions"
-LLM_API_KEY="your-openai-api-key"
-LLM_MODEL="gpt-4o-mini"
-# For Mistral:
-# LLM_API_URL="https://api.mistral.ai/v1/chat/completions"
-# LLM_API_KEY="your-mistral-api-key"
-# LLM_MODEL="pixtral-12b-2409"
-
-# Used for authentication (https://jwt.io)
-JWT_SECRET="random string"
+# Optional: port to listen on (default 3000)
+# HTTP_PORT=3000
 ```
+
+Social platform credentials (Bluesky, Mastodon, Twitter, LinkedIn) and the LLM
+configuration are **per-user** and are set from the web UI under `/account`.
+The first user is created with the CLI (see [CLI Commands](#cli-commands));
+additional users can self-register.
 
 ### Bluesky credentials
 
@@ -107,7 +89,7 @@ For Bluesky, you'll need an "app password".
 
 - Go here to create one: <https://bsky.app/settings/app-passwords>
 - Copy the password
-- Set the `BSKY_PASSWORD` environment variable to it
+- Set it from `/account` in the web UI
 
 Keep it safe, as it grants access to everything.
 
@@ -120,7 +102,7 @@ For Mastodon, you'll need an "access token". Here's how to get one:
 - Select `write:statuses` and `write:media` for permissions, and unselect everything else
 - Click on the newly created application
 - Copy "_your access token_"
-- Set the `MASTODON_ACCESS_TOKEN` environment variable to it
+- Set it from `/account` in the web UI
 
 ### Twitter setup
 
@@ -130,8 +112,8 @@ For Twitter, we're working with Oauth1.
 - Create a project and app
 - In the "_Keys and tokens_" section of the app, generate "_Consumer Keys_" and copy the generated "_App Key and Secret_"
 - In the app's settings, go to "_User authentication settings_" and add as the "_Callback URL_": `https://<your-domain.com>/api/twitter/callback` (replace `<your-domain.com>` with your domain, obviously)
-- Set the `TWITTER_OAUTH1_CONSUMER_KEY` and the `TWITTER_OAUTH1_CONSUMER_SECRET` environment variables
-- Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect Twitter_"
+- Set the consumer key and secret from `/account` in the web UI
+- Click on "_Connect Twitter_" in `/account`
 
 ### LinkedIn setup
 
@@ -144,8 +126,8 @@ For LinkedIn, we're working with OAuth2.
 - In the "_Products_" tab, request access to:
   - "_Sign In with LinkedIn using OpenID Connect_" (provides `openid` and `profile` scopes)
   - "_Share on LinkedIn_" (provides `w_member_social` scope)
-- Set the `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` environment variables
-- Once the server is running, go to `https://<your-domain.com>/account` and click on "_Connect LinkedIn_"
+- Set the client ID and client secret from `/account` in the web UI
+- Click on "_Connect LinkedIn_" in `/account`
 
 **Note:** LinkedIn access tokens expire after 60 days. The system automatically refreshes tokens using the refresh token, which is valid for 1 year. You'll need to reconnect if the refresh token expires.
 
@@ -153,23 +135,16 @@ For LinkedIn, we're working with OAuth2.
 
 The application can integrate with LLM providers to automatically generate alt-text descriptions for images. This feature is optional and supports any OpenAI-compatible API (including OpenAI, Mistral AI, and other providers).
 
-**Supported providers:**
+Configure the LLM endpoint from `/account` in the web UI. Any OpenAI-compatible
+API works; examples include:
 
 - **OpenAI** (e.g., GPT-4o-mini): <https://platform.openai.com/api-keys>
 - **Mistral AI** (e.g., Pixtral): <https://console.mistral.ai/api-keys/>
-- Any OpenAI-compatible API endpoint
-
-**Configuration:**
-
-1. Get an API key from your chosen provider
-2. Set the environment variables:
-   - `LLM_API_URL`: The API endpoint URL (e.g., `https://api.openai.com/v1/chat/completions`)
-   - `LLM_API_KEY`: Your API key
-   - `LLM_MODEL`: Model name (e.g., `gpt-4o-mini` for OpenAI, `pixtral-12b-2409` for Mistral)
 
 ## CLI Commands
 
-Social Publish includes several CLI commands for managing users and configuration. These commands are particularly useful when running the application in a Docker container.
+Social Publish includes several CLI commands for managing users. These commands
+are particularly useful when running the application in a Docker container.
 
 ### Using the CLI in Docker
 
@@ -228,78 +203,6 @@ By default, CLI commands use minimal logging (warnings and errors only). To see 
 ## RSS feed
 
 The RSS feed is exposed at `/rss` (e.g., `http://localhost:3000/rss`). Use it with automation tools like [ifttt.com](https://ifttt.com) if you want additional workflows beyond the direct integrations.
-
-## Developing
-
-This is a Kotlin multiplatform project with:
-
-- **Backend**: Ktor server with Arrow for functional programming
-- **Frontend**: Compose for Web (Kotlin/JS)
-- **Build**: Gradle with Kotlin DSL
-
-### Development Commands
-
-To run the development environment with live reload:
-
-```sh
-make dev
-```
-
-This starts both the backend server (port 3000) and frontend dev server (port 3002) with hot reload enabled.
-
-To run backend and frontend separately:
-
-```sh
-# Backend only
-make dev-backend
-
-# Frontend only
-make dev-frontend
-```
-
-You can navigate to <http://localhost:3002> for the frontend, while the backend is available at <http://localhost:3000>.
-
-### Building
-
-To build the project:
-
-```sh
-make build
-```
-
-To run tests:
-
-```sh
-make test
-```
-
-To check and fix code formatting:
-
-```sh
-make lint    # Check formatting
-make format  # Auto-format code
-```
-
-### Docker Images
-
-To build and test the Docker images locally:
-
-```sh
-# Build and run JVM image
-make docker-run-jvm
-```
-
-To run tests in a Docker environment that matches production:
-
-```sh
-# Run all tests in Docker
-make test-docker
-
-# Run specific ImageMagick tests in Docker
-make test-imagemagick-docker
-```
-
-See the [Makefile](./Makefile) for all available commands.
 
 ## License
 

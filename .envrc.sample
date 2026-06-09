@@ -10,9 +10,6 @@ export BASE_URL="http://localhost:3000"
 # If you want to serve static files from a directory, set this (can be provided multiple times):
 # export STATIC_CONTENT_PATH=
 
-# Auth (required)
-export JWT_SECRET="dev-jwt-secret-change-me"
-
 # Files storage (required)
 export UPLOADED_FILES_PATH="/tmp/social-publish.kt/uploads"
 
