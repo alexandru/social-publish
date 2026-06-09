@@ -26,6 +26,7 @@ import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.Target
 import socialpublish.backend.db.UUIDv7
 import socialpublish.backend.modules.FeedModule
+import socialpublish.backend.server.serverJson
 import socialpublish.backend.testutils.createTestDatabase
 import socialpublish.backend.testutils.createTestSession
 
@@ -50,7 +51,7 @@ class FeedRoutesTest {
             val feedRoutes = FeedRoutes(feedModule)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/feed/post") {
                         context(createTestSession(testUserUuid)) {
@@ -85,8 +86,11 @@ class FeedRoutesTest {
 
             assertEquals(HttpStatusCode.OK, response.status)
             val body = response.bodyAsText()
-            assertTrue(body.contains("http://localhost:3000/feed/"))
-            assertTrue(body.contains("\"module\":\"feed\""))
+            val responseBody =
+                serverJson()
+                    .decodeFromString(FeedPostResponse.serializer(), body)
+            assertTrue(responseBody.uri.contains("http://localhost:3000/feed/"))
+            assertEquals("feed", responseBody.module)
 
             client.close()
         }
@@ -105,7 +109,7 @@ class FeedRoutesTest {
             val feedRoutes = FeedRoutes(feedModule)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/feed/post") {
                         context(createTestSession(testUserUuid)) {
@@ -159,7 +163,7 @@ class FeedRoutesTest {
             val feedRoutes = FeedRoutes(feedModule)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/feed/post") {
                         context(createTestSession(testUserUuid)) {
@@ -223,7 +227,7 @@ class FeedRoutesTest {
         val feedRoutes = FeedRoutes(feedModule)
 
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(serverJson()) }
             routing {
                 post("/api/feed/post") {
                     context(createTestSession(testUserUuid)) {
@@ -288,7 +292,7 @@ class FeedRoutesTest {
             val feedRoutes = FeedRoutes(feedModule)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/feed/post") {
                         context(createTestSession(testUserUuid)) {
@@ -357,7 +361,7 @@ class FeedRoutesTest {
             val feedRoutes = FeedRoutes(feedModule)
 
             application {
-                install(ContentNegotiation) { json() }
+                install(ContentNegotiation) { json(serverJson()) }
                 routing {
                     post("/api/feed/post") {
                         context(createTestSession(testUserUuid)) {
@@ -423,7 +427,7 @@ class FeedRoutesTest {
         val feedRoutes = FeedRoutes(feedModule)
 
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(serverJson()) }
             routing {
                 get("/feed/{userUuid}/{uuid}") { feedRoutes.getFeedItem(call) }
             }
@@ -450,7 +454,7 @@ class FeedRoutesTest {
         val feedRoutes = FeedRoutes(feedModule)
 
         application {
-            install(ContentNegotiation) { json() }
+            install(ContentNegotiation) { json(serverJson()) }
             routing {
                 // This simulates a route without the uuid parameter
                 get("/feed/{userUuid}/") { feedRoutes.getFeedItem(call) }

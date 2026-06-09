@@ -13,6 +13,7 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.TextContent
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -20,9 +21,11 @@ import io.ktor.server.response.respondFile
 import io.ktor.utils.io.readRemaining
 import socialpublish.backend.common.*
 import socialpublish.backend.db.UserSession
+import socialpublish.backend.modules.FileAltTextPatch
 import socialpublish.backend.modules.FilesModule
 import socialpublish.backend.modules.StoredFile
 import socialpublish.backend.modules.UploadedFile
+import socialpublish.backend.server.respondApiError
 import socialpublish.backend.server.serverJson
 
 class FilesRoutes(private val filesModule: FilesModule) {
@@ -69,6 +72,35 @@ class FilesRoutes(private val filesModule: FilesModule) {
                     HttpStatusCode.fromValue(error.status),
                 )
             }
+        }
+    }
+
+    context(_: UserSession)
+    suspend fun updateAltTextRoute(call: ApplicationCall) {
+        val uuid =
+            call.parameters["uuid"]
+                ?: run {
+                    respondJson(
+                        call,
+                        ErrorResponse(error = "Missing UUID"),
+                        HttpStatusCode.BadRequest,
+                    )
+                    return
+                }
+
+        val patch =
+            runCatching { call.receive<FileAltTextPatch>() }
+                .getOrElse {
+                    respondJson(
+                        call,
+                        ErrorResponse(error = "Invalid file metadata patch"),
+                        HttpStatusCode.BadRequest,
+                    )
+                    return
+                }
+        when (val result = filesModule.updateAltText(uuid, patch.altText)) {
+            is Either.Right -> respondJson(call, result.value)
+            is Either.Left -> call.respondApiError(result.value)
         }
     }
 

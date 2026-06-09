@@ -104,6 +104,13 @@ class SerializationTest {
     }
 
     @Test
+    fun testFileAltTextPatchSerialization() {
+        val encoded = json.encodeToString(FileAltTextPatch("A flower"))
+
+        assertTrue(encoded.contains("\"altText\":\"A flower\""))
+    }
+
+    @Test
     fun testPublishRequestSerializationRoundTrip() {
         val original =
             PublishRequest(
@@ -115,7 +122,12 @@ class SerializationTest {
                             content = "Test post content",
                             link = "https://example.com",
                             images = listOf("img1.jpg", "img2.jpg"),
-                        )
+                        ),
+                        PublishRequestMessage(
+                            content = "Follow-up content",
+                            link = "https://example.com/follow-up",
+                            images = listOf("img3.jpg"),
+                        ),
                     ),
             )
         val encoded = json.encodeToString(original)
@@ -129,6 +141,9 @@ class SerializationTest {
             listOf("img1.jpg", "img2.jpg"),
             decoded.messages.first().images,
         )
+        assertEquals("Follow-up content", decoded.messages[1].content)
+        assertEquals("https://example.com/follow-up", decoded.messages[1].link)
+        assertEquals(listOf("img3.jpg"), decoded.messages[1].images)
         assertEquals("en", decoded.language)
     }
 
@@ -191,13 +206,16 @@ class SerializationTest {
     @Test
     fun testModulePostResponseDeserializationComplete() {
         val jsonString =
-            """{"module":"bluesky","uri":"at://did/post","id":"postid","cid":"cidvalue"}"""
+            """{"module":"bluesky","uri":"at://did/post","id":"postid","cid":"cidvalue","messages":[{"id":"at://did/post/root","uri":"at://did/post/root"},{"id":"at://did/post/reply","uri":"at://did/post/reply","replyToId":"at://did/post/root"}]}"""
         val decoded = json.decodeFromString<ModulePostResponse>(jsonString)
 
         assertEquals("bluesky", decoded.module)
         assertEquals("at://did/post", decoded.uri)
         assertEquals("postid", decoded.id)
         assertEquals("cidvalue", decoded.cid)
+        assertEquals(2, decoded.messages?.size)
+        assertEquals("at://did/post/root", decoded.messages?.first()?.id)
+        assertEquals("at://did/post/root", decoded.messages?.get(1)?.replyToId)
     }
 
     @Test

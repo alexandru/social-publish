@@ -11,13 +11,53 @@ class PublishFormStateTest {
     @Test
     fun testDefaultState() {
         val state = PublishFormState()
+        assertEquals(1, state.messages.size)
+        assertEquals(1, state.messages.first().id)
         assertEquals("", state.content)
         assertEquals("", state.link)
         assertEquals(setOf("feed"), state.targets)
+        assertEquals("en", state.language)
         assertTrue(state.images.isEmpty())
         assertFalse(state.isSubmitting)
         assertFalse(state.isProcessing)
         assertFalse(state.isFormDisabled)
+    }
+
+    @Test
+    fun testAddMessage() {
+        val state = PublishFormState().addMessage()
+
+        assertEquals(2, state.messages.size)
+        assertEquals(listOf(1, 2), state.messages.map { it.id })
+    }
+
+    @Test
+    fun testRemoveMessageKeepsAtLeastOneMessage() {
+        val state = PublishFormState()
+
+        assertEquals(state, state.removeMessage(1))
+
+        val twoMessages = state.addMessage()
+        val updated = twoMessages.removeMessage(1)
+
+        assertEquals(1, updated.messages.size)
+        assertEquals(2, updated.messages.first().id)
+    }
+
+    @Test
+    fun testUpdateMessageFields() {
+        val state = PublishFormState().addMessage()
+        val updated =
+            state
+                .updateMessageContent(2, "Follow-up")
+                .updateMessageLink(2, "https://example.com/follow-up")
+
+        assertEquals("", updated.messages.first { it.id == 1 }.content)
+        assertEquals("Follow-up", updated.messages.first { it.id == 2 }.content)
+        assertEquals(
+            "https://example.com/follow-up",
+            updated.messages.first { it.id == 2 }.link,
+        )
     }
 
     @Test
@@ -63,6 +103,17 @@ class PublishFormStateTest {
     }
 
     @Test
+    fun testAddImageToSpecificMessage() {
+        val state = PublishFormState().addMessage()
+        val image = SelectedImage(id = 1, file = null, altText = "Test")
+
+        val updated = state.addImage(2, image)
+
+        assertTrue(updated.messages.first { it.id == 1 }.images.isEmpty())
+        assertEquals(image, updated.messages.first { it.id == 2 }.images[1])
+    }
+
+    @Test
     fun testUpdateImage() {
         val image1 = SelectedImage(id = 1, file = null, altText = "Original")
         val state = PublishFormState().addImage(image1)
@@ -105,6 +156,14 @@ class PublishFormStateTest {
     fun testIsFormDisabledWithGeneratingAltText() {
         val image = SelectedImage(id = 1, isGeneratingAltText = true)
         val state = PublishFormState().addImage(image)
+        assertTrue(state.isFormDisabled)
+    }
+
+    @Test
+    fun testIsFormDisabledWithGeneratingAltTextInAnyMessage() {
+        val image = SelectedImage(id = 1, isGeneratingAltText = true)
+        val state = PublishFormState().addMessage().addImage(2, image)
+
         assertTrue(state.isFormDisabled)
     }
 
@@ -172,7 +231,7 @@ class PublishFormStateTest {
     @Test
     fun testMaxCharactersDefaultsTo2000() {
         val state = PublishFormState()
-        assertEquals(2000, state.maxCharacters)
+        assertEquals(1000, state.maxCharacters)
     }
 
     @Test
@@ -207,5 +266,151 @@ class PublishFormStateTest {
                 .toggleTarget("mastodon")
         assertEquals(500, state.maxCharacters)
         assertEquals(487, state.charactersRemaining) // 500 - 13
+    }
+
+    @Test
+    fun testLinkedInAggregateCharactersAcrossThread() {
+        val state =
+            PublishFormState()
+                .toggleTarget("linkedin")
+                .updateContent("Root")
+                .updateLink("https://example.com/root")
+                .addMessage()
+                .updateMessageContent(2, "Follow-up")
+                .updateMessageLink(2, "https://example.com/follow-up")
+
+        val expectedUsed =
+            "Root".length + 2 + 25 + 2 + "Follow-up".length + 2 + 25
+        assertEquals(expectedUsed, state.linkedinUsedCharacters)
+        assertEquals(2000 - expectedUsed, state.linkedinCharactersRemaining)
+    }
+
+    @Test
+    fun testPerMessageCounterReservesLinkedInBudgetUsedByPriorPosts() {
+        val rootContent = "x".repeat(1700)
+        val state =
+            PublishFormState()
+                .toggleTarget("linkedin")
+                .updateContent(rootContent)
+                .addMessage()
+
+        val secondMessage = state.messages[1]
+
+        assertEquals(298, state.maxCharactersFor(secondMessage))
+        assertEquals(298, state.charactersRemainingFor(secondMessage))
+    }
+
+    @Test
+    fun testPerMessageCounterUsesStrictestSelectedPerPostAndThreadLimit() {
+        val state =
+            PublishFormState()
+                .toggleTarget("linkedin")
+                .toggleTarget("bluesky")
+                .updateContent("x".repeat(1800))
+                .addMessage()
+                .updateMessageContent(2, "Hello")
+
+        val secondMessage = state.messages[1]
+
+        assertEquals(198, state.maxCharactersFor(secondMessage))
+        assertEquals(193, state.charactersRemainingFor(secondMessage))
+    }
+
+    @Test
+    fun testLinkedInCountsImagesAcrossThread() {
+        val state =
+            PublishFormState()
+                .toggleTarget("linkedin")
+                .addImage(1, SelectedImage(id = 1))
+                .addMessage()
+                .addImage(2, SelectedImage(id = 1))
+                .addImage(2, SelectedImage(id = 2))
+
+        assertEquals(3, state.linkedinImageCount)
+        assertFalse(state.hasTooManyLinkedInImages)
+    }
+
+    @Test
+    fun testLinkedInUnavailableWhenThreadAlreadyHasTooManyImages() {
+        val state =
+            PublishFormState()
+                .addImage(1, SelectedImage(id = 1))
+                .addImage(1, SelectedImage(id = 2))
+                .addMessage()
+                .addImage(2, SelectedImage(id = 1))
+                .addImage(2, SelectedImage(id = 2))
+                .addImage(2, SelectedImage(id = 3))
+
+        assertFalse(state.isTargetSupported("linkedin"))
+        assertEquals(
+            "LinkedIn supports at most 4 images across the thread.",
+            state.targetDisabledReason("linkedin"),
+        )
+        assertEquals(
+            listOf(
+                "LinkedIn is unavailable: LinkedIn supports at most 4 images across the thread."
+            ),
+            state.unavailableTargetWarnings,
+        )
+    }
+
+    @Test
+    fun testLinkedInSelectedDisablesAddingImagesAfterThreadLimit() {
+        val state =
+            PublishFormState()
+                .toggleTarget("linkedin")
+                .addImage(1, SelectedImage(id = 1))
+                .addImage(1, SelectedImage(id = 2))
+                .addMessage()
+                .addImage(2, SelectedImage(id = 1))
+                .addImage(2, SelectedImage(id = 2))
+
+        assertFalse(state.canAddImageTo(state.messages[0]))
+        assertFalse(state.canAddImageTo(state.messages[1]))
+    }
+
+    @Test
+    fun testTwitterUnavailableWhenAnyPostIsTooLong() {
+        val state = PublishFormState().updateContent("x".repeat(281))
+
+        assertFalse(state.isTargetSupported("twitter"))
+        assertEquals(
+            "Post 1 exceeds Twitter's 280 character limit.",
+            state.targetDisabledReason("twitter"),
+        )
+    }
+
+    @Test
+    fun testSelectedUnsupportedTargetsProduceGuidanceWarnings() {
+        val state =
+            PublishFormState()
+                .toggleTarget("twitter")
+                .updateContent("x".repeat(281))
+
+        assertEquals(
+            listOf("Twitter: Post 1 exceeds Twitter's 280 character limit."),
+            state.targetGuidanceWarnings,
+        )
+    }
+
+    @Test
+    fun testSubmitValidationOnlyCoversRequiredFrontendFields() {
+        val blank = PublishFormState().updateContent(" ")
+        val noTargets =
+            PublishFormState().updateContent("Hello").toggleTarget("feed")
+        val overLimit =
+            PublishFormState()
+                .toggleTarget("twitter")
+                .updateContent("x".repeat(281))
+
+        assertEquals(
+            listOf(SubmitError("Content is required for post 1!")),
+            blank.validateForSubmit(),
+        )
+        assertEquals(
+            listOf(SubmitError("At least one publication target is required!")),
+            noTargets.validateForSubmit(),
+        )
+        assertTrue(overLimit.validateForSubmit().isEmpty())
     }
 }

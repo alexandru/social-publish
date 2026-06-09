@@ -64,9 +64,9 @@ fun TextInputField(
 }
 
 /**
- * Stateless textarea field with label.
+ * Stateless textarea field with optional label.
  *
- * @param label The label text
+ * @param label Optional label text. When null, no label is rendered.
  * @param value Current value
  * @param onValueChange Callback when value changes
  * @param rows Number of visible text rows
@@ -78,7 +78,7 @@ fun TextInputField(
  */
 @Composable
 fun TextAreaField(
-    label: String,
+    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
     rows: Int = 4,
@@ -91,13 +91,15 @@ fun TextAreaField(
         id ?: remember { "textarea-${kotlin.random.Random.nextLong()}" }
 
     Div(attrs = { classes("field") }) {
-        Label(
-            attrs = {
-                classes("label")
-                attr("for", textareaId)
+        if (label != null) {
+            Label(
+                attrs = {
+                    classes("label")
+                    attr("for", textareaId)
+                }
+            ) {
+                Text(label)
             }
-        ) {
-            Text(label)
         }
         Div(attrs = { classes("control") }) {
             TextArea(

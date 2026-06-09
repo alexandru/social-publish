@@ -158,6 +158,91 @@ class FilesModuleTest {
         }
 
     @Test
+    fun `updateAltText updates metadata without re-uploading file`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val upload =
+            context(testSession) {
+                    filesModule.uploadFile(
+                        UploadedFile(
+                            fileName = "flower1.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(
+                                            loadTestResourceBytes(
+                                                "flower1.jpeg"
+                                            )
+                                        )
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = null,
+                        )
+                    )
+                }
+                .getOrElse {
+                    error("Unexpected upload error: ${it.errorMessage}")
+                }
+
+        val updated =
+            context(testSession) {
+                    filesModule.updateAltText(upload.uuid, "rose garden")
+                }
+                .getOrElse {
+                    error("Unexpected update error: ${it.errorMessage}")
+                }
+        val processed =
+            context(testSession) {
+                requireNotNull(filesModule.readImageFile(updated.uuid))
+            }
+
+        assertEquals(upload.uuid, updated.uuid)
+        assertEquals("rose garden", processed.altText)
+    }
+
+    @Test
+    fun `updateAltText cannot update another users upload`(
+        @TempDir tempDir: Path
+    ) = runTest {
+        val jdbi = createTestDatabase(tempDir)
+        val filesModule = createFilesModule(tempDir, jdbi)
+        val upload =
+            context(testSession) {
+                    filesModule.uploadFile(
+                        UploadedFile(
+                            fileName = "flower1.jpeg",
+                            source =
+                                UploadSource.FromSource(
+                                    ByteReadChannel(
+                                            loadTestResourceBytes(
+                                                "flower1.jpeg"
+                                            )
+                                        )
+                                        .asSource()
+                                        .buffered()
+                                ),
+                            altText = "rose",
+                        )
+                    )
+                }
+                .getOrElse {
+                    error("Unexpected upload error: ${it.errorMessage}")
+                }
+
+        val result =
+            context(testSessionB) {
+                filesModule.updateAltText(upload.uuid, "stolen")
+            }
+
+        assertTrue(result is Either.Left)
+        val error = (result as Either.Left).value
+        assertTrue(error is ValidationError)
+        assertEquals(404, error.status)
+    }
+
+    @Test
     fun `getFile returns not found for unknown uuid`(@TempDir tempDir: Path) =
         runTest {
             val jdbi = createTestDatabase(tempDir)

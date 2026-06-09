@@ -376,6 +376,41 @@ fun startServer(
                         }
                     }
 
+                patch("/api/files/{uuid}") {
+                        withSession(call) {
+                            filesRoutes.updateAltTextRoute(call)
+                        }
+                    }
+                    .describe {
+                        summary = "Update file metadata"
+                        description = "Update alt text for an uploaded file"
+                        documentSecurityRequirements()
+                        requestBody {
+                            required = true
+                            ContentType.Application.Json {
+                                schema = jsonSchema<FileAltTextPatch>()
+                            }
+                        }
+                        responses {
+                            HttpStatusCode.OK {
+                                description = "File metadata updated"
+                                schema = jsonSchema<FileUploadResponse>()
+                            }
+                            HttpStatusCode.Unauthorized {
+                                description = "Not authenticated"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.BadRequest {
+                                description = "Invalid file metadata patch"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                            HttpStatusCode.NotFound {
+                                description = "File not found"
+                                schema = jsonSchema<ErrorResponse>()
+                            }
+                        }
+                    }
+
                 // LLM alt-text generation (extracted to LlmRoutes)
                 post("/api/llm/generate-alt-text") {
                         withSession(call) {

@@ -38,12 +38,14 @@ fun main() {
 private data class SessionUserResponse(
     val username: String,
     val configuredServices: ConfiguredServices,
+    val userUuid: String,
 )
 
 @Composable
 fun App() {
     var currentPath by remember { mutableStateOf(window.location.pathname) }
     var sessionChecked by remember { mutableStateOf(false) }
+    var userUuid by remember { mutableStateOf(Storage.getUserUuid().orEmpty()) }
     val coroutineScope = rememberCoroutineScope()
 
     // Handle browser navigation
@@ -67,19 +69,23 @@ fun App() {
         if (isUnauthorized(response)) {
             Storage.clearSessionToken()
             Storage.setConfiguredServices(null)
+            userUuid = ""
             navigateTo(buildLoginRedirectPath(currentPath))
             return@LaunchedEffect
         }
         if (response is ApiResponse.Success) {
             Storage.setConfiguredServices(response.data.configuredServices)
+            Storage.setUserUuid(response.data.userUuid)
+            userUuid = response.data.userUuid
         }
         sessionChecked = true
     }
 
     Div {
-        NavBar(currentPath = currentPath) {
+        NavBar(currentPath = currentPath, userUuid = userUuid) {
             coroutineScope.launch {
                 logoutAndClearLocalSession()
+                userUuid = ""
                 navigateTo("/login")
             }
         }
@@ -91,7 +97,7 @@ fun App() {
                 when (currentPath) {
                     "/" -> RedirectToForm()
                     "/login" -> LoginPage()
-                    "/form" -> PublishFormPage()
+                    "/form" -> PublishFormPage(userUuid = userUuid)
                     "/account" -> AccountPage()
                     else -> NotFoundPage()
                 }

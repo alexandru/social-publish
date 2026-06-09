@@ -237,7 +237,7 @@ class StorageTest {
         Storage.setConfiguredServices(services)
 
         // Verify it's stored in localStorage
-        val stored = localStorage.getItem("configuredServices")
+        val stored = localStorage.getItem("sessionInfo")
         assertNotNull(stored)
         assertTrue(stored.contains("twitter"))
     }
@@ -245,7 +245,7 @@ class StorageTest {
     @Test
     fun testGetConfiguredServicesHandlesCorruptedData() {
         // Manually set invalid JSON in localStorage
-        localStorage.setItem("configuredServices", "invalid-json-{{{")
+        localStorage.setItem("sessionInfo", "invalid-json-{{{")
 
         // Should return default ConfiguredServices without throwing
         val retrieved = Storage.getConfiguredServices()
@@ -256,10 +256,38 @@ class StorageTest {
     @Test
     fun testSetConfiguredServicesNullRemovesFromLocalStorage() {
         Storage.setConfiguredServices(ConfiguredServices(twitter = true))
-        assertNotNull(localStorage.getItem("configuredServices"))
+        assertNotNull(localStorage.getItem("sessionInfo"))
 
         Storage.setConfiguredServices(null)
-        assertNull(localStorage.getItem("configuredServices"))
+        assertNull(localStorage.getItem("sessionInfo"))
+    }
+
+    // User UUID storage (consolidated with configured services in a single
+    // localStorage entry)
+    @Test
+    fun testGetUserUuidReturnsNullWhenNotSet() {
+        assertNull(Storage.getUserUuid())
+    }
+
+    @Test
+    fun testSetAndGetUserUuid() {
+        Storage.setUserUuid("user-uuid-123")
+        assertEquals("user-uuid-123", Storage.getUserUuid())
+    }
+
+    @Test
+    fun testUserUuidCoexistsWithConfiguredServices() {
+        Storage.setConfiguredServices(ConfiguredServices(twitter = true))
+        Storage.setUserUuid("user-uuid-abc")
+
+        // Both round-trip independently
+        assertTrue(Storage.getConfiguredServices().twitter)
+        assertEquals("user-uuid-abc", Storage.getUserUuid())
+
+        // Clearing configured services also clears the user UUID (since they
+        // share storage)
+        Storage.setConfiguredServices(null)
+        assertNull(Storage.getUserUuid())
     }
 
     // Integration tests

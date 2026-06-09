@@ -6,6 +6,7 @@ import arrow.core.Either
 import arrow.core.raise.context.either
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+import java.sql.ResultSet
 import java.sql.Types
 import java.time.Instant
 import java.util.UUID
@@ -89,21 +90,7 @@ class FilesDatabase(private val db: Database) {
         val existing =
             query("SELECT * FROM uploads WHERE uuid = ?") {
                 setString(1, uuid)
-                executeQuery().safe().firstOrNull { rs ->
-                    Upload(
-                        uuid = rs.getString("uuid"),
-                        hash = rs.getString("hash"),
-                        originalname = rs.getString("originalname"),
-                        mimetype = rs.getString("mimetype"),
-                        size = rs.getLong("size"),
-                        altText = rs.getString("altText"),
-                        imageWidth = rs.getObject("imageWidth") as? Int,
-                        imageHeight = rs.getObject("imageHeight") as? Int,
-                        userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                        createdAt =
-                            Instant.ofEpochMilli(rs.getLong("createdAt")),
-                    )
-                }
+                executeQuery().safe().firstOrNull { rs -> rs.toUpload() }
             }
 
         if (existing != null) {
@@ -181,20 +168,47 @@ class FilesDatabase(private val db: Database) {
         db.query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
             setString(1, uuid)
             setString(2, userUuid.toString())
-            executeQuery().safe().firstOrNull { rs ->
-                Upload(
-                    uuid = rs.getString("uuid"),
-                    hash = rs.getString("hash"),
-                    originalname = rs.getString("originalname"),
-                    mimetype = rs.getString("mimetype"),
-                    size = rs.getLong("size"),
-                    altText = rs.getString("altText"),
-                    imageWidth = rs.getObject("imageWidth") as? Int,
-                    imageHeight = rs.getObject("imageHeight") as? Int,
-                    userUuid = UUIDv7.fromString(rs.getString("user_uuid")),
-                    createdAt = Instant.ofEpochMilli(rs.getLong("createdAt")),
-                )
-            }
+            executeQuery().safe().firstOrNull { rs -> rs.toUpload() }
         }
     }
+
+    suspend fun updateAltText(
+        uuid: String,
+        userUuid: UUIDv7,
+        altText: String?,
+    ): Either<DBException, Upload?> = db.transaction {
+        val updatedRows =
+            query(
+                "UPDATE uploads SET altText = ? WHERE uuid = ? AND user_uuid = ?"
+            ) {
+                setString(1, altText)
+                setString(2, uuid)
+                setString(3, userUuid.toString())
+                executeUpdate()
+            }
+
+        if (updatedRows == 0) {
+            return@transaction null
+        }
+
+        query("SELECT * FROM uploads WHERE uuid = ? AND user_uuid = ?") {
+            setString(1, uuid)
+            setString(2, userUuid.toString())
+            executeQuery().safe().firstOrNull { rs -> rs.toUpload() }
+        }
+    }
+
+    private fun ResultSet.toUpload(): Upload =
+        Upload(
+            uuid = getString("uuid"),
+            hash = getString("hash"),
+            originalname = getString("originalname"),
+            mimetype = getString("mimetype"),
+            size = getLong("size"),
+            altText = getString("altText"),
+            imageWidth = getObject("imageWidth") as? Int,
+            imageHeight = getObject("imageHeight") as? Int,
+            userUuid = UUIDv7.fromString(getString("user_uuid")),
+            createdAt = Instant.ofEpochMilli(getLong("createdAt")),
+        )
 }

@@ -10,6 +10,22 @@ import org.w3c.dom.get
 import org.w3c.dom.set
 
 /**
+ * Per-user identity and configuration, cached locally by the client. Populated
+ * from `/api/protected` and consumed by the UI to render state badges and build
+ * per-user URLs (e.g. the feed).
+ *
+ * - [userUuid] identifies the current user; the navbar uses it to build the
+ *   `/feed/{userUuid}` link.
+ * - [configuredServices] drives UI badges (configured / not configured pills on
+ *   the publish form and account page).
+ */
+@Serializable
+data class SessionInfo(
+    val userUuid: String = "",
+    val configuredServices: ConfiguredServices = ConfiguredServices(),
+)
+
+/**
  * Which services are configured for the authenticated user.
  *
  * Mastodon, Bluesky, Twitter, and LinkedIn are social posting targets. For
@@ -29,7 +45,7 @@ data class ConfiguredServices(
 
 object Storage {
     private const val ACCESS_TOKEN_COOKIE = "access_token"
-    private const val CONFIGURED_SERVICES_KEY = "configuredServices"
+    private const val CONFIGURED_SERVICES_KEY = "sessionInfo"
 
     // Cookie utilities
     fun cookies(): Map<String, String> {
@@ -104,31 +120,54 @@ object Storage {
         return getSessionToken() != null
     }
 
-    // Configured services management (using localStorage)
+    // Per-session info (user UUID + configured services) management. Backed by
+    // a single localStorage entry so we don't proliferate storage keys. The
+    // configured-services API is kept as a pair of convenience accessors
+    // because it has many existing call sites; the underlying representation
+    // is now a [SessionInfo] that also carries the user UUID.
     fun setConfiguredServices(services: ConfiguredServices?) {
         if (services == null) {
             localStorage.removeItem(CONFIGURED_SERVICES_KEY)
         } else {
-            localStorage[CONFIGURED_SERVICES_KEY] =
-                Json.encodeToString(services)
+            val current = readSessionInfo()
+            writeSessionInfo(current.copy(configuredServices = services))
         }
     }
 
-    fun getConfiguredServices(): ConfiguredServices {
+    fun getConfiguredServices(): ConfiguredServices =
+        readSessionInfo().configuredServices
+
+    fun getUserUuid(): String? =
+        readSessionInfo().userUuid.takeIf { it.isNotEmpty() }
+
+    fun setUserUuid(uuid: String) {
+        val current = readSessionInfo()
+        writeSessionInfo(current.copy(userUuid = uuid))
+    }
+
+    private fun readSessionInfo(): SessionInfo {
         val stored =
-            localStorage[CONFIGURED_SERVICES_KEY] ?: return ConfiguredServices()
+            localStorage[CONFIGURED_SERVICES_KEY] ?: return SessionInfo()
         return try {
-            Json.decodeFromString<ConfiguredServices>(stored)
+            Json.decodeFromString<SessionInfo>(stored)
         } catch (e: Throwable) {
             rethrowIfFatal(e)
             console.error(
-                "Error decoding ConfiguredServices from localStorage:",
+                "Error decoding SessionInfo from localStorage:",
                 e,
                 "stored:",
                 stored,
             )
             localStorage.removeItem(CONFIGURED_SERVICES_KEY)
-            ConfiguredServices()
+            SessionInfo()
+        }
+    }
+
+    private fun writeSessionInfo(info: SessionInfo) {
+        if (info == SessionInfo()) {
+            localStorage.removeItem(CONFIGURED_SERVICES_KEY)
+        } else {
+            localStorage[CONFIGURED_SERVICES_KEY] = Json.encodeToString(info)
         }
     }
 }

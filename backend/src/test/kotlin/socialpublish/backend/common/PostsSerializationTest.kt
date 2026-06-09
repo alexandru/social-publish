@@ -1,11 +1,6 @@
 package socialpublish.backend.common
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
 import org.junit.jupiter.api.Test
 
 /**
@@ -14,23 +9,12 @@ import org.junit.jupiter.api.Test
  * The legacy backend (./backend/) returns plain JSON objects without type
  * discriminators. This test ensures backward compatibility.
  */
-@OptIn(ExperimentalSerializationApi::class)
 class PostsSerializationTest {
-    private val json = Json {
-        prettyPrint = false
-        encodeDefaults = true
-        classDiscriminator = "#type"
-        classDiscriminatorMode = ClassDiscriminatorMode.NONE
-        serializersModule = SerializersModule {
-            polymorphic(NewPostResponse::class) {
-                subclass(NewFeedPostResponse::class)
-                subclass(NewMastodonPostResponse::class)
-                subclass(NewBlueSkyPostResponse::class)
-                subclass(NewTwitterPostResponse::class)
-                subclass(NewLinkedInPostResponse::class)
-            }
+    private val json =
+        Json(jsonCommon) {
+            prettyPrint = false
+            encodeDefaults = true
         }
-    }
 
     @Test
     fun `NewFeedPostResponse should serialize without type discriminator`() {

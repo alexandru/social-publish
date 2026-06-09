@@ -3,6 +3,7 @@ package socialpublish.backend.modules
 import arrow.core.Either
 import arrow.core.getOrElse
 import arrow.core.left
+import arrow.core.raise.context.bind
 import arrow.core.raise.context.either
 import arrow.core.raise.context.raise
 import arrow.core.right
@@ -32,6 +33,8 @@ data class FileUploadResponse(
     val url: String,
     val mimeType: String,
 )
+
+@Serializable data class FileAltTextPatch(val altText: String? = null)
 
 data class UploadedFile(
     val fileName: String,
@@ -223,48 +226,82 @@ private constructor(
 
     /** Retrieve uploaded file */
     suspend fun getFile(uuid: String): ApiResult<StoredFile> = either {
-        try {
-            val upload = db.getFileByUuid(uuid).getOrElse { throw it }
-            if (upload == null) {
-                raise(
+        val upload =
+            db.getFileByUuid(uuid)
+                .mapLeft { error ->
+                    logger.error("Failed to load file metadata", error)
+                    CaughtException(
+                        status = 500,
+                        module = "files",
+                        errorMessage = "Failed to load file metadata",
+                    )
+                }
+                .bind()
+        if (upload == null) {
+            raise(
+                ValidationError(
+                    status = 404,
+                    errorMessage = "File not found",
+                    module = "files",
+                )
+            )
+        }
+
+        val filePath = File(processedPath, upload.hash)
+        if (!filePath.exists()) {
+            raise(
+                ValidationError(
+                    status = 404,
+                    errorMessage = "File content not found",
+                    module = "files",
+                )
+            )
+        }
+
+        StoredFile(
+            file = filePath,
+            mimeType = upload.mimetype,
+            originalName = upload.originalname,
+        )
+    }
+
+    context(_: UserSession)
+    suspend fun updateAltText(
+        uuid: String,
+        altText: String?,
+    ): ApiResult<FileUploadResponse> = either {
+        val userUuid = userUuid()
+        val upload =
+            db.updateAltText(
+                    uuid = uuid,
+                    userUuid = userUuid,
+                    altText = altText?.takeIf { it.isNotBlank() },
+                )
+                .mapLeft { error ->
+                    logger.error("Failed to update file alt text", error)
+                    CaughtException(
+                        status = 500,
+                        module = "files",
+                        errorMessage = "Failed to update file alt text",
+                    )
+                }
+                .bind()
+                ?: raise(
                     ValidationError(
                         status = 404,
                         errorMessage = "File not found",
                         module = "files",
                     )
                 )
-            }
 
-            val filePath = File(processedPath, upload.hash)
-            if (!filePath.exists()) {
-                raise(
-                    ValidationError(
-                        status = 404,
-                        errorMessage = "File content not found",
-                        module = "files",
-                    )
-                )
-            }
-
-            StoredFile(
-                file = filePath,
-                mimeType = upload.mimetype,
-                originalName = upload.originalname,
-            )
-        } catch (e: Throwable) {
-            rethrowIfFatalOrCancelled(e)
-            logger.error("Failed to get file", e)
-            raise(
-                CaughtException(
-                    status = 500,
-                    module = "files",
-                    errorMessage = "Failed to get file: ${e.message}",
-                )
-            )
-        }
+        FileUploadResponse(
+            uuid = upload.uuid,
+            url = "${config.baseUrl}/files/${upload.uuid}",
+            mimeType = upload.mimetype,
+        )
     }
 
-    /** Read image file for API posting */
+    /** Read the image file for API posting */
     context(_: UserSession)
     suspend fun readImageFile(uuid: String): ProcessedUpload? {
         val userUuid = userUuid()
