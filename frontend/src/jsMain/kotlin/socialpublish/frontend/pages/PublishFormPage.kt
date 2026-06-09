@@ -6,11 +6,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.browser.window
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.web.attributes.InputType
+import org.jetbrains.compose.web.attributes.onSubmit
 import org.jetbrains.compose.web.dom.*
 import org.w3c.files.File
 import socialpublish.frontend.components.AddImageButton
@@ -172,23 +174,24 @@ private fun PostForm(
     onInfo: (@Composable () -> Unit) -> Unit,
 ) {
     var formState by remember { mutableStateOf(PublishFormState()) }
+    val latestFormState by rememberUpdatedState(formState)
 
     val configuredServices = Storage.getConfiguredServices()
     val feedHref = "#"
     val scope = rememberCoroutineScope()
 
-    val handleSubmit: () -> Unit = {
+    val handleSubmit: (PublishFormState) -> Unit = { submittedState ->
         scope.launch {
-            formState.validateForSubmit().firstOrNull()?.let { error ->
+            submittedState.validateForSubmit().firstOrNull()?.let { error ->
                 onError(error.message)
                 return@launch
             }
 
-            formState = formState.setSubmitting(true)
+            formState = submittedState.setSubmitting(true)
 
             try {
                 val requestMessages = mutableListOf<PublishRequestMessage>()
-                for ((index, message) in formState.messages.withIndex()) {
+                for ((index, message) in submittedState.messages.withIndex()) {
                     val imageUUIDs = mutableListOf<String>()
                     for (image in message.images.values) {
                         val response = image.prepareForPublish() ?: continue
@@ -229,8 +232,8 @@ private fun PostForm(
 
                 val publishRequest =
                     PublishRequest(
-                        targets = formState.targets.toList(),
-                        language = formState.language,
+                        targets = submittedState.targets.toList(),
+                        language = submittedState.language,
                         messages = requestMessages,
                     )
 
@@ -286,10 +289,10 @@ private fun PostForm(
 
     Form(
         attrs = {
-            addEventListener("submit") { event ->
+            onSubmit { event ->
                 event.preventDefault()
                 if (window.confirm("Publish this thread now?")) {
-                    handleSubmit()
+                    handleSubmit(latestFormState)
                 }
             }
         }
