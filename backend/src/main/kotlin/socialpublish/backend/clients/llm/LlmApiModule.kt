@@ -87,7 +87,13 @@ class LlmApiModule(
             val dataUrl = "data:${file.mimetype};base64,$base64Image"
 
             // Generate alt-text using the LLM API
-            generateAltTextFromApi(config, dataUrl, userContext, language)
+            generateAltTextFromApi(
+                    config,
+                    imageUuid,
+                    dataUrl,
+                    userContext,
+                    language,
+                )
                 .bind()
         } catch (e: HttpRequestTimeoutException) {
             logger.warn("LLM request timed out for image $imageUuid", e)
@@ -114,6 +120,7 @@ class LlmApiModule(
 
     private suspend fun generateAltTextFromApi(
         config: LlmConfig,
+        imageUuid: String,
         dataUrl: String,
         extraContextOrInstructions: String?,
         language: String?,
@@ -179,6 +186,13 @@ class LlmApiModule(
 
             val response =
                 httpClient.post(config.apiUrl) {
+                    if (isOpenCodeGoEndpoint(url.build())) {
+                        header(
+                            "x-opencode-session",
+                            "social-publish-alt-text-$imageUuid",
+                        )
+                        header("User-Agent", "social-publish")
+                    }
                     header("Authorization", "Bearer ${config.apiKey}")
                     contentType(ContentType.Application.Json)
                     setBody(request)
