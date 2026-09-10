@@ -126,16 +126,15 @@ class CliCommandsTest {
             val db = Database.connect(dbPath).bind()
             val usersDb = UsersDatabase(db)
             val _ = usersDb.createUser("bob", "initial").getOrElse { throw it }
-            val _ =
-                either {
-                        db.query(
-                            "UPDATE users SET password_hash = NULL WHERE username = ?"
-                        ) {
-                            setString(1, "bob")
-                            executeUpdate()
-                        }
-                    }
-                    .getOrElse { throw it }
+            val _ = either {
+                db.query(
+                    "UPDATE users SET password_hash = NULL WHERE username = ?"
+                ) {
+                    setString(1, "bob")
+                    executeUpdate()
+                }
+            }
+                .getOrElse { throw it }
 
             val before =
                 usersDb.verifyPassword("bob", "restored").getOrElse { throw it }

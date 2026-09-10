@@ -35,30 +35,24 @@ class DatabaseUtilitiesTest {
                 resourceScope {
                     val conn = db.connection().bind()
                     // Verify connection is usable
-                    val result =
-                        either {
-                                conn.query("SELECT 1") {
-                                    executeQuery().safe().firstOrNull {
-                                        it.getInt(1)
-                                    }
-                                }
-                            }
-                            .getOrElse { throw it }
+                    val result = either {
+                        conn.query("SELECT 1") {
+                            executeQuery().safe().firstOrNull { it.getInt(1) }
+                        }
+                    }
+                        .getOrElse { throw it }
                     assertEquals(1, result)
                 }
 
                 // Connection should be returned to pool and reusable
                 resourceScope {
                     val conn = db.connection().bind()
-                    val result =
-                        either {
-                                conn.query("SELECT 2") {
-                                    executeQuery().safe().firstOrNull {
-                                        it.getInt(1)
-                                    }
-                                }
-                            }
-                            .getOrElse { throw it }
+                    val result = either {
+                        conn.query("SELECT 2") {
+                            executeQuery().safe().firstOrNull { it.getInt(1) }
+                        }
+                    }
+                        .getOrElse { throw it }
                     assertEquals(2, result)
                 }
             }
@@ -89,17 +83,12 @@ class DatabaseUtilitiesTest {
                 .getOrElse { throw it }
 
             // Verify data was committed
-            val result =
-                either {
-                        db.query(
-                            "SELECT value FROM test_commits WHERE id = 1"
-                        ) {
-                            executeQuery().safe().firstOrNull {
-                                it.getString("value")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val result = either {
+                db.query("SELECT value FROM test_commits WHERE id = 1") {
+                    executeQuery().safe().firstOrNull { it.getString("value") }
+                }
+            }
+                .getOrElse { throw it }
             assertEquals("test", result)
         }
     }
@@ -137,17 +126,12 @@ class DatabaseUtilitiesTest {
                 assertTrue(result.isLeft())
 
                 // Verify data was NOT committed
-                val count =
-                    either {
-                            db.query(
-                                "SELECT COUNT(*) as cnt FROM test_rollback"
-                            ) {
-                                executeQuery().safe().firstOrNull {
-                                    it.getInt("cnt")
-                                }
-                            }
-                        }
-                        .getOrElse { throw it }
+                val count = either {
+                    db.query("SELECT COUNT(*) as cnt FROM test_rollback") {
+                        executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                    }
+                }
+                    .getOrElse { throw it }
                 assertEquals(0, count)
             }
         }
@@ -183,17 +167,12 @@ class DatabaseUtilitiesTest {
                 }
             assertTrue(result.isLeft())
 
-            val count =
-                either {
-                        db.query(
-                            "SELECT COUNT(*) as cnt FROM test_raise_rollback"
-                        ) {
-                            executeQuery().safe().firstOrNull {
-                                it.getInt("cnt")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val count = either {
+                db.query("SELECT COUNT(*) as cnt FROM test_raise_rollback") {
+                    executeQuery().safe().firstOrNull { it.getInt("cnt") }
+                }
+            }
+                .getOrElse { throw it }
             assertEquals(0, count)
         }
     }
@@ -303,16 +282,13 @@ class DatabaseUtilitiesTest {
                 .getOrElse { throw it }
 
             // Test query with parameter
-            val name =
-                either {
-                        db.query("SELECT name FROM test_query WHERE id = ?") {
-                            setInt(1, 2)
-                            executeQuery().safe().firstOrNull {
-                                it.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val name = either {
+                db.query("SELECT name FROM test_query WHERE id = ?") {
+                    setInt(1, 2)
+                    executeQuery().safe().firstOrNull { it.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertEquals("Bob", name)
         }
     }
@@ -341,15 +317,12 @@ class DatabaseUtilitiesTest {
                 .getOrElse { throw it }
 
             // Test toList
-            val names =
-                either {
-                        db.query("SELECT name FROM test_list ORDER BY id") {
-                            executeQuery().safe().toList {
-                                it.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val names = either {
+                db.query("SELECT name FROM test_list ORDER BY id") {
+                    executeQuery().safe().toList { it.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
 
             assertEquals(3, names.size)
             assertEquals(listOf("Alice", "Bob", "Charlie"), names)
@@ -374,13 +347,12 @@ class DatabaseUtilitiesTest {
                     }
                     .getOrElse { throw it }
 
-                val results =
-                    either {
-                            db.query("SELECT * FROM test_empty") {
-                                executeQuery().safe().toList { it.getInt("id") }
-                            }
-                        }
-                        .getOrElse { throw it }
+                val results = either {
+                    db.query("SELECT * FROM test_empty") {
+                        executeQuery().safe().toList { it.getInt("id") }
+                    }
+                }
+                    .getOrElse { throw it }
 
                 assertTrue(results.isEmpty())
             }
@@ -410,17 +382,14 @@ class DatabaseUtilitiesTest {
                     }
                     .getOrElse { throw it }
 
-                val first =
-                    either {
-                            db.query(
-                                "SELECT name FROM test_first ORDER BY id"
-                            ) {
-                                executeQuery().safe().firstOrNull {
-                                    it.getString("name")
-                                }
-                            }
+                val first = either {
+                    db.query("SELECT name FROM test_first ORDER BY id") {
+                        executeQuery().safe().firstOrNull {
+                            it.getString("name")
                         }
-                        .getOrElse { throw it }
+                    }
+                }
+                    .getOrElse { throw it }
 
                 assertEquals("First", first)
             }
@@ -444,15 +413,12 @@ class DatabaseUtilitiesTest {
                     }
                     .getOrElse { throw it }
 
-                val result =
-                    either {
-                            db.query("SELECT * FROM test_null") {
-                                executeQuery().safe().firstOrNull {
-                                    it.getInt("id")
-                                }
-                            }
-                        }
-                        .getOrElse { throw it }
+                val result = either {
+                    db.query("SELECT * FROM test_null") {
+                        executeQuery().safe().firstOrNull { it.getInt("id") }
+                    }
+                }
+                    .getOrElse { throw it }
 
                 assertEquals(null, result)
             }

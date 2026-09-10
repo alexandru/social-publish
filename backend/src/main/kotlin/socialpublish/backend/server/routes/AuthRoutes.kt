@@ -59,9 +59,7 @@ data class UserResponse(
 
 suspend fun withSession(
     call: ApplicationCall,
-    block:
-        suspend context(UserSession)
-        () -> Unit,
+    block: suspend context(UserSession) () -> Unit,
 ) {
     val session = call.principal<UserSession>()
     if (session == null) {
@@ -157,8 +155,10 @@ class AuthRoutes(
                 runCatching { call.receive<LoginRequest>() }.getOrNull()
             }
             ContentType.Application.FormUrlEncoded -> {
-                val params =
-                    runCatching { call.receiveParameters() }.getOrNull()
+                val params = runCatching {
+                    call.receiveParameters()
+                }
+                    .getOrNull()
                 val username = params?.get("username")
                 val password = params?.get("password")
                 if (username != null && password != null) {

@@ -88,16 +88,17 @@ class FilesRoutes(private val filesModule: FilesModule) {
                     return
                 }
 
-        val patch =
-            runCatching { call.receive<FileAltTextPatch>() }
-                .getOrElse {
-                    respondJson(
-                        call,
-                        ErrorResponse(error = "Invalid file metadata patch"),
-                        HttpStatusCode.BadRequest,
-                    )
-                    return
-                }
+        val patch = runCatching {
+            call.receive<FileAltTextPatch>()
+        }
+            .getOrElse {
+                respondJson(
+                    call,
+                    ErrorResponse(error = "Invalid file metadata patch"),
+                    HttpStatusCode.BadRequest,
+                )
+                return
+            }
         when (val result = filesModule.updateAltText(uuid, patch.altText)) {
             is Either.Right -> respondJson(call, result.value)
             is Either.Left -> call.respondApiError(result.value)

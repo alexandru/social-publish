@@ -377,7 +377,8 @@ class CreateUserCommand : CliktCommand(name = "create-user") {
         option(
                 "--password",
                 "-p",
-                help = "Password for the new user (will prompt if not provided)",
+                help =
+                    "Password for the new user (will prompt if not provided)",
             )
             .prompt(
                 "Enter password",

@@ -67,9 +67,7 @@ class AuthRoutesTest {
     private suspend fun authorizedEndpoint(
         call: io.ktor.server.application.ApplicationCall,
         ctx: TestContext,
-        block:
-            suspend context(UserSession)
-            () -> Unit,
+        block: suspend context(UserSession) () -> Unit,
     ) {
         val token = ctx.authRoute.extractAccessToken(call)
         if (token == null) {
@@ -184,16 +182,15 @@ class AuthRoutesTest {
                 usersDb.createUser("testuser", "testpass").getOrElse {
                     throw it
                 }
-            val _ =
-                either {
-                        db.query(
-                            "UPDATE users SET password_hash = NULL WHERE username = ?"
-                        ) {
-                            setString(1, "testuser")
-                            executeUpdate()
-                        }
-                    }
-                    .getOrElse { throw it }
+            val _ = either {
+                db.query(
+                    "UPDATE users SET password_hash = NULL WHERE username = ?"
+                ) {
+                    setString(1, "testuser")
+                    executeUpdate()
+                }
+            }
+                .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json(serverJson()) }
@@ -539,14 +536,13 @@ class AuthRoutesTest {
             val token = loginAndGetToken(ctx)
 
             // Delete the user from the database
-            val _ =
-                either {
-                        ctx.db.query("DELETE FROM users WHERE username = ?") {
-                            setString(1, "testuser")
-                            executeUpdate()
-                        }
-                    }
-                    .getOrElse { throw it }
+            val _ = either {
+                ctx.db.query("DELETE FROM users WHERE username = ?") {
+                    setString(1, "testuser")
+                    executeUpdate()
+                }
+            }
+                .getOrElse { throw it }
 
             application {
                 install(ContentNegotiation) { json(serverJson()) }

@@ -76,9 +76,7 @@ class SettingsRoutesTest {
         call: io.ktor.server.application.ApplicationCall,
         authService: AuthService,
         authRoutes: AuthRoutes,
-        block:
-            suspend context(UserSession)
-            () -> Unit,
+        block: suspend context(UserSession) () -> Unit,
     ) {
         val token =
             authRoutes.extractAccessToken(call)

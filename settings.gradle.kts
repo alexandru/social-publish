@@ -7,7 +7,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             // Versions
-            version("kotlin", "2.3.21")
+            version("kotlin", "2.4.20")
             version("ktor", "3.4.3")
             version("arrow", "2.2.1.1")
             version("jdbi", "3.52.1")
@@ -26,7 +26,7 @@ dependencyResolutionManagement {
             version("common-text", "1.15.0")
             version("apache-tika", "3.3.0")
             version("hikaricp", "7.0.2")
-            version("compose", "1.11.0")
+            version("compose", "1.12.0")
 
             // Kotlin libraries
             library("kotlin-stdlib", "org.jetbrains.kotlin", "kotlin-stdlib").withoutVersion()

@@ -502,7 +502,10 @@ class DocumentsDatabaseTest {
                             payload = """{"v": 1}""",
                             searchKey = "tag-update",
                             tags =
-                                listOf(Tag("old1", "kind"), Tag("old2", "kind")),
+                                listOf(
+                                    Tag("old1", "kind"),
+                                    Tag("old2", "kind"),
+                                ),
                         )
                         .getOrElse { throw it }
 

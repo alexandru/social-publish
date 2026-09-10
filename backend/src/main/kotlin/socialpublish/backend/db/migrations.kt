@@ -18,15 +18,12 @@ data class Migration(
      * Returns true if the migration has been applied, false otherwise.
      */
     val testIfApplied:
-        suspend context(Raise<DBException>)
-        (SafeConnection) -> Boolean,
+        suspend context(Raise<DBException>) (SafeConnection) -> Boolean,
     /**
      * Executes the migration DDL/DML — only called when [testIfApplied]
      * returned false.
      */
-    val execute:
-        suspend context(Raise<DBException>)
-        (SafeConnection) -> Unit,
+    val execute: suspend context(Raise<DBException>) (SafeConnection) -> Unit,
 )
 
 /** Convenience to execute a single DDL statement inside a migration. */

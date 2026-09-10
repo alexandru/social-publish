@@ -722,7 +722,9 @@ private fun SettingsForm(
             title = "Mastodon",
             icon = "fa-mastodon",
             iconPrefix = "fab",
-            summary = { StatusBadge(isConfigured = state.isMastodonConfigured) },
+            summary = {
+                StatusBadge(isConfigured = state.isMastodonConfigured)
+            },
         ) {
             TextInputField(
                 label = "Host URL",
@@ -783,7 +785,9 @@ private fun SettingsForm(
             title = "LinkedIn",
             icon = "fa-linkedin",
             iconPrefix = "fab",
-            summary = { StatusBadge(isConfigured = state.isLinkedInConfigured) },
+            summary = {
+                StatusBadge(isConfigured = state.isLinkedInConfigured)
+            },
         ) {
             P(attrs = { classes("help", "mb-3") }) {
                 Text(

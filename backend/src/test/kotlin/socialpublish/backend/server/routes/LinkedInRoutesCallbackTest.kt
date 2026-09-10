@@ -48,14 +48,15 @@ class LinkedInRoutesCallbackTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/linkedin/callback?code=abc") {
-                    header(
-                        HttpHeaders.Cookie,
-                        "linkedin-oauth-state=expected-state",
-                    )
-                }
+        val response = createClient {
+            followRedirects = false
+        }
+            .get("/api/linkedin/callback?code=abc") {
+                header(
+                    HttpHeaders.Cookie,
+                    "linkedin-oauth-state=expected-state",
+                )
+            }
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
@@ -92,14 +93,15 @@ class LinkedInRoutesCallbackTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/linkedin/callback?code=abc&state=callback-state") {
-                    header(
-                        HttpHeaders.Cookie,
-                        "linkedin-oauth-state=cookie-state",
-                    )
-                }
+        val response = createClient {
+            followRedirects = false
+        }
+            .get("/api/linkedin/callback?code=abc&state=callback-state") {
+                header(
+                    HttpHeaders.Cookie,
+                    "linkedin-oauth-state=cookie-state",
+                )
+            }
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(

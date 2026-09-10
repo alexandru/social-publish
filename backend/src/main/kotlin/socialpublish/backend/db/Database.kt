@@ -204,9 +204,7 @@ fun Database.connection(): Resource<SafeConnection> = resource {
  * Automatically commits on success and rolls back on exception.
  */
 suspend fun <A> Database.transaction(
-    block:
-        suspend context(Raise<DBException>)
-        SafeConnection.() -> A
+    block: suspend context(Raise<DBException>) SafeConnection.() -> A
 ): Either<DBException, A> = resourceScope {
     either {
         val ref =
@@ -237,9 +235,7 @@ suspend fun <A> Database.transaction(
  * error messages, so table/column information may not always be available.
  */
 suspend fun <A> Database.transactionForUpdates(
-    block:
-        suspend context(Raise<DBException>)
-        SafeConnection.() -> A
+    block: suspend context(Raise<DBException>) SafeConnection.() -> A
 ): Either<SqlUpdateException, A> = either {
     try {
         transaction(block).getOrElse { throw it.cause ?: it }

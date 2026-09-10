@@ -210,7 +210,8 @@ class LinkedInApiTest {
                     LinkedInConfig(
                         clientId = "test-client-id",
                         clientSecret = "test-client-secret",
-                        accessTokenUrl = "http://localhost/oauth/v2/accessToken",
+                        accessTokenUrl =
+                            "http://localhost/oauth/v2/accessToken",
                     )
 
                 val module =

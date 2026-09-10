@@ -29,11 +29,13 @@ suspend fun ApplicationCall.receiveNewPostRequest():
         }
 
 suspend fun ApplicationCall.receiveNewPostRequestOrRespond(): NewPostRequest? =
-    either { receiveNewPostRequest().bind() }
-        .getOrElse { error ->
-            respond(HttpStatusCode.BadRequest, error)
-            null
-        }
+    either {
+        receiveNewPostRequest().bind()
+    }
+    .getOrElse { error ->
+        respond(HttpStatusCode.BadRequest, error)
+        null
+    }
 
 fun ApplicationCall.preventOAuthRedirectCaching() {
     response.header(

@@ -1,10 +1,10 @@
 plugins {
-    kotlin("multiplatform") version "2.3.21" apply false
-    kotlin("jvm") version "2.3.21" apply false
-    kotlin("plugin.serialization") version "2.3.21" apply false
+    kotlin("multiplatform") version "2.4.20" apply false
+    kotlin("jvm") version "2.4.20" apply false
+    kotlin("plugin.serialization") version "2.4.20" apply false
     id("com.github.ben-manes.versions") version "0.54.0" apply false
-    id("com.ncorti.ktfmt.gradle") version "0.26.0" apply false
-    id("org.jetbrains.kotlinx.kover") version "0.9.8" apply false
+    id("com.ncorti.ktfmt.gradle") version "0.27.0" apply false
+    id("org.jetbrains.kotlinx.kover") version "0.9.9" apply false
 }
 
 allprojects {
@@ -31,7 +31,6 @@ subprojects {
             progressiveMode.set(true)
             freeCompilerArgs.addAll(
                 "-Xreturn-value-checker=full",
-                "-Xcontext-parameters",
             )
         }
     }

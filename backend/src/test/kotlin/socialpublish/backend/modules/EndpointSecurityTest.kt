@@ -399,27 +399,24 @@ class EndpointSecurityTest {
                 authService.login("expireuser", "testpass").getOrNull()!!
 
             // Manually expire the session in DB
-            val _ =
-                either {
-                        db.query(
-                            "UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?"
-                        ) {
-                            setLong(
-                                1,
-                                java.time.Instant.now()
-                                    .minusSeconds(3600)
-                                    .toEpochMilli(),
-                            )
-                            setString(
-                                2,
-                                UserSessionsDatabase.hashToken(
-                                    loginResult.rawToken
-                                ),
-                            )
-                            executeUpdate()
-                        }
-                    }
-                    .getOrElse { throw it }
+            val _ = either {
+                db.query(
+                    "UPDATE user_sessions SET expires_at = ? WHERE token_hash = ?"
+                ) {
+                    setLong(
+                        1,
+                        java.time.Instant.now()
+                            .minusSeconds(3600)
+                            .toEpochMilli(),
+                    )
+                    setString(
+                        2,
+                        UserSessionsDatabase.hashToken(loginResult.rawToken),
+                    )
+                    executeUpdate()
+                }
+            }
+                .getOrElse { throw it }
 
             // Should be rejected
             val result = authService.authorize(loginResult.rawToken)

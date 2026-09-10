@@ -73,9 +73,10 @@ class LinkedInRoutesAuthorizeTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/linkedin/authorize")
+        val response = createClient {
+            followRedirects = false
+        }
+            .get("/api/linkedin/authorize")
 
         assertTrue(
             response.status != HttpStatusCode.Unauthorized,

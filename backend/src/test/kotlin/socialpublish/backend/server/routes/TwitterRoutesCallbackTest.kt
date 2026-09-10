@@ -54,9 +54,10 @@ class TwitterRoutesCallbackTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/twitter/callback?oauth_token=req123")
+        val response = createClient {
+            followRedirects = false
+        }
+            .get("/api/twitter/callback?oauth_token=req123")
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
@@ -84,11 +85,12 @@ class TwitterRoutesCallbackTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get(
-                    "/api/twitter/callback?oauth_token=req123&oauth_verifier=verifier"
-                )
+        val response = createClient {
+            followRedirects = false
+        }
+            .get(
+                "/api/twitter/callback?oauth_token=req123&oauth_verifier=verifier"
+            )
 
         assertEquals(HttpStatusCode.Found, response.status)
         assertTrue(
@@ -147,11 +149,12 @@ class TwitterRoutesCallbackTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get(
-                    "/api/twitter/callback?oauth_token=req123&oauth_verifier=verifier"
-                )
+        val response = createClient {
+            followRedirects = false
+        }
+            .get(
+                "/api/twitter/callback?oauth_token=req123&oauth_verifier=verifier"
+            )
 
         assertEquals(HttpStatusCode.Found, response.status)
         oauthServer.stop()

@@ -25,19 +25,19 @@ class DatabaseMigrationsTest {
 
                 // Verify tables exist
                 either {
-                        db.query(
-                            "SELECT name FROM sqlite_master WHERE type='table'"
-                        ) {
-                            val tables =
-                                executeQuery().safe().toList { rs ->
-                                    rs.getString("name")
-                                }
+                    db.query(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    ) {
+                        val tables =
+                            executeQuery().safe().toList { rs ->
+                                rs.getString("name")
+                            }
 
-                            assertTrue(tables.contains("documents"))
-                            assertTrue(tables.contains("document_tags"))
-                            assertTrue(tables.contains("uploads"))
-                        }
+                        assertTrue(tables.contains("documents"))
+                        assertTrue(tables.contains("document_tags"))
+                        assertTrue(tables.contains("uploads"))
                     }
+                }
                     .getOrElse { throw it }
             }
         }
@@ -87,23 +87,20 @@ class DatabaseMigrationsTest {
 
             resourceScope {
                 val db = Database.connect(dbPath).bind()
-                val notNullFlag =
-                    either {
-                            db.query("PRAGMA table_info(users)") {
-                                val rs = executeQuery()
-                                var value = -1
-                                while (rs.next()) {
-                                    if (
-                                        rs.getString("name") == "password_hash"
-                                    ) {
-                                        value = rs.getInt("notnull")
-                                        break
-                                    }
-                                }
-                                value
+                val notNullFlag = either {
+                    db.query("PRAGMA table_info(users)") {
+                        val rs = executeQuery()
+                        var value = -1
+                        while (rs.next()) {
+                            if (rs.getString("name") == "password_hash") {
+                                value = rs.getInt("notnull")
+                                break
                             }
                         }
-                        .getOrElse { throw it }
+                        value
+                    }
+                }
+                    .getOrElse { throw it }
                 assertEquals(0, notNullFlag)
             }
         }
@@ -128,14 +125,13 @@ class DatabaseMigrationsTest {
         resourceScope {
             val db = Database.connect(dbPath).bind()
             // There should be exactly 2 users, not 3
-            val count =
-                either {
-                        db.query("SELECT COUNT(*) FROM users") {
-                            val rs = executeQuery()
-                            if (rs.next()) rs.getInt(1) else 0
-                        }
-                    }
-                    .getOrElse { throw it }
+            val count = either {
+                db.query("SELECT COUNT(*) FROM users") {
+                    val rs = executeQuery()
+                    if (rs.next()) rs.getInt(1) else 0
+                }
+            }
+                .getOrElse { throw it }
             assertEquals(2, count, "Should not create a second admin user")
         }
     }
@@ -150,15 +146,12 @@ class DatabaseMigrationsTest {
             val db = Database.connect(dbPath).bind()
 
             // Verify settings column exists
-            val columns =
-                either {
-                        db.query("PRAGMA table_info(users)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val columns = either {
+                db.query("PRAGMA table_info(users)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertTrue(
                 columns.contains("settings"),
                 "users table should have a settings column",
@@ -175,29 +168,23 @@ class DatabaseMigrationsTest {
         resourceScope {
             val db = Database.connect(dbPath).bind()
 
-            val documentColumns =
-                either {
-                        db.query("PRAGMA table_info(documents)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val documentColumns = either {
+                db.query("PRAGMA table_info(documents)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertTrue(
                 documentColumns.contains("user_uuid"),
                 "documents table should have user_uuid column",
             )
 
-            val uploadColumns =
-                either {
-                        db.query("PRAGMA table_info(uploads)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val uploadColumns = either {
+                db.query("PRAGMA table_info(uploads)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertTrue(
                 uploadColumns.contains("user_uuid"),
                 "uploads table should have user_uuid column",
@@ -214,15 +201,12 @@ class DatabaseMigrationsTest {
         resourceScope {
             val db = Database.connect(dbPath).bind()
 
-            val columns =
-                either {
-                        db.query("PRAGMA table_info(user_sessions)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val columns = either {
+                db.query("PRAGMA table_info(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertFalse(
                 columns.contains("refresh_token_hash"),
                 "user_sessions should not have refresh_token_hash",
@@ -232,15 +216,12 @@ class DatabaseMigrationsTest {
                 "user_sessions should have revoked_at",
             )
 
-            val indexes =
-                either {
-                        db.query("PRAGMA index_list(user_sessions)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val indexes = either {
+                db.query("PRAGMA index_list(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertTrue(
                 indexes.contains("user_sessions_expires_at"),
                 "user_sessions should index expires_at",
@@ -297,15 +278,12 @@ class DatabaseMigrationsTest {
             val usersDb = UsersDatabase(db)
             val userSessionsDb = UserSessionsDatabase(db, usersDb)
 
-            val columns =
-                either {
-                        db.query("PRAGMA table_info(user_sessions)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val columns = either {
+                db.query("PRAGMA table_info(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertFalse(columns.contains("refresh_token_hash"))
             assertTrue(columns.contains("revoked_at"))
 
@@ -317,33 +295,29 @@ class DatabaseMigrationsTest {
             assertEquals("legacy", session.user.username)
             assertNull(session.revokedAt)
 
-            val oldTableExists =
-                either {
-                        db.query(
-                            """
+            val oldTableExists = either {
+                db.query(
+                    """
                     SELECT 1
                     FROM sqlite_master
                     WHERE type = 'table' AND name = 'user_sessions_old'
                     """
-                        ) {
-                            executeQuery().next()
-                        }
-                    }
-                    .getOrElse { throw it }
+                ) {
+                    executeQuery().next()
+                }
+            }
+                .getOrElse { throw it }
             assertFalse(
                 oldTableExists,
                 "migration 9 should drop user_sessions_old last",
             )
 
-            val indexes =
-                either {
-                        db.query("PRAGMA index_list(user_sessions)") {
-                            executeQuery().safe().toList { rs ->
-                                rs.getString("name")
-                            }
-                        }
-                    }
-                    .getOrElse { throw it }
+            val indexes = either {
+                db.query("PRAGMA index_list(user_sessions)") {
+                    executeQuery().safe().toList { rs -> rs.getString("name") }
+                }
+            }
+                .getOrElse { throw it }
             assertTrue(
                 indexes.contains("user_sessions_expires_at"),
                 "user_sessions should keep expires_at indexed after migration 9",

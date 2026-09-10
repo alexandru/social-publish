@@ -131,13 +131,12 @@ internal suspend fun uploadTestImage(
 
     if (response.status != HttpStatusCode.OK) {
         val rawBody = response.body<String>()
-        val parsedError =
-            runCatching {
-                    errorJson
-                        .decodeFromString(ErrorResponse.serializer(), rawBody)
-                        .error
-                }
-                .getOrNull()
+        val parsedError = runCatching {
+            errorJson
+                .decodeFromString(ErrorResponse.serializer(), rawBody)
+                .error
+        }
+            .getOrNull()
         val details = parsedError ?: rawBody
         error(
             "Upload request failed for '$resourceName' with HTTP ${response.status.value} at $uploadEndpoint. " +

@@ -205,7 +205,6 @@ class TwitterApiModule(
                     tags = emptyList(),
                 )
                 .bind()
-        Unit
     }
 
     private fun DBException.toTwitterApiError(): ApiError {
@@ -350,8 +349,6 @@ class TwitterApiModule(
                 )
                 .mapLeft { it.toTwitterApiError() }
                 .bind()
-
-            Unit
         } catch (e: Throwable) {
             rethrowIfFatalOrCancelled(e)
             logger.error("Failed to save Twitter OAuth token", e)

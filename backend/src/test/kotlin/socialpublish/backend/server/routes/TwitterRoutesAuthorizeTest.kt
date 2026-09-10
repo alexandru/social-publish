@@ -149,9 +149,10 @@ class TwitterRoutesAuthorizeTest {
             }
         }
 
-        val response =
-            createClient { followRedirects = false }
-                .get("/api/twitter/authorize")
+        val response = createClient {
+            followRedirects = false
+        }
+            .get("/api/twitter/authorize")
 
         oauthServer.stop()
         assertEquals(HttpStatusCode.Found, response.status)

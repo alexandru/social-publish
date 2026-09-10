@@ -892,7 +892,8 @@ class LinkedInApiModule(
                                                 },
                                         )
                                 ),
-                            visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+                            visibility =
+                                UgcVisibility(UgcVisibilityType.PUBLIC),
                         )
                     }
                     // If we have a link (and no images), create ARTICLE share
@@ -940,7 +941,8 @@ class LinkedInApiModule(
                                                 ),
                                         )
                                 ),
-                            visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+                            visibility =
+                                UgcVisibility(UgcVisibilityType.PUBLIC),
                         )
                     }
                     // Text-only post
@@ -957,7 +959,8 @@ class LinkedInApiModule(
                                                 UgcMediaCategory.NONE,
                                         )
                                 ),
-                            visibility = UgcVisibility(UgcVisibilityType.PUBLIC),
+                            visibility =
+                                UgcVisibility(UgcVisibilityType.PUBLIC),
                         )
                     }
                 }

@@ -735,15 +735,15 @@ class BlueskyApiTest {
             }
 
             createClient {
-                    install(ClientContentNegotiation) {
-                        json(
-                            Json {
-                                ignoreUnknownKeys = true
-                                isLenient = true
-                            }
-                        )
-                    }
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
                 }
+            }
                 .use { blueskyClient ->
                     val linkPreview =
                         LinkPreviewParser(httpClient = blueskyClient)

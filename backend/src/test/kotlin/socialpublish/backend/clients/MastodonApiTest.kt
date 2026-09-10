@@ -157,15 +157,15 @@ class MastodonApiTest {
             }
 
             createClient {
-                    install(ClientContentNegotiation) {
-                        json(
-                            Json {
-                                ignoreUnknownKeys = true
-                                isLenient = true
-                            }
-                        )
-                    }
+                install(ClientContentNegotiation) {
+                    json(
+                        Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                        }
+                    )
                 }
+            }
                 .use { mastodonClient ->
                     val mastodonModule =
                         MastodonApiModule(filesModule, mastodonClient)
