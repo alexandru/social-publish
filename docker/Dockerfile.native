@@ -1,25 +1,55 @@
-FROM ghcr.io/graalvm/native-image-community:25i4-25.0.4.1.1-ol8-20260922 AS graalvm
+############################
+# GraalVM distribution (native-image tooling)
+############################
+FROM ghcr.io/graalvm/native-image-community:25i4-25.0.4.1.1-ol9-20260922 AS graalvm
 
-FROM eclipse-temurin:21-jdk-noble AS build
+############################
+# Base stage (Dependency Resolution)
+############################
+FROM eclipse-temurin:21-jdk-resolute AS base
 WORKDIR /app
 COPY --from=graalvm /usr/lib64/graalvm/graalvm-community-java25i4 /opt/graalvm
 ENV GRAALVM_HOME=/opt/graalvm
+# The build stage only needs the native-image toolchain (gcc, make, zlib).
+# Runtime-only dependencies — curl (docker healthchecks) and ImageMagick
+# (image upload processing) — live in the runtime stage.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential zlib1g-dev imagemagick curl \
+    build-essential zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy Gradle wrapper and configuration files
 COPY gradle ./gradle
 COPY gradlew gradle.properties settings.gradle.kts build.gradle.kts ./
 COPY backend/build.gradle.kts ./backend/
 COPY frontend/build.gradle.kts ./frontend/
+
+# Resolve and download dependencies for both modules, plus the Node.js
+# distribution used by the frontend build, to leverage layer caching
+RUN ./gradlew :backend:resolveDependencies :frontend:resolveDependencies :frontend:kotlinNodeJsSetup --no-daemon
+
+############################
+# Backend Build stage
+############################
+FROM base AS build-backend
+# Copy backend source
 COPY backend/src ./backend/src
+# Build the native binary
+RUN ./gradlew :backend:nativeCompile --no-daemon
+
+############################
+# Frontend Build stage
+############################
+FROM base AS build-frontend
+# Copy frontend source
 COPY frontend/src ./frontend/src
 COPY frontend/webpack.config.d ./frontend/webpack.config.d
+# Build frontend distribution
+RUN ./gradlew :frontend:jsBrowserDistribution --no-daemon
 
-RUN ./gradlew :backend:nativeTest --no-daemon
-RUN ./gradlew :backend:nativeCompile :frontend:jsBrowserDistribution --no-daemon
-
-FROM ubuntu:24.04
+############################
+# Runtime stage
+############################
+FROM ubuntu:26.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl imagemagick \
     && rm -rf /var/lib/apt/lists/* \
@@ -28,10 +58,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chown -R appuser:root /opt/app /var/lib/social-publish \
     && chmod -R g+rwX /opt/app /var/lib/social-publish
 WORKDIR /opt/app
-COPY --from=build --chown=appuser:root /app/backend/build/native/nativeCompile/social-publish /opt/app/social-publish
-COPY --from=build --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
-COPY --chown=appuser:root scripts/cli-native /opt/app/cli
-RUN chmod +x /opt/app/cli
+COPY --from=build-backend --chown=appuser:root /app/backend/build/native/nativeCompile/social-publish /opt/app/social-publish
+COPY --from=build-frontend --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
+COPY --chown=appuser:root --chmod=755 scripts/cli-native /opt/app/cli
 USER appuser
 EXPOSE 3000
 ENV DB_PATH=/var/lib/social-publish/sqlite3.db \

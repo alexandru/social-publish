@@ -26,6 +26,19 @@ subprojects {
         removeUnusedImports.set(true)
     }
 
+    // Downloads every dependency into the Gradle cache without compiling.
+    // Docker images run this in a dedicated layer so dependency downloads
+    // stay cached when only sources change between image builds.
+    tasks.register("resolveDependencies") {
+        description =
+            "Resolves and downloads all dependencies of this project into the Gradle cache."
+        doLast {
+            configurations
+                .filter { it.isCanBeResolved }
+                .forEach { it.incoming.files.files }
+        }
+    }
+
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
         compilerOptions {
             allWarningsAsErrors.set(true)

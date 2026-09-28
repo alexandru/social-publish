@@ -10,10 +10,13 @@
 
 # Build outputs
 build
+backend/build
+frontend/build
 .gradle
 .kotlin
 backend/.gradle
 frontend/.gradle
+node_modules
 
 # Environment and config
 .env
