@@ -2,6 +2,8 @@ NAME          := ghcr.io/alexandru/social-publish
 TAG           := $$(./scripts/new-version.sh)
 IMG_JVM       := ${NAME}:jvm-${TAG}
 LATEST_JVM    := ${NAME}:jvm-latest
+IMG_NATIVE    := ${NAME}:native-${TAG}
+LATEST_NATIVE := ${NAME}:native-latest
 LATEST        := ${NAME}:latest
 PLATFORM      ?= linux/amd64,linux/arm64
 
@@ -90,8 +92,31 @@ docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
 	docker run -it -p 3000:3000 --rm --name social-publish -v social-publish-data:/var/lib/social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
 
+# Native Docker targets
+docker-build-native: docker-init
+	docker buildx build --platform linux/amd64,linux/arm64 -f ./docker/Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" ${DOCKER_EXTRA_ARGS} .
+
+docker-push-native:
+	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-native
+
+docker-build-native-platform: docker-init
+	$(eval PLATFORM_TAG := $(shell echo ${PLATFORM} | tr '/' '-'))
+	docker buildx build --platform ${PLATFORM} -f ./docker/Dockerfile.native -t "${IMG_NATIVE}-${PLATFORM_TAG}" -t "${LATEST_NATIVE}-${PLATFORM_TAG}" ${DOCKER_EXTRA_ARGS} .
+
+docker-push-native-platform:
+	DOCKER_EXTRA_ARGS="--push" $(MAKE) docker-build-native-platform
+
+docker-push-native-manifest:
+	docker buildx imagetools create -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" \
+		"${IMG_NATIVE}-linux-amd64" \
+		"${IMG_NATIVE}-linux-arm64"
+
 docker-build-native-local:
-	docker build -f ./docker/Dockerfile.native -t "${NAME}:native-latest" .
+	docker build -f ./docker/Dockerfile.native -t "${IMG_NATIVE}" -t "${LATEST_NATIVE}" .
+
+docker-run-native: docker-build-native-local
+	docker rm -f social-publish || true
+	docker run -it -p 3000:3000 --rm --name social-publish -v social-publish-data:/var/lib/social-publish ${RUN_ENV_VARS} ${LATEST_NATIVE}
 
 # Code quality
 lint:

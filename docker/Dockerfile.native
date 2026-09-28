@@ -38,4 +38,4 @@ ENV DB_PATH=/var/lib/social-publish/sqlite3.db \
     UPLOADED_FILES_PATH=/var/lib/social-publish/uploads \
     HTTP_PORT=3000 \
     STATIC_CONTENT_PATH=/opt/app/public
-CMD ["/opt/app/social-publish", "start-server"]
+CMD ["/opt/app/social-publish", "-XX:MaxHeapFree=16777216", "start-server"]
