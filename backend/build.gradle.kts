@@ -121,7 +121,18 @@ tasks.named("koverHtmlReport") { mustRunAfter(tasks.withType<Test>()) }
 application { mainClass.set("socialpublish.backend.MainKt") }
 
 graalvmNative {
-    agent { enabled.set(true) }
+    agent {
+        // The native-image tracing agent ships only with GraalVM. Enabled
+        // unconditionally, it breaks `test` on plain JDKs (e.g. GitHub CI)
+        // with "Could not find agent library native-image-agent". Opt in
+        // with -PnativeAgent=true when regenerating reachability metadata.
+        enabled.set(
+            providers
+                .gradleProperty("nativeAgent")
+                .map(String::toBoolean)
+                .orElse(false)
+        )
+    }
     binaries.named("main") { imageName.set("social-publish") }
 }
 
