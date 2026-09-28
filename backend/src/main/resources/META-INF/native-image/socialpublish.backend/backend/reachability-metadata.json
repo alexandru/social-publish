@@ -1,0 +1,6222 @@
+{
+  "reflection": [
+    {
+      "type": "arrow.core.Either"
+    },
+    {
+      "type": "arrow.core.Either$Left"
+    },
+    {
+      "type": "arrow.core.Either$Right"
+    },
+    {
+      "type": "arrow.core.raise.NoTraceImpl"
+    },
+    {
+      "type": "arrow.core.raise.RaiseCancellationException"
+    },
+    {
+      "type": "boolean"
+    },
+    {
+      "type": "boolean[]",
+      "jniAccessible": true
+    },
+    {
+      "type": "ch.qos.logback.classic.encoder.PatternLayoutEncoder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.classic.spi.LogbackServiceProvider"
+    },
+    {
+      "type": "ch.qos.logback.classic.util.DefaultJoranConfigurator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.ConsoleAppender",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.OutputStreamAppender",
+      "methods": [
+        {
+          "name": "setEncoder",
+          "parameterTypes": [
+            "ch.qos.logback.core.encoder.Encoder"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.Encoder"
+    },
+    {
+      "type": "ch.qos.logback.core.encoder.LayoutWrappingEncoder",
+      "methods": [
+        {
+          "name": "setParent",
+          "parameterTypes": [
+            "ch.qos.logback.core.spi.ContextAware"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.pattern.PatternLayoutEncoderBase",
+      "methods": [
+        {
+          "name": "setPattern",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ch.qos.logback.core.spi.ContextAware"
+    },
+    {
+      "type": "com.github.ajalt.mordant.terminal.terminalinterface.ffm.TerminalInterfaceProviderFfm"
+    },
+    {
+      "type": "com.github.ajalt.mordant.terminal.terminalinterface.jna.TerminalInterfaceProviderJna"
+    },
+    {
+      "type": "com.github.ajalt.mordant.terminal.terminalinterface.nativeimage.TerminalInterfaceProviderNativeImage"
+    },
+    {
+      "type": "com.github.scribejava.core.exceptions.OAuthException",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.atom.io.AtomModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.base.io.CustomTagGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.base.io.GoogleBaseGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.cc.io.CCModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.content.io.ContentModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.feedpress.io.FeedpressGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.fyyd.io.FyydGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.georss.SimpleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.georss.W3CGeoGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.itunes.io.ITunesGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.mediarss.io.MediaModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.opensearch.impl.OpenSearchModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.photocast.io.Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.psc.io.PodloveSimpleChapterGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.slash.io.SlashModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.sle.io.ModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.thr.io.ThreadingModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.modules.yahooweather.io.WeatherModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.module.DCModuleImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "getContributors",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCoverages",
+          "parameterTypes": []
+        },
+        {
+          "name": "getCreators",
+          "parameterTypes": []
+        },
+        {
+          "name": "getDates",
+          "parameterTypes": []
+        },
+        {
+          "name": "getDescriptions",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFormats",
+          "parameterTypes": []
+        },
+        {
+          "name": "getIdentifiers",
+          "parameterTypes": []
+        },
+        {
+          "name": "getLanguages",
+          "parameterTypes": []
+        },
+        {
+          "name": "getPublishers",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRelations",
+          "parameterTypes": []
+        },
+        {
+          "name": "getRightsList",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSources",
+          "parameterTypes": []
+        },
+        {
+          "name": "getSubjects",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTitles",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTypes",
+          "parameterTypes": []
+        },
+        {
+          "name": "setContributors",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setCoverages",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setCreators",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setDates",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setDescriptions",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setFormats",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setIdentifiers",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setLanguages",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setPublishers",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setRelations",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setRightsList",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setSources",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setSubjects",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setTitles",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        },
+        {
+          "name": "setTypes",
+          "parameterTypes": [
+            "java.util.List"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForAtom03",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForAtom10",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS090",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS091Netscape",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS091Userland",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS092",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS093",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS094",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS10",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.feed.synd.impl.ConverterForRSS20",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.Atom03Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.Atom10Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.DCModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS090Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS091NetscapeGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS091UserlandGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS092Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS093Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS094Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS10Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.RSS20Generator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.rometools.rome.io.impl.SyModuleGenerator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.crypto.provider.HmacSHA1",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.Callback",
+      "jniAccessible": true
+    },
+    {
+      "type": "com.sun.jna.CallbackProxy"
+    },
+    {
+      "type": "com.sun.jna.CallbackReference",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getCallback",
+          "parameterTypes": [
+            "java.lang.Class",
+            "com.sun.jna.Pointer",
+            "boolean"
+          ]
+        },
+        {
+          "name": "getFunctionPointer",
+          "parameterTypes": [
+            "com.sun.jna.Callback",
+            "boolean"
+          ]
+        },
+        {
+          "name": "getNativeString",
+          "parameterTypes": [
+            "java.lang.Object",
+            "boolean"
+          ]
+        },
+        {
+          "name": "initializeThread",
+          "parameterTypes": [
+            "com.sun.jna.Callback",
+            "com.sun.jna.CallbackReference$AttachOptions"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.CallbackReference$AttachOptions",
+      "jniAccessible": true
+    },
+    {
+      "type": "com.sun.jna.FromNativeConverter",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "nativeType",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.IntegerType",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.JNIEnv",
+      "jniAccessible": true
+    },
+    {
+      "type": "com.sun.jna.Native",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "dispose",
+          "parameterTypes": []
+        },
+        {
+          "name": "fromNative",
+          "parameterTypes": [
+            "com.sun.jna.FromNativeConverter",
+            "java.lang.Object",
+            "java.lang.reflect.Method"
+          ]
+        },
+        {
+          "name": "fromNative",
+          "parameterTypes": [
+            "java.lang.Class",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "fromNative",
+          "parameterTypes": [
+            "java.lang.reflect.Method",
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "nativeType",
+          "parameterTypes": [
+            "java.lang.Class"
+          ]
+        },
+        {
+          "name": "toNative",
+          "parameterTypes": [
+            "com.sun.jna.ToNativeConverter",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.Native$ffi_callback",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "invoke",
+          "parameterTypes": [
+            "long",
+            "long",
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.NativeMapped",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "toNative",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.Pointer",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "peer"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.PointerType",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "pointer"
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.Structure",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "memory"
+        },
+        {
+          "name": "typeInfo"
+        }
+      ],
+      "methods": [
+        {
+          "name": "autoRead",
+          "parameterTypes": []
+        },
+        {
+          "name": "autoWrite",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTypeInfo",
+          "parameterTypes": []
+        },
+        {
+          "name": "newInstance",
+          "parameterTypes": [
+            "java.lang.Class",
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.Structure$ByValue",
+      "jniAccessible": true
+    },
+    {
+      "type": "com.sun.jna.Structure$FFIType$FFITypes",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "ffi_type_double"
+        },
+        {
+          "name": "ffi_type_float"
+        },
+        {
+          "name": "ffi_type_longdouble"
+        },
+        {
+          "name": "ffi_type_pointer"
+        },
+        {
+          "name": "ffi_type_sint16"
+        },
+        {
+          "name": "ffi_type_sint32"
+        },
+        {
+          "name": "ffi_type_sint64"
+        },
+        {
+          "name": "ffi_type_sint8"
+        },
+        {
+          "name": "ffi_type_uint16"
+        },
+        {
+          "name": "ffi_type_uint32"
+        },
+        {
+          "name": "ffi_type_uint64"
+        },
+        {
+          "name": "ffi_type_uint8"
+        },
+        {
+          "name": "ffi_type_void"
+        }
+      ]
+    },
+    {
+      "type": "com.sun.jna.WString",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.zaxxer.hikari.HikariConfig",
+      "fields": [
+        {
+          "name": "catalog"
+        },
+        {
+          "name": "connectionInitSql"
+        },
+        {
+          "name": "connectionTestQuery"
+        },
+        {
+          "name": "connectionTimeout"
+        },
+        {
+          "name": "credentials"
+        },
+        {
+          "name": "credentialsProvider"
+        },
+        {
+          "name": "credentialsProviderClassName"
+        },
+        {
+          "name": "dataSource"
+        },
+        {
+          "name": "dataSourceClassName"
+        },
+        {
+          "name": "dataSourceJndiName"
+        },
+        {
+          "name": "dataSourceProperties"
+        },
+        {
+          "name": "driverClassName"
+        },
+        {
+          "name": "exceptionOverride"
+        },
+        {
+          "name": "exceptionOverrideClassName"
+        },
+        {
+          "name": "healthCheckProperties"
+        },
+        {
+          "name": "healthCheckRegistry"
+        },
+        {
+          "name": "idleTimeout"
+        },
+        {
+          "name": "initializationFailTimeout"
+        },
+        {
+          "name": "isAllowPoolSuspension"
+        },
+        {
+          "name": "isAutoCommit"
+        },
+        {
+          "name": "isIsolateInternalQueries"
+        },
+        {
+          "name": "isReadOnly"
+        },
+        {
+          "name": "isRegisterMbeans"
+        },
+        {
+          "name": "jdbcUrl"
+        },
+        {
+          "name": "keepaliveTime"
+        },
+        {
+          "name": "leakDetectionThreshold"
+        },
+        {
+          "name": "maxLifetime"
+        },
+        {
+          "name": "maxPoolSize"
+        },
+        {
+          "name": "metricRegistry"
+        },
+        {
+          "name": "metricsTrackerFactory"
+        },
+        {
+          "name": "minIdle"
+        },
+        {
+          "name": "poolName"
+        },
+        {
+          "name": "scheduledExecutor"
+        },
+        {
+          "name": "schema"
+        },
+        {
+          "name": "sealed"
+        },
+        {
+          "name": "threadFactory"
+        },
+        {
+          "name": "transactionIsolationName"
+        },
+        {
+          "name": "unitTest"
+        },
+        {
+          "name": "validationTimeout"
+        }
+      ]
+    },
+    {
+      "type": "com.zaxxer.hikari.pool.PoolBase"
+    },
+    {
+      "type": "com.zaxxer.hikari.pool.PoolEntry"
+    },
+    {
+      "type": "com.zaxxer.hikari.util.ConcurrentBag$IConcurrentBagEntry[]"
+    },
+    {
+      "type": "io.ktor.client.HttpClient"
+    },
+    {
+      "type": "io.ktor.client.HttpClientConfig"
+    },
+    {
+      "type": "io.ktor.client.call.HttpClientCall"
+    },
+    {
+      "type": "io.ktor.client.content.ProgressListener"
+    },
+    {
+      "type": "io.ktor.client.engine.HttpClientEngine$executeWithinCallContext$2",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.client.engine.HttpClientEngineBase"
+    },
+    {
+      "type": "io.ktor.client.engine.HttpClientEngineCapability"
+    },
+    {
+      "type": "io.ktor.client.engine.HttpClientEngineConfig"
+    },
+    {
+      "type": "io.ktor.client.plugins.HttpRetryDelayContext"
+    },
+    {
+      "type": "io.ktor.client.plugins.HttpRetryModifyRequestContext"
+    },
+    {
+      "type": "io.ktor.client.plugins.HttpRetryShouldRetryContext"
+    },
+    {
+      "type": "io.ktor.client.plugins.HttpSend"
+    },
+    {
+      "type": "io.ktor.client.plugins.HttpTimeoutConfig"
+    },
+    {
+      "type": "io.ktor.client.plugins.api.ClientPluginImpl"
+    },
+    {
+      "type": "io.ktor.client.plugins.api.ClientPluginInstance"
+    },
+    {
+      "type": "io.ktor.client.request.HttpRequest"
+    },
+    {
+      "type": "io.ktor.client.request.HttpRequestBuilder"
+    },
+    {
+      "type": "io.ktor.client.request.ResponseAdapter"
+    },
+    {
+      "type": "io.ktor.client.statement.HttpResponse"
+    },
+    {
+      "type": "io.ktor.http.ContentType"
+    },
+    {
+      "type": "io.ktor.http.HttpStatusCode"
+    },
+    {
+      "type": "io.ktor.http.Parameters"
+    },
+    {
+      "type": "io.ktor.http.cio.HttpParserKt$parseRequest$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.http.content.ByteArrayContent"
+    },
+    {
+      "type": "io.ktor.http.content.MultiPartData"
+    },
+    {
+      "type": "io.ktor.http.content.TextContent"
+    },
+    {
+      "type": "io.ktor.http.content.Version"
+    },
+    {
+      "type": "io.ktor.network.selector.ActorSelectorManager$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.network.selector.ActorSelectorManager$process$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.network.selector.InterestSuspensionsMap"
+    },
+    {
+      "type": "io.ktor.network.selector.LockFreeMPSCQueue"
+    },
+    {
+      "type": "io.ktor.network.selector.LockFreeMPSCQueueCore"
+    },
+    {
+      "type": "io.ktor.network.selector.SelectInterest[]"
+    },
+    {
+      "type": "io.ktor.network.selector.SelectableBase"
+    },
+    {
+      "type": "io.ktor.network.sockets.CIOReaderKt$attachForReadingDirectImpl$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.network.sockets.CIOWriterKt$attachForWritingDirectImpl$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.network.sockets.ServerSocketImpl$acceptSuspend$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.network.sockets.SocketBase"
+    },
+    {
+      "type": "io.ktor.serialization.kotlinx.json.KotlinxSerializationJsonExtensionProvider"
+    },
+    {
+      "type": "io.ktor.server.application.PluginInstance"
+    },
+    {
+      "type": "io.ktor.server.cio.CIOApplicationEngine$initServerJob$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.CIOApplicationEngine$stop$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.CIOApplicationEngine$stopSuspend$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.CIOApplicationEngine$stopSuspend$result$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.backend.HttpServerKt$httpServer$acceptJob$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.backend.ServerPipelineKt$pipelineWriterLoop$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.backend.ServerPipelineKt$pipelineWriterLoop$child$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.backend.ServerPipelineKt$startServerConnectionPipeline$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.cio.backend.ServerPipelineKt$startServerConnectionPipeline$1$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.engine.BaseApplicationResponse"
+    },
+    {
+      "type": "io.ktor.server.engine.BaseApplicationResponse$Companion$setupFallbackResponse$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.http.content.LocalFileContent"
+    },
+    {
+      "type": "io.ktor.server.plugins.MutableOriginConnectionPoint"
+    },
+    {
+      "type": "io.ktor.server.request.DoubleReceivePreventionToken"
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingCall"
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingNode$buildPipeline$1$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingRoot"
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingRoot$Plugin$install$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingRoot$executeResult$$inlined$execute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingRoot$executeResult$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.routing.RoutingRoot$interceptor$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.util.Attributes"
+    },
+    {
+      "type": "io.ktor.util.collections.CopyOnWriteHashMap"
+    },
+    {
+      "type": "io.ktor.util.internal.LockFreeLinkedListNode"
+    },
+    {
+      "type": "io.ktor.util.pipeline.DebugPipelineContext$proceedLoop$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.util.reflect.TypeInfo"
+    },
+    {
+      "type": "io.ktor.utils.io.ByteChannel"
+    },
+    {
+      "type": "io.ktor.utils.io.ByteChannel$awaitContent$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.utils.io.ByteReadChannel"
+    },
+    {
+      "type": "io.ktor.utils.io.ByteReadChannelOperationsKt$internalReadLineTo$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.utils.io.ByteReadChannelOperationsKt$reader$job$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.utils.io.ByteWriteChannelOperationsKt$writer$job$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.utils.io.jvm.javaio.BlockingKt",
+      "methods": [
+        {
+          "name": "toInputStream",
+          "parameterTypes": [
+            "io.ktor.utils.io.ByteReadChannel",
+            "kotlinx.coroutines.Job"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.utils.io.pool.DefaultPool"
+    },
+    {
+      "type": "java.io.IOException",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.io.InputStream"
+    },
+    {
+      "type": "java.io.Serializable"
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "boolean"
+          ]
+        },
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Byte",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "byte"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Character",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "char"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Class",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getComponentType",
+          "parameterTypes": []
+        },
+        {
+          "name": "getModule",
+          "parameterTypes": []
+        },
+        {
+          "name": "isSealed",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.ClassLoader",
+      "fields": [
+        {
+          "name": "classLoaderValueMap"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.ClassValue"
+    },
+    {
+      "type": "java.lang.Double",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Enum",
+      "serializable": true
+    },
+    {
+      "type": "java.lang.Exception"
+    },
+    {
+      "type": "java.lang.Float",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "float"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.IllegalArgumentException"
+    },
+    {
+      "type": "java.lang.IllegalStateException"
+    },
+    {
+      "type": "java.lang.Integer",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Long",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Module",
+      "methods": [
+        {
+          "name": "getDescriptor",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "toString",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object[]",
+      "serializable": true
+    },
+    {
+      "type": "java.lang.RuntimeException"
+    },
+    {
+      "type": "java.lang.SecurityManager"
+    },
+    {
+      "type": "java.lang.Short",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "short"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.String",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "byte[]"
+          ]
+        },
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "byte[]",
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "getBytes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getBytes",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "toCharArray",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.System",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getProperty",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Throwable",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "toString",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Void",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "TYPE"
+        }
+      ]
+    },
+    {
+      "type": "java.lang.invoke.MethodHandle"
+    },
+    {
+      "type": "java.lang.invoke.MethodHandles"
+    },
+    {
+      "type": "java.lang.invoke.MethodHandles$Lookup"
+    },
+    {
+      "type": "java.lang.invoke.MethodType"
+    },
+    {
+      "type": "java.lang.module.ModuleDescriptor"
+    },
+    {
+      "type": "java.lang.reflect.Method",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "getParameterTypes",
+          "parameterTypes": []
+        },
+        {
+          "name": "getReturnType",
+          "parameterTypes": []
+        },
+        {
+          "name": "isDefault",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.net.ConnectException",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.net.SocketException"
+    },
+    {
+      "type": "java.net.StandardSocketOptions"
+    },
+    {
+      "type": "java.nio.Buffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "position",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.ByteBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.CharBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.DoubleBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.FloatBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.IntBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.LongBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.ShortBuffer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "array",
+          "parameterTypes": []
+        },
+        {
+          "name": "arrayOffset",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.nio.channels.ClosedChannelException",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.security.MessageDigestSpi"
+    },
+    {
+      "type": "java.security.interfaces.RSAPrivateKey"
+    },
+    {
+      "type": "java.security.interfaces.RSAPublicKey"
+    },
+    {
+      "type": "java.sql.SQLException"
+    },
+    {
+      "type": "java.sql.Statement[]"
+    },
+    {
+      "type": "java.util.Base64"
+    },
+    {
+      "type": "java.util.Date",
+      "methods": [
+        {
+          "name": "clone",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.util.HashSet",
+      "serializable": true
+    },
+    {
+      "type": "java.util.LinkedHashSet",
+      "serializable": true
+    },
+    {
+      "type": "java.util.NoSuchElementException"
+    },
+    {
+      "type": "java.util.concurrent.ArrayBlockingQueue",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.CancellationException"
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractOwnableSynchronizer",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$NonfairSync",
+      "serializable": true
+    },
+    {
+      "type": "java.util.concurrent.locks.ReentrantLock$Sync",
+      "serializable": true
+    },
+    {
+      "type": "jdk.internal.misc.Unsafe"
+    },
+    {
+      "type": "kotlin.Any"
+    },
+    {
+      "type": "kotlin.Boolean"
+    },
+    {
+      "type": "kotlin.ByteArray"
+    },
+    {
+      "type": "kotlin.Cloneable"
+    },
+    {
+      "type": "kotlin.Function0"
+    },
+    {
+      "type": "kotlin.Function2"
+    },
+    {
+      "type": "kotlin.Function3"
+    },
+    {
+      "type": "kotlin.Int"
+    },
+    {
+      "type": "kotlin.Long"
+    },
+    {
+      "type": "kotlin.Metadata",
+      "methods": [
+        {
+          "name": "bv",
+          "parameterTypes": []
+        },
+        {
+          "name": "d1",
+          "parameterTypes": []
+        },
+        {
+          "name": "d2",
+          "parameterTypes": []
+        },
+        {
+          "name": "k",
+          "parameterTypes": []
+        },
+        {
+          "name": "mv",
+          "parameterTypes": []
+        },
+        {
+          "name": "pn",
+          "parameterTypes": []
+        },
+        {
+          "name": "xi",
+          "parameterTypes": []
+        },
+        {
+          "name": "xs",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "kotlin.SafePublicationLazyImpl"
+    },
+    {
+      "type": "kotlin.String"
+    },
+    {
+      "type": "kotlin.Throwable"
+    },
+    {
+      "type": "kotlin.Unit"
+    },
+    {
+      "type": "kotlin.annotation.MustBeDocumented"
+    },
+    {
+      "type": "kotlin.annotation.Retention"
+    },
+    {
+      "type": "kotlin.annotation.Target"
+    },
+    {
+      "type": "kotlin.collections.List"
+    },
+    {
+      "type": "kotlin.collections.Map"
+    },
+    {
+      "type": "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+    },
+    {
+      "type": "kotlin.jvm.internal.DefaultConstructorMarker"
+    },
+    {
+      "type": "kotlin.reflect.jvm.internal.ReflectionFactoryImpl",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "kotlin.reflect.jvm.internal.impl.km.jvm.internal.JvmMetadataExtensions"
+    },
+    {
+      "type": "kotlin.reflect.jvm.internal.impl.load.java.ErasedOverridabilityCondition"
+    },
+    {
+      "type": "kotlin.reflect.jvm.internal.impl.load.java.FieldOverridabilityCondition"
+    },
+    {
+      "type": "kotlin.reflect.jvm.internal.impl.load.java.JavaIncompatibilityRulesOverridabilityCondition"
+    },
+    {
+      "type": "kotlinx.coroutines.AwaitAll"
+    },
+    {
+      "type": "kotlinx.coroutines.AwaitAll$AwaitAllNode"
+    },
+    {
+      "type": "kotlinx.coroutines.AwaitKt$joinAll$3",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.CancellableContinuationImpl"
+    },
+    {
+      "type": "kotlinx.coroutines.CancelledContinuation"
+    },
+    {
+      "type": "kotlinx.coroutines.CompletedExceptionally"
+    },
+    {
+      "type": "kotlinx.coroutines.DispatchedCoroutine"
+    },
+    {
+      "type": "kotlinx.coroutines.EventLoopImplBase"
+    },
+    {
+      "type": "kotlinx.coroutines.InvokeOnCancelling"
+    },
+    {
+      "type": "kotlinx.coroutines.JobSupport"
+    },
+    {
+      "type": "kotlinx.coroutines.JobSupport$Finishing"
+    },
+    {
+      "type": "kotlinx.coroutines.ThreadState"
+    },
+    {
+      "type": "kotlinx.coroutines.TimeoutKt$withTimeoutOrNull$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.channels.BufferedChannel"
+    },
+    {
+      "type": "kotlinx.coroutines.channels.BufferedChannel$receiveCatching$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.channels.BufferedChannel$receiveCatchingOnNoWaiterSuspend$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.channels.ClosedReceiveChannelException",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.internal.ConcurrentLinkedListNode"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.DispatchedContinuation"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.LimitedDispatcher"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.LockFreeLinkedListNode"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.LockFreeTaskQueue"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.LockFreeTaskQueueCore"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.Segment"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.StackTraceRecoveryKt"
+    },
+    {
+      "type": "kotlinx.coroutines.internal.ThreadSafeHeap"
+    },
+    {
+      "type": "kotlinx.coroutines.scheduling.CoroutineScheduler"
+    },
+    {
+      "type": "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+    },
+    {
+      "type": "kotlinx.coroutines.scheduling.WorkQueue"
+    },
+    {
+      "type": "kotlinx.coroutines.sync.MutexImpl"
+    },
+    {
+      "type": "kotlinx.coroutines.sync.SemaphoreAndMutexImpl"
+    },
+    {
+      "type": "kotlinx.io.RefCountingCopyTracker"
+    },
+    {
+      "type": "kotlinx.io.Source"
+    },
+    {
+      "type": "kotlinx.serialization.DeserializationStrategy"
+    },
+    {
+      "type": "kotlinx.serialization.KSerializer"
+    },
+    {
+      "type": "kotlinx.serialization.SerializationStrategy"
+    },
+    {
+      "type": "kotlinx.serialization.internal.GeneratedSerializer"
+    },
+    {
+      "type": "org.jdom2.Content[]"
+    },
+    {
+      "type": "org.jdom2.Namespace[]"
+    },
+    {
+      "type": "org.slf4j.Logger"
+    },
+    {
+      "type": "org.sqlite.BusyHandler",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "callback",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.Collation",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "xCompare",
+          "parameterTypes": [
+            "java.lang.String",
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.Function",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "args"
+        },
+        {
+          "name": "context"
+        },
+        {
+          "name": "value"
+        }
+      ],
+      "methods": [
+        {
+          "name": "xFunc",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.Function$Aggregate",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "clone",
+          "parameterTypes": []
+        },
+        {
+          "name": "xFinal",
+          "parameterTypes": []
+        },
+        {
+          "name": "xStep",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.Function$Window",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "xInverse",
+          "parameterTypes": []
+        },
+        {
+          "name": "xValue",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.JDBC",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.ProgressHandler",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "progress",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.SQLiteException"
+    },
+    {
+      "type": "org.sqlite.core.DB",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "onCommit",
+          "parameterTypes": [
+            "boolean"
+          ]
+        },
+        {
+          "name": "onUpdate",
+          "parameterTypes": [
+            "int",
+            "java.lang.String",
+            "java.lang.String",
+            "long"
+          ]
+        },
+        {
+          "name": "throwex",
+          "parameterTypes": []
+        },
+        {
+          "name": "throwex",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.core.DB$ProgressObserver",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "progress",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.sqlite.core.NativeDB",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "busyHandler"
+        },
+        {
+          "name": "commitListener"
+        },
+        {
+          "name": "pointer"
+        },
+        {
+          "name": "progressHandler"
+        },
+        {
+          "name": "updateListener"
+        }
+      ],
+      "methods": [
+        {
+          "name": "stringToUtf8ByteArray",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        },
+        {
+          "name": "throwex",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyBlobUploadResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyBlobUploadResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyCreateRecordRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyCreateRecordRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyCreateSessionRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyCreateSessionRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskyPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskySessionResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.bluesky.BlueskySessionResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInRegisterUploadRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInRegisterUploadRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInRegisterUploadResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInRegisterUploadResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInTokenResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInTokenResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInUserProfile",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInUserProfile$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.UgcPostRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.UgcPostRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.llm.OpenAiChatRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.llm.OpenAiChatRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.llm.OpenAiChatResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.llm.OpenAiChatResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.mastodon.MastodonMediaResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.mastodon.MastodonMediaResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.mastodon.MastodonStatusResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.mastodon.MastodonStatusResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterApiModule$buildAuthorizeURL$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterMediaResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterMediaResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterOAuthDocument"
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.ApiError"
+    },
+    {
+      "type": "socialpublish.backend.common.CompositeError"
+    },
+    {
+      "type": "socialpublish.backend.common.CompositeErrorWithDetails",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.CompositeErrorWithDetails$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.ErrorResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.ErrorResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewBlueSkyPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewBlueSkyPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewFeedPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewFeedPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewMastodonPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewMastodonPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewPostRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewPostRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewPostResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.NewPostResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.Post",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.Post$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.UUIDv7"
+    },
+    {
+      "type": "socialpublish.backend.db.UserSession"
+    },
+    {
+      "type": "socialpublish.backend.db.UserSettings"
+    },
+    {
+      "type": "socialpublish.backend.modules.FileAltTextPatch",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.FileAltTextPatch$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.FileUploadResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.FileUploadResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.AccountSettingsView",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.AccountSettingsView$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LoginRequest",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LoginRequest$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LoginResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LoginResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterRoutes$authorizeRoute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterStatusResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterStatusResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.UserSettingsPatch",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.UserSettingsPatch$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ]
+    },
+    {
+      "type": "sun.net.www.protocol.http.Handler",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.net.www.protocol.http.ntlm.NTLMAuthentication",
+      "methods": [
+        {
+          "name": "supportsTransparentAuth",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.net.www.protocol.jar.Handler",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.NativePRNG",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.security.SecureRandomParameters"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.SHA2$SHA256",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.provider.X509Factory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.rsa.RSAKeyFactory$Legacy",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.rsa.RSASignature$SHA256withRSA",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "sun.security.x509.SubjectKeyIdentifierExtension",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "java.lang.Boolean",
+            "java.lang.Object"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en_US"
+    },
+    {
+      "type": {
+        "proxy": [
+          "com.github.ajalt.mordant.terminal.terminalinterface.jna.PosixLibC"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "java.sql.Connection"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/maven/org.xerial/sqlite-jdbc/pom.properties"
+    },
+    {
+      "glob": "META-INF/services/ch.qos.logback.classic.spi.Configurator"
+    },
+    {
+      "glob": "META-INF/services/com.github.ajalt.mordant.terminal.TerminalInterfaceProvider"
+    },
+    {
+      "glob": "META-INF/services/io.ktor.serialization.kotlinx.KotlinxSerializationExtensionProvider"
+    },
+    {
+      "glob": "META-INF/services/java.net.spi.InetAddressResolverProvider"
+    },
+    {
+      "glob": "META-INF/services/java.net.spi.URLStreamHandlerProvider"
+    },
+    {
+      "glob": "META-INF/services/java.nio.channels.spi.SelectorProvider"
+    },
+    {
+      "glob": "META-INF/services/java.sql.Driver"
+    },
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "glob": "META-INF/services/javax.xml.parsers.SAXParserFactory"
+    },
+    {
+      "glob": "META-INF/services/kotlin.reflect.jvm.internal.impl.km.internal.extensions.MetadataExtensions"
+    },
+    {
+      "glob": "META-INF/services/kotlin.reflect.jvm.internal.impl.resolve.ExternalOverridabilityCondition"
+    },
+    {
+      "glob": "META-INF/services/kotlin.reflect.jvm.internal.impl.util.ModuleVisibilityHelper"
+    },
+    {
+      "glob": "META-INF/services/kotlin.test.AsserterContributor"
+    },
+    {
+      "glob": "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler"
+    },
+    {
+      "glob": "META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory"
+    },
+    {
+      "glob": "META-INF/services/org.apache.tika.detect.Detector"
+    },
+    {
+      "glob": "META-INF/services/org.apache.tika.detect.EncodingDetector"
+    },
+    {
+      "glob": "META-INF/services/org.apache.tika.parser.Parser"
+    },
+    {
+      "glob": "META-INF/services/org.apache.tika.renderer.Renderer"
+    },
+    {
+      "glob": "META-INF/services/org.slf4j.spi.SLF4JServiceProvider"
+    },
+    {
+      "glob": "arrow/core/Either$Left.class"
+    },
+    {
+      "glob": "arrow/core/Either$Right.class"
+    },
+    {
+      "glob": "arrow/core/Either.class"
+    },
+    {
+      "glob": "arrow/core/EmptyValue.class"
+    },
+    {
+      "glob": "arrow/core/raise/DefaultRaise.class"
+    },
+    {
+      "glob": "arrow/core/raise/Raise.class"
+    },
+    {
+      "glob": "arrow/core/raise/RaiseAccumulate$Value.class"
+    },
+    {
+      "glob": "arrow/core/raise/RaiseCancellationException.class"
+    },
+    {
+      "glob": "at/favre/lib/crypto/bcrypt/BCrypt$Result.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/logback-classic-version.properties"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/ClassicConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/ExtendedThrowableProxyConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/MDCConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/PropertyConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/ThrowableHandlingConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/classic/pattern/ThrowableProxyConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/logback-core-version.properties"
+    },
+    {
+      "glob": "ch/qos/logback/core/model/processor/ModelHandlerBase.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/model/processor/ModelHandlerException.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/Converter.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/DynamicConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/FormattingConverter.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/color/ConverterSupplierByClassName.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/parser/Node.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/pattern/parser/Parser.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/spi/ContextAwareBase.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/spi/ScanException.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/status/OnConsoleStatusListener.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/status/OnPrintStreamStatusListenerBase.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/status/StatusListener.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/status/StatusManager.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/util/DynamicClassLoadingException.class"
+    },
+    {
+      "glob": "ch/qos/logback/core/util/IncompatibleClassException.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/BaseCliktCommand.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/CliktError.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/Context.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/ContextCliktError.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/GroupableOption.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/MultiUsageError.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/ParameterHolder.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/StaticallyGroupedOption.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/core/UsageError.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/output/HelpFormatter$ParameterHelp$Argument.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/output/HelpFormatter$ParameterHelp.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/output/Localization.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/parameters/arguments/Argument.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/parameters/groups/ParameterGroup.class"
+    },
+    {
+      "glob": "com/github/ajalt/clikt/parameters/options/Option.class"
+    },
+    {
+      "glob": "com/github/ajalt/colormath/Color.class"
+    },
+    {
+      "glob": "com/github/ajalt/colormath/WhitePoint.class"
+    },
+    {
+      "glob": "com/github/ajalt/colormath/WhitePointColorSpace.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/internal/gen/IntTrie.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/rendering/Span.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/rendering/TextStyle.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/rendering/Widget.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/Cell$Content.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/Cell.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/CellStyleBuilder.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/CellStyleBuilderBase.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/ColumnBuilder.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/ColumnWidth.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/RowBuilder.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/table/RowBuilderInstance.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/terminal/Terminal.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/terminal/TerminalInterface.class"
+    },
+    {
+      "glob": "com/github/ajalt/mordant/terminal/TerminalInterfaceProvider.class"
+    },
+    {
+      "glob": "com/github/scribejava/core/model/Response.class"
+    },
+    {
+      "glob": "com/rometools/rome/feed/CopyFrom.class"
+    },
+    {
+      "glob": "com/rometools/rome/feed/synd/SyndContent.class"
+    },
+    {
+      "glob": "com/rometools/rome/feed/synd/SyndContentImpl.class"
+    },
+    {
+      "glob": "com/rometools/rome/rome.properties"
+    },
+    {
+      "glob": "com/sun/jna/linux-aarch64/libjnidispatch.so"
+    },
+    {
+      "glob": "com/zaxxer/hikari/pool/PoolBase$ConnectionSetupException.class"
+    },
+    {
+      "glob": "com/zaxxer/hikari/util/ConcurrentBag$IConcurrentBagEntry.class"
+    },
+    {
+      "glob": "com/zaxxer/hikari/util/DriverDataSource.class"
+    },
+    {
+      "glob": "com/zaxxer/hikari/util/FastList.class"
+    },
+    {
+      "glob": "com/zaxxer/hikari/util/UtilityElf$DefaultThreadFactory.class"
+    },
+    {
+      "glob": "custom-mimetypes.xml"
+    },
+    {
+      "glob": "io/ktor/client/HttpClient.class"
+    },
+    {
+      "glob": "io/ktor/client/call/HttpClientCall.class"
+    },
+    {
+      "glob": "io/ktor/client/plugins/HttpTimeoutConfig.class"
+    },
+    {
+      "glob": "io/ktor/client/request/HttpRequestBuilder.class"
+    },
+    {
+      "glob": "io/ktor/client/request/forms/MultiPartFormDataContent.class"
+    },
+    {
+      "glob": "io/ktor/client/request/forms/PreparedPart.class"
+    },
+    {
+      "glob": "io/ktor/client/statement/HttpResponse.class"
+    },
+    {
+      "glob": "io/ktor/http/ContentType.class"
+    },
+    {
+      "glob": "io/ktor/http/CookieEncoding.class"
+    },
+    {
+      "glob": "io/ktor/http/HeaderValueWithParameters.class"
+    },
+    {
+      "glob": "io/ktor/http/Headers$Companion.class"
+    },
+    {
+      "glob": "io/ktor/http/Headers.class"
+    },
+    {
+      "glob": "io/ktor/http/HeadersBuilder.class"
+    },
+    {
+      "glob": "io/ktor/http/HttpMessage.class"
+    },
+    {
+      "glob": "io/ktor/http/HttpMessageBuilder.class"
+    },
+    {
+      "glob": "io/ktor/http/HttpProtocolVersion.class"
+    },
+    {
+      "glob": "io/ktor/http/HttpStatusCode.class"
+    },
+    {
+      "glob": "io/ktor/http/Parameters.class"
+    },
+    {
+      "glob": "io/ktor/http/ParametersBuilder.class"
+    },
+    {
+      "glob": "io/ktor/http/URLBuilder.class"
+    },
+    {
+      "glob": "io/ktor/http/content/MultiPartData.class"
+    },
+    {
+      "glob": "io/ktor/http/content/NullBody.class"
+    },
+    {
+      "glob": "io/ktor/http/content/OutgoingContent$ByteArrayContent.class"
+    },
+    {
+      "glob": "io/ktor/http/content/OutgoingContent$WriteChannelContent.class"
+    },
+    {
+      "glob": "io/ktor/http/content/OutgoingContent.class"
+    },
+    {
+      "glob": "io/ktor/http/content/PartData.class"
+    },
+    {
+      "glob": "io/ktor/http/content/TextContent.class"
+    },
+    {
+      "glob": "io/ktor/network/selector/LockFreeMPSCQueueCore$Placeholder.class"
+    },
+    {
+      "glob": "io/ktor/network/sockets/SocketAddress.class"
+    },
+    {
+      "glob": "io/ktor/serialization/kotlinx/json/JsonArraySymbols.class"
+    },
+    {
+      "glob": "io/ktor/server/application/Application.class"
+    },
+    {
+      "glob": "io/ktor/server/application/ApplicationCall.class"
+    },
+    {
+      "glob": "io/ktor/server/application/ApplicationCallPipeline.class"
+    },
+    {
+      "glob": "io/ktor/server/application/PipelineCall.class"
+    },
+    {
+      "glob": "io/ktor/server/cio/HttpServer.class"
+    },
+    {
+      "glob": "io/ktor/server/cio/HttpServerSettings.class"
+    },
+    {
+      "glob": "io/ktor/server/cio/UnixSocketServerSettings.class"
+    },
+    {
+      "glob": "io/ktor/server/cio/backend/ServerRequestScope.class"
+    },
+    {
+      "glob": "io/ktor/server/config/ApplicationConfigValue.class"
+    },
+    {
+      "glob": "io/ktor/server/engine/BaseApplicationResponse$ResponseAlreadySentException.class"
+    },
+    {
+      "glob": "io/ktor/server/engine/EngineConnectorConfig.class"
+    },
+    {
+      "glob": "io/ktor/server/request/DoubleReceivePreventionToken.class"
+    },
+    {
+      "glob": "io/ktor/server/response/ApplicationSendPipeline.class"
+    },
+    {
+      "glob": "io/ktor/server/response/PipelineResponse.class"
+    },
+    {
+      "glob": "io/ktor/server/routing/Route.class"
+    },
+    {
+      "glob": "io/ktor/server/routing/RouteSelectorEvaluation$Failure.class"
+    },
+    {
+      "glob": "io/ktor/server/routing/RouteSelectorEvaluation.class"
+    },
+    {
+      "glob": "io/ktor/server/routing/RoutingCall.class"
+    },
+    {
+      "glob": "io/ktor/util/StringValues.class"
+    },
+    {
+      "glob": "io/ktor/util/StringValuesBuilderImpl.class"
+    },
+    {
+      "glob": "io/ktor/util/StringValuesImpl.class"
+    },
+    {
+      "glob": "io/ktor/util/cio/ChannelIOException.class"
+    },
+    {
+      "glob": "io/ktor/util/internal/LockFreeLinkedListNode.class"
+    },
+    {
+      "glob": "io/ktor/util/internal/Removed.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/PhaseContent.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/Pipeline.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/PipelineContext.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/PipelinePhase.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/PipelinePhaseRelation$After.class"
+    },
+    {
+      "glob": "io/ktor/util/pipeline/PipelinePhaseRelation.class"
+    },
+    {
+      "glob": "io/ktor/util/reflect/TypeInfo.class"
+    },
+    {
+      "glob": "io/ktor/utils/io/BufferedByteWriteChannel.class"
+    },
+    {
+      "glob": "io/ktor/utils/io/ByteChannel$Slot.class"
+    },
+    {
+      "glob": "io/ktor/utils/io/ByteChannel.class"
+    },
+    {
+      "glob": "io/ktor/utils/io/ByteReadChannel.class"
+    },
+    {
+      "glob": "io/ktor/utils/io/ByteWriteChannel.class"
+    },
+    {
+      "glob": "java/io/BufferedInputStream.class"
+    },
+    {
+      "glob": "java/io/BufferedReader.class"
+    },
+    {
+      "glob": "java/io/ByteArrayOutputStream.class"
+    },
+    {
+      "glob": "java/io/Closeable.class"
+    },
+    {
+      "glob": "java/io/File.class"
+    },
+    {
+      "glob": "java/io/FileNotFoundException.class"
+    },
+    {
+      "glob": "java/io/FileOutputStream.class"
+    },
+    {
+      "glob": "java/io/FilterInputStream.class"
+    },
+    {
+      "glob": "java/io/FilterOutputStream.class"
+    },
+    {
+      "glob": "java/io/Flushable.class"
+    },
+    {
+      "glob": "java/io/IOException.class"
+    },
+    {
+      "glob": "java/io/InputStream.class"
+    },
+    {
+      "glob": "java/io/InterruptedIOException.class"
+    },
+    {
+      "glob": "java/io/OutputStream.class"
+    },
+    {
+      "glob": "java/io/PrintStream.class"
+    },
+    {
+      "glob": "java/io/Reader.class"
+    },
+    {
+      "glob": "java/io/Serializable.class"
+    },
+    {
+      "glob": "java/io/UnsupportedEncodingException.class"
+    },
+    {
+      "glob": "java/lang/AbstractMethodError.class"
+    },
+    {
+      "glob": "java/lang/AbstractStringBuilder.class"
+    },
+    {
+      "glob": "java/lang/Appendable.class"
+    },
+    {
+      "glob": "java/lang/AutoCloseable.class"
+    },
+    {
+      "glob": "java/lang/Boolean.class"
+    },
+    {
+      "glob": "java/lang/BootstrapMethodError.class"
+    },
+    {
+      "glob": "java/lang/Byte.class"
+    },
+    {
+      "glob": "java/lang/CharSequence.class"
+    },
+    {
+      "glob": "java/lang/Character.class"
+    },
+    {
+      "glob": "java/lang/Class.class"
+    },
+    {
+      "glob": "java/lang/ClassCastException.class"
+    },
+    {
+      "glob": "java/lang/ClassLoader.class"
+    },
+    {
+      "glob": "java/lang/ClassNotFoundException.class"
+    },
+    {
+      "glob": "java/lang/Cloneable.class"
+    },
+    {
+      "glob": "java/lang/Comparable.class"
+    },
+    {
+      "glob": "java/lang/Double.class"
+    },
+    {
+      "glob": "java/lang/Enum.class"
+    },
+    {
+      "glob": "java/lang/Error.class"
+    },
+    {
+      "glob": "java/lang/Exception.class"
+    },
+    {
+      "glob": "java/lang/Float.class"
+    },
+    {
+      "glob": "java/lang/IllegalAccessException.class"
+    },
+    {
+      "glob": "java/lang/IllegalArgumentException.class"
+    },
+    {
+      "glob": "java/lang/IllegalStateException.class"
+    },
+    {
+      "glob": "java/lang/IncompatibleClassChangeError.class"
+    },
+    {
+      "glob": "java/lang/InstantiationException.class"
+    },
+    {
+      "glob": "java/lang/Integer.class"
+    },
+    {
+      "glob": "java/lang/InterruptedException.class"
+    },
+    {
+      "glob": "java/lang/Iterable.class"
+    },
+    {
+      "glob": "java/lang/LinkageError.class"
+    },
+    {
+      "glob": "java/lang/Long.class"
+    },
+    {
+      "glob": "java/lang/NoClassDefFoundError.class"
+    },
+    {
+      "glob": "java/lang/NoSuchFieldException.class"
+    },
+    {
+      "glob": "java/lang/NoSuchMethodError.class"
+    },
+    {
+      "glob": "java/lang/NoSuchMethodException.class"
+    },
+    {
+      "glob": "java/lang/Number.class"
+    },
+    {
+      "glob": "java/lang/Object.class"
+    },
+    {
+      "glob": "java/lang/OutOfMemoryError.class"
+    },
+    {
+      "glob": "java/lang/ReflectiveOperationException.class"
+    },
+    {
+      "glob": "java/lang/Runnable.class"
+    },
+    {
+      "glob": "java/lang/RuntimeException.class"
+    },
+    {
+      "glob": "java/lang/SecurityException.class"
+    },
+    {
+      "glob": "java/lang/Short.class"
+    },
+    {
+      "glob": "java/lang/StackTraceElement.class"
+    },
+    {
+      "glob": "java/lang/String.class"
+    },
+    {
+      "glob": "java/lang/StringBuilder.class"
+    },
+    {
+      "glob": "java/lang/Thread.class"
+    },
+    {
+      "glob": "java/lang/ThreadLocal.class"
+    },
+    {
+      "glob": "java/lang/Throwable.class"
+    },
+    {
+      "glob": "java/lang/UnsupportedOperationException.class"
+    },
+    {
+      "glob": "java/lang/VirtualMachineError.class"
+    },
+    {
+      "glob": "java/lang/Void.class"
+    },
+    {
+      "glob": "java/lang/annotation/Annotation.class"
+    },
+    {
+      "glob": "java/lang/constant/Constable.class"
+    },
+    {
+      "glob": "java/lang/constant/ConstantDesc.class"
+    },
+    {
+      "glob": "java/lang/invoke/TypeDescriptor$OfField.class"
+    },
+    {
+      "glob": "java/lang/invoke/TypeDescriptor.class"
+    },
+    {
+      "glob": "java/lang/ref/Reference.class"
+    },
+    {
+      "glob": "java/lang/ref/WeakReference.class"
+    },
+    {
+      "glob": "java/lang/reflect/AccessibleObject.class"
+    },
+    {
+      "glob": "java/lang/reflect/AnnotatedElement.class"
+    },
+    {
+      "glob": "java/lang/reflect/Executable.class"
+    },
+    {
+      "glob": "java/lang/reflect/Field.class"
+    },
+    {
+      "glob": "java/lang/reflect/GenericDeclaration.class"
+    },
+    {
+      "glob": "java/lang/reflect/InvocationTargetException.class"
+    },
+    {
+      "glob": "java/lang/reflect/Member.class"
+    },
+    {
+      "glob": "java/lang/reflect/Method.class"
+    },
+    {
+      "glob": "java/lang/reflect/Type.class"
+    },
+    {
+      "glob": "java/lang/reflect/TypeVariable.class"
+    },
+    {
+      "glob": "java/lang/reflect/WildcardType.class"
+    },
+    {
+      "glob": "java/net/InetAddress.class"
+    },
+    {
+      "glob": "java/net/InetSocketAddress.class"
+    },
+    {
+      "glob": "java/net/SocketAddress.class"
+    },
+    {
+      "glob": "java/net/SocketException.class"
+    },
+    {
+      "glob": "java/net/SocketTimeoutException.class"
+    },
+    {
+      "glob": "java/net/URI.class"
+    },
+    {
+      "glob": "java/net/URISyntaxException.class"
+    },
+    {
+      "glob": "java/net/URL.class"
+    },
+    {
+      "glob": "java/net/URLClassLoader.class"
+    },
+    {
+      "glob": "java/nio/channels/SelectableChannel.class"
+    },
+    {
+      "glob": "java/nio/channels/ServerSocketChannel.class"
+    },
+    {
+      "glob": "java/nio/channels/SocketChannel.class"
+    },
+    {
+      "glob": "java/nio/channels/spi/AbstractInterruptibleChannel.class"
+    },
+    {
+      "glob": "java/nio/channels/spi/AbstractSelectableChannel.class"
+    },
+    {
+      "glob": "java/nio/channels/spi/SelectorProvider.class"
+    },
+    {
+      "glob": "java/nio/charset/Charset.class"
+    },
+    {
+      "glob": "java/nio/file/Path.class"
+    },
+    {
+      "glob": "java/nio/file/WatchEvent.class"
+    },
+    {
+      "glob": "java/nio/file/attribute/BasicFileAttributes.class"
+    },
+    {
+      "glob": "java/nio/file/attribute/DosFileAttributes.class"
+    },
+    {
+      "glob": "java/nio/file/attribute/PosixFileAttributes.class"
+    },
+    {
+      "glob": "java/security/CodeSource.class"
+    },
+    {
+      "glob": "java/security/GeneralSecurityException.class"
+    },
+    {
+      "glob": "java/security/InvalidKeyException.class"
+    },
+    {
+      "glob": "java/security/KeyException.class"
+    },
+    {
+      "glob": "java/security/NoSuchAlgorithmException.class"
+    },
+    {
+      "glob": "java/security/SecureClassLoader.class"
+    },
+    {
+      "glob": "java/sql/Connection.class"
+    },
+    {
+      "glob": "java/sql/SQLException.class"
+    },
+    {
+      "glob": "java/sql/Statement.class"
+    },
+    {
+      "glob": "java/text/DecimalFormat.class"
+    },
+    {
+      "glob": "java/text/Format.class"
+    },
+    {
+      "glob": "java/text/NumberFormat.class"
+    },
+    {
+      "glob": "java/time/Instant.class"
+    },
+    {
+      "glob": "java/util/AbstractCollection.class"
+    },
+    {
+      "glob": "java/util/AbstractList.class"
+    },
+    {
+      "glob": "java/util/AbstractMap.class"
+    },
+    {
+      "glob": "java/util/AbstractSet.class"
+    },
+    {
+      "glob": "java/util/ArrayDeque.class"
+    },
+    {
+      "glob": "java/util/ArrayList.class"
+    },
+    {
+      "glob": "java/util/Collection.class"
+    },
+    {
+      "glob": "java/util/Deque.class"
+    },
+    {
+      "glob": "java/util/Dictionary.class"
+    },
+    {
+      "glob": "java/util/EnumMap.class"
+    },
+    {
+      "glob": "java/util/EnumSet.class"
+    },
+    {
+      "glob": "java/util/HashMap.class"
+    },
+    {
+      "glob": "java/util/HashSet.class"
+    },
+    {
+      "glob": "java/util/Hashtable.class"
+    },
+    {
+      "glob": "java/util/Iterator.class"
+    },
+    {
+      "glob": "java/util/LinkedHashMap.class"
+    },
+    {
+      "glob": "java/util/LinkedHashSet.class"
+    },
+    {
+      "glob": "java/util/List.class"
+    },
+    {
+      "glob": "java/util/Map$Entry.class"
+    },
+    {
+      "glob": "java/util/Map.class"
+    },
+    {
+      "glob": "java/util/NavigableSet.class"
+    },
+    {
+      "glob": "java/util/Optional.class"
+    },
+    {
+      "glob": "java/util/Properties.class"
+    },
+    {
+      "glob": "java/util/RandomAccess.class"
+    },
+    {
+      "glob": "java/util/SequencedCollection.class"
+    },
+    {
+      "glob": "java/util/SequencedMap.class"
+    },
+    {
+      "glob": "java/util/ServiceConfigurationError.class"
+    },
+    {
+      "glob": "java/util/Set.class"
+    },
+    {
+      "glob": "java/util/SortedSet.class"
+    },
+    {
+      "glob": "java/util/TreeMap.class"
+    },
+    {
+      "glob": "java/util/TreeSet.class"
+    },
+    {
+      "glob": "java/util/UUID.class"
+    },
+    {
+      "glob": "java/util/concurrent/CancellationException.class"
+    },
+    {
+      "glob": "java/util/concurrent/ThreadFactory.class"
+    },
+    {
+      "glob": "java/util/concurrent/atomic/AtomicReferenceFieldUpdater.class"
+    },
+    {
+      "glob": "java/util/concurrent/locks/ReadWriteLock.class"
+    },
+    {
+      "glob": "java/util/concurrent/locks/ReentrantReadWriteLock.class"
+    },
+    {
+      "glob": "java/util/stream/Stream.class"
+    },
+    {
+      "glob": "java/util/zip/GZIPInputStream.class"
+    },
+    {
+      "glob": "java/util/zip/InflaterInputStream.class"
+    },
+    {
+      "glob": "javax/management/MBeanServer.class"
+    },
+    {
+      "glob": "javax/naming/Context.class"
+    },
+    {
+      "glob": "javax/sql/DataSource.class"
+    },
+    {
+      "glob": "javax/xml/parsers/ParserConfigurationException.class"
+    },
+    {
+      "glob": "javax/xml/transform/TransformerException.class"
+    },
+    {
+      "glob": "kotlin/Function.class"
+    },
+    {
+      "glob": "kotlin/Lazy.class"
+    },
+    {
+      "glob": "kotlin/Pair.class"
+    },
+    {
+      "glob": "kotlin/Result.class"
+    },
+    {
+      "glob": "kotlin/SynchronizedLazyImpl.class"
+    },
+    {
+      "glob": "kotlin/Unit.class"
+    },
+    {
+      "glob": "kotlin/collections/collections.kotlin_builtins"
+    },
+    {
+      "glob": "kotlin/coroutines/AbstractCoroutineContextElement.class"
+    },
+    {
+      "glob": "kotlin/coroutines/Continuation.class"
+    },
+    {
+      "glob": "kotlin/coroutines/ContinuationInterceptor.class"
+    },
+    {
+      "glob": "kotlin/coroutines/CoroutineContext$Element.class"
+    },
+    {
+      "glob": "kotlin/coroutines/CoroutineContext.class"
+    },
+    {
+      "glob": "kotlin/coroutines/jvm/internal/BaseContinuationImpl.class"
+    },
+    {
+      "glob": "kotlin/coroutines/jvm/internal/ContinuationImpl.class"
+    },
+    {
+      "glob": "kotlin/coroutines/jvm/internal/CoroutineStackFrame.class"
+    },
+    {
+      "glob": "kotlin/jvm/functions/Function0.class"
+    },
+    {
+      "glob": "kotlin/jvm/functions/Function1.class"
+    },
+    {
+      "glob": "kotlin/jvm/functions/Function2.class"
+    },
+    {
+      "glob": "kotlin/jvm/functions/Function4.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/ClassBasedDeclarationContainer.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/KTypeBase.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/PropertyReference.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/Ref$ObjectRef.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/SpreadBuilder.class"
+    },
+    {
+      "glob": "kotlin/jvm/internal/markers/KMappedMarker.class"
+    },
+    {
+      "glob": "kotlin/kotlin.kotlin_builtins"
+    },
+    {
+      "glob": "kotlin/reflect/KAnnotatedElement.class"
+    },
+    {
+      "glob": "kotlin/reflect/KCallable.class"
+    },
+    {
+      "glob": "kotlin/reflect/KClass.class"
+    },
+    {
+      "glob": "kotlin/reflect/KClassifier.class"
+    },
+    {
+      "glob": "kotlin/reflect/KDeclarationContainer.class"
+    },
+    {
+      "glob": "kotlin/reflect/KFunction.class"
+    },
+    {
+      "glob": "kotlin/reflect/KParameter.class"
+    },
+    {
+      "glob": "kotlin/reflect/KProperty.class"
+    },
+    {
+      "glob": "kotlin/reflect/KType.class"
+    },
+    {
+      "glob": "kotlin/reflect/KTypeParameter.class"
+    },
+    {
+      "glob": "kotlin/reflect/KTypeProjection.class"
+    },
+    {
+      "glob": "kotlin/reflect/KVariance.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/EmptyContainerForLocal.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KClassImpl$Data.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KClassImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KDeclarationContainerImpl$Data.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KDeclarationContainerImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KTypeParameterImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/KTypeParameterOwnerImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/KotlinBuiltIns.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/jvm/JavaToKotlinClassMap$PlatformMutabilityMapping.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/jvm/JavaToKotlinClassMap.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/jvm/JvmBuiltInClassDescriptorFactory$$Lambda$1.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/jvm/JvmBuiltIns.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/builtins/jvm/JvmBuiltInsCustomizer.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/CallableDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/CallableMemberDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ClassConstructorDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ClassOrPackageFragmentDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ClassifierDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ClassifierDescriptorWithTypeParameters.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/DeclarationDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/DeclarationDescriptorNonRoot.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/DeclarationDescriptorWithSource.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/DeclarationDescriptorWithVisibility.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/DeserializedDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/FunctionDescriptor$CopyBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/FunctionDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/MemberDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/Named.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/NotFoundClasses$MockClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PackageFragmentProvider.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PossiblyInnerType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PropertyAccessorDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PropertyDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PropertyGetterDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/PropertySetterDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ReceiverParameterDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/SimpleFunctionDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/SourceElement.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/Substitutable.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/ValueParameterDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/VariableAccessorDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/annotations/Annotated.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/annotations/AnnotatedImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/annotations/AnnotationDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/annotations/Annotations.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/AbstractClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/ClassDescriptorBase.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/DeclarationDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/DeclarationDescriptorNonRootImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/FunctionDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/ModuleAwareClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/PropertyAccessorDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/PropertyDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/PropertyGetterDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/impl/PropertySetterDescriptorImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/runtime/components/ReflectKotlinClass.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/runtime/structure/ReflectJavaElement.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/runtime/structure/ReflectJavaMember.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/descriptors/runtime/structure/ReflectJavaMethod.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/ClassKind.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/KmClass.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/KmClassifier$Class.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/KmClassifier.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/KmPropertyAccessorAttributes.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/KmType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/Modality.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/jvm/JvmMemberSignature.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/km/jvm/JvmMethodSignature.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/AnnotationQualifierApplicabilityType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/JavaDefaultQualifiers.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/JavaTypeQualifiersByElementType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/lazy/LazyJavaResolverContext.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/lazy/descriptors/LazyJavaClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/lazy/descriptors/LazyJavaClassMemberScope.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/lazy/descriptors/LazyJavaScope.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaAnnotation.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaAnnotationOwner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaClass.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaElement.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaField.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaMember.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaModifierListOwner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaNamedElement.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/structure/JavaType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/typeEnhancement/MutabilityQualifier.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/typeEnhancement/NullabilityQualifierWithMigrationStatus.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/java/typeEnhancement/PredefinedFunctionEnhancementInfo.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/kotlin/KotlinJvmBinaryClass$AnnotationArgumentVisitor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/kotlin/KotlinJvmBinaryClass$AnnotationArrayArgumentVisitor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/load/kotlin/header/KotlinClassHeader.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$EnumEntry.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$EnumEntryOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$Property$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$PropertyOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$Type.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/ProtoBuf$TypeOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/deserialization/NameResolver.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/deserialization/VersionRequirement$Version.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/deserialization/VersionRequirement.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/jvm/JvmProtoBuf$JvmFieldSignature$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/jvm/JvmProtoBuf$JvmFieldSignatureOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/metadata/jvm/JvmProtoBuf$JvmPropertySignature$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/name/ClassId.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/name/FqName.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/name/Name.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/AbstractMessageLite$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/AbstractMessageLite.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/BoundedByteString.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/ByteString.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/GeneratedMessageLite$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/GeneratedMessageLite$ExtendableBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/GeneratedMessageLite$ExtendableMessage.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/GeneratedMessageLite$ExtendableMessageOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/GeneratedMessageLite.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/Internal$EnumLite.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/LiteralByteString.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/MessageLite$Builder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/MessageLite.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/MessageLiteOrBuilder.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/protobuf/RopeByteString.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/renderer/RenderingUtilsKt$$Lambda$0.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/ArrayValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/ByteValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/ConstantValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/IntValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/IntegerValueConstant.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/LongValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/ShortValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/StringValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/TypedArrayValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/UByteValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/UIntValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/ULongValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/UShortValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/constants/UnsignedValueConstant.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/jvm/JvmPrimitiveType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/scopes/MemberScope.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/scopes/MemberScopeImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/resolve/scopes/ResolutionScope.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/serialization/deserialization/descriptors/DeserializedClassDescriptor$EnumEntryClassDescriptors.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/serialization/deserialization/descriptors/DeserializedClassDescriptor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/serialization/deserialization/descriptors/DeserializedContainerSource.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/storage/LockBasedStorageManager$NotValue.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/storage/MemoizedFunctionToNullable.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/AbstractTypeConstructor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/AbstractTypeRefiner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/ClassifierBasedTypeConstructor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/KotlinType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/SimpleType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/TypeAttributes.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/TypeConstructor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/TypeProjection.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/TypeProjectionBase.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/TypeProjectionImpl.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/UnwrappedType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/checker/KotlinTypeRefiner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/checker/NewTypeVariableConstructor.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/checker/Ref.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/checker/TypeRefinementSupport.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/CapturedTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/DefinitelyNotNullTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/FlexibleTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/KotlinTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/RigidTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/SimpleTypeMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/TypeArgumentListMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/TypeArgumentMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/TypeConstructorMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/TypeParameterMarker.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/types/model/TypeVariance.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/util/AbstractArrayMapOwner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/util/AttributeArrayOwner.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/util/ModuleVisibilityHelper$EMPTY.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/impl/util/ModuleVisibilityHelper.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/types/AbstractKType.class"
+    },
+    {
+      "glob": "kotlin/reflect/jvm/internal/types/CapturedKType.class"
+    },
+    {
+      "glob": "kotlin/sequences/Sequence.class"
+    },
+    {
+      "glob": "kotlin/text/MatchGroup.class"
+    },
+    {
+      "glob": "kotlin/text/MatchGroupCollection.class"
+    },
+    {
+      "glob": "kotlin/text/MatchResult.class"
+    },
+    {
+      "glob": "kotlin/text/Regex.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/AbstractCoroutine.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/AbstractTimeSource.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/ChildHandleNode.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CompletableJob.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CompletedContinuation.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CompletedExceptionally.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CoroutineDispatcher.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CoroutineName.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/CoroutineScope.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/Deferred.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/DelayWithTimeoutDiagnostics.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/DispatchException.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/DispatchedCoroutine.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/DispatchedTask.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/EventLoopImplBase$DelayedTask.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/EventLoopImplBase$DelayedTaskQueue.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/Incomplete.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/IncompleteStateBox.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/Job.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/JobNode.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/JobSupport$Finishing.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/JobSupport.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/MainCoroutineDispatcher.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/UndispatchedCoroutine.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/Waiter.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/channels/BufferedChannel.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/channels/Channel.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/channels/ChannelSegment.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/channels/ReceiveChannel.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/channels/SendChannel.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/flow/Flow.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/ConcurrentLinkedListNode.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/DispatchedContinuation.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/FastServiceLoader.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/LockFreeLinkedListNode.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/LockFreeTaskQueueCore$Placeholder.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/MainDispatcherFactory.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/Removed.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/ScopeCoroutine.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/Segment.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/Symbol.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/ThreadSafeHeap.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/internal/UndeliveredElementException.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/scheduling/CoroutineScheduler$Worker.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/scheduling/CoroutineScheduler$WorkerState.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/scheduling/CoroutineScheduler.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/scheduling/Task.class"
+    },
+    {
+      "glob": "kotlinx/serialization/KSerializer.class"
+    },
+    {
+      "glob": "kotlinx/serialization/SerialFormat.class"
+    },
+    {
+      "glob": "kotlinx/serialization/SerializationException.class"
+    },
+    {
+      "glob": "kotlinx/serialization/SerializationStrategy.class"
+    },
+    {
+      "glob": "kotlinx/serialization/StringFormat.class"
+    },
+    {
+      "glob": "kotlinx/serialization/descriptors/SerialDescriptor.class"
+    },
+    {
+      "glob": "kotlinx/serialization/encoding/CompositeEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/encoding/Encoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/internal/NamedValueEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/internal/TaggedEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/Json.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/JsonArray.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/JsonElement.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/JsonEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/JsonObject.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/JsonPrimitive.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/AbstractJsonTreeEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/JsonPath$RedactedKey.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/JsonPrimitiveEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/JsonTreeEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/JsonTreeListEncoder.class"
+    },
+    {
+      "glob": "kotlinx/serialization/json/internal/JsonTreeMapEncoder.class"
+    },
+    {
+      "glob": "logback.xml"
+    },
+    {
+      "glob": "net/rubygrapefruit/platform/NativeException.class"
+    },
+    {
+      "glob": "net/rubygrapefruit/platform/NativeIntegration.class"
+    },
+    {
+      "glob": "net/rubygrapefruit/platform/NativeIntegrationUnavailableException.class"
+    },
+    {
+      "glob": "org/apache/tika/detect/Detector.class"
+    },
+    {
+      "glob": "org/apache/tika/detect/TextDetector.class"
+    },
+    {
+      "glob": "org/apache/tika/exception/TikaException.class"
+    },
+    {
+      "glob": "org/apache/tika/extractor/EmbeddedDocumentExtractorFactory.class"
+    },
+    {
+      "glob": "org/apache/tika/extractor/ParsingEmbeddedDocumentExtractorFactory.class"
+    },
+    {
+      "glob": "org/apache/tika/mime/Clause.class"
+    },
+    {
+      "glob": "org/apache/tika/mime/OrClause.class"
+    },
+    {
+      "glob": "org/apache/tika/mime/tika-mimetypes.xml"
+    },
+    {
+      "glob": "org/apache/tika/parser/EmptyParser.class"
+    },
+    {
+      "glob": "org/apache/tika/parser/Parser.class"
+    },
+    {
+      "glob": "org/gradle/api/GradleException.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/AssertionFailureDetails.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/AssumptionFailureDetails.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/DefaultTestFailureDetails.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/FileComparisonFailureDetails.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/TestFailureSerializationException.class"
+    },
+    {
+      "glob": "org/gradle/api/internal/tasks/testing/TestFrameworkFailureDetails.class"
+    },
+    {
+      "glob": "org/gradle/api/tasks/testing/source/ClassSource.class"
+    },
+    {
+      "glob": "org/gradle/api/tasks/testing/source/ClasspathResourceSource.class"
+    },
+    {
+      "glob": "org/gradle/api/tasks/testing/source/MethodSource.class"
+    },
+    {
+      "glob": "org/gradle/api/tasks/testing/source/TestSource.class"
+    },
+    {
+      "glob": "org/gradle/internal/classloader/CachingClassLoader.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/ChampNode.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/HashCollisionNode.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/PersistentArraySmall.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/PersistentArrayTrie.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/PersistentMap.class"
+    },
+    {
+      "glob": "org/gradle/internal/collect/PersistentMap1.class"
+    },
+    {
+      "glob": "org/gradle/internal/dispatch/BoundedDispatch.class"
+    },
+    {
+      "glob": "org/gradle/internal/dispatch/Dispatch.class"
+    },
+    {
+      "glob": "org/gradle/internal/exceptions/DefaultMultiCauseException.class"
+    },
+    {
+      "glob": "org/gradle/internal/nativeintegration/console/ConsoleMetaData.class"
+    },
+    {
+      "glob": "org/gradle/internal/nativeintegration/console/FallbackConsoleMetaData.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/MessageHub$Discard.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/RejectedMessageListener.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/StreamFailureHandler.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/protocol/ChannelMessage.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/protocol/InterHubMessage.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/protocol/RejectedMessage.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/protocol/Routable.class"
+    },
+    {
+      "glob": "org/gradle/internal/remote/internal/hub/protocol/StreamFailureMessage.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/AbstractServiceRegistry.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/DefaultServiceRegistry$CompositeServiceProvider.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/DefaultServiceRegistry.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/ScopedServiceRegistry.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/Service.class"
+    },
+    {
+      "glob": "org/gradle/internal/service/ServiceProvider.class"
+    },
+    {
+      "glob": "org/gradle/process/internal/worker/child/ActionExecutionWorker.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/CDataNode.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/DataNode.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/Document.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/Element.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/FormElement.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/LeafNode.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/Node.class"
+    },
+    {
+      "glob": "org/jsoup/nodes/TextNode.class"
+    },
+    {
+      "glob": "org/jsoup/parser/Token$EndTag.class"
+    },
+    {
+      "glob": "org/jsoup/parser/Token$StartTag.class"
+    },
+    {
+      "glob": "org/jsoup/parser/Token$Tag.class"
+    },
+    {
+      "glob": "org/jsoup/parser/Token.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AllElements.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$Attribute.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeKeyPair.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeStarting.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValue.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValueContaining.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValueEnding.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValueMatching.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValueNot.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$AttributeWithValueStarting.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$ContainsOwnText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$ContainsText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$ContainsWholeOwnText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$ContainsWholeText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$CssNthEvaluator.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$IsNthChild.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$IsNthLastChild.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$IsNthLastOfType.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$IsNthOfType.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$Matches.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$MatchesOwn.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$MatchesWholeOwnText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator$MatchesWholeText.class"
+    },
+    {
+      "glob": "org/jsoup/select/Evaluator.class"
+    },
+    {
+      "glob": "org/jsoup/select/NodeEvaluator$InstanceType.class"
+    },
+    {
+      "glob": "org/jsoup/select/NodeEvaluator.class"
+    },
+    {
+      "glob": "org/jsoup/select/StructuralEvaluator$Root.class"
+    },
+    {
+      "glob": "org/slf4j/Marker.class"
+    },
+    {
+      "glob": "org/slf4j/helpers/BasicMarker.class"
+    },
+    {
+      "glob": "org/slf4j/spi/SLF4JServiceProvider.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDateParser$CaseInsensitiveTextStrategy.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDateParser$Strategy.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDateParser$TimeZoneStrategy.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$CharacterLiteral.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$Iso8601_Rule.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$NumberRule.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$StringLiteral.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TextField.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TimeZoneNameRule.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TimeZoneNumberRule.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TwelveHourField.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TwentyFourHourField.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TwoDigitMonthField.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$TwoDigitYearField.class"
+    },
+    {
+      "glob": "org/sqlite/date/FastDatePrinter$UnpaddedMonthField.class"
+    },
+    {
+      "glob": "org/sqlite/jdbc3/JDBC3DatabaseMetaData$PrimaryKeyFinder.class"
+    },
+    {
+      "glob": "org/sqlite/native/Linux/aarch64/libsqlitejdbc.so"
+    },
+    {
+      "glob": "org/w3c/dom/Element.class"
+    },
+    {
+      "glob": "org/w3c/dom/Node.class"
+    },
+    {
+      "glob": "org/xml/sax/SAXException.class"
+    },
+    {
+      "glob": "rome.properties"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyApiModule$DidResolutionResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyApiModule$uploadBlobFromUrl$1.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyApiModule.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyBlobRef.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyBlobUploadBlob.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyConfig.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskyReplyContext.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/bluesky/BlueskySessionResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/common/SocialMediaApi.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/imagemagick/CommandResult.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/imagemagick/ImageMagick.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/imagemagick/MagickImageSize.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/LinkedInApiModule.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/LinkedInConfig.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/LinkedInOAuthToken.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/LinkedInTokenResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/LinkedInUserProfile.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/UgcPostRequest.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/linkedin/UgcPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/llm/LlmConfig.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/llm/OpenAiChatRequest.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/llm/OpenAiChoice.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/llm/OpenAiMessage.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/llm/OpenAiResponseMessage.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/mastodon/MastodonApiModule.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/mastodon/MastodonConfig.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/mastodon/MastodonMediaResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterApiModule$uploadMedia$1.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterApiModule.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterConfig.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterErrorResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterMediaResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterOAuthDocument.class"
+    },
+    {
+      "glob": "socialpublish/backend/clients/twitter/TwitterOAuthToken.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/ApiError.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/CompositeErrorWithDetails.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/ErrorResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewBlueSkyPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewFeedPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewLinkedInPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewMastodonPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewPostRequest.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewPostRequestMessage.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/NewTwitterPostResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/PublishedMessageResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/RequestError.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/ResponseBody.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/UploadSource$FromSource.class"
+    },
+    {
+      "glob": "socialpublish/backend/common/ValidationError.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/DBException.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/Document.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/DocumentsDatabase.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/NewUserSession.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/Post.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/PostPayload.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/Upload.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/User.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/UserSession.class"
+    },
+    {
+      "glob": "socialpublish/backend/db/UserSettings.class"
+    },
+    {
+      "glob": "socialpublish/backend/modules/FileUploadResponse.class"
+    },
+    {
+      "glob": "socialpublish/backend/modules/ProcessedUpload.class"
+    },
+    {
+      "glob": "socialpublish/backend/modules/StoredFile.class"
+    },
+    {
+      "glob": "socialpublish/backend/server/routes/FilesRoutes$uploadFileRoute$1.class"
+    },
+    {
+      "glob": "socialpublish/backend/server/routes/FilesRoutes.class"
+    },
+    {
+      "glob": "socialpublish/backend/server/routes/PublishRoutes$broadcastPostRoute$1.class"
+    },
+    {
+      "glob": "socialpublish/backend/server/routes/PublishRoutes.class"
+    },
+    {
+      "glob": "socialpublish/backend/server/routes/RouteHelpersKt$receiveNewPostRequestOrRespond$1.class"
+    },
+    {
+      "glob": "worker/org/gradle/internal/classloader/ClassLoaderUtils$AbstractClassLoaderLookuper.class"
+    },
+    {
+      "glob": "worker/org/gradle/internal/classloader/ClassLoaderUtils$Java9PackagesFetcher.class"
+    },
+    {
+      "glob": "worker/org/gradle/internal/classloader/ClassLoaderUtils$LookupClassDefiner.class"
+    },
+    {
+      "glob": "worker/org/gradle/internal/classloader/ClassLoaderUtils$ReflectionClassDefiner.class"
+    },
+    {
+      "glob": "worker/org/gradle/internal/classloader/ClassLoaderUtils$ReflectionPackagesFetcher.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/BufferedInputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/BufferedReader.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/ByteArrayOutputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/Closeable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/File.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/FileNotFoundException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/FileOutputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/FilterInputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/FilterOutputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/Flushable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/IOException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/InputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/InterruptedIOException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/OutputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/PrintStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/Reader.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/Serializable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/io/UnsupportedEncodingException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/AbstractMethodError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/AbstractStringBuilder.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Appendable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/AutoCloseable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Boolean.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/BootstrapMethodError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Byte.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/CharSequence.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Character.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Class.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ClassCastException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ClassLoader.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ClassNotFoundException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Cloneable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Comparable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Double.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Enum.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Error.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Exception.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Float.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/IllegalAccessException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/IllegalArgumentException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/IllegalStateException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/IncompatibleClassChangeError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/InstantiationException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Integer.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/InterruptedException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Iterable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/LinkageError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Long.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/NoClassDefFoundError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/NoSuchFieldException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/NoSuchMethodError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/NoSuchMethodException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Number.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Object.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/OutOfMemoryError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ReflectiveOperationException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Runnable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/RuntimeException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/SecurityException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Short.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/StackTraceElement.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/String.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/StringBuilder.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Thread.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ThreadLocal.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Throwable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/UnsupportedOperationException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/VirtualMachineError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/Void.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/annotation/Annotation.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/constant/Constable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/constant/ConstantDesc.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/invoke/TypeDescriptor$OfField.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/invoke/TypeDescriptor.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ref/Reference.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/ref/WeakReference.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/AccessibleObject.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/AnnotatedElement.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/Executable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/Field.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/GenericDeclaration.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/InvocationTargetException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/Member.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/Method.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/Type.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/TypeVariable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/lang/reflect/WildcardType.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/InetAddress.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/InetSocketAddress.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/SocketAddress.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/SocketException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/SocketTimeoutException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/URI.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/URISyntaxException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/URL.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/net/URLClassLoader.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/SelectableChannel.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/ServerSocketChannel.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/SocketChannel.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/spi/AbstractInterruptibleChannel.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/spi/AbstractSelectableChannel.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/channels/spi/SelectorProvider.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/charset/Charset.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/file/Path.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/file/WatchEvent.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/file/attribute/BasicFileAttributes.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/file/attribute/DosFileAttributes.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/nio/file/attribute/PosixFileAttributes.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/CodeSource.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/GeneralSecurityException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/InvalidKeyException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/KeyException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/NoSuchAlgorithmException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/security/SecureClassLoader.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/text/DecimalFormat.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/text/Format.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/text/NumberFormat.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/time/Instant.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/AbstractCollection.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/AbstractList.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/AbstractMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/AbstractSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/ArrayDeque.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/ArrayList.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Collection.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Deque.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Dictionary.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/EnumMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/EnumSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/HashMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/HashSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Hashtable.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Iterator.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/LinkedHashMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/LinkedHashSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/List.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Map$Entry.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Map.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/NavigableSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Optional.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Properties.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/RandomAccess.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/SequencedCollection.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/SequencedMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/ServiceConfigurationError.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/Set.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/SortedSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/TreeMap.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/TreeSet.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/UUID.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/concurrent/CancellationException.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/concurrent/ThreadFactory.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/concurrent/atomic/AtomicReferenceFieldUpdater.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/concurrent/locks/ReadWriteLock.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/concurrent/locks/ReentrantReadWriteLock.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/stream/Stream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/zip/GZIPInputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "java/util/zip/InflaterInputStream.class"
+    },
+    {
+      "module": "java.base",
+      "glob": "jdk/internal/icu/impl/data/icudt76b/nfc.nrm"
+    },
+    {
+      "module": "java.base",
+      "glob": "jdk/internal/icu/impl/data/icudt76b/nfkc.nrm"
+    },
+    {
+      "module": "java.management",
+      "glob": "javax/management/MBeanServer.class"
+    },
+    {
+      "module": "java.naming",
+      "glob": "javax/naming/Context.class"
+    },
+    {
+      "module": "java.sql",
+      "glob": "java/sql/Connection.class"
+    },
+    {
+      "module": "java.sql",
+      "glob": "java/sql/SQLException.class"
+    },
+    {
+      "module": "java.sql",
+      "glob": "java/sql/Statement.class"
+    },
+    {
+      "module": "java.sql",
+      "glob": "javax/sql/DataSource.class"
+    },
+    {
+      "module": "java.xml",
+      "glob": "javax/xml/parsers/ParserConfigurationException.class"
+    },
+    {
+      "module": "java.xml",
+      "glob": "javax/xml/transform/TransformerException.class"
+    },
+    {
+      "module": "java.xml",
+      "glob": "org/w3c/dom/Element.class"
+    },
+    {
+      "module": "java.xml",
+      "glob": "org/w3c/dom/Node.class"
+    },
+    {
+      "module": "java.xml",
+      "glob": "org/xml/sax/SAXException.class"
+    }
+  ]
+}

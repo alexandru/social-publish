@@ -35,6 +35,9 @@ clean:
 test:
 	./gradlew test
 
+native-test:
+	./gradlew :backend:nativeTest
+
 dependency-updates:
 	./gradlew dependencyUpdates \
 		-Drevision=release \
@@ -86,6 +89,9 @@ docker-build-jvm-local:
 docker-run-jvm: docker-build-jvm-local
 	docker rm -f social-publish || true
 	docker run -it -p 3000:3000 --rm --name social-publish -v social-publish-data:/var/lib/social-publish ${RUN_ENV_VARS} ${LATEST_JVM}
+
+docker-build-native-local:
+	docker build -f ./docker/Dockerfile.native -t "${NAME}:native-latest" .
 
 # Code quality
 lint:

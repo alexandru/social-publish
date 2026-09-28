@@ -1,0 +1,41 @@
+FROM ghcr.io/graalvm/native-image-community:25i4-25.0.4.1.1-ol8-20260922 AS graalvm
+
+FROM eclipse-temurin:21-jdk-noble AS build
+WORKDIR /app
+COPY --from=graalvm /usr/lib64/graalvm/graalvm-community-java25i4 /opt/graalvm
+ENV GRAALVM_HOME=/opt/graalvm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential zlib1g-dev imagemagick curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY gradle ./gradle
+COPY gradlew gradle.properties settings.gradle.kts build.gradle.kts ./
+COPY backend/build.gradle.kts ./backend/
+COPY frontend/build.gradle.kts ./frontend/
+COPY backend/src ./backend/src
+COPY frontend/src ./frontend/src
+COPY frontend/webpack.config.d ./frontend/webpack.config.d
+
+RUN ./gradlew :backend:nativeTest --no-daemon
+RUN ./gradlew :backend:nativeCompile :frontend:jsBrowserDistribution --no-daemon
+
+FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl imagemagick \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -u 1001 -d /opt/app -s /bin/sh appuser \
+    && mkdir -p /opt/app/public /var/lib/social-publish/uploads \
+    && chown -R appuser:root /opt/app /var/lib/social-publish \
+    && chmod -R g+rwX /opt/app /var/lib/social-publish
+WORKDIR /opt/app
+COPY --from=build --chown=appuser:root /app/backend/build/native/nativeCompile/social-publish /opt/app/social-publish
+COPY --from=build --chown=appuser:root /app/frontend/build/dist/js/productionExecutable/ /opt/app/public/
+COPY --chown=appuser:root scripts/cli-native /opt/app/cli
+RUN chmod +x /opt/app/cli
+USER appuser
+EXPOSE 3000
+ENV DB_PATH=/var/lib/social-publish/sqlite3.db \
+    UPLOADED_FILES_PATH=/var/lib/social-publish/uploads \
+    HTTP_PORT=3000 \
+    STATIC_CONTENT_PATH=/opt/app/public
+CMD ["/opt/app/social-publish", "start-server"]

@@ -6,6 +6,7 @@ plugins {
     kotlin("plugin.serialization")
     application
     id("org.jetbrains.kotlinx.kover")
+    id("org.graalvm.buildtools.native")
 }
 
 group = "socialpublish.backend"
@@ -29,6 +30,9 @@ dependencies {
 
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // Kotlinx Coroutines
+    implementation(libs.kotlinx.coroutines.core)
 
     // HikariCP for database connection pooling
     implementation(libs.hikaricp)
@@ -115,6 +119,11 @@ tasks.named("koverXmlReport") { mustRunAfter(tasks.withType<Test>()) }
 tasks.named("koverHtmlReport") { mustRunAfter(tasks.withType<Test>()) }
 
 application { mainClass.set("socialpublish.backend.MainKt") }
+
+graalvmNative {
+    agent { enabled.set(true) }
+    binaries.named("main") { imageName.set("social-publish") }
+}
 
 tasks {
     jar {

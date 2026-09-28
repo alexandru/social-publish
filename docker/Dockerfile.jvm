@@ -36,7 +36,7 @@ RUN gradle :frontend:assemble --no-daemon -x test
 ############################
 # JRE build stage
 ############################
-FROM eclipse-temurin:21-alpine AS jre-build
+FROM eclipse-temurin:25-alpine AS jre-build
 
 # Create a custom minimal Java runtime with only required modules
 RUN apk add --no-cache binutils
@@ -53,7 +53,7 @@ RUN $JAVA_HOME/bin/jlink \
         --strip-debug \
         --no-man-pages \
         --no-header-files \
-        --compress=2 \
+        --compress=zip-6 \
         --output /javaruntime
 
 ############################

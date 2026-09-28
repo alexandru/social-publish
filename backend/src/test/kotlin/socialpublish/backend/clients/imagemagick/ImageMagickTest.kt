@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.io.TempDir
+import socialpublish.backend.testutils.loadTestResourceBytes
 
 class ImageMagickTest {
     private lateinit var imageMagick: ImageMagick
@@ -18,7 +19,7 @@ class ImageMagickTest {
     private lateinit var testZuzi: File
 
     @BeforeEach
-    fun setup() {
+    fun setup(@TempDir tempDir: Path) {
         imageMagick = runBlocking {
             ImageMagick().getOrElse {
                 error(
@@ -28,21 +29,14 @@ class ImageMagickTest {
         }
 
         // Load test images from resources
-        testFlower1 =
-            File(
-                javaClass.classLoader.getResource("flower1.jpeg")?.toURI()
-                    ?: error("Test resource flower1.jpeg not found")
-            )
-        testFlower2 =
-            File(
-                javaClass.classLoader.getResource("flower2.jpeg")?.toURI()
-                    ?: error("Test resource flower2.jpeg not found")
-            )
-        testZuzi =
-            File(
-                javaClass.classLoader.getResource("zuzi.jpg")?.toURI()
-                    ?: error("Test resource zuzi.jpg not found")
-            )
+        fun loadImage(name: String) =
+            tempDir.resolve(name).toFile().apply {
+                writeBytes(loadTestResourceBytes(name))
+            }
+
+        testFlower1 = loadImage("flower1.jpeg")
+        testFlower2 = loadImage("flower2.jpeg")
+        testZuzi = loadImage("zuzi.jpg")
     }
 
     @Test

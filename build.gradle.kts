@@ -5,6 +5,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.54.0" apply false
     id("com.ncorti.ktfmt.gradle") version "0.27.0" apply false
     id("org.jetbrains.kotlinx.kover") version "0.9.9" apply false
+    id("org.graalvm.buildtools.native") version "1.1.14" apply false
 }
 
 allprojects {

@@ -2,10 +2,15 @@
 
 # Java execution wrapper with minimal RAM GC configuration
 # Uses Shenandoah GC for low memory footprint and memory release back to OS
+# Keep the minimum heap below the maximum so idle regions can be uncommitted.
 
 exec java \
+  --enable-native-access=ALL-UNNAMED \
+  -XX:ActiveProcessorCount=2 \
+  -XX:+UseCompactObjectHeaders \
   -XX:+UseShenandoahGC \
   -XX:+UnlockExperimentalVMOptions \
+  -XX:ShenandoahGCHeuristics=compact \
   -XX:ShenandoahUncommitDelay=1000 \
   -XX:ShenandoahGuaranteedGCInterval=10000 \
   "$@"
