@@ -20,8 +20,9 @@ COPY gradlew gradlew.bat gradle.properties settings.gradle.kts build.gradle.kts 
 COPY backend/build.gradle.kts ./backend/
 COPY frontend/build.gradle.kts ./frontend/
 
-# Resolve dependencies for both modules to leverage layer caching
-RUN gradle dependencies --no-daemon
+# Resolve and download dependencies for both modules, plus the Node.js
+# distribution used by the frontend build, to leverage layer caching
+RUN gradle :backend:resolveDependencies :frontend:resolveDependencies :frontend:kotlinNodeJsSetup --no-daemon
 
 ############################
 # Test Build stage

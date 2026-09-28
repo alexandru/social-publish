@@ -1,0 +1,2710 @@
+{
+  "reflection": [
+    {
+      "type": "android.os.Build"
+    },
+    {
+      "type": "android.os.Build$VERSION"
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplication"
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$2",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$2$invokeSuspend$$inlined$execute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$handleRequest$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$handleRequest$2",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationEngine$handleRequest$2$invokeSuspend$$inlined$execute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.TestApplicationResponse"
+    },
+    {
+      "type": "io.ktor.server.testing.client.DelegatingTestClientEngine$execute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "io.ktor.server.testing.client.InvalidTestRequestException"
+    },
+    {
+      "type": "io.ktor.server.testing.client.TestHttpClientEngine$execute$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlin.test.junit5.JUnit5Contributor"
+    },
+    {
+      "type": "kotlinx.coroutines.test.AtomicBoolean"
+    },
+    {
+      "type": "kotlinx.coroutines.test.TestBuildersKt__TestBuildersKt$runTest$2$1$workRunner$1",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "kotlinx.coroutines.test.TestCoroutineScheduler"
+    },
+    {
+      "type": "kotlinx.coroutines.test.internal.ExceptionCollectorAsService"
+    },
+    {
+      "type": "kotlinx.coroutines.test.internal.TestMainDispatcher$NonConcurrentlyModifiable"
+    },
+    {
+      "type": "kotlinx.coroutines.test.internal.TestMainDispatcherFactory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.CliCommandsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "change-password enables login for null-password user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "change-password updates password for existing user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "gen-bcrypt-hash with --password option should work",
+          "parameterTypes": []
+        },
+        {
+          "name": "gen-bcrypt-hash with --quiet should output only the hash",
+          "parameterTypes": []
+        },
+        {
+          "name": "main command should show help when no subcommand is given",
+          "parameterTypes": []
+        },
+        {
+          "name": "start-server should fail without required options",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.BlueskyApiTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "BlueskyBlobRef round-trips with default Json",
+          "parameterTypes": []
+        },
+        {
+          "name": "BlueskyBlobRef serialization includes dollar type blob with default Json",
+          "parameterTypes": []
+        },
+        {
+          "name": "createThread sets reply context for follow-up post",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with images and alt text",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with link preview",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post without images",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "shortens link text while preserving preview",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "shortens multiple links in text",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.CapturedLlmRequest"
+    },
+    {
+      "type": "socialpublish.backend.clients.LlmApiTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "generates alt text through OpenCode Go",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generates alt text using Mistral",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generates alt text using OpenAI",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "returns error for non-existent image",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.MastodonApiTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "createThread links follow-up status to previous status",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "uploads images with alt text and creates status",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.SocialMediaValidationTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "bluesky validation rejects more than 4 images per message",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "bluesky validation uses 300-char limit with links counted as 25",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "linkedin validation uses combined content and image limits",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "mastodon validation rejects more than 4 images per message",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "mastodon validation uses 500-char limit with links counted as 25",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "twitter validation rejects more than 4 images per message",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "twitter validation uses 280-char limit with links counted as 25",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.TwitterApiTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "cleans up HTML properly",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createThread links follow-up tweet to previous tweet",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "status route returns serializable response with authorization",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "status route returns serializable response without authorization",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "uploads media with alt text and creates tweet",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.imagemagick.ImageMagickTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "ImageMagick companion invoke should fail gracefully when magick not found",
+          "parameterTypes": []
+        },
+        {
+          "name": "ImageMagick companion invoke should find magick executable",
+          "parameterTypes": []
+        },
+        {
+          "name": "identifyImageSize should fail for non-existent file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "identifyImageSize should fail for non-image file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "identifyImageSize should return correct dimensions for JPEG image",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "identifyImageSize should work for second test image",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should create optimized JPEG file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should enforce maximum file size",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should fail when destination already exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should fail when size constraints cannot be met",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should fail when source does not exist",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should not resize image smaller than max dimensions",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should preserve aspect ratio",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should respect EXIF orientation and auto-rotate",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "optimizeImage should respect custom size constraints",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "setup",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInApiTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInOAuthError deserializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInOAuthError deserializes with minimal fields",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInOAuthToken isExpired returns false for fresh token",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInOAuthToken isExpired returns true for old token",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInRegisterUploadRequest serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInRegisterUploadResponse deserializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInTokenResponse deserializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInUserProfile deserializes with full URN",
+          "parameterTypes": []
+        },
+        {
+          "name": "LinkedInUserProfile deserializes with plain ID",
+          "parameterTypes": []
+        },
+        {
+          "name": "UgcPostRequest for article share serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "UgcPostRequest for image share serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "UgcPostRequest for text-only post serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "UgcPostRequest with multiple images serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "UgcVisibility with CONNECTIONS serializes correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildAuthorizeURL generates correct OAuth URL with state parameter",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createThread concatenates message blocks and uses last link for LinkedIn card preview",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with image and highlighted URL",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with images",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with link preview and downloads thumbnail as URN",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates post with multiple images across messages",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "creates text-only post",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "exchangeCodeForToken exchanges authorization code for token",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "exchangeCodeForToken handles invalid code error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getUserProfile retrieves person URN",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "hasLinkedInAuth returns false when no token exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "hasLinkedInAuth returns true when token exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "image upload handles registration failure",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "image upload registration returns asset URN",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "post creation handles API error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "refreshAccessToken handles expired refresh token error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "refreshAccessToken refreshes expired token",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "validateRequest accepts link-only and image-only messages",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "validateRequest filters empty message blocks when joining content",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "validateRequest rejects combined effective content over 2000 characters",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "validateRequest rejects more than four combined images across messages",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "validates message with no content, link, or images",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkedin.LinkedInArticleSerializationTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "article media serialization does not include asset media field",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkpreview.LinkPreviewParserTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "extracts Open Graph tags from HTML",
+          "parameterTypes": []
+        },
+        {
+          "name": "falls back to Twitter Cards when OG tags are missing",
+          "parameterTypes": []
+        },
+        {
+          "name": "falls back to standard HTML tags when meta tags are missing",
+          "parameterTypes": []
+        },
+        {
+          "name": "fetches YouTube video using oembed API for youtu be URL",
+          "parameterTypes": []
+        },
+        {
+          "name": "fetches YouTube video using oembed API for youtube com URL",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles Twitter image src variant",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles absolute image URLs by keeping them unchanged",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles malformed base URL by returning preview without image",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles path-relative image URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles protocol-relative image URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles relative image URLs by resolving them to absolute URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "prioritizes Open Graph over Twitter Cards",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null when YouTube oembed API returns error",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null when YouTube oembed API returns invalid JSON",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null when no usable metadata found",
+          "parameterTypes": []
+        },
+        {
+          "name": "uses fallback URL when no URL in metadata",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkpreview.UrlUtilsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles base URL with fragment",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles base URL with path and query parameters",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles empty image URL",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles fragments in image URL",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles malformed base URL gracefully",
+          "parameterTypes": []
+        },
+        {
+          "name": "handles query parameters in image URL",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves URLs with special characters",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves absolute HTTP URLs unchanged",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves absolute HTTPS URLs unchanged",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves complex path-relative URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves path-relative URLs from directory",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves path-relative URLs from file",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves path-relative URLs from root",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves path-relative URLs with parent directory navigation",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves path-relative URLs with subdirectories",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves protocol-relative URLs with HTTP base",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves protocol-relative URLs with HTTPS base",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves root-relative URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves root-relative URLs with port",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves root-relative URLs with standard HTTP port",
+          "parameterTypes": []
+        },
+        {
+          "name": "resolves root-relative URLs with standard HTTPS port",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.linkpreview.YouTubeOEmbedTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "detects youtu be URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "detects youtube com URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "parses YouTube oembed response with author as description",
+          "parameterTypes": []
+        },
+        {
+          "name": "parses valid YouTube oembed response",
+          "parameterTypes": []
+        },
+        {
+          "name": "rejects non-YouTube URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null for empty response",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null for incomplete oembed response",
+          "parameterTypes": []
+        },
+        {
+          "name": "returns null for invalid JSON",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.llm.OpenCodeGoTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "accepts OpenCode Go endpoints",
+          "parameterTypes": []
+        },
+        {
+          "name": "rejects non-OpenCode Go endpoints",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.clients.twitter.TwitterOAuthDocumentSerializationTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "parse reads new wrapper format with access token",
+          "parameterTypes": []
+        },
+        {
+          "name": "parse reads new wrapper format with pending request",
+          "parameterTypes": []
+        },
+        {
+          "name": "parse reads old bare token format",
+          "parameterTypes": []
+        },
+        {
+          "name": "parse returns error for invalid payload",
+          "parameterTypes": []
+        },
+        {
+          "name": "serialized document round trips through parser",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.ErrorSerializationTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "CaughtException should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "CompositeError should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "CompositeErrorResponse with error should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "CompositeErrorResponse with success should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "RequestError should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "ValidationError should serialize correctly",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.FileUtilsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "UploadSource from source creates and cleans temp file",
+          "parameterTypes": []
+        },
+        {
+          "name": "calculateHash matches SHA-256 output",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "createTempFileName returns a non-existing file",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "createTempFileResource accepts sanitized suffix",
+          "parameterTypes": []
+        },
+        {
+          "name": "createTempFileResource cleans up after scope",
+          "parameterTypes": []
+        },
+        {
+          "name": "deleteWithBackup restores original on failure",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "forEachChunk reads source incrementally",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPathWithinBase should allow files in base directory",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "isPathWithinBase should allow files in subdirectories",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "isPathWithinBase should handle base directory itself",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "isPathWithinBase should prevent base path prefix confusion",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "isPathWithinBase should reject files outside base directory",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "isPathWithinBase should reject path traversal attempts",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        },
+        {
+          "name": "sanitizeFilename should generate UUID for completely invalid names",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should generate UUID for empty input",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should handle normal filenames",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should limit length to 255 characters",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should normalize Unicode characters",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should prevent header injection",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should remove leading invalid characters",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should remove path separators",
+          "parameterTypes": []
+        },
+        {
+          "name": "sanitizeFilename should replace special characters with underscores",
+          "parameterTypes": []
+        },
+        {
+          "name": "saveToFile writes source bytes",
+          "parameterTypes": [
+            "java.io.File"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.LoggingTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "class logger factory normalizes Kotlin top-level file classes",
+          "parameterTypes": []
+        },
+        {
+          "name": "no-arg logger factory uses enclosing class when called in a class",
+          "parameterTypes": []
+        },
+        {
+          "name": "no-arg logger factory uses top-level source file class",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.LoggingTestKt"
+    },
+    {
+      "type": "socialpublish.backend.common.NewPostRequestMessageTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildPostText joins content and link with two newlines",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildPostText returns content only when link is null",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildPostText returns empty string when content and link are blank",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildPostText returns link only when content is blank",
+          "parameterTypes": []
+        },
+        {
+          "name": "buildPostText trims a leading newline in the content",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is false when content is blank and link is null",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is false when everything is blank or empty",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is false when images list contains only blank strings",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is true when at least one image is present",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is true when content is non-blank",
+          "parameterTypes": []
+        },
+        {
+          "name": "isPublishable is true when link is non-blank and content is blank",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.PostsSerializationTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "Map with multiple responses should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "Map with single feed response should serialize correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "NewBlueSkyPostResponse should serialize without type discriminator",
+          "parameterTypes": []
+        },
+        {
+          "name": "NewFeedPostResponse should serialize without type discriminator",
+          "parameterTypes": []
+        },
+        {
+          "name": "NewMastodonPostResponse should serialize without type discriminator",
+          "parameterTypes": []
+        },
+        {
+          "name": "NewTwitterPostResponse should serialize without type discriminator",
+          "parameterTypes": []
+        },
+        {
+          "name": "Polymorphic serialization should work with NewPostResponse base class",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.common.UrlsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "ParsedUrl isLocal should be false for other hosts and detect IPv6 loopback as local",
+          "parameterTypes": []
+        },
+        {
+          "name": "ParsedUrl isLocal should detect localhost and 127_0_0_1",
+          "parameterTypes": []
+        },
+        {
+          "name": "parseUrl should parse full URL with scheme and host",
+          "parameterTypes": []
+        },
+        {
+          "name": "parseUrl should return null for input that looks like scheme_host",
+          "parameterTypes": []
+        },
+        {
+          "name": "parseUrl should return null for invalid URLs",
+          "parameterTypes": []
+        },
+        {
+          "name": "parseUrl should return null when URI has no host (file scheme)",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.DatabaseMigrationsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "database migrations create required tables",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migration 5 creates admin user on fresh database",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migration 5 does not create admin user when users already exist",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migration 6 adds settings column to users table",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migration 7 adds user_uuid columns to documents and uploads",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migration 9 converts existing user sessions schema",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "migrations apply when users password_hash is NOT NULL from production",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "user sessions schema stores revocation time and no refresh token",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "users password_hash column is nullable",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.DatabaseMigrationsTestKt"
+    },
+    {
+      "type": "socialpublish.backend.db.DatabaseUtilitiesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "Database clock is accessible",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "SafeConnection query executes within existing transaction",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "connection is properly acquired and released",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "firstOrNull returns first row when exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "firstOrNull returns null when no rows",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "multiple transactions can be executed sequentially",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "query executes and returns results",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "toList maps all rows correctly",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "toList returns empty list for no results",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "transaction commits on success",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "transaction rolls back on exception",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "transaction rolls back on raised database error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "transactionForUpdates detects unique constraint violations",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "transactionForUpdates returns Right on success",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.DocumentsDatabaseTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "createOrUpdate should create new document",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createOrUpdate should generate searchKey if not provided",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createOrUpdate should update existing document by searchKey",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getAll should retrieve all documents of a kind",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getAll should return documents in CREATED_AT_DESC order",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getAll should return empty list for non-existent kind",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "searchByKey should find document by searchKey",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "searchByKey should only return document for the requested user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "searchByKey should return null for non-existent key",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "searchByUuid should find document by UUID",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "searchByUuid should return null for non-existent UUID",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "tags should be persisted and retrieved correctly",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updating document should replace tags",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.FilesDatabaseTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "createFile UUID should be deterministic based on payload",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createFile UUID should differ for different payloads",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createFile should create new file record",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createFile should handle null optional fields",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createFile should not deduplicate uploads across users",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createFile should return existing file if already exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generateUuidV5 should be deterministic",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateUuidV5 should produce different UUIDs for different inputs",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateUuidV5 should produce valid UUID v5",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateUuidV5 should support custom namespace",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFileByUuid should retrieve file by UUID",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFileByUuid should return null for non-existent UUID",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFileByUuidForUser should not return another users upload",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.PostsDatabaseTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "test create and retrieve post",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.UUIDv7SerializerTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "deserializes UUIDv7 from string",
+          "parameterTypes": []
+        },
+        {
+          "name": "generate returns UUIDv7",
+          "parameterTypes": []
+        },
+        {
+          "name": "serializes UUIDv7 as string",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.UUIDv7SerializerTest$TestPayload"
+    },
+    {
+      "type": "socialpublish.backend.db.UUIDv7SerializerTest$TestPayload$$serializer"
+    },
+    {
+      "type": "socialpublish.backend.db.UUIDv7SerializerTest$TestPayload$Companion"
+    },
+    {
+      "type": "socialpublish.backend.db.UserSessionsDatabaseTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "authorize returns UserSession for valid raw token",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "authorize returns null for expired session and deletes it",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "authorize returns null for invalid raw token",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "authorize returns null for revoked session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createSession should create new session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createSession should return Duplicate for duplicate token hash",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "deleteExpiredSessions should delete only expired sessions",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "deleteSession should delete existing session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "deleteSession should return false for non-existent session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "findSessionByTokenHash should find existing session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "findSessionByTokenHash should return null for non-existent session",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "login returns CreatedUserSession for valid credentials",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "login returns null for incorrect password",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "login returns null for non-existent user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "logout is idempotent - second call returns false",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "multiple sessions for same user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "token hash storage - raw token is not stored in database",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.db.UsersDatabaseTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "CreateResult toNullable should work correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "createUser should create new user with hashed password",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createUser should return Duplicate for duplicate username",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "findByUsername should find existing user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "findByUsername should return null for non-existent user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updatePassword should invalidate sessions only for changed user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateUsername should return UserNotFound for non-existent user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateUsername should return UsernameAlreadyExists when new username exists",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateUsername should succeed when current and new usernames are the same",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateUsername should update username successfully",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "verifyPassword should return User for correct password",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "verifyPassword should return null for incorrect password",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "verifyPassword should return null for non-existent user",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.AuthModuleTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "AuthService authorize returns UserSession for valid token",
+          "parameterTypes": []
+        },
+        {
+          "name": "AuthService authorize returns unauthorized for invalid token",
+          "parameterTypes": []
+        },
+        {
+          "name": "AuthService login returns CreatedUserSession for valid credentials",
+          "parameterTypes": []
+        },
+        {
+          "name": "AuthService login returns null for invalid credentials",
+          "parameterTypes": []
+        },
+        {
+          "name": "hashPassword should generate valid BCrypt hash",
+          "parameterTypes": []
+        },
+        {
+          "name": "hashPassword with different rounds should produce different hashes",
+          "parameterTypes": []
+        },
+        {
+          "name": "verifyPassword should handle trimmed stored passwords",
+          "parameterTypes": []
+        },
+        {
+          "name": "verifyPassword should return false for empty password",
+          "parameterTypes": []
+        },
+        {
+          "name": "verifyPassword should return false for incorrect password",
+          "parameterTypes": []
+        },
+        {
+          "name": "verifyPassword should return false for malformed hash",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.EndpointSecurityTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "different sessions should have different tokens",
+          "parameterTypes": []
+        },
+        {
+          "name": "expired session should be rejected",
+          "parameterTypes": []
+        },
+        {
+          "name": "logout invalidates session token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected POST endpoint should accept requests with valid token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected POST endpoint should reject requests without authentication",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected endpoint should accept requests with valid session token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected endpoint should accept requests with valid token via cookie",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected endpoint should reject requests with invalid token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected endpoint should reject requests with token via query parameter",
+          "parameterTypes": []
+        },
+        {
+          "name": "protected endpoint should reject requests without token",
+          "parameterTypes": []
+        },
+        {
+          "name": "session token should contain user info via protected route",
+          "parameterTypes": []
+        },
+        {
+          "name": "tampered token should be rejected",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.EndpointSecurityTest$TestContext"
+    },
+    {
+      "type": "socialpublish.backend.modules.FeedModuleTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost accepts empty content when a link is provided",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost accepts empty content when an image is provided",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost counts emoji as single code points toward the limit",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost creates valid feed post with tags",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost extracts hashtags correctly",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost keeps HTML content as-is",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost stores images reference",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost with content too long returns validation error",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPost with empty content returns validation error",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPosts returns typed error when database is unavailable",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generateFeed filters by links when filterByLinks is exclude",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed filters by links when filterByLinks is include",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed filters by target",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed includes thr in-reply-to for threaded messages",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed item link for local posts includes user UUID",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed keeps latest thread message before root",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed keeps newest posts first",
+          "parameterTypes": []
+        },
+        {
+          "name": "generateFeed produces valid Atom feed",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFeedItemByUuid returns null when not found",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFeedItemByUuid returns post when found",
+          "parameterTypes": []
+        },
+        {
+          "name": "setup",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.FilesModuleTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "getFile returns not found for unknown uuid",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFile returns stored file metadata",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "readImageFile returns null for another users upload",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateAltText cannot update another users upload",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "updateAltText updates metadata without re-uploading file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "uploadFile rejects unsupported content",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "uploads images and stores originals",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.modules.PublishModuleTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "PublishModule can be instantiated",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost accepts linkedin with more than two messages",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost feed validation failure prevents publishing",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost maps upstream RequestError status to 502 Bad Gateway",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "broadcastPost normalizes target names to lowercase",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost to feed only returns success",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost to multiple targets with mixed results returns composite error",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost to unconfigured platform returns error",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost validation failure prevents feed persistence",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost with empty targets returns validation error",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost with multiple unconfigured platforms",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPost with null targets returns validation error",
+          "parameterTypes": []
+        },
+        {
+          "name": "setup",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.CacheHeadersTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "missing static file returns not found",
+          "parameterTypes": []
+        },
+        {
+          "name": "test cache headers for hashed JS file",
+          "parameterTypes": []
+        },
+        {
+          "name": "test cache headers for hashed woff2 file",
+          "parameterTypes": []
+        },
+        {
+          "name": "test cache headers for image files",
+          "parameterTypes": []
+        },
+        {
+          "name": "test cache headers for index html",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.PingEndpointTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "GET ping should return pong",
+          "parameterTypes": []
+        },
+        {
+          "name": "HEAD ping should return 200 OK without body",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.ServerUtilsTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "userSettings returns empty settings when session user has no settings",
+          "parameterTypes": []
+        },
+        {
+          "name": "userSettings returns session user settings",
+          "parameterTypes": []
+        },
+        {
+          "name": "userUuid returns session user uuid",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.AuthRoutesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "extractAccessToken should extract token from Authorization Bearer header",
+          "parameterTypes": []
+        },
+        {
+          "name": "extractAccessToken should extract token from access_token cookie",
+          "parameterTypes": []
+        },
+        {
+          "name": "extractAccessToken should not extract token from access_token query parameter",
+          "parameterTypes": []
+        },
+        {
+          "name": "extractAccessToken should return null for malformed Authorization header",
+          "parameterTypes": []
+        },
+        {
+          "name": "extractAccessToken should return null when no token present",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject form-urlencoded with missing password",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject form-urlencoded with missing username",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject malformed JSON",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject unsupported content type",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject users with disabled password",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject wrong password",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should reject wrong username",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should return auth status with both providers false when no oauth",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should return linkedin auth status",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should return twitter auth status",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should work with correct password",
+          "parameterTypes": []
+        },
+        {
+          "name": "login should work with form-urlencoded data",
+          "parameterTypes": []
+        },
+        {
+          "name": "logout should succeed with valid token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should accept valid Bearer token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should accept valid token via access_token cookie",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should reject invalid Bearer token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should reject request without Bearer token",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should reject token for deleted user",
+          "parameterTypes": []
+        },
+        {
+          "name": "protectedRoute should reject valid token via access_token query parameter",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.AuthRoutesTest$TestContext"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FeedPostResponse"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FeedPostResponse$$serializer"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FeedPostResponse$Companion"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FeedRoutesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "createPostRoute accepts JSON request",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createPostRoute accepts link-only post",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "createPostRoute validates empty content without link or image",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generateFeedRoute returns Atom feed",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generateFeedRoute with filterByLinks parameter",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "generateFeedRoute with target parameter",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFeedItem returns bad request when UUID is missing",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFeedItem returns not found for invalid UUID",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "getFeedItem returns post when found",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FeedRoutesTestKt"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.FilesRoutesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "fails when file part name is incorrect",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "get route returns not found for unknown uuid",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "get route returns stored file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "patch route returns bad request for malformed body",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "patch route updates alt text for uploaded file",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "upload route processes file uploads",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LinkedInRoutesAuthorizeTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "authorize generates unique state each call",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "authorize succeeds and sets OAuth state cookie",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.LinkedInRoutesCallbackTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "callback with mismatched state redirects with verification error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "callback with missing state redirects with error and clears state cookie",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.MergeSettingsPatchTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some bluesky with blank required fields removes section",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some bluesky with blank service defaults to official host",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some llm with undefined model defaults to empty string",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some null removes section",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some with absent sensitive field keeps existing credential",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Some with new credential updates it",
+          "parameterTypes": []
+        },
+        {
+          "name": "Patched Undefined keeps existing section",
+          "parameterTypes": []
+        },
+        {
+          "name": "toView masks all sensitive values",
+          "parameterTypes": []
+        },
+        {
+          "name": "toView returns empty sections for null settings",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.PublishRoutesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "broadcastPostRoute accepts JSON request",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "broadcastPostRoute returns 502 Bad Gateway when upstream returns 401",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "broadcastPostRoute returns composite error with details",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "broadcastPostRoute returns error for unconfigured platform",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.SettingsRoutesTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "GET settings returns 401 without auth token",
+          "parameterTypes": []
+        },
+        {
+          "name": "GET settings returns empty view when none are stored",
+          "parameterTypes": []
+        },
+        {
+          "name": "PATCH absent sensitive field keeps existing value",
+          "parameterTypes": []
+        },
+        {
+          "name": "PATCH null section removes that section",
+          "parameterTypes": []
+        },
+        {
+          "name": "PATCH settings persists and GET returns masked view",
+          "parameterTypes": []
+        },
+        {
+          "name": "PATCH settings rejects masked sentinel in sensitive fields",
+          "parameterTypes": []
+        },
+        {
+          "name": "PATCH settings returns 400 for invalid JSON",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.SettingsRoutesTest$AuthContext"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TokenResponse",
+      "fields": [
+        {
+          "name": "Companion"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TokenResponse$$serializer"
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TokenResponse$Companion",
+      "methods": [
+        {
+          "name": "serializer",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterRoutesAuthorizeTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "authorize stores pending request token and returns redirect",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "authorize with request token error redirects to account with error message",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterRoutesAuthorizeTest$authorize stores pending request token and returns redirect$1$1$1$2",
+      "fields": [
+        {
+          "name": "label"
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterRoutesCallbackTest",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "callback exchanges stored pending request and clears it",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "callback with missing params redirects with error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        },
+        {
+          "name": "callback without pending request redirects with error",
+          "parameterTypes": [
+            "java.nio.file.Path"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "socialpublish.backend.server.routes.TwitterRoutesCallbackTest$TwitterRouteTestContext"
+    },
+    {
+      "type": "socialpublish.backend.testutils.ImageDimensions"
+    },
+    {
+      "type": "socialpublish.backend.testutils.MultipartFile"
+    },
+    {
+      "type": "socialpublish.backend.testutils.MultipartRequest"
+    },
+    {
+      "type": "socialpublish.backend.testutils.TestUploadHelpersKt"
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/services/org.junit.platform.engine.TestEngine"
+    },
+    {
+      "glob": "META-INF/services/org.junit.platform.launcher.LauncherDiscoveryListener"
+    },
+    {
+      "glob": "META-INF/services/org.junit.platform.launcher.LauncherSessionListener"
+    },
+    {
+      "glob": "META-INF/services/org.junit.platform.launcher.PostDiscoveryFilter"
+    },
+    {
+      "glob": "META-INF/services/org.junit.platform.launcher.TestExecutionListener"
+    },
+    {
+      "glob": "flower1.jpeg"
+    },
+    {
+      "glob": "flower2.jpeg"
+    },
+    {
+      "glob": "junit-platform.properties"
+    },
+    {
+      "glob": "kotlinx/coroutines/test/TestDispatchEvent.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/test/internal/TestMainDispatcher$NonConcurrentlyModifiable.class"
+    },
+    {
+      "glob": "kotlinx/coroutines/test/internal/TestMainDispatcher.class"
+    },
+    {
+      "glob": "logback-test.xml"
+    },
+    {
+      "glob": "org/junit/jupiter/api/extension/InvocationInterceptor$Invocation.class"
+    },
+    {
+      "glob": "org/junit/jupiter/api/io/CleanupMode.class"
+    },
+    {
+      "glob": "org/junit/jupiter/engine/execution/InvocationInterceptorChain$InterceptedInvocation.class"
+    },
+    {
+      "glob": "org/junit/platform/launcher/Launcher.class"
+    },
+    {
+      "glob": "org/junit/platform/launcher/core/DelegatingLauncher.class"
+    },
+    {
+      "glob": "org/junit/platform/launcher/core/InterceptingLauncher.class"
+    },
+    {
+      "glob": "zuzi.jpg"
+    }
+  ]
+}

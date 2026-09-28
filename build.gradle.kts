@@ -5,6 +5,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.54.0" apply false
     id("com.ncorti.ktfmt.gradle") version "0.27.0" apply false
     id("org.jetbrains.kotlinx.kover") version "0.9.9" apply false
+    id("org.graalvm.buildtools.native") version "1.1.14" apply false
 }
 
 allprojects {
@@ -23,6 +24,19 @@ subprojects {
         maxWidth = 80
         // Enable automatic removal of unused imports during formatting
         removeUnusedImports.set(true)
+    }
+
+    // Downloads every dependency into the Gradle cache without compiling.
+    // Docker images run this in a dedicated layer so dependency downloads
+    // stay cached when only sources change between image builds.
+    tasks.register("resolveDependencies") {
+        description =
+            "Resolves and downloads all dependencies of this project into the Gradle cache."
+        doLast {
+            configurations
+                .filter { it.isCanBeResolved }
+                .forEach { it.incoming.files.files }
+        }
     }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>> {
