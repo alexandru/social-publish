@@ -8,7 +8,7 @@ on:
 
 jobs:
   node-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
 
@@ -64,3 +64,40 @@ jobs:
           name: coverage-report
           path: backend/build/reports/kover/html/
           retention-days: 30
+
+  # Builds the test suite as a native image and runs it — catches
+  # native-specific failures (reflection config, resources, JNI) that
+  # JVM tests cannot see. Runs in parallel with the JVM test job.
+  native-test:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # Mirrors the production native Docker build: Gradle and the
+      # jvmToolchain(21) run on Temurin, while native-image comes from
+      # GRAALVM_HOME (GraalVM Community for JDK 25).
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'graalvm-community'
+          java-version: '25'
+          set-java-home: 'false'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run native tests
+        run: ./gradlew :backend:nativeTest --no-daemon
