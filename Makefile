@@ -40,6 +40,12 @@ test:
 native-test:
 	./gradlew :backend:nativeTest
 
+# Regenerate native-image reachability metadata: runs the test suite with
+# the GraalVM tracing agent (requires a GraalVM install); output lands in
+# backend/build/native/agent-output
+generate-native-metadata:
+	./gradlew test -PnativeAgent=true
+
 dependency-updates:
 	./gradlew dependencyUpdates \
 		-Drevision=release \
