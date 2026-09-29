@@ -117,6 +117,40 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `protected route should return the user response`() {
+        testApplication {
+            val ctx = testSetup()
+
+            application {
+                install(ContentNegotiation) { json(serverJson()) }
+                routing {
+                    get("/api/protected") {
+                        authorizedEndpoint(call, ctx) {
+                            ctx.authRoute.protectedRoute(call)
+                        }
+                    }
+                }
+            }
+
+            val token = loginAndGetToken(ctx)
+            val response =
+                client.get("/api/protected") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+
+            val json = Json { ignoreUnknownKeys = true }
+            val body =
+                json.decodeFromString(
+                    UserResponse.serializer(),
+                    response.bodyAsText(),
+                )
+            assertEquals("testuser", body.username)
+        }
+    }
+
+    @Test
     fun `login should reject wrong password`() {
         testApplication {
             val ctx = testSetup()
