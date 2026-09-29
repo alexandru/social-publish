@@ -1,6 +1,7 @@
 package socialpublish.backend.server
 
 import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.common.CompositeErrorWithDetails
