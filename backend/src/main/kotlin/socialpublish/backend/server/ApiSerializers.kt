@@ -5,9 +5,14 @@ import socialpublish.backend.clients.llm.GenerateAltTextRequest
 import socialpublish.backend.clients.llm.GenerateAltTextResponse
 import socialpublish.backend.common.CompositeErrorWithDetails
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewBlueSkyPostResponse
+import socialpublish.backend.common.NewFeedPostResponse
+import socialpublish.backend.common.NewLinkedInPostResponse
+import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
 import socialpublish.backend.common.NewPostResponseSerializer
+import socialpublish.backend.common.NewTwitterPostResponse
 import socialpublish.backend.db.Post
 import socialpublish.backend.modules.FileAltTextPatch
 import socialpublish.backend.modules.FileUploadResponse
@@ -59,4 +64,28 @@ val apiSerializersModule: SerializersModule = SerializersModule {
         LinkedInStatusResponse::class,
         LinkedInStatusResponse.serializer(),
     )
+
+    // Runtime subtype lookup for embedded NewPostResponse values (see
+    // NewPostResponseSerializer.serialize): without these registrations
+    // the lookup falls back to reflection, which the native image cannot
+    // do for the Twitter and LinkedIn subtypes.
+    polymorphic(NewPostResponse::class) {
+        subclass(
+            NewBlueSkyPostResponse::class,
+            NewBlueSkyPostResponse.serializer(),
+        )
+        subclass(
+            NewMastodonPostResponse::class,
+            NewMastodonPostResponse.serializer(),
+        )
+        subclass(NewFeedPostResponse::class, NewFeedPostResponse.serializer())
+        subclass(
+            NewTwitterPostResponse::class,
+            NewTwitterPostResponse.serializer(),
+        )
+        subclass(
+            NewLinkedInPostResponse::class,
+            NewLinkedInPostResponse.serializer(),
+        )
+    }
 }

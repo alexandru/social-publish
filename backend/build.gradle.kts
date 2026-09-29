@@ -134,6 +134,13 @@ graalvmNative {
         )
     }
     binaries.named("main") { imageName.set("social-publish") }
+    // scribejava (Twitter OAuth 1.0a) uses java.net.URL, and native-image
+    // disables the http/https protocol handlers unless enabled; newer
+    // GraalVM releases enable them by default, but older ones like 25.0.2
+    // (as resolved on CI) do not
+    binaries.configureEach {
+        buildArgs.add("--enable-url-protocols=http,https")
+    }
 }
 
 tasks {

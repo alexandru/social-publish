@@ -2,6 +2,7 @@ package socialpublish.backend.server
 
 import kotlin.reflect.KType
 import kotlin.reflect.typeOf
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -29,8 +30,14 @@ import socialpublish.backend.clients.twitter.TwitterMediaResponse
 import socialpublish.backend.clients.twitter.TwitterPostResponse
 import socialpublish.backend.common.CompositeErrorWithDetails
 import socialpublish.backend.common.ErrorResponse
+import socialpublish.backend.common.NewBlueSkyPostResponse
+import socialpublish.backend.common.NewFeedPostResponse
+import socialpublish.backend.common.NewLinkedInPostResponse
+import socialpublish.backend.common.NewMastodonPostResponse
 import socialpublish.backend.common.NewPostRequest
 import socialpublish.backend.common.NewPostResponse
+import socialpublish.backend.common.NewPostResponseSerializer
+import socialpublish.backend.common.NewTwitterPostResponse
 import socialpublish.backend.db.Post
 import socialpublish.backend.modules.FileAltTextPatch
 import socialpublish.backend.modules.FileUploadResponse
@@ -115,6 +122,34 @@ class ServerJsonTest {
     fun `client serializers resolve through runtime lookup`() {
         clientTypes.forEach { type ->
             assertResolves(type) { serializer(type) }
+        }
+    }
+
+    /**
+     * CompositeErrorResponse embeds NewPostResponse values, and
+     * JsonContentPolymorphicSerializer.serialize resolves the concrete
+     * subtype's serializer at runtime — module polymorphic registrations first,
+     * reflection as fallback, which native images can't do for
+     * NewLinkedInPostResponse/NewTwitterPostResponse.
+     */
+    @Test
+    fun `every post-response subtype serializes through the polymorphic serializer`() {
+        val json = serverJson()
+        val responses =
+            listOf(
+                NewBlueSkyPostResponse(uri = "at://did/plc/r/1"),
+                NewMastodonPostResponse(uri = "https://mastodon.social/s/1"),
+                NewFeedPostResponse(uri = "/feed/post/1"),
+                NewTwitterPostResponse(id = "170123"),
+                NewLinkedInPostResponse(postId = "urn:li:share:1"),
+            )
+        responses.forEach { response ->
+            val encoded =
+                json.encodeToString(NewPostResponseSerializer, response)
+            val decoded =
+                json.decodeFromString(NewPostResponseSerializer, encoded)
+            assertEquals(response.javaClass.name, decoded.javaClass.name)
+            assertEquals(response.module, decoded.module)
         }
     }
 
